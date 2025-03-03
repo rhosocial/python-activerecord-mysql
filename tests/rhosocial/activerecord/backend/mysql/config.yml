@@ -1,0 +1,11 @@
+databases:
+  mysql:
+    versions:
+      -
+        label: mysql92
+        version: [ 9, 2, 0 ]
+        host: localhost
+        port: 3306
+        database: test_db
+        username: root
+        password: password
