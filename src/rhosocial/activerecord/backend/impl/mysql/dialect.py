@@ -289,6 +289,19 @@ class DriverType(Enum):
     MYSQLCLIENT = "mysqlclient"
     MYSQL_PYTHON = "mysql-python"  # Legacy
 
+# Version boundary constants
+MYSQL_5_6_5 = (5, 6, 5)   # JSON format introduced
+MYSQL_5_7_0 = (5, 7, 0)   # EXTENDED/PARTITIONS deprecated, FOR CONNECTION added
+MYSQL_8_0_0 = (8, 0, 0)   # MySQL 8 base version
+MYSQL_8_0_13 = (8, 0, 13) # ANALYZE supported but only with TREE format
+MYSQL_8_0_16 = (8, 0, 16) # TREE format introduced
+MYSQL_8_0_18 = (8, 0, 18) # Full ANALYZE support
+MYSQL_8_3_0 = (8, 3, 0)   # JSON format version 2 support
+
+def _is_version_at_least(current_version, required_version):
+    """Check if current version is at least the required version"""
+    return current_version >= required_version
+
 class MySQLDialect(SQLDialectBase):
     """MySQL dialect implementation"""
 
@@ -401,37 +414,22 @@ class MySQLDialect(SQLDialectBase):
             options = ExplainOptions()
 
         # Get version components for feature detection
-        major, minor, patch = self._version
+        current_version = self._version
 
         # Start with basic EXPLAIN
         parts = ["EXPLAIN"]
 
-        # MySQL 5.6+ supports EXTENDED
-        if major >= 5 and minor >= 6:
-            if options.verbose:
-                parts[0] = "EXPLAIN EXTENDED"
-
-        # MySQL 5.7+ supports PARTITIONS
-        if major >= 5 and minor >= 7:
-            if getattr(options, 'partitions', False):
-                parts[0] = "EXPLAIN PARTITIONS"
-
-        # MySQL 8.0.18+ supports ANALYZE
-        analyze_supported = (major > 8 or (major == 8 and (minor > 0 or (minor == 0 and patch >= 18))))
-
-        # MySQL 8.0.13+ supports ANALYZE but only with TREE format
-        analyze_supported_tree_only = (
-                not analyze_supported and
-                major == 8 and minor == 0 and patch >= 13 and patch < 18
-        )
-
-        # Handle ANALYZE option (only supported in MySQL 8.0.13+)
+        # Handle ANALYZE option
         if options.type == ExplainType.ANALYZE:
-            if analyze_supported or analyze_supported_tree_only:
+            if _is_version_at_least(current_version, MYSQL_8_0_18):
+                # 8.0.18+ fully supports ANALYZE
+                parts.append("ANALYZE")
+            elif _is_version_at_least(current_version, MYSQL_8_0_13):
+                # 8.0.13-8.0.17 only supports ANALYZE with TREE format
                 parts.append("ANALYZE")
 
-                # MySQL 8.0.13-8.0.17 requires TREE format for ANALYZE
-                if analyze_supported_tree_only and options.format != ExplainFormat.TREE:
+                # Check if TREE format is needed but not requested
+                if options.format != ExplainFormat.TREE:
                     if options.format == ExplainFormat.JSON:
                         # If JSON format was requested but TREE is required, raise an error
                         raise ValueError(
@@ -441,44 +439,72 @@ class MySQLDialect(SQLDialectBase):
                     options.format = ExplainFormat.TREE
             else:
                 # Not supported in this version
+                major, minor, patch = current_version
                 raise ValueError(
                     f"EXPLAIN ANALYZE requires MySQL 8.0.13+. Current version: {major}.{minor}.{patch}"
                 )
 
-        # MySQL 5.7+ supports JSON format
-        json_supported = major >= 5 and minor >= 7
+        # Handle verbose (EXTENDED) option - deprecated in 5.7+
+        if options.verbose:
+            if _is_version_at_least(current_version, MYSQL_5_7_0):
+                # In 5.7+, EXTENDED is deprecated but information is included by default
+                # No need to add anything, just add a warning comment
+                parts.append("/* Note: EXTENDED option is deprecated in MySQL 5.7+ */")
+            elif _is_version_at_least(current_version, (5, 6, 0)):
+                # In 5.6.x, EXTENDED is still a valid keyword
+                parts[0] = "EXPLAIN EXTENDED"
 
-        # MySQL 8.0+ supports TREE format
-        tree_supported = major >= 8
+        # Handle PARTITIONS option - deprecated in 5.7+
+        if getattr(options, 'partitions', False):
+            if _is_version_at_least(current_version, MYSQL_5_7_0):
+                # In 5.7+, PARTITIONS is deprecated but information is included by default
+                # No need to add anything, just add a warning comment
+                parts.append("/* Note: PARTITIONS option is deprecated in MySQL 5.7+ */")
+            elif _is_version_at_least(current_version, (5, 1, 0)):
+                # In 5.1.x-5.6.x, PARTITIONS is a valid keyword
+                parts[0] = "EXPLAIN PARTITIONS"
 
         # Handle FORMAT option
         if options.format != ExplainFormat.TEXT:
-            if options.format == ExplainFormat.JSON and json_supported:
-                # MySQL 8.3+ supports JSON format version 2
-                if major >= 8 and minor >= 3:
-                    json_version = getattr(options, 'json_version', 1)
-                    if json_version == 2:
-                        # Need to set system variable separately before executing this query
-                        # Note: We can't do that here directly, but we indicate it in a comment
-                        parts.append("/* SET explain_json_format_version = 2 before executing this */")
+            if options.format == ExplainFormat.JSON:
+                if _is_version_at_least(current_version, MYSQL_5_6_5):
+                    # Handle JSON format version 2 in MySQL 8.3+
+                    if _is_version_at_least(current_version, MYSQL_8_3_0):
+                        json_version = getattr(options, 'json_version', 1)
+                        if json_version == 2:
+                            # Need to set system variable separately
+                            parts.append("/* SET explain_json_format_version = 2 before executing this */")
 
-                parts.append(f"FORMAT=JSON")
-            elif options.format == ExplainFormat.TREE and tree_supported:
-                parts.append(f"FORMAT=TREE")
+                    parts.append("FORMAT=JSON")
+                else:
+                    major, minor, patch = current_version
+                    raise ValueError(f"JSON format requires MySQL 5.6.5+. Current version: {major}.{minor}.{patch}")
+
+            elif options.format == ExplainFormat.TREE:
+                if _is_version_at_least(current_version, MYSQL_8_0_16):
+                    parts.append("FORMAT=TREE")
+                else:
+                    major, minor, patch = current_version
+                    raise ValueError(f"TREE format requires MySQL 8.0.16+. Current version: {major}.{minor}.{patch}")
+
             else:
-                supported_formats = []
-                if json_supported:
+                # Unsupported format
+                major, minor, patch = current_version
+                supported_formats = ["TEXT"]
+
+                if _is_version_at_least(current_version, MYSQL_5_6_5):
                     supported_formats.append("JSON")
-                if tree_supported:
+
+                if _is_version_at_least(current_version, MYSQL_8_0_16):
                     supported_formats.append("TREE")
 
                 raise ValueError(
                     f"Unsupported EXPLAIN format: {options.format}. "
-                    f"MySQL {major}.{minor}.{patch} supports: {', '.join(['TEXT'] + supported_formats)}"
+                    f"MySQL {major}.{minor}.{patch} supports: {', '.join(supported_formats)}"
                 )
 
-        # MySQL 5.7+ supports FOR CONNECTION
-        if major >= 5 and minor >= 7:
+        # Handle FOR CONNECTION (MySQL 5.7+)
+        if _is_version_at_least(current_version, MYSQL_5_7_0):
             connection_id = getattr(options, 'connection_id', None)
             if connection_id is not None:
                 return f"EXPLAIN FOR CONNECTION {connection_id}"
@@ -494,17 +520,17 @@ class MySQLDialect(SQLDialectBase):
         Returns:
             Set[ExplainFormat]: Set of supported formats
         """
-        major, minor, patch = self._version
+        current_version = self._version
 
         # All versions support TEXT format
         formats = {ExplainFormat.TEXT}
 
-        # MySQL 5.7+ supports JSON format
-        if major >= 5 and minor >= 7:
+        # MySQL 5.6.5+ supports JSON format
+        if _is_version_at_least(current_version, MYSQL_5_6_5):
             formats.add(ExplainFormat.JSON)
 
-        # MySQL 8.0+ supports TREE format
-        if major >= 8:
+        # MySQL 8.0.16+ supports TREE format
+        if _is_version_at_least(current_version, MYSQL_8_0_16):
             formats.add(ExplainFormat.TREE)
 
         return formats
