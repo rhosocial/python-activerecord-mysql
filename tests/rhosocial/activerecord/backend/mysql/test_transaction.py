@@ -21,7 +21,7 @@ def setup_transaction_tables(backend):
 
     # Create accounts table
     try:
-        backend.execute("""
+        result = backend.execute("""
             CREATE TABLE transaction_test_accounts (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 account_number VARCHAR(20) UNIQUE NOT NULL,
@@ -30,10 +30,10 @@ def setup_transaction_tables(backend):
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         """)
-        logger.info("Created transaction_test_accounts table")
+        logger.info(f"Created transaction_test_accounts table: {result}")
 
         # Create transfers table
-        backend.execute("""
+        result = backend.execute("""
             CREATE TABLE transaction_test_transfers (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 from_account VARCHAR(20) NOT NULL,
@@ -44,7 +44,13 @@ def setup_transaction_tables(backend):
                 completed_at TIMESTAMP NULL
             )
         """)
-        logger.info("Created transaction_test_transfers table")
+        logger.info(f"Created transaction_test_transfers table: {result}")
+
+        if backend.in_transaction:
+            backend.commit_transaction()
+            logger.info("Committed table creation transaction")
+
+        backend.begin_transaction()
 
         # Insert some initial test accounts
         accounts = [
@@ -56,11 +62,17 @@ def setup_transaction_tables(backend):
         ]
 
         for account in accounts:
-            backend.execute(
+            result = backend.execute(
                 "INSERT INTO transaction_test_accounts (account_number, balance, owner_name) VALUES (%s, %s, %s)",
                 account
             )
-        logger.info("Inserted initial test accounts")
+            logger.info(f"Inserted account {account[0]} with ID {result.last_insert_id}")
+
+        backend.commit_transaction()
+        logger.info("Committed initial test accounts transaction")
+
+        count = backend.fetch_one("SELECT COUNT(*) as count FROM transaction_test_accounts")
+        logger.info(f"Verified {count['count']} accounts in database")
 
     except Exception as e:
         logger.error(f"Error creating transaction test tables: {e}")
@@ -95,13 +107,28 @@ def test_nested_transactions(mysql_transaction_test_db):
 
     try:
         # Update in outer transaction
-        mysql_transaction_test_db.execute(
+        result = mysql_transaction_test_db.execute(
             "UPDATE transaction_test_accounts SET balance = balance + 100 WHERE account_number = 'ACC-001'"
         )
+        logger.info(f"Outer transaction update result: {result}")
 
+        # 在测试开始时添加此代码来确认账户存在
+        all_accounts = mysql_transaction_test_db.fetch_all(
+            "SELECT * FROM transaction_test_accounts"
+        )
+        logger.info(f"Available accounts: {all_accounts}")
+        # 在fetch_one之前添加
+        logger.info(f"Connection is alive: {mysql_transaction_test_db.ping()}")
+        # 在fetch_one之前添加
+        logger.info(f"Transaction is active: {transaction_manager.is_active}")
+        logger.info(f"Transaction level: {transaction_manager.transaction_level}")
+        row = mysql_transaction_test_db.fetch_one(
+            "SELECT * FROM transaction_test_accounts WHERE account_number = 'ACC-001'"
+        )
+        logger.info(f"Full row data: {row}")
         # Check balance after outer transaction update
         row = mysql_transaction_test_db.fetch_one(
-            "SELECT balance FROM transaction_test_accounts WHERE account_number = 'ACC-001'"
+            "SELECT balance FROM transaction_test_accounts WHERE account_number = %s", ('ACC-001', )
         )
         outer_balance = row["balance"]
         logger.info(f"Balance after outer transaction update: {outer_balance}")

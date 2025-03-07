@@ -440,13 +440,39 @@ class MySQLBackend(StorageBackend):
             self.log(logging.ERROR, f"Error in batch operation: {str(e)}")
             self._handle_error(e)
 
+    def _handle_auto_commit(self) -> None:
+        """Handle auto commit based on MySQL connection and transaction state.
+
+        This method will commit the current connection if:
+        1. Autocommit is disabled for the connection
+        2. There is no active transaction managed by transaction_manager
+
+        It's used by insert/update/delete operations to ensure changes are
+        persisted immediately when auto_commit=True is specified.
+        """
+        try:
+            # Check if connection exists and has autocommit attribute
+            if not self._connection:
+                return
+
+            # Check if autocommit is disabled and no active transaction
+            if hasattr(self._connection, 'autocommit') and not self._connection.autocommit:
+                # Check if we're not in an active transaction
+                if not self._transaction_manager or not self._transaction_manager.is_active:
+                    self._connection.commit()
+                    self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
+        except Exception as e:
+            # Just log the error but don't raise - this is a convenience feature
+            self.log(logging.WARNING, f"Failed to auto-commit: {str(e)}")
+
     def insert(self,
                table: str,
                data: Dict,
                returning: bool = False,
                column_types: Optional[ColumnTypes] = None,
                returning_columns: Optional[List[str]] = None,
-               force_returning: bool = False) -> QueryResult:
+               force_returning: bool = False,
+               auto_commit: bool = True) -> QueryResult:
         """Insert record
 
         Note on RETURNING support:
@@ -464,6 +490,8 @@ class MySQLBackend(StorageBackend):
             returning_columns: Specific columns to return in RETURNING clause. None means all columns.
             force_returning: If True, allows RETURNING clause in SQLite with Python <3.10
                 despite known limitations. Has no effect with other database backends.
+            auto_commit: If True and autocommit is disabled and not in active transaction,
+                         automatically commit after operation. Default is True.
 
         Returns:
             QueryResult: Execution result
@@ -493,6 +521,10 @@ class MySQLBackend(StorageBackend):
         # Execute query and get result
         result = self.execute(sql, tuple(values), returning, column_types, returning_columns, force_returning)
 
+        # Handle auto_commit if specified
+        if auto_commit:
+            self._handle_auto_commit()
+
         # If we have returning data, ensure the column names are consistently without quotes
         if returning and result.data:
             cleaned_data = []
@@ -514,7 +546,8 @@ class MySQLBackend(StorageBackend):
                returning: bool = False,
                column_types: Optional[ColumnTypes] = None,
                returning_columns: Optional[List[str]] = None,
-               force_returning: bool = False) -> QueryResult:
+               force_returning: bool = False,
+               auto_commit: bool = True) -> QueryResult:
         """Update record
 
         Note on RETURNING support:
@@ -534,6 +567,8 @@ class MySQLBackend(StorageBackend):
             returning_columns: Specific columns to return in RETURNING clause. None means all columns.
             force_returning: If True, allows RETURNING clause in SQLite with Python <3.10
                 despite known limitations. Has no effect with other database backends.
+            auto_commit: If True and autocommit is disabled and not in active transaction,
+                         automatically commit after operation. Default is True.
 
         Returns:
             QueryResult: Execution result
@@ -557,7 +592,13 @@ class MySQLBackend(StorageBackend):
 
         sql = f"UPDATE {table} SET {', '.join(set_items)} WHERE {where}"
 
-        return self.execute(sql, tuple(values) + params, returning, column_types, returning_columns, force_returning)
+        result = self.execute(sql, tuple(values) + params, returning, column_types, returning_columns, force_returning)
+
+        # Handle auto_commit if specified
+        if auto_commit:
+            self._handle_auto_commit()
+
+        return result
 
     @property
     def transaction_manager(self) -> MySQLTransactionManager:

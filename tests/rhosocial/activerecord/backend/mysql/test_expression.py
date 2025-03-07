@@ -200,8 +200,8 @@ def test_expression_select_with_calculated_field(mysql_expression_test_db):
         """
         SELECT 
             id, name, price, cost, stock_quantity, 
-            ? AS total_profit,
-            ? AS profit_margin
+            %s AS total_profit,
+            %s AS profit_margin
         FROM expression_test_products
         ORDER BY total_profit DESC
         """,
@@ -239,7 +239,7 @@ def test_expression_where_condition(mysql_expression_test_db):
 
     # Query using expression in WHERE clause
     result = mysql_expression_test_db.execute(
-        "SELECT id, name, price, cost FROM expression_test_products WHERE ?",
+        "SELECT id, name, price, cost FROM expression_test_products WHERE %s",
         params=(margin_expr,),
         returning=True
     )
@@ -257,7 +257,7 @@ def test_expression_where_condition(mysql_expression_test_db):
     stock_value_expr = mysql_expression_test_db.create_expression("price * stock_quantity > 5000")
 
     result = mysql_expression_test_db.execute(
-        "SELECT id, name, price, stock_quantity FROM expression_test_products WHERE ?",
+        "SELECT id, name, price, stock_quantity FROM expression_test_products WHERE %s",
         params=(stock_value_expr,),
         returning=True
     )
@@ -288,7 +288,7 @@ def test_expression_update_with_expression(mysql_expression_test_db):
 
     # Update using expression
     update_result = mysql_expression_test_db.execute(
-        "UPDATE expression_test_products SET stock_quantity = ? WHERE category = 'Electronics'",
+        "UPDATE expression_test_products SET stock_quantity = %s WHERE category = 'Electronics'",
         params=(increase_expr,)
     )
 
@@ -336,7 +336,7 @@ def test_expression_insert_with_expression(mysql_expression_test_db):
         """
         INSERT INTO expression_test_products 
         (name, sku, price, cost, stock_quantity, category, tags) 
-        VALUES ('New Product', 'PROD-NEW', ?, ?, 20, 'Electronics', '["new", "test"]')
+        VALUES ('New Product', 'PROD-NEW', %s, %s, 20, 'Electronics', '["new", "test"]')
         """,
         params=(price_expr, cost_expr)
     )
@@ -376,7 +376,7 @@ def test_expression_join_condition(mysql_expression_test_db):
         SELECT o.id as order_id, o.order_number, o.total_amount, 
                oi.id as item_id, oi.product_id, oi.subtotal
         FROM expression_test_orders o
-        JOIN expression_test_order_items oi ON ?
+        JOIN expression_test_order_items oi ON %s
         ORDER BY o.id, oi.id
         """,
         params=(join_expr,),
@@ -404,13 +404,13 @@ def test_expression_aggregate_functions(mysql_expression_test_db):
         """
         SELECT 
             c.id, c.name, c.email,
-            ? AS lifetime_value,
-            ? AS order_count,
-            ? AS avg_order_value
+            %s AS lifetime_value,
+            %s AS order_count,
+            %s AS avg_order_value
         FROM expression_test_customers c
         LEFT JOIN expression_test_orders o ON c.id = o.customer_id
         GROUP BY c.id, c.name, c.email
-        HAVING ? > 0
+        HAVING %s > 0
         ORDER BY lifetime_value DESC
         """,
         params=(lifetime_value_expr, order_count_expr, avg_order_expr, order_count_expr),
@@ -462,8 +462,8 @@ def test_expression_case_statements(mysql_expression_test_db):
         """
         SELECT 
             id, name, price, stock_quantity,
-            ? AS price_category,
-            ? AS stock_status
+            %s AS price_category,
+            %s AS stock_status
         FROM expression_test_products
         ORDER BY price DESC
         """,
@@ -517,7 +517,7 @@ def test_expression_subqueries(mysql_expression_test_db):
             c.name as customer_name, c.status
         FROM expression_test_orders o
         JOIN expression_test_customers c ON o.customer_id = c.id
-        WHERE o.customer_id IN ?
+        WHERE o.customer_id IN %s
         ORDER BY o.order_date DESC
         """,
         params=(customers_subquery,),
@@ -544,8 +544,8 @@ def test_expression_date_functions(mysql_expression_test_db):
         """
         SELECT 
             id, name, last_purchase_date,
-            ? AS days_since_purchase,
-            ? AS recent_purchase
+            %s AS days_since_purchase,
+            %s AS recent_purchase
         FROM expression_test_customers
         WHERE last_purchase_date IS NOT NULL
         ORDER BY days_since_purchase
@@ -588,11 +588,11 @@ def test_complex_expressions_combination(mysql_expression_test_db):
         """
         SELECT 
             id, name, category, price, cost, stock_quantity,
-            ? AS profit_margin,
-            ? AS stock_value,
-            ? AS potential_profit
+            %s AS profit_margin,
+            %s AS stock_value,
+            %s AS potential_profit
         FROM expression_test_products
-        WHERE ?
+        WHERE %s
         ORDER BY potential_profit DESC
         """,
         params=(profit_margin_expr, stock_value_expr, potential_profit_expr, high_profit_filter),
