@@ -88,23 +88,23 @@ class MySQLValueMapper(ValueMapper):
                 bool: lambda v: v,
             },
             DatabaseType.DATE: {
-                str: lambda v: parse_datetime(v).date(),
+                str: lambda v: v,
                 datetime: lambda v: v.date(),
                 date: lambda v: v,
             },
             DatabaseType.TIME: {
-                str: lambda v: parse_datetime(v).time(),
+                str: lambda v: v,
                 datetime: lambda v: v.time(),
                 time: lambda v: v,
             },
             DatabaseType.DATETIME: {
-                str: lambda v: parse_datetime(v, timezone=self.config.timezone),
+                str: lambda v: parse_datetime(v),
                 int: lambda v: datetime.fromtimestamp(v),
                 float: lambda v: datetime.fromtimestamp(v),
                 datetime: lambda v: v,
             },
             DatabaseType.TIMESTAMP: {
-                str: lambda v: parse_datetime(v, timezone=self.config.timezone),
+                str: lambda v: parse_datetime(v),
                 int: lambda v: datetime.fromtimestamp(v),
                 float: lambda v: datetime.fromtimestamp(v),
                 datetime: lambda v: v,
@@ -414,7 +414,7 @@ class MySQLDialect(SQLDialectBase):
             options = ExplainOptions()
 
         # Get version components for feature detection
-        current_version = self._version
+        current_version = self.version
 
         # Start with basic EXPLAIN
         parts = ["EXPLAIN"]
