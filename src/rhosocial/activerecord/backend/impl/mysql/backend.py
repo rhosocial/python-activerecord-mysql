@@ -272,6 +272,9 @@ class MySQLBackend(StorageBackend):
             is_dml = stmt_type in ("INSERT", "UPDATE", "DELETE")
             need_returning = returning and is_dml
 
+            # Check if this is a JOIN query - this is key to handling column name conflicts
+            is_join_query = is_query and "JOIN" in sql.upper()
+
             # Only raise ReturningNotSupportedError for DML statements with returning=True
             if need_returning:
                 handler = self.dialect.returning_handler
@@ -283,8 +286,11 @@ class MySQLBackend(StorageBackend):
                     self.log(logging.WARNING, error_msg)
                     raise ReturningNotSupportedError(error_msg)
 
-            # Get or create cursor
-            cursor = self._cursor or self._connection.cursor(dictionary=True)
+            # Get cursor - for JOIN queries, use regular cursor rather than dictionary
+            if is_join_query:
+                cursor = self._cursor or self._connection.cursor()
+            else:
+                cursor = self._cursor or self._connection.cursor(dictionary=True)
 
             # Process SQL and parameters
             final_sql, final_params = self.build_sql(sql, params)
@@ -305,29 +311,102 @@ class MySQLBackend(StorageBackend):
             # Handle result set - for SELECT or other queries with results
             data = None
             if returning and is_query:  # Only fetch data for queries when returning=True
-                rows = cursor.fetchall()
-                row_count = len(rows) if rows else 0
-                self.log(logging.DEBUG, f"Fetched {row_count} rows")
+                if is_join_query:
+                    # Special handling for JOIN queries to prevent column overwriting
+                    # Get column information from cursor description
+                    columns = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
+                    row_count = len(rows) if rows else 0
+                    self.log(logging.DEBUG, f"Fetched {row_count} rows")
 
-                if column_types:
-                    # Apply type conversions
-                    self.log(logging.DEBUG, "Applying type conversions")
+                    # Create dictionaries with proper handling of same-name columns
                     data = []
                     for row in rows:
-                        converted_row = {}
-                        for key, value in row.items():
-                            db_type = column_types.get(key)
-                            if db_type is not None:
-                                converted_row[key] = (
-                                    self.dialect.value_mapper.from_database(
-                                        value, db_type
-                                    )
-                                )
-                            else:
-                                converted_row[key] = value
-                        data.append(converted_row)
+                        # Start with empty dictionary for this row
+                        row_dict = {}
+
+                        # For each column value, ensure we don't overwrite non-NULL values with NULL
+                        for i, value in enumerate(row):
+                            col_name = columns[i]
+
+                            # If column name already exists and current value is NULL, don't overwrite
+                            if col_name in row_dict and value is None:
+                                continue
+                            # If column already exists but has NULL and new value is not NULL, replace
+                            elif col_name in row_dict and row_dict[col_name] is None and value is not None:
+                                row_dict[col_name] = value
+                            # If column doesn't exist yet, just add it
+                            elif col_name not in row_dict:
+                                row_dict[col_name] = value
+                            # If both values are non-NULL, keep the first one and add the second with suffix
+                            elif col_name in row_dict and row_dict[col_name] is not None and value is not None:
+                                # Find a unique suffix
+                                suffix = 1
+                                new_name = f"{col_name}_{suffix}"
+                                while new_name in row_dict:
+                                    suffix += 1
+                                    new_name = f"{col_name}_{suffix}"
+                                row_dict[new_name] = value
+
+                        # Add type conversions if needed
+                        if column_types:
+                            for key, value in list(row_dict.items()):
+                                db_type = column_types.get(key)
+                                if db_type is not None and value is not None:
+                                    row_dict[key] = self.dialect.value_mapper.from_database(value, db_type)
+
+                        data.append(row_dict)
                 else:
-                    data = rows
+                    # Standard handling for non-JOIN queries
+                    rows = cursor.fetchall()
+                    row_count = len(rows) if rows else 0
+                    self.log(logging.DEBUG, f"Fetched {row_count} rows")
+
+                    if column_types:
+                        # Apply type conversions
+                        self.log(logging.DEBUG, "Applying type conversions")
+                        if isinstance(rows[0], dict) if rows else False:
+                            # Handle dictionary rows
+                            data = []
+                            for row in rows:
+                                converted_row = {}
+                                for key, value in row.items():
+                                    db_type = column_types.get(key)
+                                    if db_type is not None:
+                                        converted_row[key] = (
+                                            self.dialect.value_mapper.from_database(
+                                                value, db_type
+                                            )
+                                        )
+                                    else:
+                                        converted_row[key] = value
+                                data.append(converted_row)
+                        else:
+                            # Handle tuple rows
+                            columns = [desc[0] for desc in cursor.description]
+                            data = []
+                            for row in rows:
+                                converted_row = {}
+                                for i, value in enumerate(row):
+                                    key = columns[i]
+                                    db_type = column_types.get(key)
+                                    if db_type is not None:
+                                        converted_row[key] = (
+                                            self.dialect.value_mapper.from_database(
+                                                value, db_type
+                                            )
+                                        )
+                                    else:
+                                        converted_row[key] = value
+                                data.append(converted_row)
+                    else:
+                        # No type conversion needed
+                        if isinstance(rows[0], dict) if rows else False:
+                            data = rows
+                        else:
+                            # Convert tuple rows to dictionaries
+                            columns = [desc[0] for desc in cursor.description]
+                            data = [dict(zip(columns, row)) for row in rows]
 
             duration = time.perf_counter() - start_time
 
