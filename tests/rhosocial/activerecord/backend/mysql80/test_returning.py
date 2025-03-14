@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import patch, MagicMock
 
-from src.rhosocial.activerecord.backend.errors import ReturningNotSupportedError, QueryError
-from src.rhosocial.activerecord.backend.impl.mysql.dialect import MySQLReturningHandler
+import pytest
+
+from src.rhosocial.activerecord.backend.errors import ReturningNotSupportedError
 from src.rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from src.rhosocial.activerecord.backend.impl.mysql.dialect import MySQLReturningHandler
 from src.rhosocial.activerecord.backend.typing import ConnectionConfig
 
 

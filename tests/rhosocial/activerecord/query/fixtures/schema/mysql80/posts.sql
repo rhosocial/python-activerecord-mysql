@@ -5,6 +5,6 @@ CREATE TABLE posts (
     content TEXT NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'published',
     created_at VARCHAR(50),
-    updated_at VARCHAR(50)
-    -- FOREIGN KEY (user_id) REFERENCES users(id)
+    updated_at VARCHAR(50),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

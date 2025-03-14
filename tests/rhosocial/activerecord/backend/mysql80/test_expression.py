@@ -1,10 +1,9 @@
 import datetime
-import decimal
 import logging
-import uuid
+
 import pytest
+
 from src.rhosocial.activerecord.backend.dialect import DatabaseType
-from src.rhosocial.activerecord.backend.errors import QueryError
 
 # Setup logger
 logger = logging.getLogger("mysql_test")

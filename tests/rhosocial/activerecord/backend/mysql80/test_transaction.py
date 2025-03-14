@@ -1,12 +1,11 @@
-import datetime
 import logging
-import time
 import threading
+import time
 from decimal import Decimal
 
 import pytest
+
 from src.rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionError
-from src.rhosocial.activerecord.backend.errors import DeadlockError, QueryError
 
 # Setup logger
 logger = logging.getLogger("mysql_test")

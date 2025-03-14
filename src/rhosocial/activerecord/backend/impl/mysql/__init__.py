@@ -9,6 +9,8 @@ This module provides a MySQL-specific implementation including:
 - MySQL-specific type definitions and mappings
 """
 
+__version__ = "1.0.0.dev1"
+
 from .backend import MySQLBackend
 from .dialect import (
     MySQLDialect,
