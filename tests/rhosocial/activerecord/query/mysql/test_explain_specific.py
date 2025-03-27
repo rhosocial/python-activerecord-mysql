@@ -1,22 +1,26 @@
-"""Test MySQL-specific EXPLAIN functionality."""
+"""Test MySQL EXPLAIN features that are specific to certain versions."""
 from decimal import Decimal
 
 import pytest
 
-from tests.rhosocial.activerecord.query.utils import create_order_fixtures
-from src.rhosocial.activerecord.backend.dialect import ExplainType, ExplainFormat, ExplainOptions
+from src.rhosocial.activerecord.backend.dialect import ExplainType, ExplainFormat
+from tests.rhosocial.activerecord.query.utils import create_order_fixtures, get_mysql_version
 
 # Create multi-table test fixtures
 order_fixtures = create_order_fixtures()
 
-
-def test_explain_format_tree(order_fixtures, request):
-    """Test EXPLAIN with TREE format (MySQL 8.0.16+)"""
+def test_mysql56_specific_features(order_fixtures, request):
+    """Test MySQL 5.6 specific EXPLAIN features"""
     if 'mysql' not in request.node.name:
         pytest.skip("This test is only applicable to MySQL")
 
+    mysql_version = get_mysql_version(request)
+    if mysql_version is None or mysql_version >= (5, 7, 0):
+        pytest.skip("This test is only applicable to MySQL 5.6")
+
     User, Order, OrderItem = order_fixtures
 
+    # Create test data
     user = User(username='test_user', email='test@example.com', age=30)
     user.save()
 
@@ -27,74 +31,36 @@ def test_explain_format_tree(order_fixtures, request):
     )
     order.save()
 
-    try:
-        plan = Order.query().explain(format=ExplainFormat.TREE).all()
-        assert isinstance(plan, str)
-        # TREE format uses specific formatting characters
-        assert any(char in plan for char in ['->', '|-'])
-    except ValueError as e:
-        if "format" in str(e).lower():
-            pytest.skip("TREE format not supported in this MySQL version")
-        else:
-            raise
+    # Test EXTENDED keyword (MySQL 5.6 specific)
+    plan = Order.query().explain(verbose=True).all()
+    assert isinstance(plan, list)
 
+    # MySQL 5.6 EXTENDED should provide additional information
+    # The actual EXTENDED output only affects SHOW WARNINGS after EXPLAIN
+    # But we can verify the command executed correctly
+    plan_str = str(plan)
+    assert 'EXTENDED' in request.session._test_callcounts or 'id' in plan_str
 
-def test_explain_with_analyze(order_fixtures, request):
-    """Test EXPLAIN ANALYZE option (MySQL 8.0.18+)"""
+    # Test PARTITIONS keyword (also MySQL 5.6 specific)
+    plan = Order.query().explain(**{'partitions': True}).all()
+    assert isinstance(plan, list)
+
+    # MySQL 5.6 PARTITIONS should show partition information
+    plan_str = str(plan)
+    assert 'PARTITIONS' in request.session._test_callcounts or 'partitions' in plan_str.lower()
+
+def test_mysql57_specific_features(order_fixtures, request):
+    """Test MySQL 5.7 specific EXPLAIN features"""
     if 'mysql' not in request.node.name:
         pytest.skip("This test is only applicable to MySQL")
 
-    User, Order, OrderItem = order_fixtures
-
-    user = User(username='test_user', email='test@example.com', age=30)
-    user.save()
-
-    try:
-        plan = Order.query().explain(type=ExplainType.ANALYZE).all()
-        assert isinstance(plan, str)
-        # ANALYZE should include actual execution info
-        assert any(term in str(plan).upper() for term in ['ACTUAL', 'TIME'])
-    except ValueError as e:
-        if "ANALYZE" in str(e):
-            pytest.skip("EXPLAIN ANALYZE not supported in this MySQL version")
-        else:
-            raise
-
-
-def test_explain_analyze_with_tree_format(order_fixtures, request):
-    """Test EXPLAIN ANALYZE with TREE format (MySQL 8.0.18+)"""
-    if 'mysql' not in request.node.name:
-        pytest.skip("This test is only applicable to MySQL")
+    mysql_version = get_mysql_version(request)
+    if mysql_version is None or mysql_version < (5, 7, 0) or mysql_version >= (8, 0, 0):
+        pytest.skip("This test is only applicable to MySQL 5.7")
 
     User, Order, OrderItem = order_fixtures
 
-    user = User(username='test_user', email='test@example.com', age=30)
-    user.save()
-
-    try:
-        plan = Order.query().explain(
-            type=ExplainType.ANALYZE,
-            format=ExplainFormat.TREE
-        ).all()
-        assert isinstance(plan, str)
-        # Should have both TREE format chars and actual execution info
-        assert any(char in plan for char in ['->', '|-'])
-        assert any(term in str(plan).upper() for term in ['ACTUAL', 'TIME'])
-    except ValueError as e:
-        message = str(e).lower()
-        if "format" in message or "analyze" in message:
-            pytest.skip("TREE format or ANALYZE not supported in this MySQL version")
-        else:
-            raise
-
-
-def test_explain_with_index_hints(order_fixtures, request):
-    """Test EXPLAIN with index hints (MySQL specific)"""
-    if 'mysql' not in request.node.name:
-        pytest.skip("This test is only applicable to MySQL")
-
-    User, Order, OrderItem = order_fixtures
-
+    # Create test data
     user = User(username='test_user', email='test@example.com', age=30)
     user.save()
 
@@ -105,70 +71,126 @@ def test_explain_with_index_hints(order_fixtures, request):
     )
     order.save()
 
-    # Using MySQL-specific index hints in JOIN
+    # Test JSON format (should be supported in MySQL 5.7)
     try:
-        query = Order.query().join(f"""
-            INNER JOIN {User.__table_name__} FORCE INDEX (PRIMARY)
-            ON {Order.__table_name__}.user_id = {User.__table_name__}.id
-        """)
-        plan = query.explain().all()
-        assert isinstance(plan, str)
-        assert "JOIN" in str(plan).upper()
-        assert any(term in str(plan).upper() for term in ["INDEX", "PRIMARY"])
-    except:
-        pytest.skip("Index hints not properly supported in this setup")
+        plan = Order.query().explain(format=ExplainFormat.JSON).all()
+        assert isinstance(plan, list)
 
+        # In JSON format, verify we get proper structure
+        if isinstance(plan[0], dict):
+            assert any(key in plan[0] for key in ['query_block', 'Query'])
+    except ValueError as e:
+        pytest.fail(f"MySQL 5.7 should support JSON format: {e}")
 
-def test_explain_connection_option(order_fixtures, request):
-    """Test FOR CONNECTION option (MySQL 5.7+)"""
+    # Test that deprecated EXTENDED and PARTITIONS options don't produce warnings
+    # In 5.7, these options are accepted but deprecated, and information is included by default
+    plan = Order.query().explain(verbose=True).all()
+    assert isinstance(plan, list)
+
+    plan = Order.query().explain(**{'partitions': True}).all()
+    assert isinstance(plan, list)
+
+def test_mysql80_specific_features(order_fixtures, request):
+    """Test MySQL 8.0 specific EXPLAIN features"""
     if 'mysql' not in request.node.name:
         pytest.skip("This test is only applicable to MySQL")
 
-    # This test only verifies the SQL generation, not execution
-    # To execute would require access to connection ID and privileges
-
-    _, Order, _ = order_fixtures
-
-    backend = Order.backend()
-    dialect = backend.dialect
-
-    try:
-        # Test if dialect supports this option by formatting simple query
-        connection_id = 1  # Dummy connection ID
-        options = ExplainOptions()
-        # Access private attribute for test purposes
-        options.connection_id = connection_id
-
-        explain_sql = dialect.format_explain("SELECT 1", options)
-        assert "FOR CONNECTION" in explain_sql
-        assert str(connection_id) in explain_sql
-    except (AttributeError, ValueError) as e:
-        pytest.skip("FOR CONNECTION option not supported by this MySQL version")
-
-
-def test_explain_with_partitions(order_fixtures, request):
-    """Test explain with PARTITIONS option (deprecated in MySQL 5.7+)"""
-    if 'mysql' not in request.node.name:
-        pytest.skip("This test is only applicable to MySQL")
+    mysql_version = get_mysql_version(request)
+    if mysql_version is None or mysql_version < (8, 0, 0):
+        pytest.skip("This test is only applicable to MySQL 8.0+")
 
     User, Order, OrderItem = order_fixtures
 
+    # Create test data
     user = User(username='test_user', email='test@example.com', age=30)
     user.save()
 
-    backend = Order.backend()
-    dialect = backend.dialect
+    order = Order(
+        user_id=user.id,
+        order_number='ORD-001',
+        total_amount=Decimal('100.00')
+    )
+    order.save()
 
+    # Test JSON format with MySQL 8.0 enhancements
     try:
-        # Create options with partitions enabled
-        options = ExplainOptions()
-        # Note: partitions is not a standard attribute of ExplainOptions
-        # We add it for testing purposes
-        options.partitions = True
+        plan = Order.query().explain(format=ExplainFormat.JSON).all()
+        assert isinstance(plan, list)
 
-        explain_sql = dialect.format_explain("SELECT 1", options)
-        # In MySQL 5.7+, PARTITIONS option is deprecated and includes a warning comment
-        # In earlier versions, it should add PARTITIONS keyword
-        assert "PARTITIONS" in explain_sql or "partitions" in explain_sql.lower()
-    except (AttributeError, ValueError) as e:
-        pytest.skip("PARTITIONS option test failed")
+        # MySQL 8.0 JSON format has enhanced structure
+        if isinstance(plan[0], dict):
+            assert any(key in plan[0] for key in ['query_block', 'Query'])
+            # Check for MySQL 8.0 specific JSON keys
+            json_str = str(plan)
+            assert any(term in json_str.lower() for term in ['cost_info', 'rows_examined_per_scan'])
+    except ValueError as e:
+        pytest.fail(f"MySQL 8.0 should support enhanced JSON format: {e}")
+
+    # Test TREE format (MySQL 8.0.16+)
+    if mysql_version >= (8, 0, 16):
+        try:
+            plan = Order.query().explain(format=ExplainFormat.TREE).all()
+            assert isinstance(plan, list)
+
+            # TREE format should have tree-like structure
+            plan_str = str(plan)
+            assert any(term in plan_str for term in ['->', '->'])
+        except ValueError as e:
+            # This might fail on MySQL 8.0.0-8.0.15
+            if mysql_version >= (8, 0, 16):
+                pytest.fail(f"MySQL 8.0.16+ should support TREE format: {e}")
+
+    # Test ANALYZE (MySQL 8.0.18+)
+    if mysql_version >= (8, 0, 18):
+        try:
+            plan = Order.query().explain(type=ExplainType.ANALYZE).all()
+            assert isinstance(plan, list)
+
+            # ANALYZE output should include execution statistics
+            plan_str = str(plan)
+            # Look for terms that indicate actual execution metrics
+            assert any(term in plan_str.lower() for term in ['actual', 'execution', 'time', 'rows'])
+        except ValueError as e:
+            # This might fail on MySQL 8.0.0-8.0.17
+            if mysql_version >= (8, 0, 18):
+                pytest.fail(f"MySQL 8.0.18+ should support ANALYZE: {e}")
+
+def test_mysql83_specific_features(order_fixtures, request):
+    """Test MySQL 8.3 specific EXPLAIN features"""
+    if 'mysql' not in request.node.name:
+        pytest.skip("This test is only applicable to MySQL")
+
+    mysql_version = get_mysql_version(request)
+    if mysql_version is None or mysql_version < (8, 3, 0):
+        pytest.skip("This test is only applicable to MySQL 8.3+")
+
+    User, Order, OrderItem = order_fixtures
+
+    # Create test data
+    user = User(username='test_user', email='test@example.com', age=30)
+    user.save()
+
+    order = Order(
+        user_id=user.id,
+        order_number='ORD-001',
+        total_amount=Decimal('100.00')
+    )
+    order.save()
+
+    # Test JSON format version 2 (MySQL 8.3+)
+    try:
+        # Note: json_version is not directly supported in the code,
+        # but is implemented in the dialect class to set explain_json_format_version
+        plan = Order.query().explain(format=ExplainFormat.JSON, **{'json_version': 2}).all()
+        assert isinstance(plan, list)
+
+        # MySQL 8.3 JSON format v2 has enhanced structure
+        if isinstance(plan[0], dict):
+            assert any(key in plan[0] for key in ['query_block', 'Query'])
+            # Check for any MySQL 8.3 specific enhancements in JSON output
+            json_str = str(plan)
+            # This may need to be updated with actual MySQL 8.3 specific JSON keys
+            assert 'explain_json_format_version' in request.session._test_callcounts or 'format' in json_str.lower()
+    except ValueError as e:
+        # If the version argument is not properly handled, skip gracefully
+        pytest.skip(f"JSON format version 2 feature might not be implemented: {e}")

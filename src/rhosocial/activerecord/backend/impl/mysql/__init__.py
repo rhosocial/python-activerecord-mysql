@@ -9,14 +9,16 @@ This module provides a MySQL-specific implementation including:
 - MySQL-specific type definitions and mappings
 """
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.0.dev2"
 
 from .backend import MySQLBackend
 from .dialect import (
     MySQLDialect,
     MySQLExpression,
     MySQLTypeMapper,
-    MySQLValueMapper, MySQLSQLBuilder,
+    MySQLValueMapper,
+    MySQLSQLBuilder,
+    MySQLAggregateHandler,  # Add MySQLAggregateHandler
 )
 from .transaction import MySQLTransactionManager
 from .types import (
@@ -34,6 +36,7 @@ __all__ = [
     'MySQLExpression',
     'MySQLTypeMapper',
     'MySQLValueMapper',
+    'MySQLAggregateHandler',  # Add MySQLAggregateHandler
 
     # Transaction
     'MySQLTransactionManager',

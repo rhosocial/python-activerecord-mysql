@@ -7,9 +7,11 @@ from typing import Any, Set, Optional, Tuple, Union, List, Dict
 from .types import MYSQL_TYPE_MAPPINGS
 from ...dialect import (
     TypeMapper, ValueMapper, DatabaseType, SQLBuilder,
-    SQLExpressionBase, SQLDialectBase, ReturningClauseHandler, ExplainOptions, ExplainType, ExplainFormat
+    SQLExpressionBase, SQLDialectBase, ReturningClauseHandler, ExplainOptions, ExplainType, ExplainFormat,
+    AggregateHandler
 )
-from ...errors import TypeConversionError, ReturningNotSupportedError
+from ...errors import TypeConversionError, ReturningNotSupportedError, GroupingSetNotSupportedError, \
+    JsonOperationNotSupportedError, WindowFunctionNotSupportedError
 from ...helpers import (
     safe_json_dumps, parse_datetime, convert_datetime,
     array_converter, safe_json_loads
@@ -627,3 +629,193 @@ class MySQLSQLBuilder(SQLBuilder):
             )
 
         return ''.join(result), tuple(final_params)
+
+
+class MySQLAggregateHandler(AggregateHandler):
+    """MySQL-specific aggregate functionality handler."""
+
+    # MySQL version constants
+    MYSQL_5_7_0 = (5, 7, 0)  # Basic window functions support
+    MYSQL_8_0_0 = (8, 0, 0)  # Full window function support
+    MYSQL_8_0_2 = (8, 0, 2)  # Advanced window frame support
+
+    def __init__(self, version: tuple):
+        """Initialize with MySQL version.
+
+        Args:
+            version: MySQL version tuple (major, minor, patch)
+        """
+        super().__init__(version)
+
+    @property
+    def supports_window_functions(self) -> bool:
+        """Check if MySQL supports window functions.
+
+        MySQL supports window functions from version 8.0.0
+        MariaDB supports window functions from version 10.2.0
+        """
+        return self._version >= self.MYSQL_8_0_0
+
+    @property
+    def supports_json_operations(self) -> bool:
+        """Check if MySQL supports JSON operations.
+
+        MySQL supports JSON since version 5.7.8
+        """
+        return self._version >= (5, 7, 8)
+
+    @property
+    def supports_advanced_grouping(self) -> bool:
+        """Check if MySQL supports advanced grouping.
+
+        MySQL supports ROLLUP but not CUBE or GROUPING SETS.
+        """
+        return True  # MySQL supports WITH ROLLUP syntax
+
+    def format_window_function(self,
+                               expr: str,
+                               partition_by: Optional[List[str]] = None,
+                               order_by: Optional[List[str]] = None,
+                               frame_type: Optional[str] = None,
+                               frame_start: Optional[str] = None,
+                               frame_end: Optional[str] = None,
+                               exclude_option: Optional[str] = None) -> str:
+        """Format window function SQL for MySQL.
+
+        Args:
+            expr: Base expression for window function
+            partition_by: PARTITION BY columns
+            order_by: ORDER BY columns
+            frame_type: Window frame type (ROWS/RANGE only, GROUPS not supported)
+            frame_start: Frame start specification
+            frame_end: Frame end specification
+            exclude_option: Frame exclusion option (not supported in MySQL)
+
+        Returns:
+            str: Formatted window function SQL
+
+        Raises:
+            WindowFunctionNotSupportedError: If window functions not supported or using unsupported features
+        """
+        if not self.supports_window_functions:
+            raise WindowFunctionNotSupportedError(
+                f"Window functions not supported in MySQL {'.'.join(map(str, self._version))}. "
+                f"Requires MySQL 8.0.0 or higher."
+            )
+
+        window_parts = []
+
+        if partition_by:
+            window_parts.append(f"PARTITION BY {', '.join(partition_by)}")
+
+        if order_by:
+            window_parts.append(f"ORDER BY {', '.join(order_by)}")
+
+        # Build frame clause
+        frame_clause = []
+        if frame_type:
+            if frame_type == "GROUPS" and self._version < self.MYSQL_8_0_2:
+                raise WindowFunctionNotSupportedError(
+                    f"GROUPS frame type requires MySQL 8.0.2 or higher. Current version: {'.'.join(map(str, self._version))}"
+                )
+
+            frame_clause.append(frame_type)
+
+            if frame_start:
+                if frame_end:
+                    frame_clause.append(f"BETWEEN {frame_start} AND {frame_end}")
+                else:
+                    frame_clause.append(frame_start)
+
+        if frame_clause:
+            window_parts.append(" ".join(frame_clause))
+
+        if exclude_option:
+            raise WindowFunctionNotSupportedError("EXCLUDE options not supported in MySQL")
+
+        window_clause = " ".join(window_parts)
+        return f"{expr} OVER ({window_clause})"
+
+    def format_json_operation(self,
+                              column: str,
+                              path: str,
+                              operation: str = "extract",
+                              value: Any = None) -> str:
+        """Format JSON operation SQL for MySQL.
+
+        Args:
+            column: JSON column name
+            path: JSON path string
+            operation: Operation type (extract, contains, exists)
+            value: Value for contains operation
+
+        Returns:
+            str: Formatted JSON operation SQL
+
+        Raises:
+            JsonOperationNotSupportedError: If JSON operations not supported
+            ValueError: For unsupported operations
+        """
+        if not self.supports_json_operations:
+            raise JsonOperationNotSupportedError(
+                f"JSON operations not supported in MySQL {'.'.join(map(str, self._version))}. "
+                f"Requires MySQL 5.7.8 or higher."
+            )
+
+        # MySQL uses JSON_EXTRACT, JSON_CONTAINS, etc.
+        if operation == "extract":
+            return f"JSON_EXTRACT({column}, '{path}')"
+        elif operation == "contains":
+            if value is None:
+                raise ValueError("Value is required for 'contains' operation")
+
+            # For JSON value comparison
+            if isinstance(value, (dict, list)):
+                # Convert to JSON string
+                import json
+                json_value = json.dumps(value)
+                return f"JSON_CONTAINS({column}, '{json_value}', '{path}')"
+            elif isinstance(value, str):
+                return f"JSON_CONTAINS({column}, '\"{value}\"', '{path}')"
+            else:
+                # For numeric/boolean comparison
+                return f"JSON_CONTAINS({column}, '{value}', '{path}')"
+        elif operation == "exists":
+            return f"JSON_CONTAINS_PATH({column}, 'one', '{path}')"
+        else:
+            raise ValueError(f"Unsupported JSON operation: {operation}")
+
+    def format_grouping_sets(self,
+                             type_name: str,
+                             columns: List[Union[str, List[str]]]) -> str:
+        """Format grouping sets SQL for MySQL.
+
+        MySQL only supports ROLLUP with different syntax: GROUP BY col1, col2 WITH ROLLUP
+
+        Args:
+            type_name: Grouping type (CUBE, ROLLUP, GROUPING SETS)
+            columns: Columns to group by
+
+        Raises:
+            GroupingSetNotSupportedError: If grouping type not supported in MySQL
+        """
+        if type_name == "ROLLUP":
+            # MySQL uses different syntax for ROLLUP
+            if isinstance(columns[0], list):
+                # Flatten nested lists
+                flat_columns = []
+                for col_group in columns:
+                    if isinstance(col_group, list):
+                        flat_columns.extend(col_group)
+                    else:
+                        flat_columns.append(col_group)
+
+                return f"{', '.join(flat_columns)} WITH ROLLUP"
+            else:
+                return f"{', '.join(columns)} WITH ROLLUP"
+        elif type_name in ("CUBE", "GROUPING SETS"):
+            raise GroupingSetNotSupportedError(
+                f"{type_name} not supported in MySQL. Only ROLLUP is available using WITH ROLLUP syntax."
+            )
+        else:
+            raise GroupingSetNotSupportedError(f"Unknown grouping type: {type_name}")
