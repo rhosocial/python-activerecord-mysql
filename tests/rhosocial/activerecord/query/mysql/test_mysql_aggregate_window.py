@@ -50,33 +50,34 @@ def test_window_partition_by(order_fixtures, request):
     # Use PARTITION BY to separate results by user_id
 
     # Create the base expression for the window function
-    avg_expr = AggregateExpression("AVG", "total_amount", alias="user_avg")
+    # Note: When using expressions in window functions, do not set alias as it will cause syntax error
+    avg_expr = AggregateExpression("AVG", "total_amount", alias=None)
 
     # Create window expression with PARTITION BY user_id
     result = (Order.query()
               .select("user_id", "order_number", "total_amount")
               .window(avg_expr, partition_by=["user_id"], alias="avg_per_user")
               .order_by("user_id", "total_amount")
-              .all())
+              .aggregate())
 
     # Verify results
     assert len(result) == 5  # Total 5 orders
 
     # Check the window function results
-    user1_results = [r for r in result if r.user_id == user1.id]
-    user2_results = [r for r in result if r.user_id == user2.id]
+    user1_results = [r for r in result if r['user_id'] == user1.id]
+    user2_results = [r for r in result if r['user_id'] == user2.id]
 
     # User1 should have 3 orders, all with the same avg_per_user value
     assert len(user1_results) == 3
     avg_user1 = sum([100, 200, 300]) / 3  # Expected average for user1
     for r in user1_results:
-        assert abs(float(r.avg_per_user) - avg_user1) < 0.01
+        assert abs(float(r['avg_per_user']) - avg_user1) < 0.01
 
     # User2 should have 2 orders, both with the same avg_per_user value
     assert len(user2_results) == 2
     avg_user2 = sum([150, 300]) / 2  # Expected average for user2
     for r in user2_results:
-        assert abs(float(r.avg_per_user) - avg_user2) < 0.01
+        assert abs(float(r['avg_per_user']) - avg_user2) < 0.01
 
 def test_window_order_by(order_fixtures, request):
     """Test window functions with ORDER BY for running totals."""
@@ -104,14 +105,14 @@ def test_window_order_by(order_fixtures, request):
     # Calculate running total of order amounts
 
     # Create the base expression for the window function
-    sum_expr = AggregateExpression("SUM", "total_amount", alias="total")
+    sum_expr = AggregateExpression("SUM", "total_amount", alias=None)
 
     # Create window expression with ORDER BY
     result = (Order.query()
               .select("order_number", "total_amount")
               .window(sum_expr, order_by=["order_number"], alias="running_total")
               .order_by("order_number")
-              .all())
+              .aggregate())
 
     # Verify results
     assert len(result) == 5  # Total 5 orders
@@ -127,7 +128,7 @@ def test_window_order_by(order_fixtures, request):
 
     # Check each order has the correct running total
     for i, r in enumerate(result):
-        assert abs(float(r.running_total) - expected_running_totals[i]) < 0.01
+        assert abs(float(r['running_total']) - expected_running_totals[i]) < 0.01
 
 def test_window_partition_and_order(order_fixtures, request):
     """Test window functions with both PARTITION BY and ORDER BY."""
@@ -165,7 +166,7 @@ def test_window_partition_and_order(order_fixtures, request):
     # Calculate running total of order amounts per user
 
     # Create the base expression for the window function
-    sum_expr = AggregateExpression("SUM", "total_amount", alias="total")
+    sum_expr = AggregateExpression("SUM", "total_amount", alias=None)
 
     # Create window expression with PARTITION BY and ORDER BY
     result = (Order.query()
@@ -175,23 +176,23 @@ def test_window_partition_and_order(order_fixtures, request):
                      order_by=["total_amount"],
                      alias="user_running_total")
               .order_by("user_id", "total_amount")
-              .all())
+              .aggregate())
 
     # Verify results
     assert len(result) == 5  # Total 5 orders
 
     # Check user1's running totals (ordered by amount)
-    user1_results = [r for r in result if r.user_id == user1.id]
+    user1_results = [r for r in result if r['user_id'] == user1.id]
     assert len(user1_results) == 3
-    assert abs(float(user1_results[0].user_running_total) - 100) < 0.01  # First amount: 100
-    assert abs(float(user1_results[1].user_running_total) - 300) < 0.01  # Running total: 100 + 200
-    assert abs(float(user1_results[2].user_running_total) - 600) < 0.01  # Running total: 100 + 200 + 300
+    assert abs(float(user1_results[0]['user_running_total']) - 100) < 0.01  # First amount: 100
+    assert abs(float(user1_results[1]['user_running_total']) - 300) < 0.01  # Running total: 100 + 200
+    assert abs(float(user1_results[2]['user_running_total']) - 600) < 0.01  # Running total: 100 + 200 + 300
 
     # Check user2's running totals (ordered by amount)
-    user2_results = [r for r in result if r.user_id == user2.id]
+    user2_results = [r for r in result if r['user_id'] == user2.id]
     assert len(user2_results) == 2
-    assert abs(float(user2_results[0].user_running_total) - 150) < 0.01  # First amount: 150
-    assert abs(float(user2_results[1].user_running_total) - 400) < 0.01  # Running total: 150 + 250
+    assert abs(float(user2_results[0]['user_running_total']) - 150) < 0.01  # First amount: 150
+    assert abs(float(user2_results[1]['user_running_total']) - 400) < 0.01  # Running total: 150 + 250
 
 def test_multiple_window_functions(order_fixtures, request):
     """Test multiple window functions in a single query."""
@@ -220,8 +221,8 @@ def test_multiple_window_functions(order_fixtures, request):
     # 2. Calculate running average
 
     # Create base expressions
-    sum_expr = AggregateExpression("SUM", "total_amount", alias="sum_total")
-    avg_expr = AggregateExpression("AVG", "total_amount", alias="avg_total")
+    sum_expr = AggregateExpression("SUM", "total_amount", alias=None)
+    avg_expr = AggregateExpression("AVG", "total_amount", alias=None)
 
     # Query with multiple window functions
     result = (Order.query()
@@ -229,7 +230,7 @@ def test_multiple_window_functions(order_fixtures, request):
               .window(sum_expr, order_by=["order_number"], alias="running_total")
               .window(avg_expr, order_by=["order_number"], alias="running_avg")
               .order_by("order_number")
-              .all())
+              .aggregate())
 
     # Verify results
     assert len(result) == 5  # Total 5 orders
@@ -246,8 +247,8 @@ def test_multiple_window_functions(order_fixtures, request):
 
     # Check each order has correct running total and average
     for i, r in enumerate(result):
-        assert abs(float(r.running_total) - expected_running_totals[i]) < 0.01
-        assert abs(float(r.running_avg) - expected_running_avgs[i]) < 0.01
+        assert abs(float(r['running_total']) - expected_running_totals[i]) < 0.01
+        assert abs(float(r['running_avg']) - expected_running_avgs[i]) < 0.01
 
 def test_window_rank_functions(blog_fixtures, request):
     """Test window functions with ranking functions."""
@@ -354,16 +355,16 @@ def test_case_expression_simple(order_fixtures, request):
     # Test simple CASE expression
     # Categorize orders by their status
     conditions = [
-        ("status = 'pending'", "'New'"),
-        ("status = 'paid'", "'Processing'"),
-        ("status = 'shipped'", "'Completed'")
+        ("status = 'pending'", "New"),
+        ("status = 'paid'", "Processing"),
+        ("status = 'shipped'", "Completed")
     ]
 
     result = (Order.query()
               .select("order_number", "status")
-              .case(conditions, else_result="'Other'", alias="status_category")
+              .case(conditions, else_result="Other", alias="status_category")
               .order_by("order_number")
-              .all())
+              .aggregate())
 
     # Verify results
     assert len(result) == 4  # Total 4 orders
@@ -377,7 +378,7 @@ def test_case_expression_simple(order_fixtures, request):
     }
 
     for r in result:
-        assert r.status_category == status_mapping[r.status]
+        assert r['status_category'] == status_mapping[r['status']]
 
 def test_case_expression_with_aggregation(order_fixtures, request):
     """Test CASE expression with aggregation."""
@@ -412,13 +413,13 @@ def test_case_expression_with_aggregation(order_fixtures, request):
     # Test CASE with aggregation
     # Count orders by category
     case_conditions = [
-        ("status = 'pending'", "'New'"),
-        ("status = 'paid'", "'Processing'"),
-        ("status = 'shipped'", "'Completed'")
+        ("status = 'pending'", "New"),
+        ("status = 'paid'", "Processing"),
+        ("status = 'shipped'", "Completed")
     ]
 
     # First, add the CASE expression
-    query = Order.query().case(case_conditions, else_result="'Other'", alias="category")
+    query = Order.query().case(case_conditions, else_result="Other", alias='category')
 
     # Then use GROUP BY on the result and count
     result = (query
@@ -488,29 +489,29 @@ def test_case_expression_with_window(order_fixtures, request):
              .case(case_conditions, else_result="0", alias="priority"))
 
     # Add window function to get max priority per user
-    max_priority_expr = AggregateExpression("MAX", "priority", alias="max_p")
+    max_priority_expr = AggregateExpression("MAX", "priority", alias=None)
 
     result = (query
               .window(max_priority_expr, partition_by=["user_id"], alias="max_user_priority")
               .order_by("user_id", "priority DESC")
-              .all())
+              .aggregate())
 
     # Verify results
     assert len(result) == 6  # Total 6 orders
 
     # Check window function results
-    user1_results = [r for r in result if r.user_id == user1.id]
-    user2_results = [r for r in result if r.user_id == user2.id]
+    user1_results = [r for r in result if r['user_id'] == user1.id]
+    user2_results = [r for r in result if r['user_id'] == user2.id]
 
     # User1's max priority should be 2 (paid)
     assert len(user1_results) == 3
     for r in user1_results:
-        assert r.max_user_priority == 2
+        assert r['max_user_priority'] == 2
 
     # User2's max priority should be 3 (shipped)
     assert len(user2_results) == 3
     for r in user2_results:
-        assert r.max_user_priority == 3
+        assert r['max_user_priority'] == 3
 
 def test_explain_window_function(order_fixtures, request):
     """Test EXPLAIN with window functions."""
@@ -533,17 +534,17 @@ def test_explain_window_function(order_fixtures, request):
         order.save()
 
     # Create the base expression for the window function
-    sum_expr = AggregateExpression("SUM", "total_amount", alias="total")
+    sum_expr = AggregateExpression("SUM", "total_amount", alias=None)
 
     # Create window query with EXPLAIN
     plan = (Order.query()
             .select("order_number", "total_amount")
             .window(sum_expr, order_by=["order_number"], alias="running_total")
             .explain()
-            .all())
+            .aggregate())
 
     # Verify EXPLAIN output
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
     plan_str = str(plan)
 
     # MySQL EXPLAIN for window function should reference specific operations

@@ -38,7 +38,7 @@ def test_explain_simple_where(order_fixtures, request):
             .where('status = ?', ('pending',))
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
     assert len(plan) > 0
 
     # MySQL EXPLAIN should indicate a table scan or index usage
@@ -68,7 +68,7 @@ def test_explain_primary_key_condition(order_fixtures, request):
             .where('id = ?', (order.id,))
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # For MySQL, look for 'const' in the 'type' column or 'PRIMARY' in key column
     plan_str = str(plan)
@@ -92,7 +92,7 @@ def test_explain_foreign_key_condition(order_fixtures, request):
             .where('user_id = ?', (user.id,))
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # Verify the MySQL EXPLAIN output includes expected table scan information
     plan_str = str(plan)
@@ -125,7 +125,7 @@ def test_explain_complex_conditions(order_fixtures, request):
             .where('status = ?', ('pending',))
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for multiple conditions should show filtering
     plan_str = str(plan)
@@ -159,7 +159,7 @@ def test_explain_or_conditions(order_fixtures, request):
             .or_where('status = ?', ('paid',))
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL OR conditions might use index_merge or filesort
     plan_str = str(plan)
@@ -190,7 +190,7 @@ def test_explain_in_conditions(order_fixtures, request):
             .in_list('status', ['pending', 'paid'])
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL IN conditions should show in the EXPLAIN
     plan_str = str(plan)
@@ -203,7 +203,7 @@ def test_explain_in_conditions(order_fixtures, request):
             .in_list('id', order_ids)
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # IN on primary key should use index
     plan_str = str(plan)

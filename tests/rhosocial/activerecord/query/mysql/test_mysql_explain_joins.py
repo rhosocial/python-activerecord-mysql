@@ -36,7 +36,7 @@ def test_explain_inner_join(order_fixtures, request):
             """)
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for joins should show both tables
     plan_str = str(plan)
@@ -75,7 +75,7 @@ def test_explain_left_join(order_fixtures, request):
             """)
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for LEFT JOIN should show NULL-complemented info
     plan_str = str(plan)
@@ -127,7 +127,7 @@ def test_explain_multiple_joins(order_fixtures, request):
             """)
             .explain()
             .all())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for multiple joins should show all tables
     plan_str = str(plan)

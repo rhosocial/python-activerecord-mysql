@@ -33,7 +33,7 @@ def test_basic_explain(order_fixtures, request):
 
     # Default EXPLAIN should output basic execution plan
     plan = Order.query().explain().all()
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN returns a result set with specific columns
     # Different MySQL versions have different column sets, but id, select_type, and table are common

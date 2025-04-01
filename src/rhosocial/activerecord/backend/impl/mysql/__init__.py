@@ -18,7 +18,8 @@ from .dialect import (
     MySQLTypeMapper,
     MySQLValueMapper,
     MySQLSQLBuilder,
-    MySQLAggregateHandler,  # Add MySQLAggregateHandler
+    MySQLAggregateHandler,
+    MySQLJsonHandler,
 )
 from .transaction import MySQLTransactionManager
 from .types import (
@@ -37,6 +38,7 @@ __all__ = [
     'MySQLTypeMapper',
     'MySQLValueMapper',
     'MySQLAggregateHandler',  # Add MySQLAggregateHandler
+    'MySQLJsonHandler',  # Add MySQLJsonHandler
 
     # Transaction
     'MySQLTransactionManager',

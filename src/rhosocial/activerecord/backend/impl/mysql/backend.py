@@ -50,7 +50,14 @@ class MySQLBackend(StorageBackend):
         else:
             self._connection_args = kwargs
 
+        # Initialize dialect with a temporary version
+        # The actual version will be obtained and updated after connecting to the database
         self._dialect = MySQLDialect(self.config)
+
+        # If version is already provided in config, use it (but will still update with actual version after connection)
+        if hasattr(self.config, 'version') and self.config.version:
+            self._server_version_cache = self.config.version
+            self._update_dialect_version(self.config.version)
 
     def _prepare_connection_args(self, config: ConnectionConfig) -> Dict:
         """Prepare MySQL connection arguments
@@ -145,6 +152,9 @@ class MySQLBackend(StorageBackend):
             cursor.close()
             self.log(logging.INFO, "Connected to MySQL successfully")
 
+            # Get server version immediately after connecting and update dialect
+            self.get_server_version()
+
         except MySQLError as e:
             error_msg = f"Failed to connect: {str(e)}"
             self.log(logging.ERROR, error_msg)
@@ -171,7 +181,7 @@ class MySQLBackend(StorageBackend):
                     self._connection.close()
                     self.log(logging.INFO, "Disconnected from MySQL successfully")
                 except MySQLError as e:
-                    # 仅记录错误，不抛出异常
+                    # Only log errors, don't raise exceptions
                     error_msg = f"Warning during disconnect: {str(e)}"
                     self.log(logging.WARNING, error_msg)
             finally:
@@ -705,6 +715,24 @@ class MySQLBackend(StorageBackend):
         self.log(logging.DEBUG, f"RETURNING clause support: {supported}")
         return supported
 
+    def _update_dialect_version(self, version: tuple) -> None:
+        """Update the dialect's version information
+
+        Args:
+            version: Database server version tuple (major, minor, patch)
+        """
+        self._dialect._version = version
+
+        # Also update version information in dialect's handlers
+        if hasattr(self._dialect, '_returning_handler'):
+            self._dialect._returning_handler._version = version
+
+        if hasattr(self._dialect, '_aggregate_handler'):
+            self._dialect._aggregate_handler._version = version
+
+        if hasattr(self._dialect, '_json_operation_handler'):
+            self._dialect._json_operation_handler._version = version
+
     def get_server_version(self, fallback_to_default: bool = False) -> tuple:
         """Get MySQL server version
 
@@ -727,6 +755,8 @@ class MySQLBackend(StorageBackend):
         # If we have connection config version, use it
         if hasattr(self.config, 'version') and self.config.version:
             self._server_version_cache = self.config.version
+            # Update dialect's version information
+            self._update_dialect_version(self._server_version_cache)
             return self._server_version_cache
 
         # Otherwise query the server
@@ -749,6 +779,10 @@ class MySQLBackend(StorageBackend):
 
             # Cache the result
             self._server_version_cache = (major, minor, patch)
+
+            # Update dialect's version information
+            self._update_dialect_version(self._server_version_cache)
+
             self.log(logging.INFO, f"Detected MySQL version: {major}.{minor}.{patch}")
             return self._server_version_cache
 
@@ -764,6 +798,10 @@ class MySQLBackend(StorageBackend):
                          f"Using default MySQL version {default_version} instead of actual version"
                          )
                 self._server_version_cache = default_version
+
+                # Update dialect's version information
+                self._update_dialect_version(default_version)
+
                 return default_version
             else:
                 # Raise the exception

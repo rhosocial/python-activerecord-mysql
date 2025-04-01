@@ -31,7 +31,7 @@ def test_explain_simple_aggregate(order_fixtures, request):
 
     # Test COUNT function
     plan = Order.query().explain().count()
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for COUNT should show optimization info
     plan_str = str(plan)
@@ -68,7 +68,7 @@ def test_explain_group_by(order_fixtures, request):
             .count('*', 'count')
             .explain()
             .aggregate())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for GROUP BY should show grouping-related operations
     plan_str = str(plan)
@@ -112,7 +112,7 @@ def test_explain_having(order_fixtures, request):
             .having('COUNT(*) > ?', (2,))
             .explain()
             .aggregate())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for HAVING should show filtering after grouping
     plan_str = str(plan)
@@ -196,7 +196,7 @@ def test_explain_complex_aggregates(order_fixtures, request):
             .avg('total_amount', 'average')
             .explain()
             .aggregate())
-    assert isinstance(plan, list)
+    assert isinstance(plan, str)
 
     # MySQL EXPLAIN for multiple aggregates should show grouping operations
     plan_str = str(plan)
