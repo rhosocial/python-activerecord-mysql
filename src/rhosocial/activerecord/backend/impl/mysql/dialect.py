@@ -85,13 +85,13 @@ class MySQLTypeMapper(TypeMapper):
 
             # Spatial data types
             DatabaseType.POINT: TypeMapping("POINT"),
-            DatabaseType.LINESTRING: TypeMapping("LINESTRING"),
+            # DatabaseType.LINESTRING: TypeMapping("LINESTRING"),
             DatabaseType.POLYGON: TypeMapping("POLYGON"),
             DatabaseType.GEOMETRY: TypeMapping("GEOMETRY"),
-            DatabaseType.MULTIPOINT: TypeMapping("MULTIPOINT"),
-            DatabaseType.MULTILINESTRING: TypeMapping("MULTILINESTRING"),
-            DatabaseType.MULTIPOLYGON: TypeMapping("MULTIPOLYGON"),
-            DatabaseType.GEOMETRYCOLLECTION: TypeMapping("GEOMETRYCOLLECTION"),
+            # DatabaseType.MULTIPOINT: TypeMapping("MULTIPOINT"),
+            # DatabaseType.MULTILINESTRING: TypeMapping("MULTILINESTRING"),
+            # DatabaseType.MULTIPOLYGON: TypeMapping("MULTIPOLYGON"),
+            # DatabaseType.GEOMETRYCOLLECTION: TypeMapping("GEOMETRYCOLLECTION"),
 
             # Custom type - map to VARCHAR by default
             DatabaseType.CUSTOM: TypeMapping("VARCHAR(255)"),
@@ -479,36 +479,123 @@ class MySQLReturningHandler(ReturningClauseHandler):
     """MySQL RETURNING clause handler implementation"""
 
     def __init__(self, version: tuple):
-        """Initialize MySQL RETURNING handler
+        """
+        Initialize MySQL RETURNING handler with version information.
 
         Args:
-            version: MySQL version tuple
+            version: MySQL version tuple (major, minor, patch)
         """
         self._version = version
 
     @property
     def is_supported(self) -> bool:
-        """Check if RETURNING clause is supported
+        """
+        Check if RETURNING clause is supported.
 
-        Note: MySQL does not support RETURNING clause in any version
+        Note: MySQL does not support RETURNING clause natively in any version.
+        The implementation must use alternative approaches like SELECT after DML.
+
+        Returns:
+            bool: Always False for MySQL
         """
         # MySQL does not support RETURNING in any version
         return False
 
     def format_clause(self, columns: Optional[List[str]] = None) -> str:
-        """Format RETURNING clause
+        """
+        Format RETURNING clause.
+
+        Always raises ReturningNotSupportedError as MySQL doesn't support RETURNING.
 
         Args:
-            columns: Column names to return. None means all columns.
+            columns: Column names to return (ignored)
 
         Returns:
-            str: Formatted RETURNING clause
+            str: Never returns
 
         Raises:
-            ReturningNotSupportedError: Always raises as MySQL doesn't support RETURNING
+            ReturningNotSupportedError: Always raised
         """
         # MySQL does not support RETURNING
-        raise ReturningNotSupportedError("MySQL does not support RETURNING clause in any version")
+        raise ReturningNotSupportedError(
+            "RETURNING clause is not supported by MySQL. This is a fundamental "
+            "limitation of the database engine, not a driver issue."
+        )
+
+    def format_advanced_clause(self,
+                               columns: Optional[List[str]] = None,
+                               expressions: Optional[List[Dict[str, Any]]] = None,
+                               aliases: Optional[Dict[str, str]] = None,
+                               dialect_options: Optional[Dict[str, Any]] = None) -> str:
+        """
+        Format advanced RETURNING clause for MySQL.
+
+        Always raises ReturningNotSupportedError as MySQL doesn't support RETURNING.
+
+        If force=True is set in dialect_options, this may attempt to use alternative
+        approaches like SELECT LAST_INSERT_ID() or using session variables, but
+        these are not equivalent to true RETURNING clause functionality.
+
+        Args:
+            columns: List of column names to return (ignored)
+            expressions: List of expressions to return (ignored)
+            aliases: Dictionary mapping column/expression names to aliases (ignored)
+            dialect_options: MySQL-specific options
+
+        Returns:
+            str: Never returns
+
+        Raises:
+            ReturningNotSupportedError: Always raised unless alternatives implemented
+        """
+        # Check if we should try alternative approaches
+        if dialect_options and dialect_options.get("emulation_strategy") == "select_after":
+            # This would require storing table name and conditions for a follow-up SELECT
+            # Not fully implemented as this requires significant changes to execute flow
+            table_name = dialect_options.get("table_name")
+            where_clause = dialect_options.get("where_clause")
+
+            self._emulation_info = {
+                "strategy": "select_after",
+                "table": table_name,
+                "where": where_clause,
+                "columns": columns or ["*"]
+            }
+
+            # Return empty string as this would be applied separately
+            return ""
+
+        # Default behavior: not supported
+        raise ReturningNotSupportedError(
+            "RETURNING clause is not supported by MySQL. Consider using alternative "
+            "approaches like SELECT after INSERT/UPDATE/DELETE or session variables."
+        )
+
+    def supports_feature(self, feature: str) -> bool:
+        """
+        Check if a specific RETURNING feature is supported by MySQL.
+
+        No RETURNING features are natively supported by MySQL.
+
+        Args:
+            feature: Feature name
+
+        Returns:
+            bool: Always False for MySQL
+        """
+        # MySQL doesn't support any RETURNING features
+        return False
+
+    def get_emulation_strategy(self) -> Optional[Dict[str, Any]]:
+        """
+        Get information about RETURNING emulation strategy.
+
+        This is used when RETURNING is forced with emulation_strategy in dialect_options.
+
+        Returns:
+            Optional[Dict[str, Any]]: Emulation strategy information or None
+        """
+        return getattr(self, "_emulation_info", None)
 
 # Add driver type enum
 class DriverType(Enum):
