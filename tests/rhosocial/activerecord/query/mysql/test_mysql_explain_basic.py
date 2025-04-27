@@ -39,7 +39,7 @@ def test_basic_explain(order_fixtures, request):
     # Different MySQL versions have different column sets, but id, select_type, and table are common
     expected_columns = ['id', 'select_type', 'table']
     for column in expected_columns:
-        assert any(column in row for row in plan)
+        assert column in plan
 
 def test_explain_formats(order_fixtures, request):
     """Test EXPLAIN output formats for different MySQL versions"""

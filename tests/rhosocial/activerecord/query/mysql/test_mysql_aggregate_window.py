@@ -443,6 +443,7 @@ def test_case_expression_with_aggregation(order_fixtures, request):
     for r in result:
         assert r['count'] == expected_counts[r['category']]
 
+
 def test_case_expression_with_window(order_fixtures, request):
     """Test combining CASE expression with window function."""
     if 'mysql' not in request.node.name:
@@ -470,7 +471,7 @@ def test_case_expression_with_window(order_fixtures, request):
     for i, (user_id, status, amount) in enumerate(data):
         order = Order(
             user_id=user_id,
-            order_number=f'ORD-{i+1}',
+            order_number=f'ORD-{i + 1}',
             total_amount=Decimal(f'{amount}.00'),
             status=status
         )
@@ -480,18 +481,22 @@ def test_case_expression_with_window(order_fixtures, request):
     case_conditions = [
         ("status = 'shipped'", "3"),  # Highest priority
         ("status = 'paid'", "2"),
-        ("status = 'pending'", "1")   # Lowest priority
+        ("status = 'pending'", "1")  # Lowest priority
     ]
 
-    # Define window function to get max priority per user
-    query = (Order.query()
-             .select("user_id", "order_number", "status", "total_amount")
-             .case(case_conditions, else_result="0", alias="priority"))
+    # Create base query with CASE expression for priority
+    base_query = (Order.query()
+                  .select("user_id", "order_number", "status", "total_amount")
+                  .case(case_conditions, else_result="0", alias="priority"))
 
-    # Add window function to get max priority per user
+    # Use a CTE to handle MySQL's limitation on referencing aliases
+    cte_query = base_query.as_cte("orders_with_priority")
+
+    # Define window function to get max priority per user
     max_priority_expr = AggregateExpression("MAX", "priority", alias=None)
 
-    result = (query
+    # Apply window function on the CTE result
+    result = (cte_query
               .window(max_priority_expr, partition_by=["user_id"], alias="max_user_priority")
               .order_by("user_id", "priority DESC")
               .aggregate())
@@ -512,6 +517,7 @@ def test_case_expression_with_window(order_fixtures, request):
     assert len(user2_results) == 3
     for r in user2_results:
         assert r['max_user_priority'] == 3
+
 
 def test_explain_window_function(order_fixtures, request):
     """Test EXPLAIN with window functions."""

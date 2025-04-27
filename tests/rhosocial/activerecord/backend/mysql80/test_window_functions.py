@@ -1,7 +1,7 @@
 import logging
 import pytest
 
-from src.rhosocial.activerecord.backend.dialect import DatabaseType
+from src.rhosocial.activerecord.backend import DatabaseType
 
 # Setup logger
 logger = logging.getLogger("mysql_test")

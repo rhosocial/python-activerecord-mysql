@@ -1,472 +1,16 @@
-import uuid
-from datetime import datetime, date, time
-from decimal import Decimal
+import logging
 from enum import Enum
 from typing import Any, Set, Optional, Tuple, Union, List, Dict
 
-from .types import MYSQL_TYPE_MAPPINGS
 from ...dialect import (
-    TypeMapper, ValueMapper, DatabaseType, SQLBuilder,
+    SQLBuilder,
     SQLExpressionBase, SQLDialectBase, ReturningClauseHandler, ExplainOptions, ExplainType, ExplainFormat,
-    AggregateHandler, JsonOperationHandler, TypeMapping
+    AggregateHandler, JsonOperationHandler, CTEHandler
 )
-from ...errors import TypeConversionError, ReturningNotSupportedError, GroupingSetNotSupportedError, \
-    JsonOperationNotSupportedError, WindowFunctionNotSupportedError
-from ...helpers import (
-    safe_json_dumps, parse_datetime, convert_datetime,
-    array_converter, safe_json_loads
-)
+from ...errors import ReturningNotSupportedError, GroupingSetNotSupportedError, \
+    JsonOperationNotSupportedError, WindowFunctionNotSupportedError, CTENotSupportedError
 from ...typing import ConnectionConfig
 
-class MySQLTypeMapper(TypeMapper):
-    """
-    MySQL type mapper implementation
-
-    Maps the unified DatabaseType enum to MySQL-specific type definitions,
-    taking into account MySQL version capabilities and syntax.
-    """
-
-    def __init__(self, version: tuple = None):
-        """
-        Initialize MySQL type mapper
-
-        Args:
-            version: Optional MySQL version tuple (major, minor, patch)
-        """
-        super().__init__()
-
-        # Store the MySQL version
-        self._version = version or (8, 0, 0)  # Default to MySQL 8.0.0 if not specified
-
-        # Define MySQL type mappings
-        self._type_mappings = {
-            # Numeric types
-            DatabaseType.TINYINT: TypeMapping("TINYINT", self._format_int_with_display_width),
-            DatabaseType.SMALLINT: TypeMapping("SMALLINT", self._format_int_with_display_width),
-            DatabaseType.INTEGER: TypeMapping("INT", self._format_int_with_display_width),
-            DatabaseType.BIGINT: TypeMapping("BIGINT", self._format_int_with_display_width),
-            DatabaseType.FLOAT: TypeMapping("FLOAT", self._format_float_precision),
-            DatabaseType.DOUBLE: TypeMapping("DOUBLE"),
-            DatabaseType.DECIMAL: TypeMapping("DECIMAL", self.format_decimal),
-            DatabaseType.NUMERIC: TypeMapping("DECIMAL", self.format_decimal),
-            DatabaseType.REAL: TypeMapping("DOUBLE"),
-
-            # String types
-            DatabaseType.CHAR: TypeMapping("CHAR", self.format_with_length),
-            DatabaseType.VARCHAR: TypeMapping("VARCHAR", self.format_with_length),
-            DatabaseType.TEXT: TypeMapping("TEXT"),
-            DatabaseType.TINYTEXT: TypeMapping("TINYTEXT"),
-            DatabaseType.MEDIUMTEXT: TypeMapping("MEDIUMTEXT"),
-            DatabaseType.LONGTEXT: TypeMapping("LONGTEXT"),
-
-            # Date and time types
-            DatabaseType.DATE: TypeMapping("DATE"),
-            DatabaseType.TIME: TypeMapping("TIME", self._format_with_fractional_seconds),
-            DatabaseType.DATETIME: TypeMapping("DATETIME", self._format_with_fractional_seconds),
-            DatabaseType.TIMESTAMP: TypeMapping("TIMESTAMP", self._format_with_fractional_seconds),
-            DatabaseType.INTERVAL: TypeMapping("VARCHAR(255)"),  # MySQL doesn't have INTERVAL type
-
-            # Binary data types
-            DatabaseType.BLOB: TypeMapping("BLOB"),
-            DatabaseType.TINYBLOB: TypeMapping("TINYBLOB"),
-            DatabaseType.MEDIUMBLOB: TypeMapping("MEDIUMBLOB"),
-            DatabaseType.LONGBLOB: TypeMapping("LONGBLOB"),
-            DatabaseType.BYTEA: TypeMapping("BLOB"),  # Map PostgreSQL's BYTEA to BLOB
-
-            # Boolean type - MySQL uses TINYINT(1)
-            DatabaseType.BOOLEAN: TypeMapping("TINYINT(1)"),
-
-            # UUID type - MySQL doesn't have a native UUID type
-            DatabaseType.UUID: TypeMapping("CHAR(36)"),  # Store as CHAR(36)
-
-            # Enum and Set types
-            DatabaseType.ENUM: TypeMapping("ENUM", self.format_enum),
-            DatabaseType.SET: TypeMapping("SET", self.format_enum),
-
-            # Spatial data types
-            DatabaseType.POINT: TypeMapping("POINT"),
-            # DatabaseType.LINESTRING: TypeMapping("LINESTRING"),
-            DatabaseType.POLYGON: TypeMapping("POLYGON"),
-            DatabaseType.GEOMETRY: TypeMapping("GEOMETRY"),
-            # DatabaseType.MULTIPOINT: TypeMapping("MULTIPOINT"),
-            # DatabaseType.MULTILINESTRING: TypeMapping("MULTILINESTRING"),
-            # DatabaseType.MULTIPOLYGON: TypeMapping("MULTIPOLYGON"),
-            # DatabaseType.GEOMETRYCOLLECTION: TypeMapping("GEOMETRYCOLLECTION"),
-
-            # Custom type - map to VARCHAR by default
-            DatabaseType.CUSTOM: TypeMapping("VARCHAR(255)"),
-        }
-
-        # JSON support added in MySQL 5.7.8
-        if self._version >= (5, 7, 8):
-            self._type_mappings[DatabaseType.JSON] = TypeMapping("JSON")
-            # MySQL doesn't have JSONB but we map it to JSON
-            self._type_mappings[DatabaseType.JSONB] = TypeMapping("JSON")
-        else:
-            # Fall back to LONGTEXT for older versions
-            self._type_mappings[DatabaseType.JSON] = TypeMapping("LONGTEXT")
-            self._type_mappings[DatabaseType.JSONB] = TypeMapping("LONGTEXT")
-
-        # Set of supported types
-        self._supported_types = set(self._type_mappings.keys())
-
-    def get_column_type(self, db_type: DatabaseType, **params) -> str:
-        """
-        Get MySQL column type definition
-
-        Args:
-            db_type: Generic database type
-            **params: Type parameters (length, precision, etc.)
-
-        Returns:
-            str: MySQL column type definition
-
-        Raises:
-            ValueError: If type is not supported
-        """
-        if db_type not in self._type_mappings:
-            raise ValueError(f"Unsupported type for MySQL: {db_type}")
-
-        mapping = self._type_mappings[db_type]
-        base_type = mapping.db_type
-
-        # Special handling for ARRAY type which MySQL doesn't natively support
-        if db_type == DatabaseType.ARRAY:
-            # Use JSON for arrays in newer MySQL versions
-            if self._version >= (5, 7, 8):
-                base_type = "JSON"
-            else:
-                # Fall back to LONGTEXT for older versions
-                base_type = "LONGTEXT"
-
-                # Apply any type-specific formatting
-        if mapping.format_func:
-            formatted_type = mapping.format_func(base_type, params)
-        else:
-            formatted_type = base_type
-
-        # Apply common modifiers (PRIMARY KEY, NOT NULL, etc.)
-        if params:
-            modifiers = {k: v for k, v in params.items()
-                         if k in ['nullable', 'default', 'primary_key', 'unique',
-                                  'check', 'collate', 'auto_increment']}
-
-            # Handle auto_increment
-            if params.get('auto_increment'):
-                modifiers['auto_increment'] = True
-
-            if modifiers:
-                return self._format_with_mysql_modifiers(formatted_type, **modifiers)
-
-        return formatted_type
-
-    def get_placeholder(self, db_type: Optional[DatabaseType] = None) -> str:
-        """
-        Get parameter placeholder
-
-        MySQL uses %s for all parameter types
-
-        Args:
-            db_type: Ignored in MySQL, as all placeholders use the same syntax
-
-        Returns:
-            str: Parameter placeholder for MySQL (%s)
-        """
-        return "%s"
-
-    def reset_placeholders(self) -> None:
-        return
-
-    def _format_int_with_display_width(self, base_type: str, params: Dict[str, Any]) -> str:
-        """
-        Format integer type with optional display width
-
-        Args:
-            base_type: Base type name (TINYINT, SMALLINT, INT, BIGINT)
-            params: Type parameters including 'display_width' or 'length'
-
-        Returns:
-            str: Formatted integer type
-        """
-        # Note: Display width is deprecated in MySQL 8.0.17+
-        if self._version >= (8, 0, 17):
-            # Skip display width for newer MySQL versions
-            return base_type
-
-        width = params.get('display_width') or params.get('length')
-        if width:
-            return f"{base_type}({width})"
-        return base_type
-
-    def _format_float_precision(self, base_type: str, params: Dict[str, Any]) -> str:
-        """
-        Format float type with precision and scale
-
-        Args:
-            base_type: Base type name (FLOAT)
-            params: Type parameters including 'precision' and 'scale'
-
-        Returns:
-            str: Formatted float type
-        """
-        precision = params.get('precision')
-        scale = params.get('scale')
-
-        if precision is not None:
-            if scale is not None:
-                return f"{base_type}({precision}, {scale})"
-            return f"{base_type}({precision})"
-        return base_type
-
-    def _format_with_fractional_seconds(self, base_type: str, params: Dict[str, Any]) -> str:
-        """
-        Format time/date type with fractional seconds precision
-
-        Args:
-            base_type: Base type name (TIME, DATETIME, TIMESTAMP)
-            params: Type parameters including 'fsp' (fractional seconds precision)
-
-        Returns:
-            str: Formatted time/date type
-        """
-        fsp = params.get('fsp')
-        if fsp is not None and 0 <= fsp <= 6:
-            return f"{base_type}({fsp})"
-        return base_type
-
-    def _format_with_mysql_modifiers(self, base_type: str, **modifiers) -> str:
-        """
-        Format MySQL type with modifiers
-
-        Args:
-            base_type: Base type definition
-            **modifiers: MySQL-specific modifiers including auto_increment
-
-        Returns:
-            str: Formatted type with MySQL modifiers
-        """
-        parts = [base_type]
-
-        if modifiers.get('nullable') is False:
-            parts.append("NOT NULL")
-
-        if 'default' in modifiers:
-            default_val = modifiers['default']
-            if isinstance(default_val, str):
-                parts.append(f"DEFAULT '{default_val}'")
-            else:
-                parts.append(f"DEFAULT {default_val}")
-
-        if modifiers.get('auto_increment'):
-            parts.append("AUTO_INCREMENT")
-
-        if modifiers.get('primary_key'):
-            parts.append("PRIMARY KEY")
-
-        if modifiers.get('unique'):
-            parts.append("UNIQUE")
-
-        if 'check' in modifiers and self._version >= (8, 0, 16):
-            # CHECK constraints added in MySQL a.0.16
-            parts.append(f"CHECK ({modifiers['check']})")
-
-        if 'collate' in modifiers:
-            parts.append(f"COLLATE {modifiers['collate']}")
-
-        return " ".join(parts)
-
-class MySQLValueMapper(ValueMapper):
-    """MySQL value mapper implementation"""
-
-    def __init__(self, config: ConnectionConfig):
-        self.config = config
-        # Define basic type converters
-        self._base_converters = {
-            int: int,
-            float: float,
-            Decimal: str,
-            bool: lambda x: 1 if x else 0,
-            uuid.UUID: str,
-            date: lambda x: convert_datetime(x, format="%Y-%m-%d"),
-            time: lambda x: convert_datetime(x, format="%H:%M:%S"),
-            datetime: lambda x: convert_datetime(x, timezone=self.config.timezone),
-            dict: safe_json_dumps,
-            list: array_converter,
-            tuple: array_converter,
-        }
-
-        # Define database type converters
-        self._db_type_converters = {
-            DatabaseType.BOOLEAN: lambda v: 1 if v else 0,
-            DatabaseType.DATE: lambda v: convert_datetime(v, format="%Y-%m-%d"),
-            DatabaseType.TIME: lambda v: convert_datetime(v, format="%H:%M:%S"),
-            DatabaseType.DATETIME: lambda v: convert_datetime(v, timezone=self.config.timezone),
-            DatabaseType.TIMESTAMP: lambda v: convert_datetime(v, timezone=self.config.timezone),
-            DatabaseType.JSON: safe_json_dumps,
-            DatabaseType.ARRAY: array_converter,
-            DatabaseType.UUID: str,
-            DatabaseType.DECIMAL: str,
-        }
-
-        # Define Python type conversions after database read
-        self._from_python_converters = {
-            DatabaseType.BOOLEAN: {
-                int: bool,
-                str: lambda v: v.lower() in ('true', '1', 'yes', 'on'),
-                bool: lambda v: v,
-            },
-            DatabaseType.DATE: {
-                str: lambda v: v,
-                datetime: lambda v: v.date(),
-                date: lambda v: v,
-            },
-            DatabaseType.TIME: {
-                str: lambda v: v,
-                datetime: lambda v: v.time(),
-                time: lambda v: v,
-            },
-            DatabaseType.DATETIME: {
-                str: lambda v: parse_datetime(v),
-                int: lambda v: datetime.fromtimestamp(v),
-                float: lambda v: datetime.fromtimestamp(v),
-                datetime: lambda v: v,
-            },
-            DatabaseType.TIMESTAMP: {
-                str: lambda v: parse_datetime(v),
-                int: lambda v: datetime.fromtimestamp(v),
-                float: lambda v: datetime.fromtimestamp(v),
-                datetime: lambda v: v,
-            },
-            DatabaseType.JSON: {
-                str: safe_json_loads,
-                dict: lambda v: v,
-                list: lambda v: v,
-            },
-            DatabaseType.ARRAY: {
-                str: safe_json_loads,
-                list: lambda v: v,
-                tuple: list,
-            },
-            DatabaseType.UUID: {
-                str: uuid.UUID,
-                uuid.UUID: lambda v: v,
-            },
-            DatabaseType.DECIMAL: {
-                str: Decimal,
-                int: Decimal,
-                float: Decimal,
-                Decimal: lambda v: v,
-            },
-            DatabaseType.INTEGER: {
-                str: int,
-                float: int,
-                bool: int,
-                int: lambda v: v,
-            },
-            DatabaseType.FLOAT: {
-                str: float,
-                int: float,
-                float: lambda v: v,
-            },
-            DatabaseType.TEXT: {
-                str: lambda v: v,
-                int: str,
-                float: str,
-                bool: str,
-                datetime: str,
-                date: str,
-                time: str,
-                uuid.UUID: str,
-                Decimal: str,
-            },
-            DatabaseType.BLOB: {
-                str: lambda v: v.encode(),
-                bytes: lambda v: v,
-                bytearray: bytes,
-            }
-        }
-
-    def to_database(self, value: Any, db_type: Optional[DatabaseType] = None) -> Any:
-        """Convert Python value to MySQL storage value
-
-        Args:
-            value: Python value
-            db_type: Target database type
-
-        Returns:
-            Any: Converted value suitable for MySQL
-
-        Raises:
-            TypeConversionError: If type conversion fails
-        """
-        if value is None:
-            return None
-
-        try:
-            # First try basic type conversion
-            if db_type is None:
-                value_type = type(value)
-                if value_type in self._base_converters:
-                    return self._base_converters[value_type](value)
-
-            # Then try database type conversion
-            if db_type in self._db_type_converters:
-                return self._db_type_converters[db_type](value)
-
-            # Special handling for numeric types
-            if db_type in (DatabaseType.TINYINT, DatabaseType.SMALLINT,
-                           DatabaseType.INTEGER, DatabaseType.BIGINT):
-                return int(value)
-            if db_type in (DatabaseType.FLOAT, DatabaseType.DOUBLE):
-                return float(value)
-
-            # Default to original value
-            return value
-
-        except Exception as e:
-            raise TypeConversionError(
-                f"Failed to convert {type(value)} to {db_type}: {str(e)}"
-            )
-
-    def from_database(self, value: Any, db_type: DatabaseType) -> Any:
-        """Convert MySQL storage value to Python value
-
-        Args:
-            value: MySQL storage value
-            db_type: Source database type
-
-        Returns:
-            Any: Converted Python value
-
-        Raises:
-            TypeConversionError: If type conversion fails
-        """
-        if value is None:
-            return None
-
-        try:
-            # Get current Python type
-            current_type = type(value)
-
-            # Get converter mapping for target type
-            type_converters = self._from_python_converters.get(db_type)
-            if type_converters:
-                # Find converter for current Python type
-                converter = type_converters.get(current_type)
-                if converter:
-                    return converter(value)
-
-                # If no direct converter, try indirect conversion via string
-                if current_type != str and str in type_converters:
-                    return type_converters[str](str(value))
-
-            # Return original value if no converter found
-            return value
-
-        except Exception as e:
-            raise TypeConversionError(
-                f"Failed to convert MySQL value {value} ({type(value)}) to {db_type}: {str(e)}"
-            )
 
 class MySQLExpression(SQLExpressionBase):
     """MySQL expression implementation"""
@@ -850,6 +394,76 @@ class MySQLJsonHandler(JsonOperationHandler):
         self._function_support[function_name] = is_supported
         return is_supported
 
+
+class MySQLCTEHandler(CTEHandler):
+    """MySQL-specific CTE handler."""
+
+    def __init__(self, version: tuple):
+        self._version = version
+
+    @property
+    def is_supported(self) -> bool:
+        # CTEs are supported in MySQL 8.0+
+        return True
+
+    @property
+    def supports_recursive(self) -> bool:
+        return self.is_supported
+
+    @property
+    def supports_cte_in_dml(self) -> bool:
+        return self.is_supported
+
+    def format_cte(self,
+                   name: str,
+                   query: str,
+                   columns: Optional[List[str]] = None,
+                   recursive: bool = False,
+                   materialized: Optional[bool] = None) -> str:
+        """Format MySQL CTE."""
+        if not self.is_supported:
+            raise CTENotSupportedError("CTEs not supported in MySQL versions before 8.0")
+
+        name = self.validate_cte_name(name)
+
+        # Add column definitions if provided
+        column_def = ""
+        if columns:
+            column_def = f"({', '.join(columns)})"
+
+        # MySQL doesn't support materialization hints
+        if materialized is not None:
+            logging.warning("Materialization hints not supported in MySQL, ignoring")
+
+        return f"{name}{column_def} AS ({query})"
+
+    def format_with_clause(self,
+                           ctes: List[Dict[str, Any]],
+                           recursive: bool = False) -> str:
+        """Format MySQL WITH clause."""
+        if not self.is_supported:
+            raise CTENotSupportedError("CTEs not supported in MySQL versions before 8.0")
+
+        if not ctes:
+            return ""
+
+        # MySQL requires RECURSIVE keyword if any CTE is recursive
+        any_recursive = recursive or any(cte.get('recursive', False) for cte in ctes)
+        recursive_keyword = "RECURSIVE " if any_recursive else ""
+
+        formatted_ctes = []
+        for cte in ctes:
+            formatted_ctes.append(self.format_cte(
+                name=cte['name'],
+                query=cte['query'],
+                columns=cte.get('columns'),
+                recursive=cte.get('recursive', False),
+                materialized=cte.get('materialized')
+            ))
+
+        return f"WITH {recursive_keyword}{', '.join(formatted_ctes)}"
+
+
 class MySQLDialect(SQLDialectBase):
     """MySQL dialect implementation"""
 
@@ -875,11 +489,10 @@ class MySQLDialect(SQLDialectBase):
             self._driver_type = DriverType.MYSQL_CONNECTOR
 
         # Initialize handlers
-        self._type_mapper = MySQLTypeMapper()
-        self._value_mapper = MySQLValueMapper(config)
         self._returning_handler = MySQLReturningHandler(version)
         self._aggregate_handler = MySQLAggregateHandler(version)  # Initialize aggregate handler
         self._json_operation_handler = MySQLJsonHandler(version)  # Initialize JSON handler
+        self._cte_handler = MySQLCTEHandler(version)
 
     def format_expression(self, expr: SQLExpressionBase) -> str:
         """Format MySQL expression"""
@@ -889,7 +502,7 @@ class MySQLDialect(SQLDialectBase):
 
     def get_placeholder(self) -> str:
         """Get MySQL parameter placeholder"""
-        return self._type_mapper.get_placeholder(None)
+        return "%s"
 
     def format_string_literal(self, value: str) -> str:
         """Quote string literal

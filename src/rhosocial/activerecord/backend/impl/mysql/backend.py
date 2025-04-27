@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from typing import Optional, Tuple, List, Dict, Union
 
@@ -12,6 +13,7 @@ from mysql.connector.errors import (
 )
 
 from .dialect import MySQLDialect, SQLDialectBase, MySQLSQLBuilder
+from .type_converters import MySQLGeometryConverter, MySQLEnumConverter
 from ...dialect import ReturningOptions
 from .transaction import MySQLTransactionManager
 from ...base import StorageBackend, ColumnTypes
@@ -24,7 +26,7 @@ from ...errors import (
     DatabaseError,
     ReturningNotSupportedError
 )
-from ...typing import QueryResult, ConnectionConfig
+from ...typing import QueryResult, ConnectionConfig, DatabaseType
 
 
 class MySQLBackend(StorageBackend):
@@ -55,10 +57,26 @@ class MySQLBackend(StorageBackend):
         # The actual version will be obtained and updated after connecting to the database
         self._dialect = MySQLDialect(self.config)
 
+        # Register MySQL-specific converters
+        self._register_mysql_converters()
+
         # If version is already provided in config, use it (but will still update with actual version after connection)
         if hasattr(self.config, 'version') and self.config.version:
             self._server_version_cache = self.config.version
             self._update_dialect_version(self.config.version)
+
+    def _register_mysql_converters(self):
+        """Register MySQL-specific type converters"""
+        # Register MySQL geometry converter
+        self.dialect.register_converter(MySQLGeometryConverter(),
+                                        names=["POINT", "POLYGON", "GEOMETRY", "LINESTRING"],
+                                        types=[DatabaseType.POINT, DatabaseType.POLYGON,
+                                               DatabaseType.GEOMETRY])
+
+        # Register MySQL enum/set converter
+        self.dialect.register_converter(MySQLEnumConverter(),
+                                        names=["ENUM", "SET"],
+                                        types=[DatabaseType.ENUM, DatabaseType.SET])
 
     def _prepare_connection_args(self, config: ConnectionConfig) -> Dict:
         """Prepare MySQL connection arguments
@@ -407,7 +425,7 @@ class MySQLBackend(StorageBackend):
                                 for key, value in row.items():
                                     db_type = column_types.get(key)
                                     if db_type is not None:
-                                        converted_row[key] = self.dialect.value_mapper.from_database(value, db_type)
+                                        converted_row[key] = self.dialect.from_database(value, db_type)
                                     else:
                                         converted_row[key] = value
                                 result.append(converted_row)
@@ -420,6 +438,7 @@ class MySQLBackend(StorageBackend):
                         return []
                     finally:
                         fetch_cursor.close()
+                        return None
 
             elif emulation_type in ("update", "delete"):
                 # For UPDATE/DELETE, emulation is much more complex and limited
@@ -567,7 +586,7 @@ class MySQLBackend(StorageBackend):
             for params in params_list:
                 if params:
                     converted = tuple(
-                        self.dialect.value_mapper.to_database(value, None)
+                        self.dialect.to_database(value, None)
                         for value in params
                     )
                     converted_params.append(converted)
@@ -588,6 +607,7 @@ class MySQLBackend(StorageBackend):
         except MySQLError as e:
             self.log(logging.ERROR, f"Error in batch operation: {str(e)}")
             self._handle_error(e)
+            return None
 
     def _handle_auto_commit(self) -> None:
         """Handle auto commit based on MySQL connection and transaction state.
@@ -650,7 +670,7 @@ class MySQLBackend(StorageBackend):
 
         # Use dialect's format_identifier to ensure correct MySQL backtick quoting
         fields = [self.dialect.format_identifier(field) for field in cleaned_data.keys()]
-        values = [self.value_mapper.to_database(v, column_types.get(k.strip('"').strip('`')) if column_types else None)
+        values = [self.dialect.to_database(v, column_types.get(k.strip('"').strip('`')) if column_types else None)
                   for k, v in data.items()]
         placeholders = [self.dialect.get_placeholder() for _ in fields]
 
@@ -716,7 +736,7 @@ class MySQLBackend(StorageBackend):
         set_items = [f"{self.dialect.format_identifier(k)} = {self.dialect.get_placeholder()}"
                      for k in cleaned_data.keys()]
 
-        values = [self.value_mapper.to_database(v, column_types.get(k.strip('"').strip('`')) if column_types else None)
+        values = [self.dialect.to_database(v, column_types.get(k.strip('"').strip('`')) if column_types else None)
                   for k, v in data.items()]
 
         sql = f"UPDATE {table} SET {', '.join(set_items)} WHERE {where}"
