@@ -446,6 +446,7 @@ def test_case_expression_with_aggregation(order_fixtures, request):
 
 def test_case_expression_with_window(order_fixtures, request):
     """Test combining CASE expression with window function."""
+    # Only run this test in MySQL environment
     if 'mysql' not in request.node.name:
         pytest.skip("This test is only applicable to MySQL")
 
@@ -477,29 +478,41 @@ def test_case_expression_with_window(order_fixtures, request):
         )
         order.save()
 
-    # Define CASE expression for order priority
+    # Define CASE expression for order priority - using numeric values without quotes
     case_conditions = [
-        ("status = 'shipped'", "3"),  # Highest priority
-        ("status = 'paid'", "2"),
-        ("status = 'pending'", "1")  # Lowest priority
+        ("status = 'shipped'", 3),  # Highest priority - numeric literal, not string
+        ("status = 'paid'", 2),  # Numeric literal
+        ("status = 'pending'", 1)  # Numeric literal
     ]
 
-    # Create base query with CASE expression for priority
-    base_query = (Order.query()
-                  .select("user_id", "order_number", "status", "total_amount")
-                  .case(case_conditions, else_result="0", alias="priority"))
+    # Step 1: Create base query with CASE expression for priority
+    base_query = Order.query()
+    base_query.select("user_id", "order_number", "status", "total_amount")
+    base_query.case(case_conditions, else_result=0, alias="priority")  # Using numeric 0
 
-    # Use a CTE to handle MySQL's limitation on referencing aliases
-    cte_query = base_query.as_cte("orders_with_priority")
+    # Get the SQL for CTE definition
+    base_sql, base_params = base_query.to_sql()
 
-    # Define window function to get max priority per user
+    # Step 2: Create a CTE with the base query
+    window_query = Order.query()
+    window_query.with_cte("orders_with_priority", base_sql)
+
+    # Step 3: Query from the CTE and apply window function
+    window_query.from_cte("orders_with_priority")
+
+    # Select all columns from the CTE
+    window_query.select("user_id", "order_number", "status", "total_amount", "priority")
+
+    # Define window function for max priority per user
+    from src.rhosocial.activerecord.query.expression import AggregateExpression
     max_priority_expr = AggregateExpression("MAX", "priority", alias=None)
 
-    # Apply window function on the CTE result
-    result = (cte_query
-              .window(max_priority_expr, partition_by=["user_id"], alias="max_user_priority")
-              .order_by("user_id", "priority DESC")
-              .aggregate())
+    # Add window function as additional column
+    window_query.window(max_priority_expr, partition_by=["user_id"], alias="max_user_priority")
+
+    # Order results and execute query
+    window_query.order_by("user_id", "priority DESC")
+    result = window_query.aggregate()
 
     # Verify results
     assert len(result) == 6  # Total 6 orders
@@ -511,12 +524,22 @@ def test_case_expression_with_window(order_fixtures, request):
     # User1's max priority should be 2 (paid)
     assert len(user1_results) == 3
     for r in user1_results:
-        assert r['max_user_priority'] == 2
+        # Check if the value is numeric or string and adapt accordingly
+        # MySQL might return integers or strings depending on configuration
+        max_priority = r['max_user_priority']
+        if isinstance(max_priority, str):
+            assert max_priority == '2'
+        else:
+            assert max_priority == 2
 
     # User2's max priority should be 3 (shipped)
     assert len(user2_results) == 3
     for r in user2_results:
-        assert r['max_user_priority'] == 3
+        max_priority = r['max_user_priority']
+        if isinstance(max_priority, str):
+            assert max_priority == '3'
+        else:
+            assert max_priority == 3
 
 
 def test_explain_window_function(order_fixtures, request):

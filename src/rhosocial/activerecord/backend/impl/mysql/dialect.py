@@ -404,7 +404,7 @@ class MySQLCTEHandler(CTEHandler):
     @property
     def is_supported(self) -> bool:
         # CTEs are supported in MySQL 8.0+
-        return True
+        return self._version >= (8, 0, 0)
 
     @property
     def supports_recursive(self) -> bool:
@@ -412,6 +412,39 @@ class MySQLCTEHandler(CTEHandler):
 
     @property
     def supports_cte_in_dml(self) -> bool:
+        return self.is_supported
+
+    @property
+    def supports_materialized_hint(self) -> bool:
+        """Check if MATERIALIZED/NOT MATERIALIZED hints are supported.
+
+        MySQL does not support materialization hints.
+
+        Returns:
+            bool: Always False for MySQL
+        """
+        return False
+
+    @property
+    def supports_compound_recursive(self) -> bool:
+        """Check if compound queries in recursive CTEs are supported.
+
+        MySQL supports compound queries in recursive CTEs since version 8.0.
+
+        Returns:
+            bool: True if MySQL version is 8.0 or higher
+        """
+        return self.is_supported
+
+    @property
+    def supports_multiple_ctes(self) -> bool:
+        """Check if multiple CTEs can be defined in a single query.
+
+        MySQL supports multiple CTEs since version 8.0.
+
+        Returns:
+            bool: True if MySQL version is 8.0 or higher
+        """
         return self.is_supported
 
     def format_cte(self,
