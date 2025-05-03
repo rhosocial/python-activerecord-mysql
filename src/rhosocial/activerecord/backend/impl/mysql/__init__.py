@@ -25,6 +25,11 @@ from .types import (
     MySQLColumnType,
     MYSQL_TYPE_MAPPINGS,
 )
+from .type_converters import (
+    MySQLGeometryConverter,
+    MySQLEnumConverter,
+    MySQLUUIDConverter,
+)
 
 __all__ = [
     # Backend
@@ -43,6 +48,11 @@ __all__ = [
     'MySQLTypes',
     'MySQLColumnType',
     'MYSQL_TYPE_MAPPINGS',
+
+    # Type Converters
+    'MySQLGeometryConverter',
+    'MySQLEnumConverter',
+    'MySQLUUIDConverter',
 
     # Builder
     'MySQLSQLBuilder',

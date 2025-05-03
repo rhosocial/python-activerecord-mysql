@@ -13,7 +13,7 @@ from mysql.connector.errors import (
 )
 
 from .dialect import MySQLDialect, SQLDialectBase, MySQLSQLBuilder
-from .type_converters import MySQLGeometryConverter, MySQLEnumConverter
+from .type_converters import MySQLGeometryConverter, MySQLEnumConverter, MySQLUUIDConverter
 from ...dialect import ReturningOptions
 from .transaction import MySQLTransactionManager
 from ...base import StorageBackend, ColumnTypes
@@ -77,6 +77,16 @@ class MySQLBackend(StorageBackend):
         self.dialect.register_converter(MySQLEnumConverter(),
                                         names=["ENUM", "SET"],
                                         types=[DatabaseType.ENUM, DatabaseType.SET])
+
+        # Register MySQL UUID converter (string mode)
+        self.dialect.register_converter(MySQLUUIDConverter(binary_mode=False),
+                                        names=["UUID", "CHAR"],
+                                        types=[DatabaseType.UUID])
+
+        # Register MySQL UUID binary converter
+        self.dialect.register_converter(MySQLUUIDConverter(binary_mode=True),
+                                        names=["BINARY"],
+                                        types=[])
 
     def _prepare_connection_args(self, config: ConnectionConfig) -> Dict:
         """Prepare MySQL connection arguments
@@ -260,7 +270,8 @@ class MySQLBackend(StorageBackend):
         """
         Check if statement is a SELECT-like query.
 
-        MySQL includes additional read-only statements.
+        MySQL includes additional read-only statements and WITH queries
+        that are actually SELECT statements.
 
         Args:
             stmt_type: Statement type
@@ -268,7 +279,50 @@ class MySQLBackend(StorageBackend):
         Returns:
             bool: True if statement is a read-only query
         """
-        return stmt_type in ("SELECT", "EXPLAIN", "SHOW", "DESCRIBE", "DESC", "ANALYZE")
+        return stmt_type in ("SELECT", "WITH", "EXPLAIN", "SHOW", "DESCRIBE", "DESC", "ANALYZE")
+
+    def _get_statement_type(self, sql: str) -> str:
+        """
+        Parse the SQL statement type from the query.
+
+        MySQL supports special statements and CTEs with WITH (in MySQL 8.0+).
+
+        Args:
+            sql: SQL statement
+
+        Returns:
+            str: Statement type in uppercase
+        """
+        # Strip comments and whitespace for better detection
+        clean_sql = re.sub(r'--.*$', '', sql, flags=re.MULTILINE).strip()
+
+        # Check if SQL is empty after cleaning
+        if not clean_sql:
+            return ""
+
+        upper_sql = clean_sql.upper()
+
+        # Check for MySQL specific statements
+        if upper_sql.startswith('SHOW'):
+            return 'SHOW'
+        if upper_sql.startswith('SET'):
+            return 'SET'
+        if upper_sql.startswith('USE'):
+            return 'USE'
+
+        # Check for CTE queries (WITH ... SELECT/INSERT/UPDATE/DELETE)
+        if upper_sql.startswith('WITH'):
+            # Find the main statement type after WITH clause
+            for main_type in ['SELECT', 'INSERT', 'UPDATE', 'DELETE']:
+                if main_type in upper_sql:
+                    # This is a simple approach that works for most cases
+                    # More complex cases might need a SQL parser
+                    return main_type
+            # If no main type found, default to SELECT (most common)
+            return 'SELECT'
+
+        # Default to base implementation for other statement types
+        return super()._get_statement_type(clean_sql)
 
     def _prepare_returning_clause(self, sql: str, options: ReturningOptions, stmt_type: str) -> str:
         """
@@ -670,8 +724,7 @@ class MySQLBackend(StorageBackend):
 
         # Use dialect's format_identifier to ensure correct MySQL backtick quoting
         fields = [self.dialect.format_identifier(field) for field in cleaned_data.keys()]
-        values = [self.dialect.to_database(v, column_types.get(k.strip('"').strip('`')) if column_types else None)
-                  for k, v in data.items()]
+        values = list(cleaned_data.values())
         placeholders = [self.dialect.get_placeholder() for _ in fields]
 
         sql = f"INSERT INTO {table} ({','.join(fields)}) VALUES ({','.join(placeholders)})"
