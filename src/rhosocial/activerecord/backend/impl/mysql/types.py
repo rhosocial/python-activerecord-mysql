@@ -1,6 +1,7 @@
 from typing import Dict
 
-from ...dialect import DatabaseType, TypeMapping
+from ...dialect import TypeMapping
+from ... import DatabaseType
 from ...helpers import format_with_length, format_decimal
 
 # MySQL type mapping configuration

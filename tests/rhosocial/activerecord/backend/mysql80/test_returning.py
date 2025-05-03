@@ -21,12 +21,12 @@ def test_returning_not_supported():
         # Verify format_clause always raises ReturningNotSupportedError
         with pytest.raises(ReturningNotSupportedError) as exc_info:
             handler.format_clause()
-        assert "MySQL does not support RETURNING clause" in str(exc_info.value)
+        assert "RETURNING clause is not supported by MySQL. This is a fundamental limitation of the database engine, not a driver issue." in str(exc_info.value)
 
         # Test with specific columns
         with pytest.raises(ReturningNotSupportedError) as exc_info:
             handler.format_clause(columns=["id", "name"])
-        assert "MySQL does not support RETURNING clause" in str(exc_info.value)
+        assert "RETURNING clause is not supported by MySQL. This is a fundamental limitation of the database engine, not a driver issue." in str(exc_info.value)
 
 
 @pytest.fixture

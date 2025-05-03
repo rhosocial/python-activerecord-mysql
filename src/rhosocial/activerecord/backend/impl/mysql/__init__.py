@@ -9,20 +9,27 @@ This module provides a MySQL-specific implementation including:
 - MySQL-specific type definitions and mappings
 """
 
-__version__ = "1.0.0.dev1"
+__version__ = "1.0.0.dev2"
 
 from .backend import MySQLBackend
 from .dialect import (
     MySQLDialect,
     MySQLExpression,
-    MySQLTypeMapper,
-    MySQLValueMapper, MySQLSQLBuilder,
+    MySQLSQLBuilder,
+    MySQLAggregateHandler,
+    MySQLJsonHandler,
 )
 from .transaction import MySQLTransactionManager
 from .types import (
     MySQLTypes,
     MySQLColumnType,
     MYSQL_TYPE_MAPPINGS,
+)
+from .type_converters import (
+    MySQLGeometryConverter,
+    MySQLEnumConverter,
+    MySQLUUIDConverter,
+    MySQLDateTimeConverter,
 )
 
 __all__ = [
@@ -32,8 +39,8 @@ __all__ = [
     # Dialect related
     'MySQLDialect',
     'MySQLExpression',
-    'MySQLTypeMapper',
-    'MySQLValueMapper',
+    'MySQLAggregateHandler',  # Add MySQLAggregateHandler
+    'MySQLJsonHandler',  # Add MySQLJsonHandler
 
     # Transaction
     'MySQLTransactionManager',
@@ -42,6 +49,12 @@ __all__ = [
     'MySQLTypes',
     'MySQLColumnType',
     'MYSQL_TYPE_MAPPINGS',
+
+    # Type Converters
+    'MySQLGeometryConverter',
+    'MySQLEnumConverter',
+    'MySQLUUIDConverter',
+    'MySQLDateTimeConverter',
 
     # Builder
     'MySQLSQLBuilder',

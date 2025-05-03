@@ -16,6 +16,8 @@
 
 This package provides MySQL backend support for the [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) ORM framework. It enables seamless integration with MySQL databases while leveraging all the features of the ActiveRecord pattern implementation.
 
+**Note**: This is a backend implementation only and requires the main [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) package to function properly.
+
 ## Features
 
 > This project is still under development and features are subject to change. Please stay tuned for the latest changes.
@@ -36,15 +38,12 @@ This package provides MySQL backend support for the [rhosocial-activerecord](htt
 ## Installation
 
 ```bash
-# Basic installation
 pip install rhosocial-activerecord-mysql
-
-# With connection pooling support
-pip install rhosocial-activerecord-mysql[pooling]
-
-# With development tools
-pip install rhosocial-activerecord-mysql[dev]
 ```
+
+> **Important**: This package is a MySQL backend implementation for [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) and cannot work independently. You must install and use it together with the main package.
+
+For detailed usage of the main ActiveRecord framework, please refer to the [rhosocial-activerecord documentation](https://github.com/rhosocial/python-activerecord/tree/docs).
 
 ## Usage
 
