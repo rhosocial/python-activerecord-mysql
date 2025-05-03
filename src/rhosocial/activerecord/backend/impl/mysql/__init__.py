@@ -29,6 +29,7 @@ from .type_converters import (
     MySQLGeometryConverter,
     MySQLEnumConverter,
     MySQLUUIDConverter,
+    MySQLDateTimeConverter,
 )
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     'MySQLGeometryConverter',
     'MySQLEnumConverter',
     'MySQLUUIDConverter',
+    'MySQLDateTimeConverter',
 
     # Builder
     'MySQLSQLBuilder',

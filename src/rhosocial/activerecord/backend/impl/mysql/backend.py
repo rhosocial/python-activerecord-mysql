@@ -13,7 +13,7 @@ from mysql.connector.errors import (
 )
 
 from .dialect import MySQLDialect, SQLDialectBase, MySQLSQLBuilder
-from .type_converters import MySQLGeometryConverter, MySQLEnumConverter, MySQLUUIDConverter
+from .type_converters import MySQLGeometryConverter, MySQLEnumConverter, MySQLUUIDConverter, MySQLDateTimeConverter
 from ...dialect import ReturningOptions
 from .transaction import MySQLTransactionManager
 from ...base import StorageBackend, ColumnTypes
@@ -87,6 +87,12 @@ class MySQLBackend(StorageBackend):
         self.dialect.register_converter(MySQLUUIDConverter(binary_mode=True),
                                         names=["BINARY"],
                                         types=[])
+        
+        # Register MySQL DateTime converter
+        self.dialect.register_converter(MySQLDateTimeConverter(),
+                                        names=["DATETIME", "DATE", "TIME", "TIMESTAMP"],
+                                        types=[DatabaseType.DATETIME, DatabaseType.DATE, DatabaseType.TIME, DatabaseType.TIMESTAMP])
+        
 
     def _prepare_connection_args(self, config: ConnectionConfig) -> Dict:
         """Prepare MySQL connection arguments

@@ -12,8 +12,8 @@ CREATE TABLE `type_cases` (
     `varchar_val` VARCHAR(255),
     `text_val` TEXT,
     `date_val` DATE,
-    `time_val` TIME,
-    `timestamp_val` FLOAT,
+    `time_val` TIME(6),
+    `timestamp_val` TIMESTAMP(6),
     `blob_val` BLOB,
     `json_val` JSON,             -- Native JSON type in MySQL 8.0
     `array_val` JSON,            -- Using JSON for array storage in MySQL 8.0
