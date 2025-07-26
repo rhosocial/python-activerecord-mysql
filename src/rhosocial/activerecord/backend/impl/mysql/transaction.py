@@ -1,9 +1,10 @@
+# src/rhosocial/activerecord/backend/impl/mysql/transaction.py
 import logging
 from typing import Dict, Optional
 from mysql.connector.errors import Error as MySQLError, ProgrammingError
 
-from ...errors import TransactionError, IsolationLevelError
-from ...transaction import TransactionManager, IsolationLevel, TransactionState
+from rhosocial.activerecord.backend.errors import TransactionError, IsolationLevelError
+from rhosocial.activerecord.backend.transaction import TransactionManager, IsolationLevel, TransactionState
 
 
 class MySQLTransactionManager(TransactionManager):

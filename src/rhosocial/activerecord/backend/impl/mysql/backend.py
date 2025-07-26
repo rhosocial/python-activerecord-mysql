@@ -1,3 +1,4 @@
+# src/rhosocial/activerecord/backend/impl/mysql/backend.py
 import logging
 import re
 import time
@@ -12,12 +13,12 @@ from mysql.connector.errors import (
     DatabaseError as MySQLDatabaseError,
 )
 
-from .dialect import MySQLDialect, SQLDialectBase, MySQLSQLBuilder
+from .dialect import MySQLDialect, MySQLSQLBuilder
 from .type_converters import MySQLGeometryConverter, MySQLEnumConverter, MySQLUUIDConverter, MySQLDateTimeConverter
-from ...dialect import ReturningOptions
 from .transaction import MySQLTransactionManager
-from ...base import StorageBackend, ColumnTypes
-from ...errors import (
+from rhosocial.activerecord.backend.dialect import SQLDialectBase, ReturningOptions
+from rhosocial.activerecord.backend.base import StorageBackend, ColumnTypes
+from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     IntegrityError,
     OperationalError,
@@ -26,7 +27,8 @@ from ...errors import (
     DatabaseError,
     ReturningNotSupportedError
 )
-from ...typing import QueryResult, ConnectionConfig, DatabaseType
+from rhosocial.activerecord.backend.typing import QueryResult, DatabaseType
+from rhosocial.activerecord.backend.config import ConnectionConfig
 
 
 class MySQLBackend(StorageBackend):

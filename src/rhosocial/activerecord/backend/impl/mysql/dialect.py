@@ -1,15 +1,16 @@
+# src/rhosocial/activerecord/backend/impl/mysql/dialect.py
 import logging
 from enum import Enum
 from typing import Any, Set, Optional, Tuple, Union, List, Dict
 
-from ...dialect import (
+from rhosocial.activerecord.backend.dialect import (
     SQLBuilder,
     SQLExpressionBase, SQLDialectBase, ReturningClauseHandler, ExplainOptions, ExplainType, ExplainFormat,
     AggregateHandler, JsonOperationHandler, CTEHandler
 )
-from ...errors import ReturningNotSupportedError, GroupingSetNotSupportedError, \
+from rhosocial.activerecord.backend.errors import ReturningNotSupportedError, GroupingSetNotSupportedError, \
     JsonOperationNotSupportedError, WindowFunctionNotSupportedError, CTENotSupportedError
-from ...typing import ConnectionConfig
+from rhosocial.activerecord.backend.config import ConnectionConfig
 
 
 class MySQLExpression(SQLExpressionBase):

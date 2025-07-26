@@ -1,8 +1,9 @@
+# src/rhosocial/activerecord/backend/impl/mysql/types.py
 from typing import Dict
 
-from ...dialect import TypeMapping
-from ... import DatabaseType
-from ...helpers import format_with_length, format_decimal
+from rhosocial.activerecord.backend.dialect import TypeMapping
+from rhosocial.activerecord.backend.typing import DatabaseType
+from rhosocial.activerecord.backend.helpers import format_with_length, format_decimal
 
 # MySQL type mapping configuration
 MYSQL_TYPE_MAPPINGS: Dict[DatabaseType, TypeMapping] = {

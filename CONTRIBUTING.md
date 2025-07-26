@@ -56,7 +56,7 @@ If you're working on enhancing or fixing the MySQL backend itself:
 4. Run tests that involve the MySQL backend:
    ```bash
    # From the main package directory
-   pytest tests/rhosocial/activerecord/backend/mysql80
+   pytest tests/rhosocial/activerecord_mysql_test/backend/mysql80
    ```
 
 ### Option 2: Developing Applications Using the MySQL Backend

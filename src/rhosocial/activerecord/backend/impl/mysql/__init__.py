@@ -1,3 +1,4 @@
+# src/rhosocial/activerecord/backend/impl/mysql/__init__.py
 """
 MySQL backend implementation for the Python ORM.
 
@@ -9,7 +10,7 @@ This module provides a MySQL-specific implementation including:
 - MySQL-specific type definitions and mappings
 """
 
-__version__ = "1.0.0.dev2"
+__version__ = "1.0.0.dev3"
 
 from .backend import MySQLBackend
 from .dialect import (
