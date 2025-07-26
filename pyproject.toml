@@ -13,7 +13,7 @@ requires-python = ">=3.8"
 authors = [
     { name = "vistart", email = "i@vistart.me" }
 ]
-keywords = ["activerecord", "orm", "database", "mysql", "pymysql"]
+keywords = ["activerecord", "orm", "database", "mysql", "pymysql", "mysql-connector"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -25,6 +25,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3 :: Only",
     "Framework :: Pydantic",
     "Framework :: Pydantic :: 2",
@@ -36,33 +37,47 @@ classifiers = [
 ]
 dependencies = [
     "rhosocial-activerecord>=0.9.0,<2.0.0",
-    "mysql-connector-python>=9.2.0"
+    "mysql-connector-python>=9.3.0"
 ]
 
 [project.optional-dependencies]
-# Additional features
+# Alternative MySQL driver
+pymysql = [
+    "PyMySQL>=1.1.0",
+]
+# Connection pooling support
 pooling = [
+    "DBUtils>=3.0.0",
+]
+# All MySQL features
+all = [
+    "PyMySQL>=1.1.0",
     "DBUtils>=3.0.0",
 ]
 # Development dependencies
 test = [
     "pytest>=7.0.0",
     "coverage>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "rhosocial-activerecord[test]>=0.9.0,<2.0.0",
 ]
 dev = [
     "black>=23.0.0",
     "isort>=5.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
 ]
 docs = [
     "sphinx>=7.0.0",
     "sphinx-rtd-theme>=1.0.0",
+    "myst-parser>=2.0.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/rhosocial/python-activerecord-mysql"
-Documentation = "https://docs.python-activerecord.dev.rho.social"
+Documentation = "https://docs.python-activerecord.dev.rho.social/backends/mysql"
 Repository = "https://github.com/rhosocial/python-activerecord-mysql.git"
 Issues = "https://github.com/rhosocial/python-activerecord-mysql/issues"
 
@@ -71,6 +86,7 @@ path = "src/rhosocial/activerecord/backend/impl/mysql/__init__.py"
 pattern = '^__version__\s*=\s*"(?P<version>(?:[1-9]\d*!)?\d+(?:\.\d+)*(?:[-._]?(?:a|alpha|b|beta|rc|pre|preview)(?:[-._]?\d+)?)?(?:\.post(?:0|[1-9]\d*))?(?:\.dev(?:0|[1-9]\d*))?(?:\+[a-z0-9]+(?:[._-][a-z0-9]+)*)?)"$'
 
 [tool.hatch.build]
+# Default build: only MySQL backend implementation
 include = [
   "src/rhosocial/activerecord/backend/impl/mysql/**/*.py",
   "src/rhosocial/activerecord/backend/impl/mysql/**/*.pyi",
@@ -78,9 +94,9 @@ include = [
   "README.md",
 ]
 exclude = [
-  "tests/**",
-  "docs/**",
-  "examples/**",
+  "tests/",
+  "docs/",
+  "examples/",
   "*.pyc",
   "**/__pycache__",
   "**/*.py[cod]",
@@ -91,7 +107,147 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
+# Discover using namespace packages
 packages = ["src/rhosocial"]
+# Specify exactly what only the MySQL backend implementation is included
+include = [
+    "src/rhosocial/activerecord/backend/impl/mysql/**/*.py",
+    "src/rhosocial/activerecord/backend/impl/mysql/**/*.pyi",
+]
+exclude = [
+    # Exclude everything else
+    "src/rhosocial/__init__.py",
+    "src/rhosocial/activerecord/__init__.py",
+    "src/rhosocial/activerecord/backend/__init__.py",
+    "src/rhosocial/activerecord/backend/impl/__init__.py",
+    "src/rhosocial/activerecord/*.py",
+    "src/rhosocial/activerecord/backend/*.py",
+    "src/rhosocial/activerecord/backend/impl/*.py",
+    "src/rhosocial/activerecord/backend/impl/sqlite/**/*",
+    "src/rhosocial/activerecord/backend/impl/pgsql/**/*",
+    "src/rhosocial/activerecord/backend/impl/mariadb/**/*",
+    "src/rhosocial/activerecord/backend/impl/mssql/**/*",
+    "src/rhosocial/activerecord/backend/impl/oracle/**/*",
+    "tests/",
+    "docs/",
+    "examples/",
+    "*.pyc",
+    "**/__pycache__",
+    "**/*.py[cod]",
+    "**/*.so",
+    "**/.DS_Store",
+]
+
+[tool.hatch.build.targets.editable]
+# Configuration in edit mode
+packages = ["src/rhosocial"]
+
+[tool.hatch.build.targets.sdist]
+# Source distribution configuration
+include = [
+    "src/rhosocial/activerecord/backend/impl/mysql/**/*.py",
+    "src/rhosocial/activerecord/backend/impl/mysql/**/*.pyi",
+    "tests/",
+    "LICENSE",
+    "README.md",
+    "pyproject.toml",
+    "MANIFEST.in",
+]
+exclude = [
+    "src/rhosocial/__init__.py",
+    "src/rhosocial/activerecord/__init__.py",
+    "src/rhosocial/activerecord/backend/__init__.py",
+    "src/rhosocial/activerecord/backend/impl/__init__.py",
+    "src/rhosocial/activerecord/*.py",
+    "src/rhosocial/activerecord/backend/*.py",
+    "src/rhosocial/activerecord/backend/impl/*.py",
+    "src/rhosocial/activerecord/backend/impl/sqlite/**/*",
+    "src/rhosocial/activerecord/backend/impl/pgsql/**/*",
+    "src/rhosocial/activerecord/backend/impl/mariadb/**/*",
+    "src/rhosocial/activerecord/backend/impl/mssql/**/*",
+    "src/rhosocial/activerecord/backend/impl/oracle/**/*",
+    "docs/",
+    "examples/",
+    "*.pyc",
+    "**/__pycache__",
+    "**/*.py[cod]",
+    "**/*.so",
+    "**/.DS_Store",
+]
+
+# Custom build hooks for different modes
+# [tool.hatch.build.targets.sdist.hooks.custom]
+# path = "scripts/build_hooks.py"
+
+# [tool.hatch.build.targets.wheel.hooks.custom]
+# path = "scripts/build_hooks.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# Test environment configuration
+[tool.hatch.envs.test]
+features = ["test"]
+dependencies = [
+  "pytest>=7.0.0",
+  "coverage>=7.0.0",
+  "pytest-asyncio>=0.21.0",
+  "pytest-cov>=4.0.0",
+  "rhosocial-activerecord[test]>=0.9.0,<2.0.0",
+]
+
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+]
+
+# Documentation environment configuration
+[tool.hatch.envs.docs]
+features = ["docs"]
+dependencies = [
+  "sphinx>=7.0.0",
+  "sphinx-rtd-theme>=1.0.0",
+  "myst-parser>=2.0.0",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "sphinx-build -b html docs docs/_build/html"
+serve = "python -m http.server 8000 --directory docs/_build/html"
+
+# Development environment configuration
+[tool.hatch.envs.dev]
+features = ["dev", "test"]
+dependencies = [
+  "black>=23.0.0",
+  "isort>=5.0.0",
+  "mypy>=1.0.0",
+  "ruff>=0.1.0",
+  "pre-commit>=3.0.0",
+  "rhosocial-activerecord[test]>=0.9.0,<2.0.0",
+]
+
+[tool.hatch.envs.dev.scripts]
+format = [
+  "black src tests",
+  "isort src tests",
+]
+lint = [
+  "ruff check src tests",
+  "mypy src",
+]
+test = "pytest {args:tests}"
+all = [
+  "format",
+  "lint",
+  "test",
+]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -101,7 +257,7 @@ testpaths = [
 ]
 
 [tool.coverage.run]
-source = ["rhosocial"]
+source = ["rhosocial.activerecord.backend.impl.mysql"]
 branch = true
 
 [tool.coverage.report]
