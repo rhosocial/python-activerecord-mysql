@@ -15,6 +15,7 @@ from mysql.connector.errors import (
 
 from .dialect import MySQLDialect, MySQLSQLBuilder
 from .type_converters import MySQLGeometryConverter, MySQLEnumConverter, MySQLUUIDConverter, MySQLDateTimeConverter
+from rhosocial.activerecord.backend.dialect import ReturningOptions
 from .transaction import MySQLTransactionManager
 from rhosocial.activerecord.backend.dialect import SQLDialectBase, ReturningOptions
 from rhosocial.activerecord.backend.base import StorageBackend, ColumnTypes
