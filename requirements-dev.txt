@@ -1,1 +1,2 @@
 pyyaml
+rhosocial-activerecord-testsuite
