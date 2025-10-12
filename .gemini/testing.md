@@ -23,7 +23,7 @@ rhosocial-activerecord-mysql/
 │           └── backend/
 │               └── impl/
 │                   └── mysql/     # MySQL backend implementation
-│                       ├── __init__.py
+│                       ├── __init__.py            # Module exports and version info (__version__, __all__)
 │                       ├── backend.py              # Core backend implementation
 │                       ├── config.py              # MySQL-specific configuration
 │                       ├── dialect.py             # MySQL-specific SQL dialect
@@ -425,6 +425,54 @@ docker run -d \
   -p 3306:3306 \
   -v mysql-test-data:/var/lib/mysql \
   mysql:8.0
+```
+
+## Package Structure and __init__.py Files
+
+### Design Rationale
+
+The package structure follows Python's namespace package conventions. The `__init__.py` files serve different purposes in the hierarchy:
+
+1. **`src/rhosocial/__init__.py`** - Removed to support namespace packaging from the main `rhosocial-activerecord` package
+2. **`src/rhosocial/activerecord/__init__.py`** - Removed as namespace extension is handled by the main package
+3. **`src/rhosocial/activerecord/backend/__init__.py`** - Removed as namespace extension is handled by the main package  
+4. **`src/rhosocial/activerecord/backend/impl/__init__.py`** - Removed as namespace extension is handled by the main package
+5. **`src/rhosocial/activerecord/backend/impl/mysql/__init__.py`** - **Kept** as it contains module exports, version info, and public API definitions
+
+### Version Information
+
+Each package maintains its own version information accessible via the `__version__` attribute:
+
+```python
+# Main package version
+import rhosocial.activerecord
+print(f"Main package version: {rhosocial.activerecord.__version__}")
+
+# MySQL backend version  
+import rhosocial.activerecord.backend.impl.mysql
+print(f"MySQL backend version: {rhosocial.activerecord.backend.impl.mysql.__version__}")
+```
+
+The MySQL backend's `__init__.py` file specifically includes:
+
+- `__version__` - Package version string
+- `__all__` - List of public objects exported from the module
+- Import statements that make the backend components available at the package level
+
+### Namespace Behavior Verification
+
+The namespace behavior can be verified as follows:
+
+```python
+import rhosocial.activerecord
+import rhosocial.activerecord.backend.impl.mysql
+
+# Both packages are accessible under the same namespace
+assert hasattr(rhosocial.activerecord.backend.impl, 'mysql')
+
+# Version information is accessible from both packages
+main_version = rhosocial.activerecord.__version__
+mysql_version = rhosocial.activerecord.backend.impl.mysql.__version__
 ```
 
 ## MySQL Backend Provider Pattern
