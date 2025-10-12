@@ -176,3 +176,24 @@ cython_debug/
 **.DS_Store
 
 examples/
+
+# Configuration files - to prevent accidental commit of sensitive information
+mysql_config.yaml
+mysql_config.yml
+mysql_config.json
+mysql_config.template.yaml
+mysql_config.template.yml
+mysql_config.template.json
+local_mysql_config.yaml
+local_mysql_config.yml
+local_mysql_config.json
+local_mysql_config.example.yaml
+local_mysql_config.example.yml
+local_mysql_config.example.json
+**/.rhosocial/mysql_config.yaml
+**/.rhosocial/mysql_config.yml
+**/.rhosocial/mysql_config.json
+
+# Default config file - users should copy config.example.json to config.json for local use
+config.json
+local_config.json
