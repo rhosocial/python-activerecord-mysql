@@ -1,4 +1,4 @@
-"""配置管理模块，实现多级优先级配置机制"""
+"""Configuration Management Module, implementing multi-level priority configuration mechanism"""
 import os
 import yaml
 import json
