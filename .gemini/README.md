@@ -1,0 +1,35 @@
+# RhoSocial ActiveRecord MySQL Backend Knowledge Base
+
+Welcome to the knowledge base for the RhoSocial ActiveRecord MySQL backend (`rhosocial-activerecord-mysql`). This directory contains essential information to help developers and AI assistants understand and work with the MySQL backend implementation.
+
+## Purpose
+
+This knowledge base serves to:
+
+1. Document the architecture and design of the MySQL backend
+2. Provide guidance for developers working with the codebase
+3. Help AI assistants understand the repository structure and patterns
+4. Document testing strategies and configurations
+5. Explain MySQL-specific features and optimizations
+
+## Files Overview
+
+- `testing.md` - Comprehensive guide to testing the MySQL backend, including shared test suite integration and MySQL-specific test patterns
+- `mysql_backend.md` - General knowledge base covering architecture, features, configuration, and development guidelines
+- `architecture.md` - Detailed architectural overview of the MySQL backend implementation (coming soon)
+
+## Getting Started
+
+For AI assistants or developers new to this repository:
+
+1. Start with `mysql_backend.md` for an overview of the backend implementation
+2. Review `testing.md` to understand the testing approach and requirements
+3. Examine the codebase structure following the patterns documented
+4. Set up the MySQL server and run the test suite to verify the setup
+
+## Key Concepts
+
+- The MySQL backend is a separate package that extends the core `rhosocial-activerecord`
+- It reuses test suites from `rhosocial-activerecord-testsuite` while providing MySQL-specific implementations
+- The backend supports MySQL-specific features like JSON, full-text search, and window functions
+- PYTHONPATH configuration is required for test execution due to the multi-package architecture
