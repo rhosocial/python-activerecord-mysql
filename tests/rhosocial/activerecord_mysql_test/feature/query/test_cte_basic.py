@@ -1,15 +1,10 @@
 # tests/rhosocial/activerecord_mysql_test/feature/query/test_cte_basic.py
 """
-This is a "bridge" file for the query features test group.
+Basic CTE functionality tests for MySQL backend.
 
-Its purpose is to import the generic tests from the `rhosocial-activerecord-testsuite`
-package and make them discoverable by `pytest` within this project's test run.
-
-This approach allows us to keep the actual test logic separate and reusable across
-different backends, while this file acts as the entry point for running those
-tests against our specific (MySQL) backend.
+This module imports and runs the shared tests from the testsuite package,
+ensuring MySQL backend compatibility.
 """
-
 # IMPORTANT: These imports are essential for pytest to work correctly.
 # Even though they may be flagged as "unused" by some IDEs or linters,
 # they must not be removed. They are the mechanism by which pytest discovers
@@ -20,11 +15,10 @@ tests against our specific (MySQL) backend.
 # in some IDEs. These fixtures are defined in the testsuite package and are
 # parameterized to run against the scenarios defined in `providers/scenarios.py`.
 from rhosocial.activerecord.testsuite.feature.query.conftest import (
-    tree_fixtures,
     order_fixtures,
+    blog_fixtures,
+    json_user_fixture,
 )
 
-# By importing *, we bring all the test functions from the generic testsuite file
-# into this module's scope. `pytest` then discovers and runs them as if they 
-# were defined directly in this file.
+# Import shared tests from testsuite package
 from rhosocial.activerecord.testsuite.feature.query.test_cte_basic import *

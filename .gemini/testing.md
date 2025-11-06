@@ -305,85 +305,164 @@ pytest tests/
 The tests use a flexible configuration management system that supports multiple MySQL server instances through a priority-based loading mechanism:
 
 1. **Environment Variable Specified Config File** (`MYSQL_ACTIVERECCORD_CONFIG_PATH`)
-2. **Default Config File** (`config.json` in project root)
+2. **Default Config File** (`config.toml` or `config.yaml`/`config.yml` in project root)
 3. **Environment Variables for MySQL Connection Parameters**
 4. **Hard-coded Default Values**
 
 #### Configuration File Format
 
-The system uses a JSON-based configuration file format. Use `config.example.json` as a template:
+The system uses a TOML-based configuration file format (preferred) with YAML support. Use `config.example.toml` as a template:
 
-```json
-{
-  // MySQL connection configuration example
-  // 
-  // Usage:
-  // 1. Copy this file to config.json
-  //    cp config.example.json config.json
-  // 2. Modify the connection parameters to match your MySQL server configuration
-  // 3. The configuration manager will automatically load config.json
-  // 4. config.json is added to .gitignore and will not be committed to the repository
-  //
-  // Note: Never commit actual configuration files with sensitive information to version control
-  //
-  // Version notes:
-  // - You can add entries for multiple MySQL server configurations
-  // - Each configuration includes label, version, and connection information
-  // - During testing, you can select specific configurations by label
-  "databases": {
-    "mysql": {
-      "versions": [
-        {
-          "label": "mysql57",           // Configuration label, used to select in tests
-          "version": [5, 7, 30],       // MySQL version [major, minor, revision]
-          "host": "localhost",         // MySQL server address
-          "port": 3306,                // MySQL port
-          "user": "test_user",         // MySQL username
-          "password": "test_password", // MySQL password
-          "database": "test_activerecord", // Test database name
-          "charset": "utf8mb4",        // Character set
-          "autocommit": true,          // Whether to auto-commit
-          "connect_timeout": 10,       // Connection timeout in seconds
-          "read_timeout": 30,          // Read timeout in seconds
-          "write_timeout": 30          // Write timeout in seconds
-        },
-        {
-          "label": "mysql80",
-          "version": [8, 0, 21],
-          "host": "localhost",
-          "port": 3307,
-          "user": "test_user",
-          "password": "test_password",
-          "database": "test_activerecord",
-          "charset": "utf8mb4",
-          "autocommit": true,
-          "connect_timeout": 10,
-          "read_timeout": 30,
-          "write_timeout": 30
-        },
-        {
-          "label": "mysql90",           // MySQL 9.0 example configuration
-          "version": [9, 0, 0],
-          "host": "localhost",
-          "port": 3308,
-          "user": "test_user",
-          "password": "test_password",
-          "database": "test_activerecord",
-          "charset": "utf8mb4",
-          "autocommit": true,
-          "connect_timeout": 10,
-          "read_timeout": 30,
-          "write_timeout": 30
-        }
-      ]
-    }
-  },
-  "connection_pool": {
-    "pool_name": "test_pool",     // Connection pool name
-    "pool_size": 5,               // Connection pool size
-    "pool_reset_session": true    // Whether to reset session when connection is returned to pool
-  }
-}
+```toml
+# MySQL Connection Configuration Example
+# 
+# Usage:
+# 1. Copy this file to config.toml (preferred) or config.yaml/config.yml
+#    cp config.example.toml config.toml
+#    or
+#    cp config.example.toml config.yaml
+# 2. Modify the connection parameters to match your actual MySQL server configuration
+# 3. The configuration manager will automatically load config.toml (preferred) or config.yaml/config.yml
+# 4. config.toml, config.yaml and config.yml are added to .gitignore and will not be committed to the repository
+#
+# Note: Never commit actual configuration files with sensitive information to version control
+#
+# Version notes:
+# - You can add entries for multiple MySQL server configurations
+# - Each configuration includes label, version, and connection information
+# - During testing, you can select specific configurations by label
+
+[databases.mysql]
+# Configuration for MySQL database connections
+
+[[databases.mysql.versions]]
+label = "mysql57"           # Configuration label, used to select in tests
+version = [5, 7, 30]        # MySQL version [major, minor, revision]
+host = "localhost"          # MySQL server address
+port = 3306                 # MySQL port
+user = "test_user"          # MySQL username
+password = "test_password"  # MySQL password
+database = "test_activerecord"  # Test database name
+charset = "utf8mb4"         # Character set
+autocommit = true           # Whether to auto-commit
+connect_timeout = 10        # Connection timeout in seconds
+read_timeout = 30           # Read timeout in seconds
+write_timeout = 30          # Write timeout in seconds
+ssl_disabled = true         # SSL disabled by default (set to false to enable SSL)
+
+[[databases.mysql.versions]]
+label = "mysql80"
+version = [8, 0, 21]
+host = "localhost"
+port = 3307
+user = "test_user"
+password = "test_password"
+database = "test_activerecord"
+charset = "utf8mb4"
+autocommit = true
+connect_timeout = 10
+read_timeout = 30
+write_timeout = 30
+ssl_disabled = true         # SSL disabled by default (set to false to enable SSL)
+
+[[databases.mysql.versions]]
+label = "mysql90"           # MySQL 9.0 example configuration
+version = [9, 0, 0]
+host = "localhost"
+port = 3308
+user = "test_user"
+password = "test_password"
+database = "test_activerecord"
+charset = "utf8mb4"
+autocommit = true
+connect_timeout = 10
+read_timeout = 30
+write_timeout = 30
+ssl_disabled = true         # SSL disabled by default (set to false to enable SSL)
+
+[connection_pool]
+pool_name = "test_pool"     # Connection pool name
+pool_size = 5               # Connection pool size
+pool_reset_session = true   # Whether to reset session when returning connection to pool
+```
+
+### Creating Localized Configuration
+
+To prepare your local database configuration:
+
+1. **Copy the example configuration file**:
+   ```bash
+   # For TOML format (preferred)
+   cp config.example.toml config.toml
+   
+   # OR for YAML format
+   cp config.example.yaml config.yaml
+   ```
+
+2. **Modify the configuration** to match your local database server settings:
+   - Update `host`, `port`, `user`, `password`, and `database` values
+   - Adjust timeouts and other connection parameters as needed
+   - Ensure the database exists and the user has appropriate permissions
+
+3. **Verify your configuration**:
+   ```bash
+   # Test database connection manually before running tests
+   mysql -h localhost -P 3306 -u test_user -ptest_password -e "SHOW DATABASES LIKE 'test_activerecord'"
+   ```
+
+### Environment Variable Configuration
+
+Alternatively, you can configure MySQL connections using environment variables. This method is especially useful for CI/CD environments or when you want to avoid creating configuration files:
+
+```bash
+# Basic MySQL connection parameters
+export AR_TEST_BACKEND_NAME_1=mysql_local
+export AR_TEST_BACKEND_DRIVER_1=mysql
+export AR_TEST_BACKEND_HOST_1=localhost
+export AR_TEST_BACKEND_PORT_1=3306
+export AR_TEST_BACKEND_USER_1=test_user
+export AR_TEST_BACKEND_PASSWORD_1=test_password
+export AR_TEST_BACKEND_DATABASE_1=test_activerecord
+
+# MySQL-specific parameters
+export AR_TEST_BACKEND_CHARSET_1=utf8mb4
+export AR_TEST_BACKEND_SSL_DISABLED_1=true
+```
+
+### Testing with Multiple MySQL Versions
+
+The framework supports testing against multiple MySQL server versions simultaneously. You can define multiple configurations with different labels and versions in your config file:
+
+```toml
+# Multiple MySQL server configurations
+[[databases.mysql.versions]]
+label = "mysql57"
+version = [5, 7, 30]
+host = "mysql57-test.local"
+port = 3306
+# ... other parameters
+
+[[databases.mysql.versions]]
+label = "mysql80"
+version = [8, 0, 21]
+host = "mysql80-test.local"
+port = 3306
+# ... other parameters
+```
+
+### Docker Setup for Testing
+
+For easier setup of MySQL servers for testing, you can use Docker containers:
+
+```bash
+# Start MySQL container for testing
+docker run -d \
+  --name mysql-test-activerecord \
+  -e MYSQL_ROOT_PASSWORD=test_password \
+  -e MYSQL_DATABASE=test_activerecord \
+  -p 3306:3306 \
+  -v mysql-test-data:/var/lib/mysql \
+  mysql:8.0
 ```
 
 #### MySQL Server Setup

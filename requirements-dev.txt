@@ -1,2 +1,6 @@
 pyyaml
+tomli
 rhosocial-activerecord-testsuite
+pydantic[email]
+pytz
+pytest-asyncio

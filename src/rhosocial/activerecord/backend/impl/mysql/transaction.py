@@ -4,65 +4,43 @@ from typing import Dict, Optional
 from mysql.connector.errors import Error as MySQLError, ProgrammingError
 
 from rhosocial.activerecord.backend.errors import TransactionError, IsolationLevelError
-from rhosocial.activerecord.backend.transaction import TransactionManager, IsolationLevel, TransactionState
+from rhosocial.activerecord.backend.transaction import (
+    TransactionManager,
+    AsyncTransactionManager,
+    IsolationLevel,
+    TransactionState
+)
 
 
 class MySQLTransactionManager(TransactionManager):
-    """MySQL transaction manager implementation.
+    """MySQL synchronous transaction manager implementation."""
 
-    Provides MySQL-specific transaction management with support for:
-    - Different isolation levels
-    - Savepoint handling
-    - Automatic rollback on exceptions
-    - Nested transactions using savepoints
-    """
-
-    # Mapping of isolation levels to MySQL-connector-python supported values
     _ISOLATION_LEVELS: Dict[IsolationLevel, str] = {
         IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
         IsolationLevel.READ_COMMITTED: "READ COMMITTED",
-        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",  # MySQL default
+        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
         IsolationLevel.SERIALIZABLE: "SERIALIZABLE"
     }
 
     def __init__(self, connection, logger=None):
-        """Initialize MySQL transaction manager.
-
-        Args:
-            connection: MySQL database connection
-            logger: Optional logger instance
-        """
+        """Initialize MySQL transaction manager."""
         super().__init__(connection, logger)
-        # MySQL specific initialization
-        self._isolation_level = IsolationLevel.REPEATABLE_READ  # MySQL default
-        self._state = TransactionState.INACTIVE  # 初始状态为非活动
+        self._isolation_level = IsolationLevel.REPEATABLE_READ
+        self._state = TransactionState.INACTIVE
 
     @property
     def isolation_level(self) -> Optional[IsolationLevel]:
-        """Get current transaction isolation level.
-
-        Returns:
-            Optional[IsolationLevel]: Current isolation level
-        """
+        """Get current transaction isolation level."""
         return self._isolation_level
 
     @isolation_level.setter
     def isolation_level(self, level: Optional[IsolationLevel]):
-        """Set transaction isolation level.
-
-        Args:
-            level: Isolation level to set
-
-        Raises:
-            IsolationLevelError: If attempting to change isolation level during active transaction
-            TransactionError: If isolation level is not supported by MySQL
-        """
+        """Set transaction isolation level."""
         self.log(logging.DEBUG, f"Setting isolation level to {level}")
         if self.is_active:
             self.log(logging.ERROR, "Cannot change isolation level during active transaction")
             raise IsolationLevelError("Cannot change isolation level during active transaction")
 
-        # Check if MySQL supports this isolation level
         if level is not None and level not in self._ISOLATION_LEVELS:
             error_msg = f"Unsupported isolation level: {level}"
             self.log(logging.ERROR, error_msg)
@@ -71,16 +49,12 @@ class MySQLTransactionManager(TransactionManager):
         self._isolation_level = level
 
     def _ensure_connection_ready(self):
-        """Ensure connection is ready for transaction operations.
-
-        Checks if connection is alive and (if possible) if in auto-commit mode.
-        """
+        """Ensure connection is ready for transaction operations."""
         if not self._connection or not hasattr(self._connection, 'is_connected'):
             error_msg = "No valid connection for transaction"
             self.log(logging.ERROR, error_msg)
             raise TransactionError(error_msg)
 
-        # Check if connection is alive
         if not self._connection.is_connected():
             try:
                 self._connection.reconnect()
@@ -91,46 +65,32 @@ class MySQLTransactionManager(TransactionManager):
                 raise TransactionError(error_msg)
 
     def _do_begin(self) -> None:
-        """Begin MySQL transaction.
-
-        Uses mysql-connector-python's start_transaction method
-        with the appropriate isolation level parameter.
-
-        Raises:
-            TransactionError: If beginning the transaction fails
-        """
+        """Begin MySQL transaction."""
         self._ensure_connection_ready()
 
         try:
-            # Get MySQL isolation level string
             isolation_string = self._ISOLATION_LEVELS.get(self._isolation_level)
 
-            # Check if a transaction is already active at server level
             cursor = self._connection.cursor()
             cursor.execute("SELECT @@autocommit")
             auto_commit = cursor.fetchone()[0]
             cursor.close()
 
-            # If autocommit is 0, a transaction is already active
             if auto_commit == 0 and self._transaction_level == 0:
-                # Try to clean up the existing transaction
                 self.log(logging.WARNING, "Found existing transaction, attempting to rollback")
                 try:
                     self._connection.rollback()
                 except MySQLError:
                     pass
 
-            # Use mysql-connector-python's native isolation level support
             self._connection.start_transaction(isolation_level=isolation_string)
             self._state = TransactionState.ACTIVE
 
             self.log(logging.DEBUG, f"Started MySQL transaction with isolation level {isolation_string}")
         except ProgrammingError as e:
-            # Special handling for "Transaction already in progress" error
             if "Transaction already in progress" in str(e) and self._transaction_level == 0:
                 self.log(logging.WARNING, "Transaction already in progress at server level")
                 self._state = TransactionState.ACTIVE
-                # Don't throw an error, just adapt to the existing transaction
             else:
                 error_msg = f"Failed to begin transaction: {str(e)}"
                 self.log(logging.ERROR, error_msg)
@@ -141,11 +101,7 @@ class MySQLTransactionManager(TransactionManager):
             raise TransactionError(error_msg)
 
     def _do_commit(self) -> None:
-        """Commit MySQL transaction.
-
-        Raises:
-            TransactionError: If commit fails
-        """
+        """Commit MySQL transaction."""
         self._ensure_connection_ready()
 
         try:
@@ -158,11 +114,7 @@ class MySQLTransactionManager(TransactionManager):
             raise TransactionError(error_msg)
 
     def _do_rollback(self) -> None:
-        """Rollback MySQL transaction.
-
-        Raises:
-            TransactionError: If rollback fails
-        """
+        """Rollback MySQL transaction."""
         self._ensure_connection_ready()
 
         try:
@@ -175,14 +127,7 @@ class MySQLTransactionManager(TransactionManager):
             raise TransactionError(error_msg)
 
     def _do_create_savepoint(self, name: str) -> None:
-        """Create MySQL savepoint.
-
-        Args:
-            name: Savepoint name
-
-        Raises:
-            TransactionError: If creating savepoint fails
-        """
+        """Create MySQL savepoint."""
         self._ensure_connection_ready()
 
         try:
@@ -196,14 +141,7 @@ class MySQLTransactionManager(TransactionManager):
             raise TransactionError(error_msg)
 
     def _do_release_savepoint(self, name: str) -> None:
-        """Release MySQL savepoint.
-
-        Args:
-            name: Savepoint name
-
-        Raises:
-            TransactionError: If releasing savepoint fails
-        """
+        """Release MySQL savepoint."""
         self._ensure_connection_ready()
 
         try:
@@ -217,14 +155,7 @@ class MySQLTransactionManager(TransactionManager):
             raise TransactionError(error_msg)
 
     def _do_rollback_savepoint(self, name: str) -> None:
-        """Rollback to MySQL savepoint.
-
-        Args:
-            name: Savepoint name
-
-        Raises:
-            TransactionError: If rollback to savepoint fails
-        """
+        """Rollback to MySQL savepoint."""
         self._ensure_connection_ready()
 
         try:
@@ -238,9 +169,146 @@ class MySQLTransactionManager(TransactionManager):
             raise TransactionError(error_msg)
 
     def supports_savepoint(self) -> bool:
-        """Check if savepoints are supported.
+        """Check if savepoints are supported."""
+        return True
 
-        Returns:
-            bool: Always returns True for MySQL
-        """
+
+class AsyncMySQLTransactionManager(AsyncTransactionManager):
+    """MySQL asynchronous transaction manager implementation."""
+
+    _ISOLATION_LEVELS: Dict[IsolationLevel, str] = {
+        IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
+        IsolationLevel.READ_COMMITTED: "READ COMMITTED",
+        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
+        IsolationLevel.SERIALIZABLE: "SERIALIZABLE"
+    }
+
+    def __init__(self, connection, logger=None):
+        """Initialize async MySQL transaction manager."""
+        super().__init__(connection, logger)
+        self._isolation_level = IsolationLevel.REPEATABLE_READ
+        self._state = TransactionState.INACTIVE
+
+    @property
+    def isolation_level(self) -> Optional[IsolationLevel]:
+        """Get current transaction isolation level."""
+        return self._isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, level: Optional[IsolationLevel]):
+        """Set transaction isolation level."""
+        self.log(logging.DEBUG, f"Setting isolation level to {level}")
+        if self.is_active:
+            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
+            raise IsolationLevelError("Cannot change isolation level during active transaction")
+
+        if level is not None and level not in self._ISOLATION_LEVELS:
+            error_msg = f"Unsupported isolation level: {level}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+        self._isolation_level = level
+
+    async def _ensure_connection_ready(self):
+        """Ensure connection is ready for transaction operations asynchronously."""
+        if not self._connection:
+            error_msg = "No valid connection for transaction"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+        # For async connections, we might need to check differently
+        # This depends on the async MySQL driver being used (aiomysql, asyncmy, etc.)
+
+    async def _do_begin(self) -> None:
+        """Begin MySQL transaction asynchronously."""
+        await self._ensure_connection_ready()
+
+        try:
+            isolation_string = self._ISOLATION_LEVELS.get(self._isolation_level)
+
+            # Set isolation level
+            cursor = await self._connection.cursor()
+            await cursor.execute(f"SET TRANSACTION ISOLATION LEVEL {isolation_string}")
+
+            # Start transaction
+            await cursor.execute("START TRANSACTION")
+            await cursor.close()
+
+            self._state = TransactionState.ACTIVE
+            self.log(logging.DEBUG, f"Started MySQL transaction with isolation level {isolation_string}")
+        except Exception as e:
+            error_msg = f"Failed to begin transaction: {str(e)}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+    async def _do_commit(self) -> None:
+        """Commit MySQL transaction asynchronously."""
+        await self._ensure_connection_ready()
+
+        try:
+            await self._connection.commit()
+            self._state = TransactionState.COMMITTED
+            self.log(logging.DEBUG, "Committed MySQL transaction")
+        except Exception as e:
+            error_msg = f"Failed to commit transaction: {str(e)}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+    async def _do_rollback(self) -> None:
+        """Rollback MySQL transaction asynchronously."""
+        await self._ensure_connection_ready()
+
+        try:
+            await self._connection.rollback()
+            self._state = TransactionState.ROLLED_BACK
+            self.log(logging.DEBUG, "Rolled back MySQL transaction")
+        except Exception as e:
+            error_msg = f"Failed to rollback transaction: {str(e)}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+    async def _do_create_savepoint(self, name: str) -> None:
+        """Create MySQL savepoint asynchronously."""
+        await self._ensure_connection_ready()
+
+        try:
+            cursor = await self._connection.cursor()
+            await cursor.execute(f"SAVEPOINT {name}")
+            await cursor.close()
+            self.log(logging.DEBUG, f"Created savepoint: {name}")
+        except Exception as e:
+            error_msg = f"Failed to create savepoint {name}: {str(e)}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+    async def _do_release_savepoint(self, name: str) -> None:
+        """Release MySQL savepoint asynchronously."""
+        await self._ensure_connection_ready()
+
+        try:
+            cursor = await self._connection.cursor()
+            await cursor.execute(f"RELEASE SAVEPOINT {name}")
+            await cursor.close()
+            self.log(logging.DEBUG, f"Released savepoint: {name}")
+        except Exception as e:
+            error_msg = f"Failed to release savepoint {name}: {str(e)}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+    async def _do_rollback_savepoint(self, name: str) -> None:
+        """Rollback to MySQL savepoint asynchronously."""
+        await self._ensure_connection_ready()
+
+        try:
+            cursor = await self._connection.cursor()
+            await cursor.execute(f"ROLLBACK TO SAVEPOINT {name}")
+            await cursor.close()
+            self.log(logging.DEBUG, f"Rolled back to savepoint: {name}")
+        except Exception as e:
+            error_msg = f"Failed to rollback to savepoint {name}: {str(e)}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+    async def supports_savepoint(self) -> bool:
+        """Check if savepoints are supported asynchronously."""
         return True
