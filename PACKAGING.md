@@ -118,7 +118,7 @@ HATCH_BUILD_MODE=dev python -m build
 
 ### Basic Usage
 ```python
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 
 # Configure MySQL backend

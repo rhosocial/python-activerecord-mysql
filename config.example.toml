@@ -1,0 +1,68 @@
+# MySQL Connection Configuration Example
+# 
+# Usage:
+# 1. Copy this file to config.toml
+#    cp config.example.toml config.toml
+# 2. Modify the connection parameters to match your actual MySQL server configuration
+# 3. The configuration manager will automatically load config.toml file
+# 4. config.toml has been added to .gitignore and will not be committed to the repository
+#
+# Note: Do not commit actual configuration files containing sensitive information to version control
+#
+# Version notes:
+# - You can add entries for multiple MySQL server configurations
+# - Each configuration includes label, version, and connection information
+# - During testing, you can select specific configurations by label
+
+[databases.mysql]
+# Configuration for MySQL database connections
+
+[[databases.mysql.versions]]
+label = "mysql57"           # Configuration label, used to select in tests
+version = [5, 7, 30]        # MySQL version [major, minor, revision]
+host = "localhost"          # MySQL server address
+port = 3306                 # MySQL port
+user = "test_user"          # MySQL username
+password = "test_password"  # MySQL password
+database = "test_activerecord"  # Test database name
+charset = "utf8mb4"         # Character set
+autocommit = true           # Whether to auto-commit
+connect_timeout = 10        # Connection timeout in seconds
+read_timeout = 30           # Read timeout in seconds
+write_timeout = 30          # Write timeout in seconds
+ssl_disabled = true         # SSL disabled by default (set to false to enable SSL)
+
+[[databases.mysql.versions]]
+label = "mysql80"
+version = [8, 0, 21]
+host = "localhost"
+port = 3307
+user = "test_user"
+password = "test_password"
+database = "test_activerecord"
+charset = "utf8mb4"
+autocommit = true
+connect_timeout = 10
+read_timeout = 30
+write_timeout = 30
+ssl_disabled = true         # SSL disabled by default (set to false to enable SSL)
+
+[[databases.mysql.versions]]
+label = "mysql90"           # MySQL 9.0 example configuration
+version = [9, 0, 0]
+host = "localhost"
+port = 3308
+user = "test_user"
+password = "test_password"
+database = "test_activerecord"
+charset = "utf8mb4"
+autocommit = true
+connect_timeout = 10
+read_timeout = 30
+write_timeout = 30
+ssl_disabled = true         # SSL disabled by default (set to false to enable SSL)
+
+[connection_pool]
+pool_name = "test_pool"     # Connection pool name
+pool_size = 5               # Connection pool size
+pool_reset_session = true   # Whether to reset session when returning connection to pool

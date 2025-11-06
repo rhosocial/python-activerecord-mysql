@@ -33,7 +33,7 @@ This package provides MySQL backend support for the [rhosocial-activerecord](htt
 
 - Python 3.8+
 - rhosocial-activerecord 1.0.0+
-- mysql-connector-python 9.2.0+
+- mysql-connector-python 9.0.0+
 
 ## Installation
 
@@ -48,7 +48,7 @@ For detailed usage of the main ActiveRecord framework, please refer to the [rhos
 ## Usage
 
 ```python
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.typing import ConnectionConfig
 from datetime import datetime

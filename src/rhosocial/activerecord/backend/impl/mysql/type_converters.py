@@ -88,56 +88,63 @@ class MySQLGeometryConverter(BaseTypeConverter):
         return value  # Default: return unchanged
 
 
-class MySQLDateTimeConverter(DateTimeConverter):
+class ModernMySQLDateTimeConverter(DateTimeConverter):
     """
     MySQL specific datetime converter that handles timedelta objects returned for TIME columns.
-    
+    This version is for MySQL 8.0+ and uses ISO 8601 format for datetime strings.
+
     MySQL's mysql-connector-python returns datetime.timedelta for TIME columns,
     but we want to convert these to datetime.time objects for consistency.
+    Optionally adds local timezone to datetime objects based on auto_add_local_tz configuration.
     """
-    
+
+    def __init__(self, backend=None):
+        super().__init__()
+        self.backend = backend  # Allow access to backend config for timezone info
+
     @property
     def priority(self) -> int:
         # Higher priority than the base DateTimeConverter to ensure this one is used for MySQL
         return 30
-    
+
     def can_handle(self, value: Any, target_type: Any = None) -> bool:
         """
         Check if this converter can handle the given value or type.
-        
+
         Extends the base DateTimeConverter to also handle timedelta objects.
-        
+
         Args:
             value: The value to check
             target_type: Optional target type
-            
+
         Returns:
             bool: True if this converter can handle the conversion
         """
         # Handle timedelta objects (MySQL TIME columns)
         if isinstance(value, datetime.timedelta):
             return True
-            
+
         # Use the base class implementation for other types
         return super().can_handle(value, target_type)
-    
+
     def from_database(self, value: Any, source_type: Any = None, timezone: Optional[str] = None) -> Any:
         """
-        Convert a database value to its Python representation.
-        
-        Extends the base DateTimeConverter to handle timedelta objects returned by MySQL for TIME columns.
-        
+        Convert a database value to its Python representation with timezone handling.
+
+        Extends the base DateTimeConverter to handle timedelta objects returned by MySQL for TIME columns
+        and to ensure all datetime objects have timezone info to prevent naive/aware datetime comparison errors.
+
         Args:
             value: The database value to convert
             source_type: Optional source type hint
-            timezone: Optional timezone name
-            
+            timezone: Optional timezone name (takes precedence over any defaults)
+
         Returns:
-            The converted Python value
+            The converted Python value with timezone information
         """
         if value is None:
             return None
-            
+
         # Handle timedelta objects (MySQL TIME columns)
         if isinstance(value, datetime.timedelta):
             # Convert timedelta to time
@@ -156,55 +163,54 @@ class MySQLDateTimeConverter(DateTimeConverter):
             seconds_int = int(seconds)
             microseconds = int((seconds - seconds_int) * 1000000)
             return datetime.time(hours, minutes, seconds_int, microseconds)
-            
-        # Use the base class implementation for other types
-        return super().from_database(value, source_type, timezone)
+
+        # Process datetime/timestamp values with timezone
+        result = super().from_database(value, source_type, timezone)
+
+        # Ensure datetime objects have timezone information to prevent comparison errors
+        # Apply local timezone to naive datetime objects (as required by the specification)
+        if isinstance(result, datetime.datetime) and result.tzinfo is None:
+            try:
+                # Use tzlocal to get the local timezone
+                import tzlocal
+                local_tz = tzlocal.get_localzone()
+                result = local_tz.localize(result) if hasattr(local_tz, 'localize') else result.replace(tzinfo=local_tz)
+            except ImportError:
+                # If tzlocal is not available, fall back to UTC
+                try:
+                    from datetime import timezone as tz_module
+                    result = result.replace(tzinfo=tz_module.utc)
+                except Exception:
+                    # If timezone setting fails completely, return as-is
+                    # This is the fallback to avoid breaking functionality
+                    pass
+
+        return result
 
 
-def register_mysql_converters(backend):
+class LegacyMySQLDateTimeConverter(ModernMySQLDateTimeConverter):
     """
-    Register MySQL-specific converters with the backend.
-    
-    Args:
-        backend: The MySQL backend instance
+    MySQL specific datetime converter for legacy versions (5.6, 5.7).
+    Formats datetime objects to 'YYYY-MM-DD HH:MM:SS.f' strings to preserve microseconds.
+    This ensures consistent behavior with ModernMySQLDateTimeConverter.
     """
-    mysql_datetime_converter = MySQLDateTimeConverter()
-    backend.register_converter(
-        mysql_datetime_converter,
-        types=[DatabaseType.DATE, DatabaseType.TIME, DatabaseType.DATETIME, DatabaseType.TIMESTAMP]
-    )
 
-
-    def from_database(self, value: Any, source_type: Any = None) -> Any:
+    def to_database(self, value: Any, target_type: Any = None, timezone: Optional[str] = None) -> Any:
         """
-        Convert a MySQL geometry value to its Python representation.
-
-        Args:
-            value: The database value to convert
-            source_type: Optional source type hint
-
-        Returns:
-            The converted Python value
+        Converts a datetime object to a string format compatible with older MySQL versions.
+        Preserves microseconds to ensure consistency with ModernMySQLDateTimeConverter.
         """
-        if value is None:
-            return None
+        if isinstance(value, datetime.datetime):
+            # Preserve microseconds by including them in the format
+            # This ensures that data round-trips correctly between database and Python
+            if value.microsecond:
+                return value.strftime('%Y-%m-%d %H:%M:%S.%f')
+            else:
+                return value.strftime('%Y-%m-%d %H:%M:%S')
+        return super().to_database(value, target_type, timezone)
 
-        # MySQL typically returns geometry as WKB
-        # Convert to appropriate Python type if a suitable library is available
-        # For simplicity, we just return the WKB bytes or WKT string
-
-        return value
 
 
-class MySQLEnumConverter(BaseTypeConverter):
-    """
-    MySQL enum converter.
-    Handles conversion between Python enum objects and MySQL ENUM/SET types.
-    """
-
-    @property
-    def priority(self) -> int:
-        return 65
 
 
 class MySQLEnumConverter(BaseTypeConverter):
@@ -258,199 +264,6 @@ class MySQLEnumConverter(BaseTypeConverter):
             return ','.join(str(item.value) for item in value)
 
         return value  # Default: return unchanged
-
-
-class MySQLDateTimeConverter(DateTimeConverter):
-    """
-    MySQL specific datetime converter that handles timedelta objects returned for TIME columns.
-    
-    MySQL's mysql-connector-python returns datetime.timedelta for TIME columns,
-    but we want to convert these to datetime.time objects for consistency.
-    """
-    
-    @property
-    def priority(self) -> int:
-        # Higher priority than the base DateTimeConverter to ensure this one is used for MySQL
-        return 30
-    
-    def can_handle(self, value: Any, target_type: Any = None) -> bool:
-        """
-        Check if this converter can handle the given value or type.
-        
-        Extends the base DateTimeConverter to also handle timedelta objects.
-        
-        Args:
-            value: The value to check
-            target_type: Optional target type
-            
-        Returns:
-            bool: True if this converter can handle the conversion
-        """
-        # Handle timedelta objects (MySQL TIME columns)
-        if isinstance(value, datetime.timedelta):
-            return True
-            
-        # Use the base class implementation for other types
-        return super().can_handle(value, target_type)
-    
-    def from_database(self, value: Any, source_type: Any = None, timezone: Optional[str] = None) -> Any:
-        """
-        Convert a database value to its Python representation.
-        
-        Extends the base DateTimeConverter to handle timedelta objects returned by MySQL for TIME columns.
-        
-        Args:
-            value: The database value to convert
-            source_type: Optional source type hint
-            timezone: Optional timezone name
-            
-        Returns:
-            The converted Python value
-        """
-        if value is None:
-            return None
-            
-        # Handle timedelta objects (MySQL TIME columns)
-        if isinstance(value, datetime.timedelta):
-            # Convert timedelta to time
-            # Extract hours, minutes, seconds and microseconds from timedelta
-            total_seconds = value.total_seconds()
-            hours, remainder = divmod(total_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            # Handle negative timedeltas (can occur in MySQL)
-            if hours < 0 or minutes < 0 or seconds < 0:
-                # MySQL allows negative time values, but Python's time doesn't
-                # For simplicity, we'll convert to the smallest valid time
-                return datetime.time(0, 0, 0)
-            # Ensure values are within valid ranges for time
-            hours = min(23, int(hours))  # time() accepts 0-23 hours
-            minutes = min(59, int(minutes))  # time() accepts 0-59 minutes
-            seconds_int = int(seconds)
-            microseconds = int((seconds - seconds_int) * 1000000)
-            return datetime.time(hours, minutes, seconds_int, microseconds)
-            
-        # Use the base class implementation for other types
-        return super().from_database(value, source_type, timezone)
-
-
-def register_mysql_converters(backend):
-    """
-    Register MySQL-specific converters with the backend.
-    
-    Args:
-        backend: The MySQL backend instance
-    """
-    mysql_datetime_converter = MySQLDateTimeConverter()
-    backend.register_converter(
-        mysql_datetime_converter,
-        types=[DatabaseType.DATE, DatabaseType.TIME, DatabaseType.DATETIME, DatabaseType.TIMESTAMP]
-    )
-
-
-class MySQLDateTimeConverter(DateTimeConverter):
-    """
-    MySQL specific datetime converter that handles timedelta objects returned for TIME columns.
-    
-    MySQL's mysql-connector-python returns datetime.timedelta for TIME columns,
-    but we want to convert these to datetime.time objects for consistency.
-    """
-    
-    @property
-    def priority(self) -> int:
-        # Higher priority than the base DateTimeConverter to ensure this one is used for MySQL
-        return 30
-    
-    def can_handle(self, value: Any, target_type: Any = None) -> bool:
-        """
-        Check if this converter can handle the given value or type.
-        
-        Extends the base DateTimeConverter to also handle timedelta objects.
-        
-        Args:
-            value: The value to check
-            target_type: Optional target type
-            
-        Returns:
-            bool: True if this converter can handle the conversion
-        """
-        # Handle timedelta objects (MySQL TIME columns)
-        if isinstance(value, datetime.timedelta):
-            return True
-            
-        # Use the base class implementation for other types
-        return super().can_handle(value, target_type)
-    
-    def from_database(self, value: Any, source_type: Any = None, timezone: Optional[str] = None) -> Any:
-        """
-        Convert a database value to its Python representation.
-        
-        Extends the base DateTimeConverter to handle timedelta objects returned by MySQL for TIME columns.
-        
-        Args:
-            value: The database value to convert
-            source_type: Optional source type hint
-            timezone: Optional timezone name
-            
-        Returns:
-            The converted Python value
-        """
-        if value is None:
-            return None
-            
-        # Handle timedelta objects (MySQL TIME columns)
-        if isinstance(value, datetime.timedelta):
-            # Convert timedelta to time
-            # Extract hours, minutes, seconds and microseconds from timedelta
-            total_seconds = value.total_seconds()
-            hours, remainder = divmod(total_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            # Handle negative timedeltas (can occur in MySQL)
-            if hours < 0 or minutes < 0 or seconds < 0:
-                # MySQL allows negative time values, but Python's time doesn't
-                # For simplicity, we'll convert to the smallest valid time
-                return datetime.time(0, 0, 0)
-            # Ensure values are within valid ranges for time
-            hours = min(23, int(hours))  # time() accepts 0-23 hours
-            minutes = min(59, int(minutes))  # time() accepts 0-59 minutes
-            seconds_int = int(seconds)
-            microseconds = int((seconds - seconds_int) * 1000000)
-            return datetime.time(hours, minutes, seconds_int, microseconds)
-            
-        # Use the base class implementation for other types
-        return super().from_database(value, source_type, timezone)
-
-
-def register_mysql_converters(backend):
-    """
-    Register MySQL-specific converters with the backend.
-    
-    Args:
-        backend: The MySQL backend instance
-    """
-    mysql_datetime_converter = MySQLDateTimeConverter()
-    backend.register_converter(
-        mysql_datetime_converter,
-        types=[DatabaseType.DATE, DatabaseType.TIME, DatabaseType.DATETIME, DatabaseType.TIMESTAMP]
-    )
-
-
-    def from_database(self, value: Any, source_type: Any = None) -> Any:
-        """
-        Convert a MySQL ENUM/SET value to Python.
-
-        For full conversion to Enum objects, we would need the actual Enum class,
-        which is not available in this context. This would typically be handled
-        by a more specialized converter that knows the specific Enum type.
-
-        Args:
-            value: The database value to convert
-            source_type: Optional source type hint
-
-        Returns:
-            The value (unchanged in base implementation)
-        """
-        # We can't convert to specific Enum types without knowing the Enum class
-        return value
 
 
 class MySQLUUIDConverter(UUIDConverter):
@@ -526,74 +339,22 @@ class MySQLUUIDConverter(UUIDConverter):
 
         return value  # Default: return unchanged
 
-class MySQLDateTimeConverter(DateTimeConverter):
-    """
-    MySQL specific datetime converter that handles timedelta objects returned for TIME columns.
-    
-    MySQL's mysql-connector-python returns datetime.timedelta for TIME columns,
-    but we want to convert these to datetime.time objects for consistency.
-    """
-    
-    @property
-    def priority(self) -> int:
-        # Higher priority than the base DateTimeConverter to ensure this one is used for MySQL
-        return 30
-    
-    def can_handle(self, value: Any, target_type: Any = None) -> bool:
+    def from_database(self, value: Any, source_type: Any = None) -> Any:
         """
-        Check if this converter can handle the given value or type.
-        
-        Extends the base DateTimeConverter to also handle timedelta objects.
-        
-        Args:
-            value: The value to check
-            target_type: Optional target type
-            
-        Returns:
-            bool: True if this converter can handle the conversion
-        """
-        # Handle timedelta objects (MySQL TIME columns)
-        if isinstance(value, datetime.timedelta):
-            return True
-            
-        # Use the base class implementation for other types
-        return super().can_handle(value, target_type)
-    
-    def from_database(self, value: Any, source_type: Any = None, timezone: Optional[str] = None) -> Any:
-        """
-        Convert a database value to its Python representation.
-        
-        Extends the base DateTimeConverter to handle timedelta objects returned by MySQL for TIME columns.
-        
+        Convert a database value (str or bytes) to a Python UUID object.
+
         Args:
             value: The database value to convert
             source_type: Optional source type hint
-            timezone: Optional timezone name
-            
+
         Returns:
-            The converted Python value
+            uuid.UUID or the original value if conversion fails
         """
-        if value is None:
-            return None
-            
-        # Handle timedelta objects (MySQL TIME columns)
-        if isinstance(value, datetime.timedelta):
-            # Convert timedelta to time
-            # Extract hours, minutes, seconds and microseconds from timedelta
-            total_seconds = value.total_seconds()
-            hours, remainder = divmod(total_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            # Handle negative timedeltas (can occur in MySQL)
-            if hours < 0 or minutes < 0 or seconds < 0:
-                # MySQL allows negative time values, but Python's time doesn't
-                # For simplicity, we'll convert to the smallest valid time
-                return datetime.time(0, 0, 0)
-            # Ensure values are within valid ranges for time
-            hours = min(23, int(hours))  # time() accepts 0-23 hours
-            minutes = min(59, int(minutes))  # time() accepts 0-59 minutes
-            seconds_int = int(seconds)
-            microseconds = int((seconds - seconds_int) * 1000000)
-            return datetime.time(hours, minutes, seconds_int, microseconds)
-            
-        # Use the base class implementation for other types
-        return super().from_database(value, source_type, timezone)
+        if isinstance(value, bytes) and len(value) == 16:
+            try:
+                return uuid.UUID(bytes=value)
+            except ValueError:
+                # If it's not a valid UUID in bytes format, let the parent handle it
+                pass
+
+        return super().from_database(value, source_type)

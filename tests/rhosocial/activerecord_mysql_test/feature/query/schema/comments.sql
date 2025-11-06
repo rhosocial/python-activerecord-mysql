@@ -1,12 +1,16 @@
--- tests/rhosocial/activerecord_mysql_test/query/fixtures/schema/mysql80/comments.sql
-CREATE TABLE comments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    post_id INT NOT NULL,
-    content TEXT NOT NULL,
-    is_hidden TINYINT(1) NOT NULL DEFAULT 0,
-    created_at VARCHAR(50),
-    updated_at VARCHAR(50),
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (post_id) REFERENCES posts(id)
+-- tests/rhosocial/activerecord_mysql_test/feature/query/schema/comments.sql
+-- MySQL version of the comments table schema
+
+CREATE TABLE `comments` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id` INT NOT NULL,
+    `post_id` INT NOT NULL,
+    `content` TEXT NOT NULL,
+    `is_hidden` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_at` DATETIME(6),
+    `updated_at` DATETIME(6),
+    INDEX `idx_user_id` (`user_id`),
+    INDEX `idx_post_id` (`post_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -2,17 +2,26 @@
 """
 MySQL backend implementation for the Python ORM.
 
-This module provides a MySQL-specific implementation including:
-- MySQL backend with connection management and query execution
+This module provides both synchronous and asynchronous MySQL implementations:
+- MySQL synchronous backend with connection management and query execution
+- MySQL asynchronous backend for async/await workflows
+- MySQL-specific connection configuration
 - Type mapping and value conversion
-- Transaction management with savepoint support
+- Transaction management with savepoint support (sync and async)
 - MySQL dialect and expression handling
 - MySQL-specific type definitions and mappings
+
+Architecture:
+- MySQLBackend: Synchronous implementation using mysql-connector-python
+- AsyncMySQLBackend: Asynchronous implementation using aiomysql
+- Both share common logic through MySQLBackendMixin
+- Independent from ORM frameworks - uses only native drivers
 """
 
 __version__ = "1.0.0.dev3"
 
-from .backend import MySQLBackend
+from .backend import MySQLBackend, AsyncMySQLBackend
+from .config import MySQLConnectionConfig
 from .dialect import (
     MySQLDialect,
     MySQLExpression,
@@ -20,7 +29,7 @@ from .dialect import (
     MySQLAggregateHandler,
     MySQLJsonHandler,
 )
-from .transaction import MySQLTransactionManager
+from .transaction import MySQLTransactionManager, AsyncMySQLTransactionManager
 from .types import (
     MySQLTypes,
     MySQLColumnType,
@@ -30,21 +39,29 @@ from .type_converters import (
     MySQLGeometryConverter,
     MySQLEnumConverter,
     MySQLUUIDConverter,
-    MySQLDateTimeConverter,
+    ModernMySQLDateTimeConverter,
+    LegacyMySQLDateTimeConverter,
 )
 
 __all__ = [
-    # Backend
+    # Synchronous Backend
     'MySQLBackend',
+
+    # Asynchronous Backend
+    'AsyncMySQLBackend',
+
+    # Configuration
+    'MySQLConnectionConfig',
 
     # Dialect related
     'MySQLDialect',
     'MySQLExpression',
-    'MySQLAggregateHandler',  # Add MySQLAggregateHandler
-    'MySQLJsonHandler',  # Add MySQLJsonHandler
+    'MySQLAggregateHandler',
+    'MySQLJsonHandler',
 
-    # Transaction
+    # Transaction - Sync and Async
     'MySQLTransactionManager',
+    'AsyncMySQLTransactionManager',
 
     # Types
     'MySQLTypes',
@@ -55,7 +72,8 @@ __all__ = [
     'MySQLGeometryConverter',
     'MySQLEnumConverter',
     'MySQLUUIDConverter',
-    'MySQLDateTimeConverter',
+    'ModernMySQLDateTimeConverter',
+    'LegacyMySQLDateTimeConverter',
 
     # Builder
     'MySQLSQLBuilder',

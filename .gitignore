@@ -129,7 +129,7 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
+.venv*
 env/
 venv/
 ENV/
@@ -180,20 +180,28 @@ examples/
 # Configuration files - to prevent accidental commit of sensitive information
 mysql_config.yaml
 mysql_config.yml
-mysql_config.json
+mysql_config.toml
 mysql_config.template.yaml
 mysql_config.template.yml
-mysql_config.template.json
+mysql_config.template.toml
 local_mysql_config.yaml
 local_mysql_config.yml
-local_mysql_config.json
+local_mysql_config.toml
 local_mysql_config.example.yaml
 local_mysql_config.example.yml
-local_mysql_config.example.json
+local_mysql_config.example.toml
 **/.rhosocial/mysql_config.yaml
 **/.rhosocial/mysql_config.yml
-**/.rhosocial/mysql_config.json
+**/.rhosocial/mysql_config.toml
 
-# Default config file - users should copy config.example.json to config.json for local use
-config.json
-local_config.json
+# Default config file - users should copy config.example.toml/config.example.yaml to config.toml for local use
+config.toml
+config.yaml
+config.yml
+local_config.toml
+local_config.yaml
+local_config.yml
+
+# MySQL scenario config files
+tests/config/mysql_scenarios.yaml
+tests/config/mysql_scenarios.yml

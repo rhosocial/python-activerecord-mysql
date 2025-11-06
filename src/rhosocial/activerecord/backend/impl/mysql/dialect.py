@@ -12,6 +12,8 @@ from rhosocial.activerecord.backend.errors import ReturningNotSupportedError, Gr
     JsonOperationNotSupportedError, WindowFunctionNotSupportedError, CTENotSupportedError
 from rhosocial.activerecord.backend.config import ConnectionConfig
 
+from .config import MySQLConnectionConfig
+
 
 class MySQLExpression(SQLExpressionBase):
     """MySQL expression implementation"""
@@ -501,31 +503,23 @@ class MySQLCTEHandler(CTEHandler):
 class MySQLDialect(SQLDialectBase):
     """MySQL dialect implementation"""
 
-    def __init__(self, config: ConnectionConfig):
+    def __init__(self, config: MySQLConnectionConfig):
         """Initialize MySQL dialect
 
         Args:
-            config: Database connection configuration
+            config: MySQL-specific connection configuration
         """
-        # Parse version string like "8.0.26" into tuple (8, 0, 26)
-        # version_str = getattr(config, 'version', '8.0.0')
-        # version = tuple(map(int, version_str.split('.')))
-
-        # Use a default version initially
-        # The actual version will be updated by the backend after connection
-
-        version = getattr(config, 'version', (8, 0, 0))
+        # Use version from MySQL config or default
+        version = config.version or (8, 0, 0)
         super().__init__(version)
 
-        if hasattr(config, 'driver_type') and config.driver_type:
-            self._driver_type = config.driver_type
-        else:
-            self._driver_type = DriverType.MYSQL_CONNECTOR
+        # Set driver type from config
+        self._driver_type = getattr(config, 'driver_type', DriverType.MYSQL_CONNECTOR)
 
         # Initialize handlers
         self._returning_handler = MySQLReturningHandler(version)
-        self._aggregate_handler = MySQLAggregateHandler(version)  # Initialize aggregate handler
-        self._json_operation_handler = MySQLJsonHandler(version)  # Initialize JSON handler
+        self._aggregate_handler = MySQLAggregateHandler(version)
+        self._json_operation_handler = MySQLJsonHandler(version)
         self._cte_handler = MySQLCTEHandler(version)
 
     def format_expression(self, expr: SQLExpressionBase) -> str:

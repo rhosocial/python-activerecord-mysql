@@ -1,15 +1,10 @@
 # tests/rhosocial/activerecord_mysql_test/feature/basic/test_fields.py
 """
-This is a "bridge" file for the basic features test group.
+Basic Fields Test Module for MySQL backend.
 
-Its purpose is to import the generic tests from the `rhosocial-activerecord-testsuite`
-package and make them discoverable by `pytest` within this project's test run.
-
-This approach allows us to keep the actual test logic separate and reusable across
-different backends, while this file acts as the entry point for running those
-tests against our specific (MySQL) backend.
+This module imports and runs the shared tests from the testsuite package,
+ensuring MySQL backend compatibility.
 """
-
 # IMPORTANT: These imports are essential for pytest to work correctly.
 # Even though they may be flagged as "unused" by some IDEs or linters,
 # they must not be removed. They are the mechanism by which pytest discovers
@@ -20,14 +15,12 @@ tests against our specific (MySQL) backend.
 # in some IDEs. These fixtures are defined in the testsuite package and are
 # parameterized to run against the scenarios defined in `providers/scenarios.py`.
 from rhosocial.activerecord.testsuite.feature.basic.conftest import (
-    user_fixtures,
-    type_case_fixtures,
-    validated_user_fixtures,
-    validated_field_user_fixtures,
-    type_test_fixtures,
+    user_class,
+    type_case_class,
+    type_test_model,
+    validated_user_class,
+    validated_user
 )
 
-# By importing *, we bring all the test functions from the generic testsuite file
-# into this module's scope. `pytest` then discovers and runs them as if they 
-# were defined directly in this file.
+# Import shared tests from testsuite package
 from rhosocial.activerecord.testsuite.feature.basic.test_fields import *
