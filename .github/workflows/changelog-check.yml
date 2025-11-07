@@ -54,7 +54,7 @@ jobs:
           if echo "$CHANGED_FILES" | grep -qE "^(tests/|docs/|\.github/)"; then
             echo "✓ Internal change, fragment not required"
             exit 0
-          }
+          fi
           
           # Check if PR is marked as trivial
           if [[ "$PR_TITLE" =~ \[trivial\] ]]; then
