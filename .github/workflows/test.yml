@@ -11,6 +11,11 @@ on:
       - main
       - backend
 
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
 jobs:
   test-py38-mysql56:
     name: Run tests with Python 3.8 and MySQL 5.6
