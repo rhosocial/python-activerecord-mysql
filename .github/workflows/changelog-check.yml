@@ -68,7 +68,7 @@ jobs:
           echo ""
           echo "Fragment types:"
           echo "  - added.md      - New features"
-          echo "  - fixed.md      - Bug Fixes"
+          echo "  - fixed.md      - Bug fixes"
           echo "  - changed.md    - Behavior changes"
           echo "  - deprecated.md - Deprecations"
           echo "  - removed.md    - Removed features"
