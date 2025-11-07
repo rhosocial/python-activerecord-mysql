@@ -21,6 +21,9 @@ on:
           - testpypi
           - pypi
 
+permissions:
+  contents: write
+
 jobs:
   # 检查测试工作流是否成功完成
   check-tests:
