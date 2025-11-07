@@ -5,11 +5,13 @@ on:
   push:
     branches:
       - main
-      - backend
+      - 'release/v**'
+      - 'maint/**'
   pull_request:
     branches:
       - main
-      - backend
+      - 'release/v**'
+      - 'maint/**'
 
 permissions:
   contents: read
