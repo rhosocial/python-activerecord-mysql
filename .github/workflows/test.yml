@@ -597,7 +597,7 @@ jobs:
         python -m pytest tests/
 
   test-py314-mysql92:
-    name: Run tests with Python 3.14 and MySQL 9.2
+    name: Run tests with Python 3.14 and MySQL 9.2 (with coverage)
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -702,10 +702,21 @@ jobs:
         EOF
         echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
-    - name: Run tests
+    - name: Run tests with coverage
       run: |
         export PYTHONPATH=src
-        python -m pytest tests/
+        coverage run -m pytest tests/ --reruns 3 --reruns-delay 1
+        coverage xml
+        coverage report
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        flags: unittests,python-3.14,mysql-9.2
+        name: codecov-mysql-3.14-9.2
+        fail_ci_if_error: false
 
   test-py313t-mysql93:
     name: Run tests with Python 3.13t and MySQL 9.3
