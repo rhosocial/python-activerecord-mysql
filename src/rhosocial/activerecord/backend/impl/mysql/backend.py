@@ -647,16 +647,8 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
             cursor = self._cursor or self._connection.cursor()
 
-            converted_params = []
-            for params in params_list:
-                if params:
-                    converted = tuple(
-                        self.adapter_registry.to_database(value, None)
-                        for value in params
-                    )
-                    converted_params.append(converted)
-
-            cursor.executemany(sql, converted_params)
+            # Parameters are assumed to be pre-converted by the caller.
+            cursor.executemany(sql, params_list)
             duration = time.perf_counter() - start_time
 
             self.log(logging.INFO,
@@ -929,11 +921,7 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
     async def _execute_query(self, cursor, sql: str, params: Optional[Tuple]):
         """Execute query asynchronously"""
         if params:
-            processed_params = tuple(
-                self.adapter_registry.to_database(value, None)
-                for value in params
-            )
-            await cursor.execute(sql, processed_params)
+            await cursor.execute(sql, params)
         else:
             await cursor.execute(sql)
         return cursor
