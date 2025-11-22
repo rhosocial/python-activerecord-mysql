@@ -1,57 +1,62 @@
 # src/rhosocial/activerecord/backend/impl/mysql/backend.py
+import datetime
 import logging
 import re
-import time
-import datetime
-from typing import Optional, Tuple, List, Dict, Union
+import uuid
+from decimal import Decimal
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 import mysql.connector
+import time
 from mysql.connector.errors import (
+    DatabaseError as MySQLDatabaseError,
     Error as MySQLError,
     IntegrityError as MySQLIntegrityError,
-    ProgrammingError,
     OperationalError as MySQLOperationalError,
-    DatabaseError as MySQLDatabaseError,
+    ProgrammingError,
 )
 
-from .config import MySQLConnectionConfig
-from .dialect import MySQLDialect, MySQLSQLBuilder
-from .type_converters import (
-    MySQLGeometryConverter,
-    MySQLEnumConverter,
-    MySQLUUIDConverter,
-    ModernMySQLDateTimeConverter,
-    LegacyMySQLDateTimeConverter
-)
-from .transaction import MySQLTransactionManager, AsyncMySQLTransactionManager
-from rhosocial.activerecord.backend.dialect import SQLDialectBase, ReturningOptions
-from rhosocial.activerecord.backend.base import StorageBackend, AsyncStorageBackend, ColumnTypes
+from rhosocial.activerecord.backend.base import AsyncStorageBackend, StorageBackend
 from rhosocial.activerecord.backend.capabilities import (
-    DatabaseCapabilities,
-    CapabilityCategory,
-    SetOperationCapability,
-    WindowFunctionCapability,
-    CTECapability,
-    JSONCapability,
-    TransactionCapability,
-    BulkOperationCapability,
-    JoinCapability,
-    ConstraintCapability,
     AggregateFunctionCapability,
+    BulkOperationCapability,
+    CapabilityCategory,
+    CTECapability,
+    ConstraintCapability,
+    DatabaseCapabilities,
     DateTimeFunctionCapability,
+    JSONCapability,
+    JoinCapability,
+    MathematicalFunctionCapability,
     StringFunctionCapability,
-    MathematicalFunctionCapability
+    TransactionCapability,
+    WindowFunctionCapability, SetOperationCapability,
 )
+from rhosocial.activerecord.backend.dialect import ReturningOptions
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
+    DatabaseError,
+    DeadlockError,
     IntegrityError,
     OperationalError,
     QueryError,
-    DeadlockError,
-    DatabaseError,
-    ReturningNotSupportedError
+    ReturningNotSupportedError,
 )
-from rhosocial.activerecord.backend.typing import QueryResult, DatabaseType
+from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
+from rhosocial.activerecord.backend.typing import QueryResult, ConnectionConfig
+from .adapters import (
+    MySQLBlobAdapter,
+    MySQLBooleanAdapter,
+    MySQLDateAdapter,
+    MySQLDatetimeAdapter,
+    MySQLDecimalAdapter,
+    MySQLJSONAdapter,
+    MySQLTimeAdapter,
+    MySQLUUIDAdapter,
+)
+from .config import MySQLConnectionConfig
+from .dialect import MySQLDialect, MySQLSQLBuilder
+from .transaction import AsyncMySQLTransactionManager, MySQLTransactionManager
 
 
 class MySQLBackendMixin:
@@ -89,8 +94,7 @@ class MySQLBackendMixin:
 
         elif isinstance(connection_config, MySQLConnectionConfig):
             pass
-
-        elif isinstance(connection_config, ConnectionConfig):
+        elif isinstance(connection_config, ConnectionConfig): # This is the generic ConnectionConfig conversion
             from rhosocial.activerecord.backend.config import ConnectionConfig
 
             mysql_config = MySQLConnectionConfig(
@@ -128,70 +132,100 @@ class MySQLBackendMixin:
             kwargs['connection_config'] = mysql_config
         else:
             raise ValueError(f"Unsupported connection_config type: {type(connection_config)}")
-
-    def _prepare_mysql_connection_args(self, config: MySQLConnectionConfig) -> Dict:
+    def _prepare_mysql_connection_args(self) -> Dict:
         """Prepare MySQL connection arguments from MySQLConnectionConfig"""
-        connection_args = config.to_dict()
+        connection_args = self.config.to_dict()
 
         if 'username' in connection_args:
             connection_args['user'] = connection_args.pop('username')
 
-        if any(getattr(config, key, None) for key in ['ssl_ca', 'ssl_cert', 'ssl_key']):
+        if any(getattr(self.config, key, None) for key in ['ssl_ca', 'ssl_cert', 'ssl_key']):
             ssl_config = {}
-            if config.ssl_ca:
-                ssl_config['ca'] = config.ssl_ca
-            if config.ssl_cert:
-                ssl_config['cert'] = config.ssl_cert
-            if config.ssl_key:
-                ssl_config['key'] = config.ssl_key
-            if config.ssl_verify_cert:
-                ssl_config['verify_cert'] = config.ssl_verify_cert
-            if config.ssl_verify_identity:
-                ssl_config['verify_identity'] = config.ssl_verify_identity
+            if self.config.ssl_ca:
+                ssl_config['ca'] = self.config.ssl_ca
+            if self.config.ssl_cert:
+                ssl_config['cert'] = self.config.ssl_cert
+            if self.config.ssl_key:
+                ssl_config['key'] = self.config.ssl_key
+            if self.config.ssl_verify_cert:
+                ssl_config['verify_cert'] = self.config.ssl_verify_cert
+            if self.config.ssl_verify_identity:
+                ssl_config['verify_identity'] = self.config.ssl_verify_identity
 
             if ssl_config:
                 connection_args['ssl'] = ssl_config
                 for key in ['ssl_ca', 'ssl_cert', 'ssl_key', 'ssl_verify_cert', 'ssl_verify_identity']:
                     connection_args.pop(key, None)
 
-        if config.ssl_disabled is not None:
-            connection_args['ssl_disabled'] = config.ssl_disabled
+        if self.config.ssl_disabled is not None:
+            connection_args['ssl_disabled'] = self.config.ssl_disabled
 
         for key in ['pool_size', 'pool_timeout', 'pool_name', 'pool_reset_session', 'pool_pre_ping',
                     'version', 'log_queries', 'log_level', 'options', 'use_timezone', 'collation', 'auto_add_local_tz']:
             connection_args.pop(key, None)
-
         return connection_args
 
-    def _register_mysql_converters(self, version):
-        """Register MySQL-specific type converters"""
-        self.dialect.register_converter(MySQLGeometryConverter(),
-                                        names=["POINT", "POLYGON", "GEOMETRY", "LINESTRING"],
-                                        types=[DatabaseType.POINT, DatabaseType.POLYGON,
-                                               DatabaseType.GEOMETRY])
+    def _register_mysql_adapters(self):
+        """Register MySQL-specific type adapters to the adapter_registry."""
+        mysql_adapters = [
+            MySQLBlobAdapter(),
+            MySQLJSONAdapter(),
+            MySQLUUIDAdapter(),
+            MySQLBooleanAdapter(),
+            MySQLDecimalAdapter(),
+            MySQLDateAdapter(),
+            MySQLTimeAdapter(),
+            MySQLDatetimeAdapter()
+        ]
+        for adapter in mysql_adapters:
+            for py_type, db_types in adapter.supported_types.items():
+                for db_type in db_types:
+                    # Register with override allowed for backend-specific converters
+                    self.adapter_registry.register(adapter, py_type, db_type, allow_override=True)
+        self.logger.debug("Registered MySQL-specific type adapters.")
 
-        self.dialect.register_converter(MySQLEnumConverter(),
-                                        names=["ENUM", "SET"],
-                                        types=[DatabaseType.ENUM, DatabaseType.SET])
+    def get_default_adapter_suggestions(self) -> Dict[Type, Tuple['SQLTypeAdapter', Type]]:
+        """
+        [Backend Implementation] Provides default type adapter suggestions for MySQL.
 
-        self.dialect.register_converter(MySQLUUIDConverter(binary_mode=False),
-                                        names=["UUID", "CHAR"],
-                                        types=[DatabaseType.UUID])
+        This method defines a curated set of type adapter suggestions for common Python
+        types, mapping them to their typical MySQL-compatible representations as
+        demonstrated in test fixtures. It explicitly retrieves necessary `SQLTypeAdapter`
+        instances from the backend's `adapter_registry`. If an adapter for a specific
+        (Python type, DB driver type) pair is not registered, no suggestion will be
+        made for that Python type.
 
-        self.dialect.register_converter(MySQLUUIDConverter(binary_mode=True),
-                                        names=["BINARY"],
-                                        types=[])
+        Returns:
+            Dict[Type, Tuple[SQLTypeAdapter, Type]]: A dictionary where keys are
+            original Python types (`TypeRegistry`'s `py_type`), and values are
+            tuples containing a `SQLTypeAdapter` instance and the target
+            Python type (`TypeRegistry`'s `db_type`) expected by the driver.
+        """
+        suggestions: Dict[Type, Tuple['SQLTypeAdapter', Type]] = {}
 
-        if version and version >= (8, 0, 0):
-            datetime_converter = ModernMySQLDateTimeConverter(backend=self)
-        else:
-            datetime_converter = LegacyMySQLDateTimeConverter(backend=self)
+        type_mappings = [
+            (bool, int),        # Python bool -> DB driver int (MySQL TINYINT(1))
+            (datetime.datetime, datetime.datetime),    # Python datetime -> DB driver datetime (MySQL DATETIME/TIMESTAMP)
+            (datetime.date, datetime.date),        # Python date -> DB driver date (MySQL DATE)
+            (datetime.time, datetime.time),        # Python time -> DB driver time (MySQL TIME)
+            (Decimal, Decimal),   # Python Decimal -> DB driver Decimal (MySQL DECIMAL/NUMERIC)
+            (uuid.UUID, str),        # Python UUID -> DB driver str (MySQL CHAR(36))
+            (dict, str),        # Python dict -> DB driver str (MySQL JSON)
+            (list, str),        # Python list -> DB driver str (MySQL JSON)
+            (bytes, bytes),     # Python bytes -> DB driver bytes (MySQL BLOB)
+            # Add Enum if a specific adapter is created for it
+            # (enum.Enum, str),
+        ]
 
-        self.dialect.register_converter(
-            datetime_converter,
-            names=["DATETIME", "DATE", "TIME", "TIMESTAMP"],
-            types=[DatabaseType.DATETIME, DatabaseType.DATE, DatabaseType.TIME, DatabaseType.TIMESTAMP]
-        )
+        for py_type, db_driver_type in type_mappings:
+            adapter = self.adapter_registry.get_adapter(py_type, db_driver_type)
+            if adapter:
+                suggestions[py_type] = (adapter, db_driver_type)
+            else:
+                self.logger.debug(f"No adapter found for ({py_type.__name__}, {db_driver_type.__name__}). "
+                                  "Suggestion will not be provided for this type.")
+
+        return suggestions
 
     def _update_dialect_version(self, version: tuple) -> None:
         """Update the dialect's version information"""
@@ -344,10 +378,10 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
         self._cursor = None
         self._pool = None
-        self._connection_args = self._prepare_mysql_connection_args(self.config)
+        self._connection_args = self._prepare_mysql_connection_args()
         self._dialect = MySQLDialect(self.config)
         version = self.get_server_version()
-        self._register_mysql_converters(version)
+        self._register_mysql_adapters()
 
         if hasattr(self.config, 'version') and self.config.version:
             self._server_version_cache = self.config.version
@@ -455,7 +489,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
         if hasattr(self.config, 'version') and self.config.version:
             self._server_version_cache = self.config.version
-            self._update_dialect_version(self._server_version_cache)
+            self._update_dialect_version(self.config.version)
             return self._server_version_cache
 
         try:
@@ -555,79 +589,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
         cursor = self._connection.cursor(dictionary=True)
         return cursor
 
-    def _process_result_set(self, cursor, is_select: bool, need_returning: bool, column_types: Optional[ColumnTypes]) -> \
-            Optional[List[Dict]]:
-        """Process query result set for MySQL"""
-        if is_select:
-            result = super()._process_result_set(cursor, is_select, need_returning, column_types)
 
-            if result:
-                processed_result = []
-                for row in result:
-                    processed_row = {}
-                    for key, value in row.items():
-                        db_type = column_types.get(key) if column_types else None
-
-                        if db_type is not None:
-                            processed_row[key] = self.dialect.from_database(value, db_type)
-                        elif isinstance(value, (datetime.datetime,)) and hasattr(value,
-                                                                                 'tzinfo') and value.tzinfo is None:
-                            processed_row[key] = self.dialect.from_database(value, DatabaseType.DATETIME)
-                        else:
-                            processed_row[key] = value
-                    processed_result.append(processed_row)
-                return processed_result
-            return result
-
-        if need_returning and hasattr(self, "_returning_emulation"):
-            emulation = self._returning_emulation
-            emulation_type = emulation.get("type")
-
-            if emulation_type == "insert" and hasattr(cursor, "lastrowid") and cursor.lastrowid:
-                last_id = cursor.lastrowid
-                table = emulation.get("table")
-
-                if table:
-                    options = emulation.get("options")
-                    if options and options.columns:
-                        column_list = ", ".join([f"`{col}`" for col in options.columns])
-                    else:
-                        column_list = "*"
-
-                    fetch_cursor = self._connection.cursor(dictionary=True)
-
-                    try:
-                        fetch_sql = f"SELECT {column_list} FROM `{table}` WHERE id = %s"
-                        fetch_cursor.execute(fetch_sql, (last_id,))
-                        rows = fetch_cursor.fetchall()
-
-                        if column_types and rows:
-                            result = []
-                            for row in rows:
-                                converted_row = {}
-                                for key, value in row.items():
-                                    db_type = column_types.get(key)
-                                    if db_type is not None:
-                                        converted_row[key] = self.dialect.from_database(value, db_type)
-                                    else:
-                                        converted_row[key] = value
-                                result.append(converted_row)
-                            return result
-
-                        return rows or []
-                    except Exception as e:
-                        self.log(logging.ERROR, f"Error during RETURNING emulation: {str(e)}")
-                        return []
-                    finally:
-                        fetch_cursor.close()
-
-            elif emulation_type in ("update", "delete"):
-                self.log(logging.WARNING,
-                         f"RETURNING emulation for {emulation_type.upper()} "
-                         f"is not fully implemented. Returning empty result set.")
-                return []
-
-        return None
 
     def _handle_auto_commit_if_needed(self) -> None:
         """Handle auto-commit for MySQL"""
@@ -689,7 +651,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
             for params in params_list:
                 if params:
                     converted = tuple(
-                        self.dialect.to_database(value, None)
+                        self.adapter_registry.to_database(value, None)
                         for value in params
                     )
                     converted_params.append(converted)
@@ -711,7 +673,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
             return None
 
     def insert(self, table: str, data: Dict, returning: Optional[Union[bool, List[str], ReturningOptions]] = None,
-               column_types: Optional[ColumnTypes] = None, auto_commit: Optional[bool] = True,
+               column_adapters: Optional[Dict[str, Tuple[SQLTypeAdapter, Type]]] = None, auto_commit: Optional[bool] = True,
                primary_key: Optional[str] = None) -> QueryResult:
         """Insert record with MySQL-specific handling"""
         cleaned_data = {
@@ -725,7 +687,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
         sql = f"INSERT INTO {table} ({','.join(fields)}) VALUES ({','.join(placeholders)})"
 
-        result = self.execute(sql, tuple(values), returning, column_types)
+        result = self.execute(sql, tuple(values), returning, column_adapters)
 
         if auto_commit:
             self._handle_auto_commit_if_needed()
@@ -744,7 +706,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
     def update(self, table: str, data: Dict, where: str, params: Tuple,
                returning: Optional[Union[bool, List[str], ReturningOptions]] = None,
-               column_types: Optional[ColumnTypes] = None, auto_commit: bool = True) -> QueryResult:
+               column_adapters: Optional[Dict[str, Tuple[SQLTypeAdapter, Type]]] = None, auto_commit: bool = True) -> QueryResult:
         """Update record with MySQL-specific handling"""
         cleaned_data = {
             k.strip('"').strip('`'): v
@@ -754,12 +716,11 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
         set_items = [f"{self.dialect.format_identifier(k)} = {self.dialect.get_placeholder()}"
                      for k in cleaned_data.keys()]
 
-        values = [self.dialect.to_database(v, column_types.get(k.strip('"').strip('`')) if column_types else None)
-                  for k, v in data.items()]
+        values = list(data.values())
 
         sql = f"UPDATE {table} SET {', '.join(set_items)} WHERE {where}"
 
-        result = self.execute(sql, tuple(values) + params, returning, column_types)
+        result = self.execute(sql, tuple(values) + params, returning, column_adapters)
 
         if auto_commit:
             self._handle_auto_commit_if_needed()
@@ -776,11 +737,13 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
     """MySQL asynchronous storage backend implementation"""
 
     async def _handle_auto_commit(self) -> None:
+        """Handle auto commit based on MySQL connection and transaction state asynchronously."""
         try:
             if not self._connection:
                 return
 
-            if hasattr(self._connection, 'autocommit') and not self._connection.autocommit:
+            # THIS IS THE CORRECTED LINE, using get_autocommit()
+            if hasattr(self._connection, 'get_autocommit') and not await self._connection.get_autocommit():
                 if not self._transaction_manager or not self._transaction_manager.is_active:
                     await self._connection.commit()
                     self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
@@ -794,8 +757,9 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
 
         self._cursor = None
         self._pool = None
-        self._connection_args = self._prepare_mysql_connection_args(self.config)
+        self._connection_args = self._prepare_mysql_connection_args()
         self._dialect = MySQLDialect(self.config)
+        self._register_mysql_adapters()  # Call _register_mysql_adapters here
 
         if hasattr(self.config, 'version') and self.config.version:
             self._server_version_cache = self.config.version
@@ -844,7 +808,6 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
 
             version = await self.get_server_version()
             self._update_dialect_version(version)
-            self._register_mysql_converters(version)
             self._transaction_manager = AsyncMySQLTransactionManager(self._connection)
             self.log(logging.INFO, f"Connected to MySQL server version {'.'.join(map(str, version))}")
         except Exception as e:
@@ -908,9 +871,9 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
                 raise DeadlockError(f"MySQL deadlock detected: {error}")
             raise OperationalError(f"MySQL operational error: {error}")
         elif isinstance(error, MySQLDatabaseError):
-            raise DatabaseError(f"MySQL database error: {error}")
+            raise DatabaseError(f"MySQL database error: {e}")
         elif isinstance(error, MySQLError):
-            raise QueryError(f"MySQL query error: {error}")
+            raise QueryError(f"MySQL query error: {e}")
         else:
             raise error
 
@@ -921,7 +884,7 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
 
         if hasattr(self.config, 'version') and self.config.version:
             self._server_version_cache = self.config.version
-            self._update_dialect_version(self._server_version_cache)
+            self._update_dialect_version(self.config.version)
             return self._server_version_cache
 
         try:
@@ -967,7 +930,7 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
         """Execute query asynchronously"""
         if params:
             processed_params = tuple(
-                self.dialect.to_database(value, None)
+                self.adapter_registry.to_database(value, None)
                 for value in params
             )
             await cursor.execute(sql, processed_params)
@@ -975,31 +938,13 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
             await cursor.execute(sql)
         return cursor
 
-    async def _process_result_set(self, cursor, is_select: bool, need_returning: bool,
-                                  column_types: Optional[ColumnTypes]) -> Optional[List[Dict]]:
-        """Process result set asynchronously"""
-        if not (is_select or need_returning):
-            return None
-
-        rows = await cursor.fetchall()
-        self.log(logging.DEBUG, f"Fetched {len(rows)} rows")
-
-        if not rows:
-            return []
-
-        if hasattr(rows[0], 'items'):
-            return [dict(row) for row in rows]
-        else:
-            column_names = [desc[0] for desc in cursor.description]
-            return [dict(zip(column_names, row)) for row in rows]
-
     async def _handle_auto_commit_if_needed(self) -> None:
         """Handle auto-commit asynchronously"""
         try:
             if not self._connection:
                 return
 
-            if hasattr(self._connection, 'autocommit') and not self._connection.autocommit:
+            if hasattr(self._connection, 'get_autocommit') and not await self._connection.get_autocommit():
                 if not self._transaction_manager or not self._transaction_manager.is_active:
                     await self._connection.commit()
                     self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
