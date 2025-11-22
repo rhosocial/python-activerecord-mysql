@@ -586,7 +586,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
         if self._cursor:
             return self._cursor
 
-        cursor = self._connection.cursor(dictionary=True)
+        cursor = self._connection.cursor()
         return cursor
 
 
@@ -871,9 +871,9 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
                 raise DeadlockError(f"MySQL deadlock detected: {error}")
             raise OperationalError(f"MySQL operational error: {error}")
         elif isinstance(error, MySQLDatabaseError):
-            raise DatabaseError(f"MySQL database error: {e}")
+            raise DatabaseError(f"MySQL database error: {error}")
         elif isinstance(error, MySQLError):
-            raise QueryError(f"MySQL query error: {e}")
+            raise QueryError(f"MySQL query error: {error}")
         else:
             raise error
 
@@ -924,7 +924,7 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
         """Get cursor asynchronously"""
         if self._cursor:
             return self._cursor
-        return await self._connection.cursor(dictionary=True)
+        return await self._connection.cursor()
 
     async def _execute_query(self, cursor, sql: str, params: Optional[Tuple]):
         """Execute query asynchronously"""

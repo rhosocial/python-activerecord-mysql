@@ -100,97 +100,122 @@ python -m src.rhosocial.activerecord.backend.impl.mysql "SELECT * FROM your_tabl
 
 ## Examples
 
-**Note**: Replace `your_mysql_host`, `your_mysql_port`, `your_mysql_user`, `your_secure_password` with your actual MySQL server credentials. If environment variables are set, you can omit these arguments from the examples below.
+This section provides a complete lifecycle example of database operations, from creating a database to cleaning it up.
 
-### 1. Create a Database
+**Note**:
+*   The following examples assume you are running the commands from the root of the `python-activerecord-mysql` project.
+*   For a multi-repository setup (with `python-activerecord` and `python-activerecord-mysql` in separate folders), you must set your `PYTHONPATH` to include the `src` directories of both projects.
+    *   **PowerShell**: `$env:PYTHONPATH="src;..\python-activerecord\src"`
+    *   **Bash**: `export PYTHONPATH="src:../python-activerecord/src"`
+*   Replace placeholder credentials (`your_mysql_host`, etc.) with your actual MySQL server credentials, or set the corresponding environment variables (`MYSQL_HOST`, etc.).
 
-To create a new database named `my_new_db`. You can connect without specifying a default database, or to a system database like `mysql`.
+---
 
-*   **Synchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        --database mysql "CREATE DATABASE my_new_db;"
-    ```
+### Step 1: Create a Database
 
-*   **Asynchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        --database mysql "CREATE DATABASE my_new_db;" --use-async
-    ```
+First, we'll create a new database named `test_db`. Note that we don't use the `--database` flag here.
 
-### 2. List All Databases
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    "CREATE DATABASE test_db;"
+```
 
-To list all databases accessible by the connected user.
+### Step 2: Create a Table
 
-*   **Synchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        "SHOW DATABASES;"
-    ```
+Now, let's create a `users` table within our new database. We'll specify `--database test_db` for this and all subsequent table-level commands.
 
-*   **Asynchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        "SHOW DATABASES;" --use-async
-    ```
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "CREATE TABLE users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), email VARCHAR(100));"
+```
 
-### 3. Insert Data into a Table
+### Step 3: Insert Records
 
-Assuming you have a database named `my_new_db` and a table `users` (`CREATE TABLE users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255));`).
+Let's add two users, 'Alice' and 'Bob', to our `users` table.
 
-*   **Synchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        --database my_new_db "INSERT INTO users (name) VALUES ('Alice');"
-    ```
+```bash
+# Insert Alice
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com');"
 
-*   **Asynchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        --database my_new_db "INSERT INTO users (name) VALUES ('Bob');" --use-async
-    ```
+# Insert Bob
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "INSERT INTO users (name, email) VALUES ('Bob', 'bob@example.com');"
+```
 
-### 4. Select Data from a Table
+### Step 4: Query Records
 
-To retrieve data from the `users` table in `my_new_db`.
+Retrieve all records from the `users` table to verify the insertions.
 
-*   **Synchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        --database my_new_db "SELECT * FROM users;"
-    ```
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "SELECT * FROM users;"
+```
+*Expected Output:*
+```json
+{
+  "id": 1,
+  "name": "Alice",
+  "email": "alice@example.com"
+}
+{
+  "id": 2,
+  "name": "Bob",
+  "email": "bob@example.com"
+}
+```
 
-*   **Asynchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        --database my_new_db "SELECT * FROM users WHERE name = 'Alice';" --use-async
-    ```
+### Step 5: Update a Record
 
-### 5. Delete a Database
+Let's update Alice's email address.
 
-To delete the `my_new_db` database.
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "UPDATE users SET email = 'alice_updated@example.com' WHERE name = 'Alice';"
+```
 
-*   **Synchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        "DROP DATABASE my_new_db;"
-    ```
+### Step 6: Delete a Record
 
-*   **Asynchronous:**
-    ```bash
-    python -m src.rhosocial.activerecord.backend.impl.mysql \
-        --host your_mysql_host --port your_mysql_port --user your_mysql_user --password your_secure_password \
-        "DROP DATABASE my_new_db;" --use-async
-    ```
+Now, let's remove Bob from the table.
+
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "DELETE FROM users WHERE name = 'Bob';"
+```
+
+### Step 7: Clean Up by Dropping the Table
+
+After our operations are complete, we can clean up by dropping the `users` table.
+
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    --database test_db \
+    "DROP TABLE users;"
+```
+
+### Step 8: Final Cleanup by Dropping the Database
+
+Finally, we remove the test database itself.
+
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql \
+    --host your_mysql_host --user your_mysql_user --password your_secure_password \
+    "DROP DATABASE test_db;"
+```
 
 ## Important Notes
 
