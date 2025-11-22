@@ -32,6 +32,28 @@ python -m src.rhosocial.activerecord.backend.impl.mysql [OPTIONAL_FLAGS] "YOUR_S
 | `query`          | _Required_ (positional)                           | **SQL query to execute.** Must be enclosed in quotes.                                                                                                   |
 | `--use-async`    | _False_                                           | Use the asynchronous backend (`AsyncMySQLBackend`). If omitted, the synchronous backend (`MySQLBackend`) will be used.                                    |
 | `--log-level`    | `INFO`                                            | Set the logging level (e.g., `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).                                                                        |
+| `--rich-ascii`   | _False_                                           | Use ASCII characters for table borders. Recommended for terminals that have trouble rendering Unicode box characters.                                |
+
+## Pretty Output with `rich`
+
+This tool integrates with the [rich](https://github.com/Textualize/rich) library to provide beautified, color-coded output and logging. This is an optional feature.
+
+### Activation
+
+To enable this feature, simply install `rich` in your Python environment:
+```bash
+pip install rich
+```
+The script will automatically detect its presence and enhance the output. If `rich` is not found, the script will fall back to standard plain text output.
+
+### Rendering Issues in Terminals
+
+Some terminals (especially on Windows) may not correctly render the box-drawing characters used in tables by default, leading to garbled output. To fix this, you can use the `--rich-ascii` flag.
+
+```bash
+python -m rhosocial.activerecord.backend.impl.mysql ... --rich-ascii "SELECT 1;"
+```
+This forces the table borders to be rendered using only ASCII characters, which is compatible with all terminals.
 
 ## Using Environment Variables for Connection Parameters
 
