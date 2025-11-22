@@ -1,9 +1,40 @@
 # src/rhosocial/activerecord/backend/impl/mysql/types.py
-from typing import Dict
+from typing import Any, Dict
 
 from rhosocial.activerecord.backend.dialect import TypeMapping
 from rhosocial.activerecord.backend.typing import DatabaseType
-from rhosocial.activerecord.backend.helpers import format_with_length, format_decimal
+
+def format_with_length(base_type: str, params: Dict[str, Any]) -> str:
+    """Process type with length parameter
+
+    Args:
+        base_type: Base type name
+        params: Type parameters
+
+    Returns:
+        str: Formatted type string with length if specified
+    """
+    length = params.get('length')
+    return f"{base_type}({length})" if length else base_type
+
+def format_decimal(base_type: str, params: Dict[str, Any]) -> str:
+    """Process DECIMAL type with precision and scale parameters
+
+    Args:
+        base_type: Base type name (e.g., "DECIMAL", "NUMERIC")
+        params: Type parameters, potentially including 'precision' and 'scale'
+
+    Returns:
+        str: Formatted DECIMAL type string with precision and scale if specified
+    """
+    precision = params.get('precision')
+    scale = params.get('scale')
+
+    if precision is not None and scale is not None:
+        return f"{base_type}({precision}, {scale})"
+    elif precision is not None:
+        return f"{base_type}({precision})"
+    return base_type
 
 # MySQL type mapping configuration
 MYSQL_TYPE_MAPPINGS: Dict[DatabaseType, TypeMapping] = {
