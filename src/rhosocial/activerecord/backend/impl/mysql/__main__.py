@@ -1,6 +1,8 @@
 # src/rhosocial/activerecord/backend/impl/mysql/__main__.py
 import argparse
 import asyncio
+import datetime
+import decimal
 import logging
 import json
 import os
@@ -104,6 +106,17 @@ async def execute_query_async(args, backend):
             await backend.disconnect()
             logger.info("Disconnected from database (asynchronous).")
 
+def json_serializer(obj):
+    """Handles serialization of types not supported by default JSON encoder."""
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    if isinstance(obj, datetime.timedelta):
+        return str(obj)
+    if isinstance(obj, decimal.Decimal):
+        return str(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
 def handle_result(result):
     if result:
         logger.info(f"Query executed successfully. Affected rows: {result.affected_rows}, Duration: {result.duration:.4f}s")
@@ -111,13 +124,13 @@ def handle_result(result):
             logger.info("Results:")
             for row in result.data:
                 if isinstance(row, (dict, list)):
-                    print(json.dumps(row, indent=2, ensure_ascii=False))
+                    print(json.dumps(row, indent=2, ensure_ascii=False, default=json_serializer))
                 else:
                     print(row)
-            else:
-                logger.info("No data returned.")
         else:
-            logger.info("Query executed, but no result object returned.")
+            logger.info("No data returned.")
+    else:
+        logger.info("Query executed, but no result object returned.")
 
 def main():
     args = parse_args()
