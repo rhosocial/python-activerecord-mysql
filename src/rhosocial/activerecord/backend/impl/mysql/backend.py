@@ -207,7 +207,7 @@ class MySQLBackendMixin:
             (bool, int),        # Python bool -> DB driver int (MySQL TINYINT(1))
             (datetime.datetime, datetime.datetime),    # Python datetime -> DB driver datetime (MySQL DATETIME/TIMESTAMP)
             (datetime.date, datetime.date),        # Python date -> DB driver date (MySQL DATE)
-            (datetime.time, datetime.time),        # Python time -> DB driver time (MySQL TIME)
+            (datetime.time, datetime.timedelta),        # Python time -> DB driver timedelta (MySQL TIME)
             (Decimal, Decimal),   # Python Decimal -> DB driver Decimal (MySQL DECIMAL/NUMERIC)
             (uuid.UUID, str),        # Python UUID -> DB driver str (MySQL CHAR(36))
             (dict, str),        # Python dict -> DB driver str (MySQL JSON)
