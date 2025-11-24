@@ -3,7 +3,8 @@ import datetime
 import json
 import uuid
 from decimal import Decimal
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Dict, List, Type, Union, Optional
+from datetime import timezone, timedelta
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
@@ -14,14 +15,14 @@ class MySQLBlobAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {bytes: ["BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB"]}
+        return {bytes: [bytes]}
 
-    def to_database(self, value: bytes, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: bytes, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
         return value
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> bytes:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> bytes:
         if value is None:
             return None
         # MySQL connector usually returns bytes directly for BLOB types
@@ -35,15 +36,15 @@ class MySQLJSONAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {dict: ["JSON", "TEXT"], list: ["JSON", "TEXT"]}
+        return {dict: [str], list: [str]}
 
-    def to_database(self, value: Union[dict, list], target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: Union[dict, list], target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
         # MySQL JSON type often stores as TEXT, so we serialize to string
         return json.dumps(value, ensure_ascii=False)
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> Union[dict, list]:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Union[dict, list]:
         if value is None:
             return None
         # MySQL connector might return str for JSON, or already dict/list for some drivers
@@ -58,14 +59,14 @@ class MySQLUUIDAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {uuid.UUID: ["CHAR(36)", "VARCHAR(36)", "TEXT"]}
+        return {uuid.UUID: [str]}
 
-    def to_database(self, value: uuid.UUID, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: uuid.UUID, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
         return str(value)
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> uuid.UUID:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> uuid.UUID:
         if value is None:
             return None
         if isinstance(value, uuid.UUID):
@@ -79,15 +80,14 @@ class MySQLBooleanAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        # MySQL typically uses TINYINT(1) for boolean
-        return {bool: ["TINYINT(1)", "BOOLEAN", "BIT(1)", "SMALLINT", "INT"]}
+        return {bool: [int]}
 
-    def to_database(self, value: bool, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: bool, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
         return 1 if value else 0
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> bool:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> bool:
         if value is None:
             return None
         # MySQL returns int (0 or 1) for TINYINT(1)
@@ -100,24 +100,25 @@ class MySQLDecimalAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        # DECIMAL, NUMERIC are native, but sometimes float or string can be used
-        return {Decimal: ["DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "VARCHAR", "TEXT"]}
+        return {Decimal: [Decimal, float, str]}
 
-    def to_database(self, value: Decimal, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: Decimal, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
-        # Convert to string to preserve precision if target is not a true DECIMAL type
-        # Or let driver handle native Decimal for DECIMAL/NUMERIC types
-        if target_type in ["FLOAT", "DOUBLE"]:
+        if target_type is Decimal:
+            return value
+        if target_type is float:
             return float(value)
-        return str(value) # Default to string to avoid float precision issues
+        if target_type is str:
+            return str(value)
+        raise TypeError(f"Cannot convert {type(value).__name__} to {target_type.__name__}")
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> Decimal:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Decimal:
         if value is None:
             return None
-        # MySQL connector might return str, float or already Decimal
         if isinstance(value, Decimal):
             return value
+        # Converts str, float, int to Decimal
         return Decimal(str(value))
 
 
@@ -127,14 +128,14 @@ class MySQLDateAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {datetime.date: ["DATE", "DATETIME", "TIMESTAMP", "VARCHAR", "TEXT"]}
+        return {datetime.date: [datetime.date]}
 
-    def to_database(self, value: datetime.date, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: datetime.date, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
         return value.isoformat() # "YYYY-MM-DD"
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> datetime.date:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> datetime.date:
         if value is None:
             return None
         if isinstance(value, datetime.date):
@@ -148,38 +149,57 @@ class MySQLTimeAdapter(SQLTypeAdapter):
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {datetime.time: ["TIME", "DATETIME", "TIMESTAMP", "VARCHAR", "TEXT"]}
+        return {datetime.time: [datetime.timedelta]}
 
-    def to_database(self, value: datetime.time, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: datetime.time, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
         return value.isoformat(timespec='microseconds') # "HH:MM:SS.ffffff"
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> datetime.time:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> datetime.time:
         if value is None:
             return None
         if isinstance(value, datetime.time):
             return value
+        if isinstance(value, timedelta): # Handle timedelta returned by mysql-connector-python
+            total_seconds = int(value.total_seconds())
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return datetime.time(hours, minutes, seconds, value.microseconds)
         return datetime.time.fromisoformat(str(value))
 
 
 class MySQLDatetimeAdapter(SQLTypeAdapter):
     """
     Adapts Python datetime to MySQL DATETIME/TIMESTAMP string and vice-versa.
+    Normalizes to UTC.
     """
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {datetime.datetime: ["DATETIME", "TIMESTAMP", "VARCHAR", "TEXT"]}
+        return {datetime.datetime: [datetime.datetime]}
 
-    def to_database(self, value: datetime.datetime, target_type: Type, options: Dict[str, Any]) -> Any:
+    def to_database(self, value: datetime.datetime, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
-        # MySQL handles native datetime objects well, but ISO format is a safe fallback
-        return value.isoformat(timespec='microseconds')
+        # If the datetime object is timezone-aware, normalize to UTC and make it naive
+        # for the database driver, which expects naive datetimes.
+        if value.tzinfo is not None:
+            return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        # If it's already naive, assume it's in the desired timezone (conventionally UTC)
+        return value
 
-    def from_database(self, value: Any, target_type: Type, options: Dict[str, Any]) -> datetime.datetime:
+    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> datetime.datetime:
         if value is None:
             return None
+        # The driver returns a naive datetime; we assume it's UTC and make it aware.
         if isinstance(value, datetime.datetime):
-            return value
-        return datetime.datetime.fromisoformat(str(value))
+            if value.tzinfo is None:
+                return value.replace(tzinfo=timezone.utc)
+            return value # It's already aware, respect it.
+        if isinstance(value, str):
+            dt = datetime.datetime.fromisoformat(str(value))
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+        # Fallback for unexpected types
+        return datetime.datetime.fromisoformat(str(value)).replace(tzinfo=timezone.utc)
