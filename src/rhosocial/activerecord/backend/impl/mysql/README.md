@@ -1,4 +1,4 @@
-# `__main__.py` - MySQL Backend Quick Execution Tool
+# $\rho_{AR}^{mysql}$ - MySQL Backend Quick Execution Tool
 
 This `__main__.py` script provides a command-line interface to quickly execute SQL queries against a MySQL database using the `rhosocial-activerecord` MySQL backend implementation. It supports both synchronous and asynchronous execution modes.
 

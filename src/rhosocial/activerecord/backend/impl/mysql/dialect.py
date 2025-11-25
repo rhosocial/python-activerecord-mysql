@@ -476,16 +476,22 @@ class MySQLCTEHandler(CTEHandler):
     def format_with_clause(self,
                            ctes: List[Dict[str, Any]],
                            recursive: bool = False) -> str:
-        """Format MySQL WITH clause."""
+        """Format MySQL WITH clause.
+
+        Args:
+            ctes: List of CTE definitions.
+            recursive: If True, prefixes the clause with RECURSIVE.
+
+        Returns:
+            Formatted WITH clause string.
+        """
         if not self.is_supported:
             raise CTENotSupportedError("CTEs not supported in MySQL versions before 8.0")
 
         if not ctes:
             return ""
 
-        # MySQL requires RECURSIVE keyword if any CTE is recursive
-        any_recursive = recursive or any(cte.get('recursive', False) for cte in ctes)
-        recursive_keyword = "RECURSIVE " if any_recursive else ""
+        recursive_keyword = "RECURSIVE " if recursive else ""
 
         formatted_ctes = []
         for cte in ctes:
@@ -493,7 +499,7 @@ class MySQLCTEHandler(CTEHandler):
                 name=cte['name'],
                 query=cte['query'],
                 columns=cte.get('columns'),
-                recursive=cte.get('recursive', False),
+                recursive=recursive,
                 materialized=cte.get('materialized')
             ))
 
