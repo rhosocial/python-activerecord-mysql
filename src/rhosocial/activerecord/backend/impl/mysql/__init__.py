@@ -18,8 +18,6 @@ Architecture:
 - Independent from ORM frameworks - uses only native drivers
 """
 
-__version__ = "1.0.0.dev3"
-
 from .backend import MySQLBackend, AsyncMySQLBackend
 from .config import MySQLConnectionConfig
 from .dialect import (
