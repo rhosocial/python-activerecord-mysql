@@ -1,4 +1,4 @@
-# rhosocial ActiveRecord MySQL Backend
+# rhosocial-activerecord-mysql ($\rho_{\mathbf{AR}\text{-mysql}}$)
 
 [![PyPI version](https://badge.fury.io/py/rhosocial-activerecord-mysql.svg)](https://badge.fury.io/py/rhosocial-activerecord-mysql)
 [![Python](https://img.shields.io/pypi/pyversions/rhosocial-activerecord-mysql.svg)](https://pypi.org/project/rhosocial-activerecord-mysql/)
