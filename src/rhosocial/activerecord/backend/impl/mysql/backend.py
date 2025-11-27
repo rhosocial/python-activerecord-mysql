@@ -406,6 +406,8 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
     def connect(self) -> None:
         """Establish connection to MySQL database"""
         try:
+            self.log(logging.INFO, f"Connecting to MySQL at {self.config.host}:{self.config.port}") # ADDED for better logging consistency
+
             self._connection = mysql.connector.connect(**self._connection_args)
 
             if self.config.timezone:
@@ -421,6 +423,19 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
             self._update_dialect_version(version)
             self._transaction_manager = MySQLTransactionManager(self._connection)
             self.log(logging.INFO, f"Connected to MySQL server version {'.'.join(map(str, version))}")
+
+            # --- ADDED SECTION for SSL/TLS Status Logging ---
+            cursor = self._connection.cursor()
+            cursor.execute("SHOW STATUS LIKE 'Ssl_cipher';")
+            result = cursor.fetchone()
+            cursor.close()
+
+            if result and result[1] and result[1] != '':
+                self.log(logging.INFO, f"SSL/TLS is ENABLED for this connection. Cipher: {result[1]}")
+            else:
+                self.log(logging.INFO, "SSL/TLS is DISABLED for this connection.")
+            # --- END ADDITION ---
+
         except MySQLError as e:
             raise ConnectionError(f"Failed to connect to MySQL: {e}")
 
@@ -775,6 +790,8 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
     async def connect(self) -> None:
         """Establish connection to MySQL database asynchronously"""
         try:
+            self.log(logging.INFO, f"Connecting to MySQL at {self.config.host}:{self.config.port} (async)") # ADDED for better logging consistency
+
             from mysql.connector.aio import connect
 
             try:
@@ -802,6 +819,19 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
             self._update_dialect_version(version)
             self._transaction_manager = AsyncMySQLTransactionManager(self._connection)
             self.log(logging.INFO, f"Connected to MySQL server version {'.'.join(map(str, version))}")
+
+            # --- ADDED SECTION for SSL/TLS Status Logging ---
+            cursor = await self._connection.cursor()
+            await cursor.execute("SHOW STATUS LIKE 'Ssl_cipher';")
+            result = await cursor.fetchone()
+            await cursor.close()
+
+            if result and result[1] and result[1] != '':
+                self.log(logging.INFO, f"SSL/TLS is ENABLED for this connection. Cipher: {result[1]}")
+            else:
+                self.log(logging.INFO, "SSL/TLS is DISABLED for this connection.")
+            # --- END ADDITION ---
+
         except Exception as e:
             raise ConnectionError(f"Failed to connect to MySQL: {e}")
 
