@@ -148,7 +148,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -244,7 +244,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -340,7 +340,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -436,7 +436,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -532,7 +532,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -629,7 +629,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -750,7 +750,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -846,7 +846,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
@@ -942,7 +942,7 @@ jobs:
 
     - name: Install activerecord from PyPI
       run: |
-        pip install rhosocial-activerecord==1.0.0.dev13 --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple
+        pip install rhosocial-activerecord==1.0.0.dev13
 
     - name: Install testsuite package from PyPI
       run: |
