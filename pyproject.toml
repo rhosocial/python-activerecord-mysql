@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rhosocial_activerecord_mysql"
-version = "1.0.0.dev4"
+version = "1.0.0.dev5"
 description = "MySQL backend implementation for rhosocial-activerecord, providing a robust and optimized MySQL database support."
 readme = "README.md"
 license = { file = "LICENSE" }
