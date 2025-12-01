@@ -1,4 +1,2 @@
 mysql-connector-python
-rhosocial-activerecord
 pydantic[email]
-pytz
