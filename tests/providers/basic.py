@@ -109,6 +109,16 @@ class BasicProvider(IBasicProvider):
         from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import ValidatedUser
         return self._setup_model(ValidatedUser, scenario_name, "validated_users")
 
+    def setup_type_adapter_model_and_schema(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for the `TypeAdapterTest` model tests."""
+        from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import TypeAdapterTest
+        return self._setup_model(TypeAdapterTest, scenario_name, "type_adapter_tests")
+
+    def get_yes_no_adapter(self) -> 'BaseSQLTypeAdapter':
+        """Returns an instance of the YesOrNoBooleanAdapter."""
+        from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import YesOrNoBooleanAdapter
+        return YesOrNoBooleanAdapter()
+
     def _load_mysql_schema(self, filename: str) -> str:
         """Helper to load a SQL schema file from this project's fixtures."""
         # Schemas are stored in the centralized location for basic feature.
@@ -156,7 +166,7 @@ class BasicProvider(IBasicProvider):
                 # Drop all tables that might have been created for basic tests
                 # Disable foreign key checks to avoid constraint issues during cleanup
                 backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table_name in ['users', 'type_cases', 'type_tests', 'validated_field_users', 'validated_users']:
+                for table_name in ['users', 'type_cases', 'type_tests', 'validated_field_users', 'validated_users', 'type_adapter_tests']:
                     try:
                         backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
                     except Exception:
