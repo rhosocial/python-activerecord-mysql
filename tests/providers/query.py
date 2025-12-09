@@ -161,7 +161,7 @@ class QueryProvider(IQueryProvider):
                 # Drop all tables that might have been created for query tests
                 # Disable foreign key checks to avoid constraint issues during cleanup
                 backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table_name in ['users', 'orders', 'order_items', 'posts', 'comments', 'json_users', 'nodes', 'extended_orders', 'extended_order_items']:
+                for table_name in ['users', 'orders', 'order_items', 'posts', 'comments', 'json_users', 'nodes', 'extended_orders', 'extended_order_items', 'searchable_items']:
                     try:
                         backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
                     except Exception:
