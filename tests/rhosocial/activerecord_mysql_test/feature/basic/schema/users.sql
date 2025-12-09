@@ -1,7 +1,7 @@
 CREATE TABLE `users` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `username` VARCHAR(255) NOT NULL UNIQUE,
-    `email` VARCHAR(255) NOT NULL UNIQUE,
+    `username` VARCHAR(191) NOT NULL UNIQUE,
+    `email` VARCHAR(191) NOT NULL UNIQUE,
     `age` INT,
     `balance` DOUBLE NOT NULL DEFAULT 0.0,
     `is_active` TINYINT(1) NOT NULL DEFAULT 1,
