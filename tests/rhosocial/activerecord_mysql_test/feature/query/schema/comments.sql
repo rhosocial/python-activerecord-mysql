@@ -1,12 +1,9 @@
--- tests/rhosocial/activerecord_mysql_test/feature/query/schema/comments.sql
--- MySQL version of the comments table schema
-
 CREATE TABLE `comments` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `user_id` INT NOT NULL,
     `post_id` INT NOT NULL,
-    `content` TEXT NOT NULL,
-    `is_hidden` TINYINT(1) NOT NULL DEFAULT 0,
+    `content` TEXT,
+    `is_hidden` BOOLEAN DEFAULT FALSE,
     `created_at` DATETIME(6),
     `updated_at` DATETIME(6),
     INDEX `idx_user_id` (`user_id`),

@@ -680,7 +680,9 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
             return None
 
     def insert(self, table: str, data: Dict, returning: Optional[Union[bool, List[str], ReturningOptions]] = None,
-               column_adapters: Optional[Dict[str, Tuple[SQLTypeAdapter, Type]]] = None, auto_commit: Optional[bool] = True,
+               column_adapters: Optional[Dict[str, Tuple[SQLTypeAdapter, Type]]] = None,
+               column_mapping: Optional[Dict[str, str]] = None,
+               auto_commit: Optional[bool] = True,
                primary_key: Optional[str] = None) -> QueryResult:
         """Insert record with MySQL-specific handling"""
         cleaned_data = {
@@ -694,26 +696,18 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
         sql = f"INSERT INTO {table} ({','.join(fields)}) VALUES ({','.join(placeholders)})"
 
-        result = self.execute(sql, tuple(values), returning, column_adapters)
+        result = self.execute(sql, tuple(values), returning, column_adapters, column_mapping)
 
         if auto_commit:
             self._handle_auto_commit_if_needed()
-
-        if returning and result.data:
-            cleaned_data = []
-            for row in result.data:
-                cleaned_row = {
-                    k.strip('"').strip('`'): v
-                    for k, v in row.items()
-                }
-                cleaned_data.append(cleaned_row)
-            result.data = cleaned_data
 
         return result
 
     def update(self, table: str, data: Dict, where: str, params: Tuple,
                returning: Optional[Union[bool, List[str], ReturningOptions]] = None,
-               column_adapters: Optional[Dict[str, Tuple[SQLTypeAdapter, Type]]] = None, auto_commit: bool = True) -> QueryResult:
+               column_adapters: Optional[Dict[str, Tuple[SQLTypeAdapter, Type]]] = None,
+               column_mapping: Optional[Dict[str, str]] = None,
+               auto_commit: bool = True) -> QueryResult:
         """Update record with MySQL-specific handling"""
         cleaned_data = {
             k.strip('"').strip('`'): v
@@ -727,7 +721,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
         sql = f"UPDATE {table} SET {', '.join(set_items)} WHERE {where}"
 
-        result = self.execute(sql, tuple(values) + params, returning, column_adapters)
+        result = self.execute(sql, tuple(values) + params, returning, column_adapters, column_mapping)
 
         if auto_commit:
             self._handle_auto_commit_if_needed()

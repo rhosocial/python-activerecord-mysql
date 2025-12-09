@@ -1,12 +1,9 @@
--- tests/rhosocial/activerecord_mysql_test/feature/basic/schema/users.sql
--- MySQL version of the users table schema
-
 CREATE TABLE `users` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `username` VARCHAR(255) NOT NULL,
-    `email` VARCHAR(255) NOT NULL,
+    `username` VARCHAR(255) NOT NULL UNIQUE,
+    `email` VARCHAR(255) NOT NULL UNIQUE,
     `age` INT,
-    `balance` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    `balance` DOUBLE NOT NULL DEFAULT 0.0,
     `is_active` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` DATETIME(6),
     `updated_at` DATETIME(6)
