@@ -15,7 +15,7 @@ from typing import Type, List, Tuple
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.testsuite.feature.query.interfaces import IQueryProvider
 # The models are defined generically in the testsuite...
-from rhosocial.activerecord.testsuite.feature.query.fixtures.models import User, Order, OrderItem, Post, Comment
+from rhosocial.activerecord.testsuite.feature.query.fixtures.models import User, Order, OrderItem, Post, Comment, MappedUser, MappedPost, MappedComment
 from rhosocial.activerecord.testsuite.feature.query.fixtures.cte_models import Node
 from rhosocial.activerecord.testsuite.feature.query.fixtures.extended_models import ExtendedOrder, ExtendedOrderItem
 # ...and the scenarios are defined specifically for this backend.
@@ -132,6 +132,14 @@ class QueryProvider(IQueryProvider):
         from rhosocial.activerecord.testsuite.feature.query.fixtures.annotated_adapter_models import SearchableItem
         return self._setup_multiple_models([
             (SearchableItem, "searchable_items"),
+        ], scenario_name)
+
+    def setup_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for MappedUser, MappedPost, and MappedComment models."""
+        return self._setup_multiple_models([
+            (MappedUser, "users"),
+            (MappedPost, "posts"),
+            (MappedComment, "comments")
         ], scenario_name)
 
     def _load_mysql_schema(self, filename: str) -> str:
