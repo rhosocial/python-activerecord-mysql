@@ -177,7 +177,7 @@ Create tests that verify your new feature works correctly:
 ```python
 # tests/test_mysql_json_paths.py
 import pytest
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 
 def test_mysql_json_path_extraction(mysql_backend):
@@ -442,7 +442,7 @@ For new features that should work with the shared test suite, implement the prov
 ```python
 # tests/providers/mysql_json_provider.py
 from typing import Tuple, Type
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.testsuite.core.provider import ITestProvider
 
 class MySQLJSONProvider(ITestProvider):
@@ -503,7 +503,7 @@ Create performance tests for your new features:
 # tests/benchmark/mysql_json_performance.py
 import time
 import pytest
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 
 def test_mysql_json_performance(mysql_backend):
     """Benchmark JSON operations performance."""
@@ -551,7 +551,7 @@ Test your feature under load conditions:
 # tests/load/mysql_json_load.py
 import concurrent.futures
 import threading
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 
 def test_mysql_json_concurrent_load(mysql_backend):
     """Test JSON operations under concurrent load."""
@@ -645,7 +645,7 @@ This example demonstrates how to use MySQL-specific JSON features
 with the ActiveRecord pattern.
 """
 
-from rhosocial.activerecord import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 
 # Configure MySQL backend
