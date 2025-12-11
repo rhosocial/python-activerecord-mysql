@@ -1,3 +1,16 @@
+## [1.0.0.dev5] - 2025-12-11
+
+### Added
+
+- Added full support for mapped column models and implemented support for annotated adapter query tests and type adapter tests in the MySQL backend. Enhanced test coverage for field and column mapping. ([#6](https://github.com/rhosocial/python-activerecord-mysql/issues/6))
+
+
+
+### Fixed
+
+- Resolved schema errors and test cleanup issues in the MySQL backend tests. ([#6](https://github.com/rhosocial/python-activerecord-mysql/issues/6))
+
+
 ## [1.0.0.dev4] - 2025-11-29
 
 ### Added
