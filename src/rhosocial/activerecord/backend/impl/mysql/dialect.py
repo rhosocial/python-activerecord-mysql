@@ -557,18 +557,18 @@ class MySQLDialect(SQLDialectBase):
         return f"`{identifier}`"
 
     def format_limit_offset(self, limit: Optional[int] = None,
-                            offset: Optional[int] = None) -> str:
+                            offset: Optional[int] = None) -> Optional[Tuple[str, List[Any]]]:
         """Format LIMIT and OFFSET clause
 
         MySQL requires LIMIT when using OFFSET
         """
         if limit is None and offset is not None:
-            return f"LIMIT 18446744073709551615 OFFSET {offset}"  # MySQL maximum value
+            return "LIMIT %s OFFSET %s", [18446744073709551615, offset]  # MySQL maximum value
         elif limit is not None:
             if offset is not None:
-                return f"LIMIT {limit} OFFSET {offset}"
-            return f"LIMIT {limit}"
-        return ""
+                return "LIMIT %s OFFSET %s", [limit, offset]
+            return "LIMIT %s", [limit]
+        return None, []
 
     def get_parameter_placeholder(self, position: int) -> str:
         """Get MySQL parameter placeholder
