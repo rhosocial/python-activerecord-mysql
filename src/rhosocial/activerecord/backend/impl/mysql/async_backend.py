@@ -1,19 +1,17 @@
-# src/rhosocial/activerecord/backend/impl/mysql/backend.py
+# src/rhosocial/activerecord/backend/impl/mysql/async_backend.py
 """
-MySQL-specific implementation of the StorageBackend.
+Asynchronous MySQL backend implementation using mysql-connector-python's async functionality.
 
-This module provides the concrete implementation for interacting with MySQL databases,
+This module provides an async implementation for interacting with MySQL databases,
 handling connections, queries, transactions, and type adaptations tailored for MySQL's
-specific behaviors and SQL dialect.
+specific behaviors and SQL dialect. The async backend mirrors the functionality of
+the synchronous backend but uses async/await for I/O operations.
 """
 import datetime
 import logging
-import re
-import uuid
-from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Type, Union
 
-import mysql.connector
+import mysql.connector.aio as mysql_async
 from mysql.connector.errors import (
     DatabaseError as MySQLDatabaseError,
     Error as MySQLError,
@@ -22,7 +20,7 @@ from mysql.connector.errors import (
     ProgrammingError,
 )
 
-from rhosocial.activerecord.backend.base import StorageBackend
+from rhosocial.activerecord.backend.base import AsyncStorageBackend
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     DatabaseError,
@@ -32,29 +30,17 @@ from rhosocial.activerecord.backend.errors import (
     QueryError,
     ReturningNotSupportedError,
 )
-from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 from rhosocial.activerecord.backend.result import QueryResult
-from rhosocial.activerecord.backend.config import ConnectionConfig
-from .adapters import (
-    MySQLBlobAdapter,
-    MySQLBooleanAdapter,
-    MySQLDateAdapter,
-    MySQLDatetimeAdapter,
-    MySQLDecimalAdapter,
-    MySQLJSONAdapter,
-    MySQLTimeAdapter,
-    MySQLUUIDAdapter,
-)
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
-from .transaction import MySQLTransactionManager
+from .async_transaction import AsyncMySQLTransactionManager
 
 
-class MySQLBackend(StorageBackend):
-    """MySQL-specific backend implementation."""
+class AsyncMySQLBackend(AsyncStorageBackend):
+    """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
-        """Initialize MySQL backend with connection configuration."""
+        """Initialize async MySQL backend with connection configuration."""
         # Ensure we have proper MySQL configuration
         connection_config = kwargs.get('connection_config')
         
@@ -98,15 +84,26 @@ class MySQLBackend(StorageBackend):
         
         # Initialize MySQL-specific components
         self._dialect = MySQLDialect(self.get_server_version())
-        self._transaction_manager = MySQLTransactionManager(self)
+        self._transaction_manager = AsyncMySQLTransactionManager(self)
 
-        # Register MySQL-specific type adapters
+        # Register MySQL-specific type adapters (same as sync backend)
         self._register_mysql_adapters()
 
-        self.log(logging.INFO, "MySQLBackend initialized")
+        self.log(logging.INFO, "AsyncMySQLBackend initialized")
 
     def _register_mysql_adapters(self):
         """Register MySQL-specific type adapters."""
+        from .adapters import (
+            MySQLBlobAdapter,
+            MySQLBooleanAdapter,
+            MySQLDateAdapter,
+            MySQLDatetimeAdapter,
+            MySQLDecimalAdapter,
+            MySQLJSONAdapter,
+            MySQLTimeAdapter,
+            MySQLUUIDAdapter,
+        )
+        
         mysql_adapters = [
             MySQLBlobAdapter(),
             MySQLBooleanAdapter(),
@@ -132,11 +129,11 @@ class MySQLBackend(StorageBackend):
 
     @property
     def transaction_manager(self):
-        """Get the MySQL transaction manager."""
+        """Get the async MySQL transaction manager."""
         return self._transaction_manager
 
-    def connect(self):
-        """Establish connection to MySQL database."""
+    async def connect(self):
+        """Establish async connection to MySQL database."""
         try:
             # Prepare connection parameters from config
             conn_params = {
@@ -179,52 +176,52 @@ class MySQLBackend(StorageBackend):
                 if hasattr(self.config, param):
                     conn_params[param] = getattr(self.config, param)
 
-            self._connection = mysql.connector.connect(**conn_params)
+            self._connection = await mysql_async.connect(**conn_params)
             
             # Set additional session settings if specified
             init_command = getattr(self.config, 'init_command', None)
             if init_command:
-                cursor = self._connection.cursor()
-                cursor.execute(init_command)
-                cursor.close()
+                cursor = await self._connection.cursor()
+                await cursor.execute(init_command)
+                await cursor.close()
             
             self.log(logging.INFO, f"Connected to MySQL database: {self.config.host}:{self.config.port}/{self.config.database}")
         except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}")
 
-    def disconnect(self):
-        """Close connection to MySQL database."""
+    async def disconnect(self):
+        """Close async connection to MySQL database."""
         if self._connection:
             try:
                 # Rollback any active transaction
                 if self.transaction_manager.is_active:
-                    self.transaction_manager.rollback()
+                    await self.transaction_manager.rollback()
                 
-                self._connection.close()
+                await self._connection.close()
                 self._connection = None
                 self.log(logging.INFO, "Disconnected from MySQL database")
             except MySQLError as e:
                 self.log(logging.ERROR, f"Error during disconnection: {str(e)}")
                 raise OperationalError(f"Error during MySQL disconnection: {str(e)}")
 
-    def _get_cursor(self):
+    async def _get_cursor(self):
         """Get a database cursor, ensuring connection is active."""
         if not self._connection:
-            self.connect()
+            await self.connect()
         
-        return self._connection.cursor()
+        return await self._connection.cursor()
 
-    def execute(self, sql: str, params: Optional[Tuple] = None) -> QueryResult:
-        """Execute a SQL statement with optional parameters."""
+    async def execute(self, sql: str, params: Optional[Tuple] = None) -> QueryResult:
+        """Execute a SQL statement with optional parameters asynchronously."""
         if not self._connection:
-            self.connect()
+            await self.connect()
         
         cursor = None
         start_time = datetime.datetime.now()
         
         try:
-            cursor = self._get_cursor()
+            cursor = await self._get_cursor()
             
             # Log the query if logging is enabled
             if getattr(self.config, 'log_queries', False):
@@ -234,18 +231,18 @@ class MySQLBackend(StorageBackend):
             
             # Execute the query
             if params:
-                cursor.execute(sql, params)
+                await cursor.execute(sql, params)
             else:
-                cursor.execute(sql)
+                await cursor.execute(sql)
             
             # Get results
             duration = (datetime.datetime.now() - start_time).total_seconds()
             
             # For SELECT queries, fetch results
             if sql.strip().upper().startswith(('SELECT', 'WITH', 'PRAGMA', 'SHOW')):
-                rows = cursor.fetchall()
+                rows = await cursor.fetchall()
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
-                data = [dict(zip(columns, row)) for row in rows]
+                data = [dict(zip(columns, row)) for row in rows] if rows else []
             else:
                 data = None
             
@@ -269,18 +266,18 @@ class MySQLBackend(StorageBackend):
             raise QueryError(str(e))
         finally:
             if cursor:
-                cursor.close()
+                await cursor.close()
 
-    def execute_many(self, sql: str, params_list: List[Tuple]) -> QueryResult:
-        """Execute the same SQL statement multiple times with different parameters."""
+    async def execute_many(self, sql: str, params_list: List[Tuple]) -> QueryResult:
+        """Execute the same SQL statement multiple times with different parameters asynchronously."""
         if not self._connection:
-            self.connect()
+            await self.connect()
         
         cursor = None
         start_time = datetime.datetime.now()
         
         try:
-            cursor = self._get_cursor()
+            cursor = await self._get_cursor()
             
             # Log the batch operation if logging is enabled
             if getattr(self.config, 'log_queries', False):
@@ -290,7 +287,7 @@ class MySQLBackend(StorageBackend):
             # Execute multiple statements
             affected_rows = 0
             for params in params_list:
-                cursor.execute(sql, params)
+                await cursor.execute(sql, params)
                 affected_rows += cursor.rowcount
             
             duration = (datetime.datetime.now() - start_time).total_seconds()
@@ -315,18 +312,19 @@ class MySQLBackend(StorageBackend):
             raise QueryError(str(e))
         finally:
             if cursor:
-                cursor.close()
+                await cursor.close()
 
-    def get_server_version(self) -> tuple:
-        """Get MySQL server version."""
+    async def get_server_version(self) -> tuple:
+        """Get MySQL server version asynchronously."""
         if not self._connection:
-            self.connect()
+            await self.connect()
         
         cursor = None
         try:
-            cursor = self._get_cursor()
-            cursor.execute("SELECT VERSION()")
-            version_str = cursor.fetchone()[0]
+            cursor = await self._get_cursor()
+            await cursor.execute("SELECT VERSION()")
+            version_row = await cursor.fetchone()
+            version_str = version_row[0] if version_row else "8.0.0"
             
             # Parse version string (e.g., "8.0.26" or "8.0.26-log")
             version_clean = version_str.split('-')[0]  # Remove suffix like "-log"
@@ -345,7 +343,7 @@ class MySQLBackend(StorageBackend):
             return (8, 0, 0)  # Default to a recent version
         finally:
             if cursor:
-                cursor.close()
+                await cursor.close()
 
     def requires_manual_commit(self) -> bool:
         """Check if manual commit is required for this database."""
