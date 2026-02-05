@@ -19,6 +19,10 @@ from rhosocial.activerecord.testsuite.feature.query.conftest import (
     blog_fixtures,
     tree_fixtures,
     combined_fixtures,
+    async_order_fixtures,
+    async_blog_fixtures,
+    async_tree_fixtures,
+    async_combined_fixtures,
 )
 
 # Import shared tests from testsuite package

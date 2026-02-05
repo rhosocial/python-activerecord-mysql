@@ -142,6 +142,80 @@ class QueryProvider(IQueryProvider):
             (MappedComment, "comments")
         ], scenario_name)
 
+    # --- Async implementations ---
+
+    async def setup_async_order_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for the async order-related models (AsyncUser, AsyncOrder, AsyncOrderItem) tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import AsyncUser, AsyncOrder, AsyncOrderItem
+        return self._setup_multiple_models([
+            (AsyncUser, "users"),
+            (AsyncOrder, "orders"),
+            (AsyncOrderItem, "order_items")
+        ], scenario_name)
+
+    async def setup_async_blog_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for the async blog-related models (AsyncUser, AsyncPost, AsyncComment) tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import AsyncUser, AsyncPost, AsyncComment
+        return self._setup_multiple_models([
+            (AsyncUser, "users"),
+            (AsyncPost, "posts"),
+            (AsyncComment, "comments")
+        ], scenario_name)
+
+    async def setup_async_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        """Sets up the database for the async JSON user model tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import AsyncJsonUser
+        json_user_model = self._setup_model(AsyncJsonUser, scenario_name, "json_users")
+        return (json_user_model,)
+
+    async def setup_async_tree_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        """Sets up the database for the async tree model (AsyncNode) tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.cte_models import AsyncNode
+        node_model = self._setup_model(AsyncNode, scenario_name, "nodes")
+        return (node_model,)
+
+    async def setup_async_extended_order_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for the async extended order-related models (AsyncUser, AsyncExtendedOrder, AsyncExtendedOrderItem) tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.extended_models import AsyncUser, AsyncExtendedOrder, AsyncExtendedOrderItem
+        return self._setup_multiple_models([
+            (AsyncUser, "users"),
+            (AsyncExtendedOrder, "extended_orders"),
+            (AsyncExtendedOrderItem, "extended_order_items")
+        ], scenario_name)
+
+    async def setup_async_combined_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for the async combined models (AsyncUser, AsyncOrder, AsyncOrderItem, AsyncPost, AsyncComment) tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import AsyncUser, AsyncOrder, AsyncOrderItem, AsyncPost, AsyncComment
+        return self._setup_multiple_models([
+            (AsyncUser, "users"),
+            (AsyncOrder, "orders"),
+            (AsyncOrderItem, "order_items"),
+            (AsyncPost, "posts"),
+            (AsyncComment, "comments")
+        ], scenario_name)
+
+    async def setup_async_annotated_query_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        """Sets up the database for the async SearchableItem model tests."""
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.annotated_adapter_models import AsyncSearchableItem
+        return self._setup_multiple_models([
+            (AsyncSearchableItem, "searchable_items"),
+        ], scenario_name)
+
+    async def setup_async_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for AsyncMappedUser, AsyncMappedPost, and AsyncMappedComment models."""
+        from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import AsyncMappedUser, AsyncMappedPost, AsyncMappedComment
+        return self._setup_multiple_models([
+            (AsyncMappedUser, "users"),
+            (AsyncMappedPost, "posts"),
+            (AsyncMappedComment, "comments")
+        ], scenario_name)
+
+    async def cleanup_after_test_async(self, scenario_name: str):
+        """
+        Performs async cleanup after a test, dropping all tables and disconnecting backends.
+        """
+        self.cleanup_after_test(scenario_name)
+
     def _load_mysql_schema(self, filename: str) -> str:
         """Helper to load a SQL schema file from this project's fixtures."""
         # Schemas are stored in the centralized location for query feature.

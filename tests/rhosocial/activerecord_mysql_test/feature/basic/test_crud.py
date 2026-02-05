@@ -19,7 +19,11 @@ from rhosocial.activerecord.testsuite.feature.basic.conftest import (
     type_case_class,
     type_test_model,
     validated_user_class,
-    validated_user
+    validated_user,
+    async_user_class,
+    async_type_case_class,
+    async_validated_user_class,
+    async_validated_user
 )
 
 # Import shared tests from testsuite package
