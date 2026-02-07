@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-from .backend import MySQLBackend, AsyncMySQLBackend
+from . import MySQLBackend, AsyncMySQLBackend
 from .config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 from rhosocial.activerecord.backend.output import JsonOutputProvider, CsvOutputProvider, TsvOutputProvider

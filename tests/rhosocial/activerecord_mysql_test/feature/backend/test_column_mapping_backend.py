@@ -5,7 +5,6 @@ import uuid
 
 # Note: The actual adapters are imported from the core library, as the mysql backend
 # may rely on the standard ones if it doesn't provide its own overrides.
-from rhosocial.activerecord.backend.dialect import ReturningOptions
 from rhosocial.activerecord.backend.type_adapter import UUIDAdapter, BooleanAdapter
 
 

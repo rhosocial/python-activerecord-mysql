@@ -5,8 +5,7 @@ import yaml
 import os
 from typing import Dict, Any, Tuple, Type
 
-from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend, AsyncMySQLBackend
-from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, AsyncMySQLBackend, MySQLConnectionConfig
 
 # --- Scenario Loading Logic ---
 

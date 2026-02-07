@@ -120,8 +120,10 @@ class BasicProvider(IBasicProvider):
             (MixedAnnotationModel, "mixed_annotation_items")
         ], scenario_name)
 
-    def setup_type_adapter_model_and_schema(self, scenario_name: str) -> Type[ActiveRecord]:
+    def setup_type_adapter_model_and_schema(self) -> Type[ActiveRecord]:
         """Sets up the database for the `TypeAdapterTest` model tests."""
+        # Use default scenario for this method as per interface
+        scenario_name = self.get_test_scenarios()[0] if self.get_test_scenarios() else "default"
         return self._setup_model(TypeAdapterTest, scenario_name, "type_adapter_tests")
 
     def get_yes_no_adapter(self) -> 'BaseSQLTypeAdapter':

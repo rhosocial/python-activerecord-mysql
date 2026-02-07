@@ -117,12 +117,17 @@ class MySQLBackend(StorageBackend):
             MySQLTimeAdapter(),
             MySQLUUIDAdapter(),
         ]
-        
+
         for adapter in mysql_adapters:
             for py_type, db_types in adapter.supported_types.items():
                 for db_type in db_types:
-                    self.adapter_registry.register(adapter, py_type, db_type)
-        
+                    # Only register if not already registered to avoid conflicts
+                    try:
+                        self.adapter_registry.register(adapter, py_type, db_type)
+                    except ValueError:
+                        # Type pair already registered, skip to avoid error
+                        self.log(logging.DEBUG, f"Type pair ({py_type}, {db_type}) already registered, skipping.")
+
         self.log(logging.DEBUG, "Registered MySQL-specific type adapters")
 
     @property
@@ -166,28 +171,34 @@ class MySQLBackend(StorageBackend):
                 conn_params['ssl_verify_identity'] = self.config.ssl_verify_identity
 
             # Add additional parameters if they exist in config
+            # Only include parameters that are supported by mysql.connector
             additional_params = [
-                'pool_name', 'pool_size', 'pool_reset_session', 
-                'pool_pre_ping', 'auth_plugin', 'init_command',
-                'connect_timeout', 'read_timeout', 'write_timeout',
-                'use_pure', 'get_warnings', 'buffered', 'raw',
-                'compress', 'allow_local_infile', 'conn_attrs',
-                'client_flags', 'unix_socket', 'allow_local_infile_in_path'
+                'auth_plugin', 'init_command', 'connect_timeout',
+                'read_timeout', 'write_timeout', 'use_pure', 'get_warnings',
+                'buffered', 'raw', 'compress', 'allow_local_infile', 'conn_attrs',
+                'client_flags', 'unix_socket', 'ssl_disabled'
+                # Note: pool_pre_ping is not supported by mysql.connector
             ]
-            
+
             for param in additional_params:
                 if hasattr(self.config, param):
-                    conn_params[param] = getattr(self.config, param)
+                    # Skip pool-related parameters as they're not supported by mysql.connector
+                    if param.startswith('pool_'):
+                        continue
+                    value = getattr(self.config, param)
+                    # Only add the parameter if it's not None
+                    if value is not None:
+                        conn_params[param] = value
 
             self._connection = mysql.connector.connect(**conn_params)
-            
+
             # Set additional session settings if specified
             init_command = getattr(self.config, 'init_command', None)
             if init_command:
                 cursor = self._connection.cursor()
                 cursor.execute(init_command)
                 cursor.close()
-            
+
             self.log(logging.INFO, f"Connected to MySQL database: {self.config.host}:{self.config.port}/{self.config.database}")
         except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
@@ -215,61 +226,6 @@ class MySQLBackend(StorageBackend):
         
         return self._connection.cursor()
 
-    def execute(self, sql: str, params: Optional[Tuple] = None) -> QueryResult:
-        """Execute a SQL statement with optional parameters."""
-        if not self._connection:
-            self.connect()
-        
-        cursor = None
-        start_time = datetime.datetime.now()
-        
-        try:
-            cursor = self._get_cursor()
-            
-            # Log the query if logging is enabled
-            if getattr(self.config, 'log_queries', False):
-                self.log(logging.DEBUG, f"Executing SQL: {sql}")
-                if params:
-                    self.log(logging.DEBUG, f"With params: {params}")
-            
-            # Execute the query
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-            
-            # Get results
-            duration = (datetime.datetime.now() - start_time).total_seconds()
-            
-            # For SELECT queries, fetch results
-            if sql.strip().upper().startswith(('SELECT', 'WITH', 'PRAGMA', 'SHOW')):
-                rows = cursor.fetchall()
-                columns = [desc[0] for desc in cursor.description] if cursor.description else []
-                data = [dict(zip(columns, row)) for row in rows]
-            else:
-                data = None
-            
-            result = QueryResult(
-                affected_rows=cursor.rowcount,
-                data=data,
-                duration=duration
-            )
-            
-            self.log(logging.INFO, f"Query executed successfully, affected {cursor.rowcount} rows, duration={duration:.3f}s")
-            return result
-            
-        except MySQLIntegrityError as e:
-            self.log(logging.ERROR, f"Integrity error: {str(e)}")
-            raise IntegrityError(str(e))
-        except MySQLError as e:
-            self.log(logging.ERROR, f"MySQL error: {str(e)}")
-            raise DatabaseError(str(e))
-        except Exception as e:
-            self.log(logging.ERROR, f"Unexpected error during execution: {str(e)}")
-            raise QueryError(str(e))
-        finally:
-            if cursor:
-                cursor.close()
 
     def execute_many(self, sql: str, params_list: List[Tuple]) -> QueryResult:
         """Execute the same SQL statement multiple times with different parameters."""
@@ -361,6 +317,160 @@ class MySQLBackend(StorageBackend):
                 "RETURNING clause is not supported by MySQL. "
                 "Consider using LAST_INSERT_ID() or alternative approaches."
             )
+
+    def ping(self, reconnect: bool = True) -> bool:
+        """Ping the MySQL server to check if the connection is alive."""
+        try:
+            if not self._connection:
+                if reconnect:
+                    self.connect()
+                    return True
+                else:
+                    return False
+            
+            # Try to execute a simple query to check connection
+            cursor = self._get_cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            
+            return True
+        except (MySQLError, mysql.connector.Error) as e:
+            self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
+            if reconnect:
+                try:
+                    self.disconnect()
+                    self.connect()
+                    return True
+                except Exception as connect_error:
+                    self.log(logging.ERROR, f"Failed to reconnect after ping failure: {str(connect_error)}")
+                    return False
+            return False
+
+    def _handle_error(self, error: Exception) -> None:
+        """Handle MySQL-specific errors."""
+        if isinstance(error, MySQLIntegrityError):
+            self.log(logging.ERROR, f"Integrity error: {str(error)}")
+            raise IntegrityError(str(error)) from error
+        elif isinstance(error, MySQLDatabaseError):
+            self.log(logging.ERROR, f"Database error: {str(error)}")
+            raise DatabaseError(str(error)) from error
+        elif isinstance(error, MySQLOperationalError):
+            self.log(logging.ERROR, f"Operational error: {str(error)}")
+            raise OperationalError(str(error)) from error
+        elif isinstance(error, MySQLError):
+            self.log(logging.ERROR, f"MySQL error: {str(error)}")
+            raise DatabaseError(str(error)) from error
+        else:
+            self.log(logging.ERROR, f"Unexpected error: {str(error)}")
+            raise error
+
+    def get_default_adapter_suggestions(self) -> Dict[Type, Tuple['SQLTypeAdapter', Type]]:
+        """
+        [Backend Implementation] Provides default type adapter suggestions for MySQL.
+
+        This method defines a curated set of type adapter suggestions for common Python
+        types, mapping them to their typical MySQL-compatible representations as
+        demonstrated in test fixtures. It explicitly retrieves necessary `SQLTypeAdapter`
+        instances from the backend's `adapter_registry`. If an adapter for a specific
+        (Python type, DB driver type) pair is not registered, no suggestion will be
+        made for that Python type.
+
+        Returns:
+            Dict[Type, Tuple[SQLTypeAdapter, Type]]: A dictionary where keys are
+            original Python types (`TypeRegistry`'s `py_type`), and values are
+            tuples containing a `SQLTypeAdapter` instance and the target
+            Python type (`TypeRegistry`'s `db_type`) expected by the driver.
+        """
+        suggestions: Dict[Type, Tuple['SQLTypeAdapter', Type]] = {}
+
+        # Define a list of desired Python type to DB driver type mappings.
+        # This list reflects types seen in test fixtures and common usage,
+        # along with their preferred database-compatible Python types for the driver.
+        # Types that are natively compatible with the DB driver (e.g., Python str, int, float)
+        # and for which no specific conversion logic is needed are omitted from this list.
+        # The consuming layer should assume pass-through behavior for any Python type
+        # that does not have an explicit adapter suggestion.
+        #
+        # Exception: If a user requires specific processing for a natively compatible type
+        # (e.g., custom serialization/deserialization for JSON strings beyond basic conversion),
+        # they would need to implement and register their own specialized adapter.
+        # This backend's default suggestions do not cater to such advanced processing needs.
+        from datetime import date, datetime, time
+        from decimal import Decimal
+        from uuid import UUID
+        from enum import Enum
+
+        type_mappings = [
+            (bool, int),        # Python bool -> DB driver int (MySQL TINYINT)
+            # Why str for date/time?
+            # MySQL accepts string representations of dates/times and converts them appropriately.
+            (datetime, str),    # Python datetime -> DB driver str (MySQL DATETIME/TIMESTAMP)
+            (date, str),        # Python date -> DB driver str (MySQL DATE)
+            (time, str),        # Python time -> DB driver str (MySQL TIME)
+            (Decimal, float),   # Python Decimal -> DB driver float (MySQL DECIMAL)
+            (UUID, str),        # Python UUID -> DB driver str (MySQL CHAR/VARCHAR/BINARY)
+            (dict, str),        # Python dict -> DB driver str (MySQL TEXT for JSON)
+            (list, str),        # Python list -> DB driver str (MySQL TEXT for JSON)
+            (Enum, str),        # Python Enum -> DB driver str (MySQL TEXT/VARCHAR)
+        ]
+
+        # Iterate through the defined mappings and retrieve adapters from the registry.
+        for py_type, db_type in type_mappings:
+            adapter = self.adapter_registry.get_adapter(py_type, db_type)
+            if adapter:
+                suggestions[py_type] = (adapter, db_type)
+            else:
+                # Log a debug message if a specific adapter is expected but not found.
+                self.log(logging.DEBUG, f"No adapter found for ({py_type.__name__}, {db_type.__name__}). "
+                                      "Suggestion will not be provided for this type.")
+
+        return suggestions
+
+    def execute(self, sql: str, params: Optional[Tuple] = None, *, options=None, **kwargs) -> QueryResult:
+        """Execute a SQL statement with optional parameters."""
+        from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
+        
+        # If no options provided, create default options from kwargs
+        if options is None:
+            # Determine statement type based on SQL
+            sql_upper = sql.strip().upper()
+            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA')):
+                stmt_type = StatementType.DQL
+            elif sql_upper.startswith(('INSERT', 'UPDATE', 'DELETE', 'REPLACE')):
+                stmt_type = StatementType.DML
+            else:
+                stmt_type = StatementType.DDL
+                
+            # Extract column_mapping and column_adapters from kwargs if present
+            column_mapping = kwargs.get('column_mapping')
+            column_adapters = kwargs.get('column_adapters')
+            
+            options = ExecutionOptions(
+                stmt_type=stmt_type,
+                process_result_set=None,  # Let the base logic determine this based on stmt_type
+                column_adapters=column_adapters,
+                column_mapping=column_mapping
+            )
+        else:
+            # If options is provided but column_mapping or column_adapters are explicitly passed in kwargs,
+            # update the options with these values
+            if 'column_mapping' in kwargs:
+                options.column_mapping = kwargs['column_mapping']
+            if 'column_adapters' in kwargs:
+                options.column_adapters = kwargs['column_adapters']
+        
+        # Convert '?' placeholders to '%s' for MySQL
+        if params:
+            mysql_sql = sql.replace('?', '%s')
+            return super().execute(mysql_sql, params, options=options)
+        else:
+            return super().execute(sql, params, options=options)
+
+    def create_expression(self, expression_str: str):
+        """Create an expression object for raw SQL expressions."""
+        from rhosocial.activerecord.backend.expression.operators import RawSQLExpression
+        return RawSQLExpression(self.dialect, expression_str)
 
     def log(self, level: int, message: str):
         """Log a message with the specified level."""

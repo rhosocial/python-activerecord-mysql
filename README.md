@@ -49,7 +49,7 @@ For detailed usage of the main ActiveRecord framework, please refer to the [rhos
 
 ```python
 from rhosocial.activerecord.model import ActiveRecord
-from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.typing import ConnectionConfig
 from datetime import datetime
 from typing import Optional
