@@ -194,12 +194,12 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
         # The driver returns a naive datetime; we assume it's UTC and make it aware.
         if isinstance(value, datetime.datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
+                return value.replace(tzinfo=datetime.timezone.utc)
             return value # It's already aware, respect it.
         if isinstance(value, str):
             dt = datetime.datetime.fromisoformat(str(value))
             if dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc)
+                return dt.replace(tzinfo=datetime.timezone.utc)
             return dt
         # Fallback for unexpected types
-        return datetime.datetime.fromisoformat(str(value)).replace(tzinfo=timezone.utc)
+        return datetime.datetime.fromisoformat(str(value)).replace(tzinfo=datetime.timezone.utc)

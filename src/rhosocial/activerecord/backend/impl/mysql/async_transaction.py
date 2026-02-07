@@ -19,10 +19,27 @@ from rhosocial.activerecord.backend.transaction import (
 class AsyncMySQLTransactionManager(AsyncTransactionManager):
     """Asynchronous transaction manager for MySQL backend."""
 
-    def __init__(self, backend):
+    def __init__(self, connection, logger=None):
         """Initialize async MySQL transaction manager."""
-        super().__init__(backend)
+        super().__init__(connection, logger)
         self._savepoint_counter = 0
+
+    async def _ensure_connection_ready(self):
+        """Ensure connection is ready for transaction operations asynchronously."""
+        # For MySQL, we need to check if the connection exists and is valid
+        if not self._connection:
+            error_msg = "No valid connection for transaction"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+        # Check if the connection is still alive
+        try:
+            # Use ping to check connection health
+            await self._connection.ping(reconnect=False)
+        except Exception:
+            error_msg = "Connection is not active"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
 
     async def _do_begin(self) -> None:
         """Begin a new transaction"""
@@ -84,10 +101,11 @@ class AsyncMySQLTransactionManager(AsyncTransactionManager):
     # So we don't need to reimplement these methods here.
 
     async def _execute_sql(self, sql: str) -> None:
-        """Execute a raw SQL statement using the backend."""
-        # This method assumes the backend has an async execute method
-        # that can be used for transaction control statements
-        await self.backend.execute(sql)
+        """Execute a raw SQL statement using the connection."""
+        # Use the connection directly
+        cursor = await self._connection.cursor()
+        await cursor.execute(sql)
+        await cursor.close()
 
     def log(self, level: int, message: str):
         """Log a message with the specified level."""

@@ -98,7 +98,9 @@ class MySQLBackend(StorageBackend):
         
         # Initialize MySQL-specific components
         self._dialect = MySQLDialect(self.get_server_version())
-        self._transaction_manager = MySQLTransactionManager(self)
+        # Initialize transaction manager with connection (will be set when connected)
+        # Pass None for connection initially, it will be updated later
+        self._transaction_manager = MySQLTransactionManager(None, self.logger)
 
         # Register MySQL-specific type adapters
         self._register_mysql_adapters()
@@ -138,6 +140,9 @@ class MySQLBackend(StorageBackend):
     @property
     def transaction_manager(self):
         """Get the MySQL transaction manager."""
+        # Update the transaction manager's connection if needed
+        if self._transaction_manager:
+            self._transaction_manager._connection = self._connection
         return self._transaction_manager
 
     def connect(self):
@@ -349,21 +354,71 @@ class MySQLBackend(StorageBackend):
 
     def _handle_error(self, error: Exception) -> None:
         """Handle MySQL-specific errors."""
+        error_msg = str(error)
+
         if isinstance(error, MySQLIntegrityError):
-            self.log(logging.ERROR, f"Integrity error: {str(error)}")
-            raise IntegrityError(str(error)) from error
+            if "Duplicate entry" in error_msg:
+                self.log(logging.ERROR, f"Unique constraint violation: {error_msg}")
+                raise IntegrityError(f"Unique constraint violation: {error_msg}")
+            elif "Cannot delete or update" in error_msg or "a foreign key constraint fails" in error_msg:
+                self.log(logging.ERROR, f"Foreign key constraint violation: {error_msg}")
+                raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
+            self.log(logging.ERROR, f"Integrity error: {error_msg}")
+            raise IntegrityError(error_msg)
         elif isinstance(error, MySQLDatabaseError):
-            self.log(logging.ERROR, f"Database error: {str(error)}")
-            raise DatabaseError(str(error)) from error
+            if "Deadlock found" in error_msg:
+                self.log(logging.ERROR, f"Deadlock error: {error_msg}")
+                raise DeadlockError(error_msg)
+            self.log(logging.ERROR, f"Database error: {error_msg}")
+            raise DatabaseError(error_msg)
         elif isinstance(error, MySQLOperationalError):
+            if "Lock wait timeout exceeded" in error_msg:
+                self.log(logging.ERROR, f"Lock timeout error: {error_msg}")
+                raise OperationalError(error_msg)
             self.log(logging.ERROR, f"Operational error: {str(error)}")
-            raise OperationalError(str(error)) from error
+            raise OperationalError(error_msg)
         elif isinstance(error, MySQLError):
-            self.log(logging.ERROR, f"MySQL error: {str(error)}")
-            raise DatabaseError(str(error)) from error
+            self.log(logging.ERROR, f"MySQL error: {error_msg}")
+            raise DatabaseError(error_msg)
         else:
-            self.log(logging.ERROR, f"Unexpected error: {str(error)}")
+            self.log(logging.ERROR, f"Unexpected error: {error_msg}")
             raise error
+
+    def _handle_auto_commit(self) -> None:
+        """Handle auto commit based on MySQL connection and transaction state.
+
+        This method will commit the current connection if:
+        1. The connection exists and is open
+        2. There is no active transaction managed by transaction_manager
+
+        It's used by insert/update/delete operations to ensure changes are
+        persisted immediately when auto_commit=True is specified.
+        """
+        try:
+            # Check if connection exists
+            if not self._connection:
+                return
+
+            # Check if we're not in an active transaction
+            if not self._transaction_manager or not self._transaction_manager.is_active:
+                # For MySQL, if autocommit is disabled, we need to commit explicitly
+                if not getattr(self.config, 'autocommit', True):
+                    self._connection.commit()
+                    self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
+        except Exception as e:
+            # Just log the error but don't raise - this is a convenience feature
+            self.log(logging.WARNING, f"Failed to auto-commit: {str(e)}")
+
+    def _handle_auto_commit_if_needed(self) -> None:
+        """
+        Handle auto-commit for MySQL.
+
+        MySQL respects the autocommit setting, but we also need to handle explicit commits.
+        """
+        if not self.in_transaction and self._connection:
+            if not getattr(self.config, 'autocommit', True):
+                self._connection.commit()
+                self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
 
     def get_default_adapter_suggestions(self) -> Dict[Type, Tuple['SQLTypeAdapter', Type]]:
         """
