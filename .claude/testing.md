@@ -1,4 +1,4 @@
-> **Important**: This document is a supplement to the main **Testing Architecture and Execution Guide** ([local](../../python-activerecord/.gemini/testing.md) | [github](https://github.com/Rhosocial/python-activerecord/blob/main/.gemini/testing.md)). Please read the core documentation first to understand the overall testing architecture, provider patterns, and capability negotiation. This guide focuses only on details specific to the MySQL backend.
+> **Important**: This document is a supplement to the main **Testing Architecture and Execution Guide** ([local](../../python-activerecord/.claude/testing.md) | [github](https://github.com/Rhosocial/python-activerecord/blob/main/.claude/testing.md)). Please read the core documentation first to understand the overall testing architecture, provider patterns, and capability negotiation. This guide focuses only on details specific to the MySQL backend.
 
 # MySQL Backend Testing Guide
 
