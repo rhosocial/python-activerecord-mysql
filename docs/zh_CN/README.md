@@ -1,45 +1,49 @@
-# rhosocial ActiveRecord MySQL 后端文档
+# rhosocial-activerecord MySQL 后端文档
 
-## 文档大纲
+> 🤖 **AI 学习助手**：本文档中关键概念旁标有 💡 AI 提示词标记。遇到不理解的概念时，可以直接向 AI 助手提问。
 
-### 1. 简介
-- MySQL 后端概述
-- 与 rhosocial-activerecord 的关系
-- 系统要求
+> **示例：** "MySQL 后端如何处理事务？与 SQLite 有什么区别？"
 
-### 2. 安装与配置
-- 安装指南
-- 基本配置
-- 连接配置选项
+> 📖 **详细用法请参考**：[AI 辅助开发指南](introduction/ai_assistance.md)
 
-### 3. 基本用法
-- 模型定义
-- 数据库连接配置
-- 基本CRUD操作
+## 目录 (Table of Contents)
 
-### 4. 高级特性
-- MySQL特有功能支持
-- 全文搜索
-- JSON操作
-- 事务管理
-- 批量操作
+1. **[简介 (Introduction)](introduction/README.md)**
+    *   **[MySQL 后端概述](introduction/README.md)**: 为什么选择 MySQL 后端
+    *   **[与核心库的关系](introduction/relationship.md)**: rhosocial-activerecord 与 MySQL 后端的集成
+    *   **[支持版本](introduction/supported_versions.md)**: MySQL 5.6~9.6, Python 3.8+ 支持情况
 
-### 5. 性能优化
-- 查询优化
-- 索引使用
-- 连接池配置
+2. **[安装与配置 (Installation & Configuration)](installation_and_configuration/README.md)**
+    *   **[安装指南](installation_and_configuration/installation.md)**: pip 安装与环境要求
+    *   **[连接配置](installation_and_configuration/configuration.md)**: host, port, database, username, password 等配置项
+    *   **[SSL/TLS 配置](installation_and_configuration/ssl.md)**: 安全连接设置
+    *   **[连接管理](installation_and_configuration/pool.md)**: 随用随连模式（暂不支持连接池）
+    *   **[字符集与排序规则](installation_and_configuration/charset.md)**: utf8mb4 配置
 
-### 6. 最佳实践
-- 代码组织
-- 错误处理
-- 安全考虑
+3. **[MySQL 特性 (MySQL Specific Features)](mysql_specific_features/README.md)**
+    *   **[MySQL 特定字段类型](mysql_specific_features/field_types.md)**: SET, ENUM, JSON, TEXT vs VARCHAR
+    *   **[MySQL Dialect 表达式](mysql_specific_features/dialect.md)**: MySQL 特定的 SQL 方言
+    *   **[存储引擎](mysql_specific_features/storage_engine.md)**: InnoDB, MyISAM 选择
+    *   **[索引与性能优化](mysql_specific_features/indexing.md)**: 索引设计原则
 
-### 7. 故障排除
-- 常见问题
-- 调试技巧
+4. **[事务支持 (Transaction Support)](transaction_support/README.md)**
+    *   **[事务隔离级别](transaction_support/isolation_level.md)**: READ COMMITTED, REPEATABLE READ 等
+    *   **[Savepoint 支持](transaction_support/savepoint.md)**: 嵌套事务
+    *   **[自动重试与死锁处理](transaction_support/deadlock.md)**: 失败重试机制
 
-### 8. API参考
-- 类与方法
-- 配置选项
+5. **[类型适配器 (Type Adapters)](type_adapters/README.md)**
+    *   **[MySQL 到 Python 类型映射](type_adapters/mapping.md)**: 类型转换规则
+    *   **[自定义类型适配器](type_adapters/custom.md)**: 扩展类型支持
+    *   **[时区处理](type_adapters/timezone.md)**: UTC 与本地时区
 
-> 注意：本文档仅涵盖MySQL后端实现。要了解ActiveRecord框架的完整功能，请参考[rhosocial-activerecord文档](https://github.com/rhosocial/python-activerecord/tree/docs)。
+6. **[测试 (Testing)](testing/README.md)**
+    *   **[测试配置](testing/configuration.md)**: 测试环境设置
+    *   **[使用 testsuite 进行测试](testing/testsuite.md)**: 测试套件使用
+    *   **[本地 MySQL 测试](testing/local.md)**: 本地数据库测试
+
+7. **[故障排除 (Troubleshooting)](troubleshooting/README.md)**
+    *   **[常见连接错误](troubleshooting/connection.md)**: 连接问题诊断
+    *   **[性能问题](troubleshooting/performance.md)**: 性能瓶颈分析
+    *   **[字符集问题](troubleshooting/charset.md)**: 编码问题处理
+
+> 📖 **核心库文档**：要了解 ActiveRecord 框架的完整功能，请参考 [rhosocial-activerecord 文档](https://github.com/Rhosocial/python-activerecord/tree/main/docs/zh_CN)。
