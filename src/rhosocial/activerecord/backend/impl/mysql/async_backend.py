@@ -267,10 +267,10 @@ class AsyncMySQLBackend(AsyncStorageBackend):
             self.log(logging.INFO, f"Batch operation completed, affected {affected_rows} rows, duration={duration:.3f}s")
             return result
 
-        except mysql_async.IntegrityError as e:
+        except MySQLIntegrityError as e:
             self.log(logging.ERROR, f"Integrity error in batch: {str(e)}")
             raise IntegrityError(str(e))
-        except mysql_async.Error as e:
+        except MySQLError as e:
             self.log(logging.ERROR, f"MySQL error in batch: {str(e)}")
             raise DatabaseError(str(e))
         except Exception as e:
@@ -359,7 +359,7 @@ class AsyncMySQLBackend(AsyncStorageBackend):
         """Handle MySQL-specific errors asynchronously."""
         error_msg = str(error)
 
-        if isinstance(error, mysql_async.IntegrityError):
+        if isinstance(error, MySQLIntegrityError):
             if "Duplicate entry" in error_msg:
                 self.log(logging.ERROR, f"Unique constraint violation: {error_msg}")
                 raise IntegrityError(f"Unique constraint violation: {error_msg}")
@@ -368,13 +368,13 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                 raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
             self.log(logging.ERROR, f"Integrity error: {error_msg}")
             raise IntegrityError(error_msg)
-        elif isinstance(error, mysql_async.DatabaseError):
+        elif isinstance(error, MySQLDatabaseError):
             if "Deadlock found" in error_msg:
                 self.log(logging.ERROR, f"Deadlock error: {error_msg}")
                 raise DeadlockError(error_msg)
             self.log(logging.ERROR, f"Database error: {error_msg}")
             raise DatabaseError(error_msg)
-        elif isinstance(error, mysql_async.OperationalError):
+        elif isinstance(error, MySQLOperationalError):
             if "Lock wait timeout exceeded" in error_msg:
                 self.log(logging.ERROR, f"Lock timeout error: {error_msg}")
                 raise OperationalError(error_msg)

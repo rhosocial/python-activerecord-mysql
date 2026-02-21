@@ -11,7 +11,7 @@ Its main responsibilities are:
 3.  Cleaning up any resources after a test runs.
 """
 import os
-from typing import Type, List, Tuple
+from typing import Type, List, Tuple, Optional
 
 from rhosocial.activerecord.backend.type_adapter import BaseSQLTypeAdapter
 from rhosocial.activerecord.model import ActiveRecord
@@ -38,26 +38,42 @@ class BasicProvider(IBasicProvider):
     """
 
     def __init__(self):
-        # This list will track the backend instances created during the setup phase.
         self._active_backends = []
+        self._active_async_backends = []
 
     def get_test_scenarios(self) -> List[str]:
         """Returns a list of names for all enabled scenarios for this backend."""
         return list(get_enabled_scenarios().keys())
 
+    def _track_backend(self, backend_instance, collection: List) -> None:
+        if backend_instance not in collection:
+            collection.append(backend_instance)
+
     def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
         """A generic helper method to handle the setup for any given model."""
-        # 1. Get the backend class (MySQLBackend) and connection config for the requested scenario.
         backend_class, config = get_scenario(scenario_name)
-
-        # 2. Configure the generic model class with our specific backend and config.
         model_class.configure(config, backend_class)
 
         backend_instance = model_class.__backend__
-        if backend_instance not in self._active_backends:
-            self._active_backends.append(backend_instance)
+        self._track_backend(backend_instance, self._active_backends)
 
-        # 3. Prepare the database schema.
+        self._reset_table_sync(model_class, table_name)
+        return model_class
+
+    async def _setup_async_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
+        """A generic helper method to handle the setup for any given async model."""
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+
+        _, config = get_scenario(scenario_name)
+        model_class.configure(config, AsyncMySQLBackend)
+
+        backend_instance = model_class.__backend__
+        self._track_backend(backend_instance, self._active_async_backends)
+
+        await self._reset_table_async(model_class, table_name)
+        return model_class
+
+    def _reset_table_sync(self, model_class: Type[ActiveRecord], table_name: str) -> None:
         try:
             model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 0")
             model_class.__backend__.execute(f"DROP TABLE IF EXISTS `{table_name}`")
@@ -65,15 +81,21 @@ class BasicProvider(IBasicProvider):
             model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
 
         schema_sql = self._load_mysql_schema(f"{table_name}.sql")
-        
-        # Adjust for JSON support if necessary
-        requires_json = table_name in ['type_tests', 'type_cases']
-        if requires_json and not self._backend_supports_json(backend_instance):
-            schema_sql = self._adjust_schema_for_json_support(schema_sql, backend_instance)
-
         model_class.__backend__.execute(schema_sql)
 
-        return model_class
+    async def _reset_table_async(self, model_class: Type[ActiveRecord], table_name: str) -> None:
+        try:
+            await model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 0")
+            await model_class.__backend__.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+        finally:
+            await model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
+
+        schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+        await model_class.__backend__.execute(schema_sql)
+
+    async def _initialize_async_model_schema(self, model_class: Type[ActiveRecord], table_name: str):
+        """Initialize schema for a model that shares backend with another model."""
+        await self._reset_table_async(model_class, table_name)
 
     def _setup_multiple_models(self, model_classes: List[Tuple[Type[ActiveRecord], str]], scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Helper to set up multiple related models for a test."""
@@ -89,21 +111,41 @@ class BasicProvider(IBasicProvider):
         """Sets up the database for user model tests."""
         return self._setup_model(User, scenario_name, "users")
 
+    async def setup_async_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for async user model tests."""
+        return await self._setup_async_model(AsyncUser, scenario_name, "users")
+
     def setup_type_case_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for type case model tests."""
         return self._setup_model(TypeCase, scenario_name, "type_cases")
+
+    async def setup_async_type_case_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for async type case model tests."""
+        return await self._setup_async_model(AsyncTypeCase, scenario_name, "type_cases")
 
     def setup_type_test_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for type test model tests."""
         return self._setup_model(TypeTestModel, scenario_name, "type_tests")
 
+    async def setup_async_type_test_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for async type test model tests."""
+        return await self._setup_async_model(AsyncTypeTestModel, scenario_name, "type_tests")
+
     def setup_validated_field_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for validated field user model tests."""
         return self._setup_model(ValidatedFieldUser, scenario_name, "validated_field_users")
 
+    async def setup_async_validated_field_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for async validated field user model tests."""
+        return await self._setup_async_model(AsyncValidatedFieldUser, scenario_name, "validated_field_users")
+
     def setup_validated_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for validated user model tests."""
         return self._setup_model(ValidatedUser, scenario_name, "validated_users")
+
+    async def setup_async_validated_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for async validated user model tests."""
+        return await self._setup_async_model(AsyncValidatedUser, scenario_name, "validated_users")
 
     def setup_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for MappedUser, MappedPost, and MappedComment models."""
@@ -113,6 +155,25 @@ class BasicProvider(IBasicProvider):
             (MappedComment, "comments")
         ], scenario_name)
 
+    async def setup_async_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        """Sets up the database for AsyncMappedUser, AsyncMappedPost, and AsyncMappedComment models."""
+        user = await self._setup_async_model(AsyncMappedUser, scenario_name, "users")
+        shared_backend = user.__backend__
+
+        post_model_class = AsyncMappedPost
+        post_model_class.__connection_config__ = user.__connection_config__
+        post_model_class.__backend_class__ = user.__backend_class__
+        post_model_class.__backend__ = shared_backend
+        await self._initialize_async_model_schema(post_model_class, "posts")
+
+        comment_model_class = AsyncMappedComment
+        comment_model_class.__connection_config__ = user.__connection_config__
+        comment_model_class.__backend_class__ = user.__backend_class__
+        comment_model_class.__backend__ = shared_backend
+        await self._initialize_async_model_schema(comment_model_class, "comments")
+
+        return user, post_model_class, comment_model_class
+
     def setup_mixed_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for ColumnMappingModel and MixedAnnotationModel."""
         return self._setup_multiple_models([
@@ -120,62 +181,34 @@ class BasicProvider(IBasicProvider):
             (MixedAnnotationModel, "mixed_annotation_items")
         ], scenario_name)
 
-    def setup_type_adapter_model_and_schema(self) -> Type[ActiveRecord]:
+    async def setup_async_mixed_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        """Sets up the database for AsyncColumnMappingModel and AsyncMixedAnnotationModel."""
+        column_mapping_model = await self._setup_async_model(AsyncColumnMappingModel, scenario_name, "column_mapping_items")
+        shared_backend = column_mapping_model.__backend__
+
+        mixed_annotation_model_class = AsyncMixedAnnotationModel
+        mixed_annotation_model_class.__connection_config__ = column_mapping_model.__connection_config__
+        mixed_annotation_model_class.__backend_class__ = column_mapping_model.__backend_class__
+        mixed_annotation_model_class.__backend__ = shared_backend
+        await self._initialize_async_model_schema(mixed_annotation_model_class, "mixed_annotation_items")
+
+        return column_mapping_model, mixed_annotation_model_class
+
+    def setup_type_adapter_model_and_schema(self, scenario_name: Optional[str] = None) -> Type[ActiveRecord]:
         """Sets up the database for the `TypeAdapterTest` model tests."""
-        # Use default scenario for this method as per interface
-        scenario_name = self.get_test_scenarios()[0] if self.get_test_scenarios() else "default"
+        if scenario_name is None:
+            scenario_name = self.get_test_scenarios()[0] if self.get_test_scenarios() else "default"
         return self._setup_model(TypeAdapterTest, scenario_name, "type_adapter_tests")
+
+    async def setup_async_type_adapter_model_and_schema(self, scenario_name: Optional[str] = None) -> Type[ActiveRecord]:
+        """Sets up the database for the `AsyncTypeAdapterTest` model tests."""
+        if scenario_name is None:
+            scenario_name = self.get_test_scenarios()[0] if self.get_test_scenarios() else "default"
+        return await self._setup_async_model(AsyncTypeAdapterTest, scenario_name, "type_adapter_tests")
 
     def get_yes_no_adapter(self) -> 'BaseSQLTypeAdapter':
         """Returns an instance of the YesOrNoBooleanAdapter."""
         return YesOrNoBooleanAdapter()
-
-    # --- Async implementations ---
-
-    async def setup_async_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for async user model tests."""
-        return self._setup_model(AsyncUser, scenario_name, "users")
-
-    async def setup_async_type_case_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for async type case model tests."""
-        return self._setup_model(AsyncTypeCase, scenario_name, "type_cases")
-
-    async def setup_async_type_test_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for async type test model tests."""
-        return self._setup_model(AsyncTypeTestModel, scenario_name, "type_tests")
-
-    async def setup_async_validated_field_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for async validated field user model tests."""
-        return self._setup_model(AsyncValidatedFieldUser, scenario_name, "validated_field_users")
-
-    async def setup_async_validated_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for async validated user model tests."""
-        return self._setup_model(AsyncValidatedUser, scenario_name, "validated_users")
-
-    async def setup_async_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for AsyncMappedUser, AsyncMappedPost, and AsyncMappedComment models."""
-        return self._setup_multiple_models([
-            (AsyncMappedUser, "users"),
-            (AsyncMappedPost, "posts"),
-            (AsyncMappedComment, "comments")
-        ], scenario_name)
-
-    async def setup_async_mixed_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for AsyncColumnMappingModel and AsyncMixedAnnotationModel."""
-        return self._setup_multiple_models([
-            (AsyncColumnMappingModel, "column_mapping_items"),
-            (AsyncMixedAnnotationModel, "mixed_annotation_items")
-        ], scenario_name)
-
-    async def setup_async_type_adapter_model_and_schema(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for the `AsyncTypeAdapterTest` model tests."""
-        return self._setup_model(AsyncTypeAdapterTest, scenario_name, "type_adapter_tests")
-
-    async def cleanup_after_test_async(self, scenario_name: str):
-        """
-        Performs async cleanup after a test, dropping all tables and disconnecting backends.
-        """
-        self.cleanup_after_test(scenario_name)
 
     def _load_mysql_schema(self, filename: str) -> str:
         """Helper to load a SQL schema file from this project's fixtures."""
@@ -185,30 +218,12 @@ class BasicProvider(IBasicProvider):
         with open(schema_path, 'r', encoding='utf-8') as f:
             return f.read()
 
-    def _backend_supports_json(self, backend) -> bool:
-        """Check if the backend supports JSON capability."""
-        try:
-            return backend.capabilities.is_supported('json_operations')
-        except Exception:
-            try:
-                version = backend.get_server_version()
-                return version >= (5, 7, 8)
-            except Exception:
-                return False
-
-    def _adjust_schema_for_json_support(self, schema_sql: str, backend) -> str:
-        """Adjust schema SQL to replace JSON fields with LONGTEXT if JSON is not supported."""
-        if self._backend_supports_json(backend):
-            return schema_sql
-        import re
-        return re.sub(r'\bJSON\b', 'LONGTEXT', schema_sql, flags=re.IGNORECASE)
-
     def cleanup_after_test(self, scenario_name: str):
         """
         Performs cleanup after a test, dropping all tables and disconnecting backends.
         """
         tables_to_drop = [
-            'users', 'type_cases', 'type_tests', 'validated_field_users', 
+            'users', 'type_cases', 'type_tests', 'validated_field_users',
             'validated_users', 'type_adapter_tests', 'posts', 'comments',
             'column_mapping_items', 'mixed_annotation_items'
         ]
@@ -224,7 +239,36 @@ class BasicProvider(IBasicProvider):
             finally:
                 try:
                     backend_instance.disconnect()
-                except:
+                except Exception:
                     pass
-        
+
         self._active_backends.clear()
+
+    async def cleanup_after_test_async(self, scenario_name: str):
+        """
+        Performs async cleanup after a test, dropping all tables and disconnecting backends.
+        """
+        tables_to_drop = [
+            'users', 'type_cases', 'type_tests', 'validated_field_users',
+            'validated_users', 'type_adapter_tests', 'posts', 'comments',
+            'column_mapping_items', 'mixed_annotation_items'
+        ]
+        for backend_instance in self._active_async_backends:
+            try:
+                try:
+                    await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    for table_name in tables_to_drop:
+                        try:
+                            await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                        except Exception:
+                            pass
+                    await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                except Exception:
+                    pass
+            finally:
+                try:
+                    await backend_instance.disconnect()
+                except Exception:
+                    pass
+
+        self._active_async_backends.clear()

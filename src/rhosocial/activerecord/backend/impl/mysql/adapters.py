@@ -192,6 +192,9 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
         if value is None:
             return None
         # The driver returns a naive datetime; we assume it's UTC and make it aware.
+        # Note: This assumes the MySQL session timezone is set to UTC (+00:00).
+        # If your MySQL server uses a different timezone, you should configure
+        # time_zone in the connection config or use TIMESTAMP column type.
         if isinstance(value, datetime.datetime):
             if value.tzinfo is None:
                 return value.replace(tzinfo=datetime.timezone.utc)

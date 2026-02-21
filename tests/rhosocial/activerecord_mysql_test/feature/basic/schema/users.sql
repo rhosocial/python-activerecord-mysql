@@ -5,6 +5,6 @@ CREATE TABLE `users` (
     `age` INT,
     `balance` DOUBLE NOT NULL DEFAULT 0.0,
     `is_active` TINYINT(1) NOT NULL DEFAULT 1,
-    `created_at` DATETIME(6),
-    `updated_at` DATETIME(6)
+    `created_at` TEXT,
+    `updated_at` TEXT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
