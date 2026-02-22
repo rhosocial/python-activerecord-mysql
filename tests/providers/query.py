@@ -80,7 +80,7 @@ class QueryProvider(IQueryProvider):
             result.append(configured_model)
         return tuple(result)
 
-    async def _setup_model_async(self, model_class, scenario_name: str, table_name: str):
+    async def _setup_model_async(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
         """A generic helper method to handle the setup for any given async model."""
         from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
 
@@ -102,7 +102,7 @@ class QueryProvider(IQueryProvider):
 
         return model_class
 
-    async def _setup_multiple_models_async(self, model_classes, scenario_name: str):
+    async def _setup_multiple_models_async(self, model_classes: List[Tuple[Type[ActiveRecord], str]], scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Helper to set up multiple related async models for a test."""
         result = []
         shared_backend = None
@@ -182,7 +182,7 @@ class QueryProvider(IQueryProvider):
 
     # --- Async implementations ---
 
-    async def setup_async_order_fixtures(self, scenario_name: str):
+    async def setup_async_order_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for the async order-related models (AsyncUser, AsyncOrder, AsyncOrderItem) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import AsyncUser, AsyncOrder, AsyncOrderItem
         return await self._setup_multiple_models_async([
@@ -191,7 +191,7 @@ class QueryProvider(IQueryProvider):
             (AsyncOrderItem, "order_items")
         ], scenario_name)
 
-    async def setup_async_blog_fixtures(self, scenario_name: str):
+    async def setup_async_blog_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for the async blog-related models (AsyncUser, AsyncPost, AsyncComment) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_blog_models import AsyncUser, AsyncPost, AsyncComment
         return await self._setup_multiple_models_async([
@@ -200,19 +200,19 @@ class QueryProvider(IQueryProvider):
             (AsyncComment, "comments")
         ], scenario_name)
 
-    async def setup_async_json_user_fixtures(self, scenario_name: str):
+    async def setup_async_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for the async JSON user model tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_json_models import AsyncJsonUser
         json_user_model = await self._setup_model_async(AsyncJsonUser, scenario_name, "json_users")
         return (json_user_model,)
 
-    async def setup_async_tree_fixtures(self, scenario_name: str):
+    async def setup_async_tree_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for the async tree model (AsyncNode) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_cte_models import AsyncNode
         node_model = await self._setup_model_async(AsyncNode, scenario_name, "nodes")
         return (node_model,)
 
-    async def setup_async_extended_order_fixtures(self, scenario_name: str):
+    async def setup_async_extended_order_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for the async extended order-related models (AsyncUser, AsyncExtendedOrder, AsyncExtendedOrderItem) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_extended_models import AsyncUser, AsyncExtendedOrder, AsyncExtendedOrderItem
         return await self._setup_multiple_models_async([
@@ -221,7 +221,7 @@ class QueryProvider(IQueryProvider):
             (AsyncExtendedOrderItem, "extended_order_items")
         ], scenario_name)
 
-    async def setup_async_combined_fixtures(self, scenario_name: str):
+    async def setup_async_combined_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for the async combined models (AsyncUser, AsyncOrder, AsyncOrderItem, AsyncPost, AsyncComment) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import AsyncUser, AsyncOrder, AsyncOrderItem
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_blog_models import AsyncPost, AsyncComment
@@ -233,14 +233,14 @@ class QueryProvider(IQueryProvider):
             (AsyncComment, "comments")
         ], scenario_name)
 
-    async def setup_async_annotated_query_fixtures(self, scenario_name: str):
+    async def setup_async_annotated_query_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for the async SearchableItem model tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_annotated_adapter_models import AsyncSearchableItem
         return await self._setup_multiple_models_async([
             (AsyncSearchableItem, "searchable_items"),
         ], scenario_name)
 
-    async def setup_async_mapped_models(self, scenario_name: str):
+    async def setup_async_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for AsyncMappedUser, AsyncMappedPost, and AsyncMappedComment models."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_mapped_models import AsyncMappedUser, AsyncMappedPost, AsyncMappedComment
         return await self._setup_multiple_models_async([
@@ -249,7 +249,7 @@ class QueryProvider(IQueryProvider):
             (AsyncMappedComment, "comments")
         ], scenario_name)
 
-    async def cleanup_after_test_async(self, scenario_name: str):
+    async def cleanup_after_test_async(self, scenario_name: str) -> None:
         """
         Performs async cleanup after a test, dropping all tables and disconnecting async backends.
         """
