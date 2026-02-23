@@ -97,12 +97,29 @@ class BasicProvider(IBasicProvider):
         """Initialize schema for a model that shares backend with another model."""
         await self._reset_table_async(model_class, table_name)
 
+    def _initialize_model_schema(self, model_class: Type[ActiveRecord], table_name: str) -> None:
+        """Initialize schema for a model that shares backend with another model."""
+        self._reset_table_sync(model_class, table_name)
+
     def _setup_multiple_models(self, model_classes: List[Tuple[Type[ActiveRecord], str]], scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Helper to set up multiple related models for a test."""
-        result = []
-        for model_class, table_name in model_classes:
-            configured_model = self._setup_model(model_class, scenario_name, table_name)
-            result.append(configured_model)
+        """Helper to set up multiple related models for a test, sharing a single backend."""
+        if not model_classes:
+            return tuple()
+
+        first_model_class, first_table_name = model_classes[0]
+        first_model = self._setup_model(first_model_class, scenario_name, first_table_name)
+        shared_backend = first_model.__backend__
+
+        result = [first_model]
+
+        for model_class, table_name in model_classes[1:]:
+            model_class.__connection_config__ = first_model.__connection_config__
+            model_class.__backend_class__ = first_model.__backend_class__
+            model_class.__backend__ = shared_backend
+            self._track_backend(shared_backend, self._active_backends)
+            self._initialize_model_schema(model_class, table_name)
+            result.append(model_class)
+
         return tuple(result)
 
     # --- Implementation of the IBasicProvider interface ---
