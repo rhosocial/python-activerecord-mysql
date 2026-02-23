@@ -224,3 +224,39 @@ pytest -k "fulltext"
 # View coverage
 pytest --cov=rhosocial.activerecord.backend.impl.mysql tests/
 ```
+
+## 8. CRITICAL: No Parallel Test Execution
+
+**Tests MUST be executed serially. Do NOT use pytest-xdist or similar parallel execution tools.**
+
+### Why Parallel Execution Is Not Supported
+
+The test suite creates database tables with **fixed names** (e.g., `users`, `orders`, `posts`). Each test:
+
+1. Drops existing tables: `DROP TABLE IF EXISTS ...`
+2. Creates fresh tables with the same names
+3. Inserts test data
+4. Cleans up after completion
+
+If tests run in parallel, they will:
+- Drop tables while other tests are using them → Errors
+- Create conflicting data → Test failures
+- Cleanup prematurely → Data loss
+
+### What NOT To Do
+
+```bash
+# DO NOT use parallel execution
+pytest -n auto          # ❌ WILL CAUSE FAILURES
+pytest -n 4             # ❌ WILL CAUSE FAILURES
+pytest --dist=loadfile  # ❌ WILL CAUSE FAILURES
+```
+
+### Correct Execution
+
+```bash
+# Always run tests serially (default behavior)
+pytest                  # ✅ Correct - serial execution
+```
+
+For more details, see the main project's [Testing Documentation](https://github.com/Rhosocial/python-activerecord/blob/main/.claude/testing.md).
