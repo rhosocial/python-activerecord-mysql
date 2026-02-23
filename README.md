@@ -4,127 +4,208 @@
 [![Python](https://img.shields.io/pypi/pyversions/rhosocial-activerecord-mysql.svg)](https://pypi.org/project/rhosocial-activerecord-mysql/)
 [![Tests](https://github.com/rhosocial/python-activerecord-mysql/actions/workflows/test.yml/badge.svg)](https://github.com/rhosocial/python-activerecord-mysql/actions)
 [![Coverage Status](https://codecov.io/gh/rhosocial/python-activerecord-mysql/branch/main/graph/badge.svg)](https://app.codecov.io/gh/rhosocial/python-activerecord-mysql/tree/main)
-[![License](https://img.shields.io/github/license/rhosocial/python-activerecord-mysql.svg)](https://github.com/rhosocial/python-activerecord-mysql/blob/main/LICENSE)
+[![Apache 2.0 License](https://img.shields.io/github/license/rhosocial/python-activerecord-mysql.svg)](https://github.com/rhosocial/python-activerecord-mysql/blob/main/LICENSE)
 [![Powered by vistart](https://img.shields.io/badge/Powered_by-vistart-blue.svg)](https://github.com/vistart)
 
 <div align="center">
     <img src="https://raw.githubusercontent.com/rhosocial/python-activerecord/main/docs/images/logo.svg" alt="rhosocial ActiveRecord Logo" width="200"/>
-    <p>MySQL backend implementation for rhosocial-activerecord, providing a robust and optimized MySQL database support.</p>
+    <h3>MySQL Backend for rhosocial-activerecord</h3>
+    <p><b>Production-Ready MySQL Support · Sync & Async · Native Driver Integration</b></p>
 </div>
 
-## Overview
+> **Note**: This is a backend implementation for [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord). It cannot be used standalone.
 
-This package provides MySQL backend support for the [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) ORM framework. It enables seamless integration with MySQL databases while leveraging all the features of the ActiveRecord pattern implementation.
+## Why This Backend?
 
-**Note**: This is a backend implementation only and requires the main [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) package to function properly.
+### 1. MySQL-Specific Optimizations
 
-## Features
+| Feature | This Backend | Generic Solutions |
+|---------|-------------|-------------------|
+| **Full-Text Search** | Native `MATCH ... AGAINST` | LIKE-based workarounds |
+| **JSON Operations** | `JSON_EXTRACT`, `->>`, `->` | Serialize/deserialize overhead |
+| **Upsert** | `ON DUPLICATE KEY UPDATE` | Manual check-then-insert |
+| **Connection Pooling** | Built-in with mysql-connector | External pooling required |
 
-> This project is still under development and features are subject to change. Please stay tuned for the latest changes.
+### 2. True Sync-Async Parity
 
-- 🚀 Optimized MySQL-specific query generation
-- 🔒 Full support for MySQL's unique features
-- 📦 Connection pooling support (optional)
-- 🔄 Comprehensive transaction management
-- 🔍 Advanced query capabilities specific to MySQL
-- 🔌 Simple configuration and setup
+Same API surface for both sync and async operations:
 
-## Requirements
+```python
+# Sync
+users = User.query().where(User.c.age >= 18).all()
 
-- Python 3.8+
-- rhosocial-activerecord 1.0.0+
-- mysql-connector-python 9.0.0+
+# Async - just add await
+users = await User.query().where(User.c.age >= 18).all()
+```
 
-## Installation
+### 3. Built for Production
+
+- **Connection pooling** with configurable pool sizes
+- **Transaction support** with proper isolation levels
+- **Error mapping** from MySQL error codes to Python exceptions
+- **Type adapters** for MySQL-specific data types
+
+## Quick Start
+
+### Installation
 
 ```bash
 pip install rhosocial-activerecord-mysql
 ```
 
-> **Important**: This package is a MySQL backend implementation for [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) and cannot work independently. You must install and use it together with the main package.
-
-For detailed usage of the main ActiveRecord framework, please refer to the [rhosocial-activerecord documentation](https://github.com/rhosocial/python-activerecord/tree/docs).
-
-## Usage
+### Basic Usage
 
 ```python
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
-from rhosocial.activerecord.backend.typing import ConnectionConfig
-from datetime import datetime
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from typing import Optional
 
 class User(ActiveRecord):
-    __table_name__ = 'users'
-    
-    id: int
+    __table_name__ = "users"
+    id: Optional[int] = None
     name: str
     email: str
-    created_at: datetime
-    deleted_at: Optional[datetime] = None
 
-# Configure with MySQL backend
-User.configure(
-    ConnectionConfig(
-        host='localhost',
-        port=3306,
-        database='myapp',
-        user='dbuser',
-        password='dbpassword'
-    ),
-    backend_class=MySQLBackend
+# Configure
+config = MySQLConnectionConfig(
+    host="localhost",
+    port=3306,
+    database="myapp",
+    username="user",
+    password="password"
 )
+User.configure(config, MySQLBackend)
 
-# Create a table (if not exists)
-User.create_table_if_not_exists()
-
-# Create a new user
-user = User(name='John Doe', email='john@example.com', created_at=datetime.now())
+# Use
+user = User(name="Alice", email="alice@example.com")
 user.save()
 
-# Query users
-active_users = User.query() \
-    .where('deleted_at IS NULL') \
-    .order_by('created_at DESC') \
-    .all()
-
-# Update user
-user.name = 'Jane Doe'
-user.save()
-
-# Delete user (soft delete if implemented)
-user.delete()
+# Query with MySQL full-text search
+results = User.query().where(
+    "MATCH(name, email) AGAINST(? IN BOOLEAN MODE)",
+    ("+Alice",)
+).all()
 ```
 
-## Advanced MySQL Features
+> 💡 **AI Prompt**: "Show me how to use JSON operations in MySQL with this backend"
 
-This backend supports MySQL-specific features and optimizations:
+## MySQL-Specific Features
+
+### Full-Text Search
+
+Native MySQL full-text search support:
 
 ```python
-# Using MySQL fulltext search
-results = User.query() \
-    .where('MATCH(name, email) AGAINST(? IN BOOLEAN MODE)', ('+John -Doe', )) \
-    .all()
+# Boolean mode full-text search
+Article.query().where(
+    "MATCH(title, content) AGAINST(? IN BOOLEAN MODE)",
+    ("+python -java",)
+).all()
 
-# Using MySQL JSON operations
-results = User.query() \
-    .where('settings->>"$.notifications" = ?', ('enabled', )) \
-    .all()
-
-# Batch insert with ON DUPLICATE KEY UPDATE
-User.batch_insert_or_update([user1, user2, user3])
+# Natural language mode
+Article.query().where(
+    "MATCH(title, content) AGAINST(?)",
+    ("database optimization",)
+).all()
 ```
+
+### JSON Operations
+
+Query JSON columns using MySQL's native JSON functions:
+
+```python
+# Extract JSON value
+User.query().where("settings->>'$.theme' = ?", ("dark",)).all()
+
+# JSON contains
+Product.query().where("JSON_CONTAINS(tags, ?)", ('"featured"',)).all()
+```
+
+### Upsert (ON DUPLICATE KEY UPDATE)
+
+Efficient insert-or-update operations:
+
+```python
+# Will update on duplicate key
+User.insert_or_update(
+    name="Alice",
+    email="alice@example.com",
+    update_fields=["name"]  # Only update name on conflict
+)
+```
+
+## Requirements
+
+- **Python**: 3.8+ (including 3.13t/3.14t free-threaded builds)
+- **Core**: `rhosocial-activerecord>=1.0.0`
+- **Driver**: `mysql-connector-python>=9.0.0`
+
+## Get Started with AI Code Agents
+
+This project supports AI-assisted development. Clone and open in your preferred tool:
+
+```bash
+git clone https://github.com/rhosocial/python-activerecord-mysql.git
+cd python-activerecord-mysql
+```
+
+### Example AI Prompts
+
+- "How do I configure connection pooling for MySQL?"
+- "Show me the differences between MySQL and PostgreSQL backends"
+- "How do I use MySQL-specific JSON operators?"
+- "Create a model with a FULLTEXT index"
+
+### For Any LLM
+
+Feed the documentation files in `docs/` to your preferred LLM for context-aware assistance.
+
+## Testing
+
+> ⚠️ **CRITICAL**: Tests MUST run serially. Do NOT use `pytest -n auto` or parallel execution.
+
+```bash
+# Run all tests
+PYTHONPATH=src pytest tests/
+
+# Run specific feature tests
+PYTHONPATH=src pytest tests/rhosocial/activerecord_mysql_test/feature/basic/
+PYTHONPATH=src pytest tests/rhosocial/activerecord_mysql_test/feature/query/
+```
+
+See the [Testing Documentation](https://github.com/rhosocial/python-activerecord/blob/main/.claude/testing.md) for details.
 
 ## Documentation
 
-Complete documentation is available at [python-activerecord MySQL Backend](https://docs.python-activerecord.dev.rho.social/backends/mysql.html)
+- **[Getting Started](docs/en_US/getting_started/)** — Installation and configuration
+- **[MySQL Features](docs/en_US/mysql_specific_features/)** — MySQL-specific capabilities
+- **[Type Adapters](docs/en_US/type_adapters/)** — Data type handling
+- **[Transaction Support](docs/en_US/transaction_support/)** — Transaction management
+
+## Comparison with Other Backends
+
+| Feature | MySQL | PostgreSQL | SQLite |
+|---------|-------|------------|--------|
+| **Full-Text Search** | ✅ Native | ✅ Native | ⚠️ FTS5 extension |
+| **JSON Type** | ✅ JSON | ✅ JSONB | ⚠️ JSON1 extension |
+| **Arrays** | ❌ | ✅ Native | ❌ |
+| **Upsert** | ✅ ON DUPLICATE KEY | ✅ ON CONFLICT | ✅ ON CONFLICT |
+| **Returning** | ❌ | ✅ RETURNING | ✅ RETURNING |
+
+> 💡 **AI Prompt**: "When should I choose MySQL over PostgreSQL for my project?"
 
 ## Contributing
 
-We welcome and value all forms of contributions! For details on how to contribute, please see our [Contributing Guide](https://github.com/rhosocial/python-activerecord-mysql/blob/main/CONTRIBUTING.md).
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-[![license](https://img.shields.io/github/license/rhosocial/python-activerecord-mysql.svg)](https://github.com/rhosocial/python-activerecord-mysql/blob/main/LICENSE)
+[Apache License 2.0](LICENSE) — Copyright © 2026 [vistart](https://github.com/vistart)
 
-Copyright © 2025 [vistart](https://github.com/vistart)
+---
+
+<div align="center">
+    <p><b>Built with ❤️ by the rhosocial team</b></p>
+    <p><a href="https://github.com/rhosocial/python-activerecord-mysql">GitHub</a> · <a href="https://docs.python-activerecord.dev.rho.social/backends/mysql.html">Documentation</a> · <a href="https://pypi.org/project/rhosocial-activerecord-mysql/">PyPI</a></p>
+</div>
