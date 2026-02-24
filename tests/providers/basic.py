@@ -11,7 +11,10 @@ Its main responsibilities are:
 3.  Cleaning up any resources after a test runs.
 """
 import os
+import logging
 from typing import Type, List, Tuple, Optional
+
+logger = logging.getLogger(__name__)
 
 from rhosocial.activerecord.backend.type_adapter import BaseSQLTypeAdapter
 from rhosocial.activerecord.model import ActiveRecord
@@ -264,6 +267,10 @@ class BasicProvider(IBasicProvider):
     async def cleanup_after_test_async(self, scenario_name: str):
         """
         Performs async cleanup after a test, dropping all tables and disconnecting backends.
+        
+        Fix for mysql-connector-python bug: "RuntimeError: Set changed size during iteration"
+        The issue is that conn.close() iterates over _cursors WeakSet while cursor.close()
+        modifies it. We fix this by manually closing cursors BEFORE calling disconnect().
         """
         tables_to_drop = [
             'users', 'type_cases', 'type_tests', 'validated_field_users',
@@ -284,8 +291,42 @@ class BasicProvider(IBasicProvider):
                     pass
             finally:
                 try:
-                    await backend_instance.disconnect()
+                    await self._safe_async_disconnect(backend_instance)
                 except Exception:
                     pass
 
         self._active_async_backends.clear()
+
+    async def _safe_async_disconnect(self, backend_instance):
+        """
+        Safely disconnect an async MySQL backend, avoiding the "Set changed size during iteration" bug.
+        
+        The bug occurs because:
+        1. backend._connection is a mysql.connector.aio connection
+        2. connection._cursors is a WeakSet
+        3. connection.close() iterates over _cursors while cursor.close() modifies it
+        4. Result: RuntimeError
+        
+        Fix: Close all cursors manually BEFORE calling connection.close()
+        """
+        connection = backend_instance._connection
+        if connection is None:
+            return
+        
+        # Step 1: Close all cursors manually (while event loop is still alive!)
+        cursors = list(connection._cursors)
+        for cursor in cursors:
+            try:
+                await cursor.close()
+            except Exception as e:
+                logger.warning(f"Error closing cursor during cleanup: {type(e).__name__}: {e}")
+        # Now _cursors should be empty
+        
+        # Step 2: Now safe to close connection
+        # The iteration in connection.close() will find an empty set
+        try:
+            await connection.close()
+        except Exception as e:
+            logger.warning(f"Error closing connection during cleanup: {type(e).__name__}: {e}")
+        
+        backend_instance._connection = None
