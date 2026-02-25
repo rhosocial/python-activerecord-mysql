@@ -35,6 +35,7 @@ class TestMySQLDialectBackend:
 class TestAsyncMySQLDialectBackend:
     """Asynchronous dialect tests for MySQL backend."""
 
+    @pytest.mark.asyncio
     async def test_async_format_identifier(self, async_mysql_backend):
         """Test identifier formatting (async)."""
         dialect = async_mysql_backend.dialect
@@ -45,11 +46,12 @@ class TestAsyncMySQLDialectBackend:
         result = dialect.format_identifier("user_name")
         assert result == "`user_name`"
 
+    @pytest.mark.asyncio
     async def test_async_quote_parameter(self, async_mysql_backend):
         """Test parameter quoting for MySQL (async)."""
         sql = "SELECT * FROM users WHERE name = %s"
         params = ("John",)
 
-        result_sql, result_params = await async_mysql_backend._prepare_sql_and_params(sql, params)
+        result_sql, result_params = async_mysql_backend._prepare_sql_and_params(sql, params)
 
         assert "%s" in result_sql or "?" in result_sql
