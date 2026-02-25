@@ -139,3 +139,63 @@ async def test_exists_with_retained_order_by(async_order_fixtures):
         AsyncOrder.c.order_number == 'MYSQL-EXISTS-001'
     ).exists()
     assert exists is True
+
+
+def test_group_by_select_star_non_standard(order_fixtures):
+    """
+    Test that MySQL allows SELECT * with incomplete GROUP BY columns.
+    
+    ## Why This Test Is Backend-Specific (Not In Testsuite)
+    
+    This test verifies MySQL's lenient handling of non-standard GROUP BY:
+    
+    ```sql
+    SELECT * FROM orders GROUP BY user_id, order_number
+    ```
+    
+    According to SQL standard, when using GROUP BY, all columns in SELECT * must:
+    1. Appear in the GROUP BY clause, or
+    2. Be used in an aggregate function
+    
+    MySQL (in default mode) allows this non-standard behavior and returns
+    arbitrary values from the grouped rows. PostgreSQL correctly rejects this
+    as it violates the SQL standard.
+    
+    This is documented in MySQL docs:
+    https://dev.mysql.com/doc/refman/8.0/en/group-by-handling.html
+    
+    MySQL's behavior: "The server is free to return any value from the group"
+    """
+    User, Order, OrderItem = order_fixtures
+
+    user = User(username='test_user', email='test@example.com', age=30)
+    user.save()
+
+    for i in range(3):
+        Order(user_id=user.id, order_number=f'ORD-{i:03d}', total_amount=Decimal(f'{(i+1)*100.00}')).save()
+
+    # MySQL allows SELECT * with incomplete GROUP BY columns
+    # This is non-standard SQL but works in MySQL's default mode
+    results = Order.query().group_by(Order.c.user_id).group_by(Order.c.order_number).all()
+    assert len(results) == 3
+
+
+@pytest.mark.asyncio
+async def test_group_by_select_star_non_standard_async(async_order_fixtures):
+    """
+    Async version: Test that MySQL allows SELECT * with incomplete GROUP BY columns.
+    
+    See sync version for explanation of non-standard behavior.
+    """
+    AsyncUser, AsyncOrder, AsyncOrderItem = async_order_fixtures
+
+    user = AsyncUser(username='test_user', email='test@example.com', age=30)
+    await user.save()
+
+    for i in range(3):
+        order = AsyncOrder(user_id=user.id, order_number=f'ORD-{i:03d}', total_amount=Decimal(f'{(i+1)*100.00}'))
+        await order.save()
+
+    # MySQL allows SELECT * with incomplete GROUP BY columns
+    results = await AsyncOrder.query().group_by(AsyncOrder.c.user_id).group_by(AsyncOrder.c.order_number).all()
+    assert len(results) == 3
