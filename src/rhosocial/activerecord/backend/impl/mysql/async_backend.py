@@ -51,7 +51,16 @@ class AsyncMySQLBackend(AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
-        """Initialize async MySQL backend with connection configuration."""
+        """Initialize async MySQL backend with connection configuration.
+
+        Args:
+            version: Expected MySQL server version tuple (major, minor, patch).
+                    Used for dialect and type adapter initialization.
+                    Defaults to (8, 0, 0). Can be passed as 'version' in kwargs.
+        """
+        # Extract version from kwargs if provided
+        version = kwargs.pop('version', None) or (8, 0, 0)
+
         # Ensure we have proper MySQL configuration
         connection_config = kwargs.get('connection_config')
 
@@ -91,14 +100,15 @@ class AsyncMySQLBackend(AsyncStorageBackend):
 
         super().__init__(**kwargs)
 
-        # Initialize MySQL-specific components
-        # Note: We delay initializing dialect until connect() is called to avoid async issues during construction
-        self._dialect = None  # Will be initialized in connect method
+        # Store the expected MySQL server version
+        self._version = version
+        # Initialize MySQL-specific components (lazy load dialect)
+        self._dialect = None
         # Initialize transaction manager with connection (will be set when connected)
         # Pass None for connection initially, it will be updated later
         self._transaction_manager = AsyncMySQLTransactionManager(None, self.logger)
 
-        # Register MySQL-specific type adapters (same as sync backend)
+        # Register MySQL-specific type adapters (uses self._version)
         self._register_mysql_adapters()
 
         self.log(logging.INFO, "AsyncMySQLBackend initialized")
@@ -109,7 +119,7 @@ class AsyncMySQLBackend(AsyncStorageBackend):
             MySQLBlobAdapter(),
             MySQLBooleanAdapter(),
             MySQLDateAdapter(),
-            MySQLDatetimeAdapter(),
+            MySQLDatetimeAdapter(self._version),
             MySQLDecimalAdapter(),
             MySQLJSONAdapter(),
             MySQLTimeAdapter(),
@@ -119,18 +129,32 @@ class AsyncMySQLBackend(AsyncStorageBackend):
         for adapter in mysql_adapters:
             for py_type, db_types in adapter.supported_types.items():
                 for db_type in db_types:
-                    # Only register if not already registered to avoid conflicts
-                    try:
-                        self.adapter_registry.register(adapter, py_type, db_type)
-                    except ValueError:
-                        # Type pair already registered, skip to avoid error
-                        self.log(logging.DEBUG, f"Type pair ({py_type}, {db_type}) already registered, skipping.")
+                    # Use allow_override=True to allow re-registration with updated version
+                    self.adapter_registry.register(adapter, py_type, db_type, allow_override=True)
 
         self.log(logging.DEBUG, "Registered MySQL-specific type adapters")
 
+    async def introspect_and_adapt(self) -> None:
+        """Introspect backend and adapt backend instance to actual server capabilities.
+
+        This method ensures a connection exists, queries the actual MySQL server version,
+        and updates the backend's internal state (version, dialect, type adapters) accordingly.
+        """
+        # Ensure connection exists
+        if not self._connection:
+            await self.connect()
+        actual_version = await self.get_server_version()
+        if self._version != actual_version:
+            self._version = actual_version
+            self._dialect = MySQLDialect(actual_version)
+            self._register_mysql_adapters()
+            self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
+
     @property
     def dialect(self):
-        """Get the MySQL dialect instance."""
+        """Get the MySQL dialect instance (lazy loads with configured version)."""
+        if self._dialect is None:
+            self._dialect = MySQLDialect(self._version)
         return self._dialect
 
     @property
@@ -192,10 +216,6 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                         conn_params[param] = value
 
             self._connection = await mysql_async.connect(**conn_params)
-
-            # Initialize dialect after connection is established
-            if self._dialect is None:
-                self._dialect = MySQLDialect(await self.get_server_version())
 
             # Set additional session settings if specified
             init_command = getattr(self.config, 'init_command', None)
@@ -524,11 +544,6 @@ class AsyncMySQLBackend(AsyncStorageBackend):
             return await super().execute(mysql_sql, params, options=options)
         else:
             return await super().execute(sql, params, options=options)
-
-    def create_expression(self, expression_str: str):
-        """Create an expression object for raw SQL expressions."""
-        from rhosocial.activerecord.backend.expression.operators import RawSQLExpression
-        return RawSQLExpression(self.dialect, expression_str)
 
     def log(self, level: int, message: str):
         """Log a message with the specified level."""

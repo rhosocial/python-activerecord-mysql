@@ -85,7 +85,7 @@ class QueryProvider(IQueryProvider):
         from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
 
         _, config = get_scenario(scenario_name)
-        model_class.configure(config, AsyncMySQLBackend)
+        await model_class.configure(config, AsyncMySQLBackend)
 
         backend_instance = model_class.__backend__
         if backend_instance not in self._active_backends:
@@ -138,7 +138,15 @@ class QueryProvider(IQueryProvider):
 
     def setup_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for the JSON user model tests."""
+        import pytest
         from rhosocial.activerecord.testsuite.feature.query.fixtures.models import JsonUser
+        backend_class, config = get_scenario(scenario_name)
+        JsonUser.configure(config, backend_class)
+        backend_instance = JsonUser.__backend__
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        if not backend_instance.dialect.supports_json_type():
+            pytest.skip(f"JSON type not supported by MySQL version {backend_instance.get_server_version()}")
         json_user_model = self._setup_model(JsonUser, scenario_name, "json_users")
         return (json_user_model,)
 
@@ -202,7 +210,15 @@ class QueryProvider(IQueryProvider):
 
     async def setup_async_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for the async JSON user model tests."""
+        import pytest
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_json_models import AsyncJsonUser
+        backend_class, config = get_scenario(scenario_name)
+        await AsyncJsonUser.configure(config, backend_class)
+        backend_instance = AsyncJsonUser.__backend__
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        if not backend_instance.dialect.supports_json_type():
+            pytest.skip(f"JSON type not supported by MySQL version {backend_instance.get_server_version()}")
         json_user_model = await self._setup_model_async(AsyncJsonUser, scenario_name, "json_users")
         return (json_user_model,)
 

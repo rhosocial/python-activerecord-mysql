@@ -68,7 +68,7 @@ class BasicProvider(IBasicProvider):
         from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
 
         _, config = get_scenario(scenario_name)
-        model_class.configure(config, AsyncMySQLBackend)
+        await model_class.configure(config, AsyncMySQLBackend)
 
         backend_instance = model_class.__backend__
         self._track_backend(backend_instance, self._active_async_backends)
@@ -145,11 +145,42 @@ class BasicProvider(IBasicProvider):
 
     def setup_type_test_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for type test model tests."""
-        return self._setup_model(TypeTestModel, scenario_name, "type_tests")
+        import pytest
+        # Check JSON support BEFORE setting up schema to avoid SQL error
+        backend_class, config = get_scenario(scenario_name)
+        # Create backend instance and introspect to get actual version
+        temp_backend = backend_class(connection_config=config)
+        temp_backend.connect()
+        actual_version = temp_backend.get_server_version()
+        temp_backend.disconnect()
+        # Check if JSON is supported
+        from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+        temp_dialect = MySQLDialect(actual_version)
+        if not temp_dialect.supports_json_type():
+            pytest.skip(f"JSON type not supported by MySQL version {actual_version}")
+        # JSON is supported, proceed with normal setup
+        model = self._setup_model(TypeTestModel, scenario_name, "type_tests")
+        return model
 
     async def setup_async_type_test_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for async type test model tests."""
-        return await self._setup_async_model(AsyncTypeTestModel, scenario_name, "type_tests")
+        import pytest
+        # Check JSON support BEFORE setting up schema to avoid SQL error
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        _, config = get_scenario(scenario_name)
+        # Create backend instance and introspect to get actual version
+        temp_backend = AsyncMySQLBackend(connection_config=config)
+        await temp_backend.connect()
+        actual_version = await temp_backend.get_server_version()
+        await temp_backend.disconnect()
+        # Check if JSON is supported
+        from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+        temp_dialect = MySQLDialect(actual_version)
+        if not temp_dialect.supports_json_type():
+            pytest.skip(f"JSON type not supported by MySQL version {actual_version}")
+        # JSON is supported, proceed with normal setup
+        model = await self._setup_async_model(AsyncTypeTestModel, scenario_name, "type_tests")
+        return model
 
     def setup_validated_field_user_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Sets up the database for validated field user model tests."""

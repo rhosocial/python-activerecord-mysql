@@ -8,7 +8,13 @@ serialization. This approach ensures consistent behavior across backends.
 """
 import json
 
+import pytest
 
+from rhosocial.activerecord.testsuite.utils import requires_json_operations
+
+
+@pytest.mark.mysql_json
+@requires_json_operations()
 def test_mysql_json_text_operations(json_user_fixture):
     """
     Test JSON operations using TEXT storage in MySQL.

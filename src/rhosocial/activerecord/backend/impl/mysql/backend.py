@@ -54,10 +54,19 @@ class MySQLBackend(StorageBackend):
     """MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
-        """Initialize MySQL backend with connection configuration."""
+        """Initialize MySQL backend with connection configuration.
+
+        Args:
+            version: Expected MySQL server version tuple (major, minor, patch).
+                    Used for dialect and type adapter initialization.
+                    Defaults to (8, 0, 0). Can be passed as 'version' in kwargs.
+        """
+        # Extract version from kwargs if provided
+        version = kwargs.pop('version', None) or (8, 0, 0)
+
         # Ensure we have proper MySQL configuration
         connection_config = kwargs.get('connection_config')
-        
+
         if connection_config is None:
             # Extract MySQL-specific parameters from kwargs
             config_params = {}
@@ -95,14 +104,16 @@ class MySQLBackend(StorageBackend):
             kwargs['connection_config'] = MySQLConnectionConfig(**config_params)
 
         super().__init__(**kwargs)
-        
-        # Initialize MySQL-specific components
-        self._dialect = MySQLDialect(self.get_server_version())
+
+        # Store the expected MySQL server version
+        self._version = version or (8, 0, 0)
+        # Initialize MySQL-specific components (lazy load dialect)
+        self._dialect = None
         # Initialize transaction manager with connection (will be set when connected)
         # Pass None for connection initially, it will be updated later
         self._transaction_manager = MySQLTransactionManager(None, self.logger)
 
-        # Register MySQL-specific type adapters
+        # Register MySQL-specific type adapters (uses self._version)
         self._register_mysql_adapters()
 
         self.log(logging.INFO, "MySQLBackend initialized")
@@ -113,7 +124,7 @@ class MySQLBackend(StorageBackend):
             MySQLBlobAdapter(),
             MySQLBooleanAdapter(),
             MySQLDateAdapter(),
-            MySQLDatetimeAdapter(),
+            MySQLDatetimeAdapter(self._version),
             MySQLDecimalAdapter(),
             MySQLJSONAdapter(),
             MySQLTimeAdapter(),
@@ -123,18 +134,32 @@ class MySQLBackend(StorageBackend):
         for adapter in mysql_adapters:
             for py_type, db_types in adapter.supported_types.items():
                 for db_type in db_types:
-                    # Only register if not already registered to avoid conflicts
-                    try:
-                        self.adapter_registry.register(adapter, py_type, db_type)
-                    except ValueError:
-                        # Type pair already registered, skip to avoid error
-                        self.log(logging.DEBUG, f"Type pair ({py_type}, {db_type}) already registered, skipping.")
+                    # Use allow_override=True to replace default adapters with MySQL-specific ones
+                    self.adapter_registry.register(adapter, py_type, db_type, allow_override=True)
 
         self.log(logging.DEBUG, "Registered MySQL-specific type adapters")
 
+    def introspect_and_adapt(self) -> None:
+        """Introspect backend and adapt backend instance to actual server capabilities.
+
+        This method ensures a connection exists, queries the actual MySQL server version,
+        and updates the backend's internal state (version, dialect, type adapters) accordingly.
+        """
+        # Ensure connection exists
+        if not self._connection:
+            self.connect()
+        actual_version = self.get_server_version()
+        if self._version != actual_version:
+            self._version = actual_version
+            self._dialect = MySQLDialect(actual_version)
+            self._register_mysql_adapters()
+            self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
+
     @property
     def dialect(self):
-        """Get the MySQL dialect instance."""
+        """Get the MySQL dialect instance (lazy loads with configured version)."""
+        if self._dialect is None:
+            self._dialect = MySQLDialect(self._version)
         return self._dialect
 
     @property
@@ -521,11 +546,6 @@ class MySQLBackend(StorageBackend):
             return super().execute(mysql_sql, params, options=options)
         else:
             return super().execute(sql, params, options=options)
-
-    def create_expression(self, expression_str: str):
-        """Create an expression object for raw SQL expressions."""
-        from rhosocial.activerecord.backend.expression.operators import RawSQLExpression
-        return RawSQLExpression(self.dialect, expression_str)
 
     def log(self, level: int, message: str):
         """Log a message with the specified level."""
