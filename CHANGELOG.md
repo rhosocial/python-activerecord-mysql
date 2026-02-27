@@ -1,3 +1,10 @@
+## [v1.0.0.dev6] - 2026-02-27
+
+### Added
+
+- Adapted MySQL backend to new expression-dialect architecture, rewritten backend tests, and added GROUP BY non-standard SQL behavior tests. ([#8](https://github.com/rhosocial/python-activerecord-mysql/issues/8))
+
+
 ## [1.0.0.dev5] - 2025-12-11
 
 ### Added

@@ -12,7 +12,7 @@ requires-python = ">=3.8"
 authors = [
     { name = "vistart", email = "i@vistart.me" }
 ]
-keywords = ["activerecord", "orm", "database", "mysql", "pymysql", "mysql-connector"]
+keywords = ["activerecord", "orm", "database", "mysql", "mysql-connector-python"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -122,7 +122,7 @@ disallow_untyped_defs = true
 check_untyped_defs = true
 
 [tool.towncrier]
-package = "rhosocial_activerecord_mysql"
+package = "rhosocial.activerecord.backend.impl.mysql"
 package_dir = "src"
 filename = "CHANGELOG.md"
 directory = "changelog.d"
