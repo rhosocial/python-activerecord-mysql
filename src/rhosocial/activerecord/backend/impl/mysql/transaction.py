@@ -3,12 +3,13 @@ import logging
 from typing import Dict, Optional
 from mysql.connector.errors import Error as MySQLError, ProgrammingError
 
-from rhosocial.activerecord.backend.errors import TransactionError, IsolationLevelError
+from rhosocial.activerecord.backend.errors import TransactionError
 from rhosocial.activerecord.backend.transaction import (
     TransactionManager,
     AsyncTransactionManager,
     IsolationLevel,
-    TransactionState
+    TransactionState,
+    IsolationLevelError
 )
 
 
@@ -48,21 +49,43 @@ class MySQLTransactionManager(TransactionManager):
 
         self._isolation_level = level
 
+    @property
+    def isolation_level(self) -> Optional[IsolationLevel]:
+        """Get current transaction isolation level."""
+        return self._isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, level: Optional[IsolationLevel]):
+        """Set transaction isolation level."""
+        self.log(logging.DEBUG, f"Setting isolation level to {level}")
+        if self.is_active:
+            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
+            raise IsolationLevelError("Cannot change isolation level during active transaction")
+
+        if level is not None and level not in self._ISOLATION_LEVELS:
+            error_msg = f"Unsupported isolation level: {level}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+        self._isolation_level = level
+
     def _ensure_connection_ready(self):
         """Ensure connection is ready for transaction operations."""
-        if not self._connection or not hasattr(self._connection, 'is_connected'):
+        # For MySQL, we need to check if the connection exists and is valid
+        # The base TransactionManager class has a _backend reference that we can use
+        if not self._connection:
             error_msg = "No valid connection for transaction"
             self.log(logging.ERROR, error_msg)
             raise TransactionError(error_msg)
 
-        if not self._connection.is_connected():
-            try:
-                self._connection.reconnect()
-                self.log(logging.WARNING, "Connection was lost, reconnected")
-            except MySQLError as e:
-                error_msg = f"Failed to reconnect: {str(e)}"
-                self.log(logging.ERROR, error_msg)
-                raise TransactionError(error_msg)
+        # Check if the connection is still alive
+        try:
+            # Use ping to check connection health
+            self._connection.ping(reconnect=False)
+        except MySQLError:
+            error_msg = "Connection is not active"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
 
     def _do_begin(self) -> None:
         """Begin MySQL transaction."""
@@ -208,6 +231,13 @@ class AsyncMySQLTransactionManager(AsyncTransactionManager):
             raise TransactionError(error_msg)
 
         self._isolation_level = level
+
+    async def _ensure_connection_ready(self):
+        """Ensure connection is ready for transaction operations asynchronously."""
+        if not self._connection:
+            error_msg = "No valid connection for transaction"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
 
     async def _ensure_connection_ready(self):
         """Ensure connection is ready for transaction operations asynchronously."""

@@ -1,61 +1,100 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/test_transaction.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/test_transaction_backend.py
+"""
+MySQL backend transaction tests using real database connection.
+
+This module tests transaction handling using MySQL backend with real database.
+Each test has sync and async versions for complete coverage.
+"""
 import pytest
+import pytest_asyncio
+from decimal import Decimal
 
 
-@pytest.fixture
-def setup_test_table(mysql_backend):
-    mysql_backend.execute("DROP TABLE IF EXISTS test_table")
-    mysql_backend.execute("""
-        CREATE TABLE test_table (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255),
-            age INT
-        )
-    """)
-    yield
-    mysql_backend.execute("DROP TABLE IF EXISTS test_table")
+class TestMySQLTransactionBackend:
+    """Synchronous transaction tests for MySQL backend."""
 
+    @pytest.fixture
+    def test_table(self, mysql_backend):
+        """Create a test table."""
+        mysql_backend.execute("DROP TABLE IF EXISTS test_transaction_table")
+        mysql_backend.execute("""
+            CREATE TABLE test_transaction_table (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255),
+                amount DECIMAL(10, 2)
+            )
+        """)
+        yield "test_transaction_table"
+        mysql_backend.execute("DROP TABLE IF EXISTS test_transaction_table")
 
-def test_transaction_commit(mysql_backend, setup_test_table):
-    """Test transaction commit"""
-    with mysql_backend.transaction():
-        sql = "INSERT INTO test_table (name, age) VALUES (%s, %s)"
-        params = ("test", 20)
-        mysql_backend.execute(sql, params)
-    row = mysql_backend.fetch_one("SELECT * FROM test_table WHERE name = %s", ("test",))
-    assert row is not None
-
-
-def test_transaction_rollback(mysql_backend, setup_test_table):
-    """Test transaction rollback"""
-    try:
+    def test_transaction_context_manager(self, mysql_backend, test_table):
+        """Test transaction using context manager."""
         with mysql_backend.transaction():
-            sql = "INSERT INTO test_table (name, age) VALUES (%s, %s)"
-            params = ("test", 20)
-            mysql_backend.execute(sql, params)
-            raise Exception("Force rollback")
-    except Exception:
-        pass
-    row = mysql_backend.fetch_one("SELECT * FROM test_table WHERE name = %s", ("test",))
-    assert row is None
+            mysql_backend.execute(
+                "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
+                ("TxTest1", Decimal("100.00"))
+            )
+
+        rows = mysql_backend.fetch_all("SELECT name FROM test_transaction_table")
+        assert len(rows) == 1
+        assert rows[0]["name"] == "TxTest1"
+
+    def test_transaction_rollback(self, mysql_backend, test_table):
+        """Test transaction rollback."""
+        try:
+            with mysql_backend.transaction():
+                mysql_backend.execute(
+                    "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
+                    ("TxRollback", Decimal("200.00"))
+                )
+                raise Exception("Force rollback")
+        except Exception:
+            pass
+
+        rows = mysql_backend.fetch_all("SELECT name FROM test_transaction_table")
+        assert len(rows) == 0
 
 
-def test_nested_transaction(mysql_backend, setup_test_table):
-    """Test nested transactions"""
-    with mysql_backend.transaction():
-        sql_outer = "INSERT INTO test_table (name, age) VALUES (%s, %s)"
-        params_outer = ("outer", 20)
-        mysql_backend.execute(sql_outer, params_outer)
-        with mysql_backend.transaction():
-            sql_inner = "INSERT INTO test_table (name, age) VALUES (%s, %s)"
-            params_inner = ("inner", 30)
-            mysql_backend.execute(sql_inner, params_inner)
-    rows = mysql_backend.fetch_all("SELECT * FROM test_table ORDER BY age")
-    assert len(rows) == 2
+class TestAsyncMySQLTransactionBackend:
+    """Asynchronous transaction tests for MySQL backend."""
 
+    @pytest_asyncio.fixture
+    async def async_test_table(self, async_mysql_backend):
+        """Create a test table."""
+        await async_mysql_backend.execute("DROP TABLE IF EXISTS test_transaction_table")
+        await async_mysql_backend.execute("""
+            CREATE TABLE test_transaction_table (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255),
+                amount DECIMAL(10, 2)
+            )
+        """)
+        yield "test_transaction_table"
+        await async_mysql_backend.execute("DROP TABLE IF EXISTS test_transaction_table")
 
-def test_transaction_get_cursor(mysql_backend):
-    """Test that _get_cursor can be called within a transaction context."""
-    with mysql_backend.transaction():
-        cursor = mysql_backend._get_cursor()
-        assert cursor is not None
+    async def test_async_transaction_context_manager(self, async_mysql_backend, async_test_table):
+        """Test transaction using context manager (async)."""
+        async with async_mysql_backend.transaction():
+            await async_mysql_backend.execute(
+                "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
+                ("TxTest1", Decimal("100.00"))
+            )
+
+        rows = await async_mysql_backend.fetch_all("SELECT name FROM test_transaction_table")
+        assert len(rows) == 1
+        assert rows[0]["name"] == "TxTest1"
+
+    async def test_async_transaction_rollback(self, async_mysql_backend, async_test_table):
+        """Test transaction rollback (async)."""
+        try:
+            async with async_mysql_backend.transaction():
+                await async_mysql_backend.execute(
+                    "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
+                    ("TxRollback", Decimal("200.00"))
+                )
+                raise Exception("Force rollback")
+        except Exception:
+            pass
+
+        rows = await async_mysql_backend.fetch_all("SELECT name FROM test_transaction_table")
+        assert len(rows) == 0

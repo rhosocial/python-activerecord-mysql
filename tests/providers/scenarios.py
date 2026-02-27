@@ -3,7 +3,7 @@
 
 import os
 from typing import Dict, Any, Tuple, Type
-from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 # Scenario name -> configuration dictionary mapping table (MySQL only)

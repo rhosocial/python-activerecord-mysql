@@ -1,8 +1,8 @@
 # src/rhosocial/activerecord/backend/impl/mysql/types.py
 from typing import Any, Dict
 
-from rhosocial.activerecord.backend.dialect import TypeMapping
-from rhosocial.activerecord.backend.typing import DatabaseType
+from rhosocial.activerecord.backend.schema import TypeMapping
+from rhosocial.activerecord.backend.schema import DatabaseType
 
 def format_with_length(base_type: str, params: Dict[str, Any]) -> str:
     """Process type with length parameter

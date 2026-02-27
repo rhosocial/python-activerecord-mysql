@@ -1,45 +1,49 @@
-# rhosocial ActiveRecord MySQL Backend Documentation
+# rhosocial-activerecord MySQL Backend Documentation
 
-## Documentation Outline
+> 🤖 **AI Learning Assistant**: Key concepts in this documentation are marked with 💡 AI Prompt. When you encounter concepts you don't understand, you can ask the AI assistant directly.
 
-### 1. Introduction
-- MySQL Backend Overview
-- Relationship with rhosocial-activerecord
-- System Requirements
+> **Example:** "How does the MySQL backend handle transactions? How does it differ from SQLite?"
 
-### 2. Installation and Configuration
-- Installation Guide
-- Basic Configuration
-- Connection Configuration Options
+> 📖 **For detailed usage, please refer to**: [AI-Assisted Development Guide](introduction/ai_assistance.md)
 
-### 3. Basic Usage
-- Model Definition
-- Database Connection Setup
-- Basic CRUD Operations
+## Table of Contents
 
-### 4. Advanced Features
-- MySQL-Specific Functionality
-- Full-Text Search
-- JSON Operations
-- Transaction Management
-- Batch Operations
+1. **[Introduction](introduction/README.md)**
+    *   **[MySQL Backend Overview](introduction/README.md)**: Why choose MySQL backend
+    *   **[Relationship with Core Library](introduction/relationship.md)**: Integration of rhosocial-activerecord and MySQL backend
+    *   **[Supported Versions](introduction/supported_versions.md)**: MySQL 5.6~9.6, Python 3.8+ support
 
-### 5. Performance Optimization
-- Query Optimization
-- Index Usage
-- Connection Pool Configuration
+2. **[Installation & Configuration](installation_and_configuration/README.md)**
+    *   **[Installation Guide](installation_and_configuration/installation.md)**: pip installation and environment requirements
+    *   **[Connection Configuration](installation_and_configuration/configuration.md)**: host, port, database, username, password and other configuration options
+    *   **[SSL/TLS Configuration](installation_and_configuration/ssl.md)**: secure connection settings
+    *   **[Connection Management](installation_and_configuration/pool.md)**: connect-on-use pattern (connection pool not supported)
+    *   **[Character Set and Collation](installation_and_configuration/charset.md)**: utf8mb4 configuration
 
-### 6. Best Practices
-- Code Organization
-- Error Handling
-- Security Considerations
+3. **[MySQL Specific Features](mysql_specific_features/README.md)**
+    *   **[MySQL-Specific Field Types](mysql_specific_features/field_types.md)**: SET, ENUM, JSON, TEXT vs VARCHAR
+    *   **[MySQL Dialect Expressions](mysql_specific_features/dialect.md)**: MySQL-specific SQL dialect
+    *   **[Storage Engines](mysql_specific_features/storage_engine.md)**: InnoDB, MyISAM selection
+    *   **[Indexing and Performance Optimization](mysql_specific_features/indexing.md)**: index design principles
 
-### 7. Troubleshooting
-- Common Issues
-- Debugging Tips
+4. **[Transaction Support](transaction_support/README.md)**
+    *   **[Transaction Isolation Levels](transaction_support/isolation_level.md)**: READ COMMITTED, REPEATABLE READ, etc.
+    *   **[Savepoint Support](transaction_support/savepoint.md)**: nested transactions
+    *   **[Auto-Retry and Deadlock Handling](transaction_support/deadlock.md)**: failure retry mechanism
 
-### 8. API Reference
-- Classes and Methods
-- Configuration Options
+5. **[Type Adapters](type_adapters/README.md)**
+    *   **[MySQL to Python Type Mapping](type_adapters/mapping.md)**: type conversion rules
+    *   **[Custom Type Adapters](type_adapters/custom.md)**: extending type support
+    *   **[Timezone Handling](type_adapters/timezone.md)**: UTC and local timezone
 
-> Note: This documentation covers only the MySQL backend implementation. For complete functionality of the ActiveRecord framework, please refer to the [rhosocial-activerecord documentation](https://github.com/rhosocial/python-activerecord/tree/docs).
+6. **[Testing](testing/README.md)**
+    *   **[Test Configuration](testing/configuration.md)**: test environment setup
+    *   **[Using testsuite for Testing](testing/testsuite.md)**: test suite usage
+    *   **[Local MySQL Testing](testing/local.md)**: local database testing
+
+7. **[Troubleshooting](troubleshooting/README.md)**
+    *   **[Common Connection Errors](troubleshooting/connection.md)**: connection issue diagnosis
+    *   **[Performance Issues](troubleshooting/performance.md)**: performance bottleneck analysis
+    *   **[Character Set Issues](troubleshooting/charset.md)**: encoding problem handling
+
+> 📖 **Core Library Documentation**: To learn about the complete functionality of the ActiveRecord framework, please refer to [rhosocial-activerecord documentation](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US).
