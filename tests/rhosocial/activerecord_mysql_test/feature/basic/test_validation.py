@@ -1,10 +1,15 @@
 # tests/rhosocial/activerecord_mysql_test/feature/basic/test_validation.py
 """
-Basic Validation Test Module for MySQL backend.
+This is a "bridge" file for the basic features test group, specifically for data validation mechanism tests.
 
-This module imports and runs the shared tests from the testsuite package,
-ensuring MySQL backend compatibility.
+Its purpose is to import the generic tests from the `rhosocial-activerecord-testsuite`
+package and make them discoverable by `pytest` within this project's test run.
+
+This approach allows us to keep the actual test logic separate and reusable across
+different backends, while this file acts as the entry point for running those
+tests against our specific (SQLite) backend.
 """
+
 # IMPORTANT: These imports are essential for pytest to work correctly.
 # Even though they may be flagged as "unused" by some IDEs or linters,
 # they must not be removed. They are the mechanism by which pytest discovers
@@ -15,12 +20,8 @@ ensuring MySQL backend compatibility.
 # in some IDEs. These fixtures are defined in the testsuite package and are
 # parameterized to run against the scenarios defined in `providers/scenarios.py`.
 from rhosocial.activerecord.testsuite.feature.basic.conftest import (
-    user_class,
-    type_case_class,
-    type_test_model,
-    validated_user_class,
-    validated_user
+    validated_user,
+    async_validated_user,
 )
 
-# Import shared tests from testsuite package
 from rhosocial.activerecord.testsuite.feature.basic.test_validation import *

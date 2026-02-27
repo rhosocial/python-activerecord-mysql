@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-from .backend import MySQLBackend, AsyncMySQLBackend
+from . import MySQLBackend, AsyncMySQLBackend
 from .config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 from rhosocial.activerecord.backend.output import JsonOutputProvider, CsvOutputProvider, TsvOutputProvider
@@ -151,7 +151,7 @@ def main():
 
     provider = get_provider(args)
 
-    if isinstance(provider, RichOutputProvider):
+    if RICH_AVAILABLE and isinstance(provider, RichOutputProvider):
         logging.basicConfig(
             level=numeric_level, format="%(message)s", datefmt="[%X]",
             handlers=[RichHandler(rich_tracebacks=True, show_path=False, console=Console(stderr=True))]

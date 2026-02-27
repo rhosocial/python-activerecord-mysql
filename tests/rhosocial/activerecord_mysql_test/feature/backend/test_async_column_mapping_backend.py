@@ -4,7 +4,6 @@ import pytest_asyncio
 from datetime import datetime
 import uuid
 
-from rhosocial.activerecord.backend.dialect import ReturningOptions
 from rhosocial.activerecord.backend.type_adapter import UUIDAdapter, BooleanAdapter
 
 

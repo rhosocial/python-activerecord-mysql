@@ -3,7 +3,7 @@ import datetime
 import json
 import uuid
 from decimal import Decimal
-from typing import Any, Dict, List, Type, Union, Optional
+from typing import Any, Dict, List, Tuple, Type, Union, Optional
 from datetime import timezone, timedelta
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
@@ -174,17 +174,34 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
     Adapts Python datetime to MySQL DATETIME/TIMESTAMP string and vice-versa.
     Normalizes to UTC.
     """
+
+    def __init__(self, mysql_version: Optional[Tuple[int, int, int]] = None):
+        """
+        Args:
+            mysql_version: MySQL server version tuple (major, minor, patch).
+                           If None, defaults to (8, 0, 0).
+        """
+        self._mysql_version = mysql_version or (8, 0, 0)
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {datetime.datetime: [datetime.datetime]}
+        return {datetime.datetime: [datetime.datetime, str]}
 
     def to_database(self, value: datetime.datetime, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
+        import sys
+        print(f"DEBUG MySQLDatetimeAdapter.to_database: version={self._mysql_version}, value={value}", file=sys.stderr)
         # If the datetime object is timezone-aware, normalize to UTC and make it naive
         # for the database driver, which expects naive datetimes.
         if value.tzinfo is not None:
-            return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            utc_dt = value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            # MySQL 5.7.8+ supports ISO 8601 format, older versions need traditional format
+            print(f"DEBUG: comparison result = {self._mysql_version >= (5, 7, 8)}", file=sys.stderr)
+            if self._mysql_version >= (5, 7, 8):
+                return utc_dt.isoformat()
+            else:
+                return utc_dt.strftime('%Y-%m-%d %H:%M:%S.%f')
         # If it's already naive, assume it's in the desired timezone (conventionally UTC)
         return value
 
@@ -192,14 +209,17 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
         if value is None:
             return None
         # The driver returns a naive datetime; we assume it's UTC and make it aware.
+        # Note: This assumes the MySQL session timezone is set to UTC (+00:00).
+        # If your MySQL server uses a different timezone, you should configure
+        # time_zone in the connection config or use TIMESTAMP column type.
         if isinstance(value, datetime.datetime):
             if value.tzinfo is None:
-                return value.replace(tzinfo=timezone.utc)
+                return value.replace(tzinfo=datetime.timezone.utc)
             return value # It's already aware, respect it.
         if isinstance(value, str):
             dt = datetime.datetime.fromisoformat(str(value))
             if dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc)
+                return dt.replace(tzinfo=datetime.timezone.utc)
             return dt
         # Fallback for unexpected types
-        return datetime.datetime.fromisoformat(str(value)).replace(tzinfo=timezone.utc)
+        return datetime.datetime.fromisoformat(str(value)).replace(tzinfo=datetime.timezone.utc)

@@ -2,9 +2,9 @@
 """
 MySQL backend implementation for the Python ORM.
 
-This module provides both synchronous and asynchronous MySQL implementations:
+This module provides:
 - MySQL synchronous backend with connection management and query execution
-- MySQL asynchronous backend for async/await workflows
+- MySQL asynchronous backend with async/await support
 - MySQL-specific connection configuration
 - Type mapping and value conversion
 - Transaction management with savepoint support (sync and async)
@@ -14,20 +14,15 @@ This module provides both synchronous and asynchronous MySQL implementations:
 Architecture:
 - MySQLBackend: Synchronous implementation using mysql-connector-python
 - AsyncMySQLBackend: Asynchronous implementation using aiomysql
-- Both share common logic through MySQLBackendMixin
 - Independent from ORM frameworks - uses only native drivers
 """
 
-from .backend import MySQLBackend, AsyncMySQLBackend
+from .backend import MySQLBackend
+from .async_backend import AsyncMySQLBackend
 from .config import MySQLConnectionConfig
-from .dialect import (
-    MySQLDialect,
-    MySQLExpression,
-    MySQLSQLBuilder,
-    MySQLAggregateHandler,
-    MySQLJsonHandler,
-)
-from .transaction import MySQLTransactionManager, AsyncMySQLTransactionManager
+from .dialect import MySQLDialect
+from .transaction import MySQLTransactionManager
+from .async_transaction import AsyncMySQLTransactionManager
 from .types import (
     MySQLTypes,
     MySQLColumnType,
@@ -47,9 +42,6 @@ __all__ = [
 
     # Dialect related
     'MySQLDialect',
-    'MySQLExpression',
-    'MySQLAggregateHandler',
-    'MySQLJsonHandler',
 
     # Transaction - Sync and Async
     'MySQLTransactionManager',
@@ -59,9 +51,4 @@ __all__ = [
     'MySQLTypes',
     'MySQLColumnType',
     'MYSQL_TYPE_MAPPINGS',
-
-
-
-    # Builder
-    'MySQLSQLBuilder',
 ]

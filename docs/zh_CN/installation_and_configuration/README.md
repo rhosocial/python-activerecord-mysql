@@ -1,0 +1,11 @@
+# 安装与配置
+
+本节介绍如何安装和配置 MySQL 后端。
+
+## 目录
+
+- [安装指南](installation.md): pip 安装和环境要求
+- [连接配置](configuration.md): host, port, database, username, password 等配置项
+- [SSL/TLS 配置](ssl.md): 安全连接设置
+- [连接管理](pool.md): 随用随连模式（暂不支持连接池）
+- [字符集与排序规则](charset.md): utf8mb4 配置
