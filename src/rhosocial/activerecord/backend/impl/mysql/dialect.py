@@ -279,7 +279,36 @@ class MySQLDialect(
         return True
     # endregion
 
-    # region Custom Implementations for MySQL-specific behavior
+    # region Set Operation Support
+    def supports_union(self) -> bool:
+        """UNION is supported."""
+        return True
+
+    def supports_union_all(self) -> bool:
+        """UNION ALL is supported."""
+        return True
+
+    def supports_intersect(self) -> bool:
+        """INTERSECT is supported since MySQL 8.0.31."""
+        return self.version >= (8, 0, 31)
+
+    def supports_except(self) -> bool:
+        """EXCEPT is supported since MySQL 8.0.31."""
+        return self.version >= (8, 0, 31)
+
+    def supports_set_operation_order_by(self) -> bool:
+        """Set operations support ORDER BY."""
+        return True
+
+    def supports_set_operation_limit_offset(self) -> bool:
+        """Set operations support LIMIT and OFFSET."""
+        return True
+
+    def supports_set_operation_for_update(self) -> bool:
+        """Set operations support FOR UPDATE."""
+        return True
+    # endregion
+
     def format_identifier(self, identifier: str) -> str:
         """
         Format identifier using MySQL's backtick quoting mechanism.
