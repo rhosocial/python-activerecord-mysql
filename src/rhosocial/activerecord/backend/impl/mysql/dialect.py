@@ -27,6 +27,11 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     LateralJoinSupport,
     WildcardSupport,
     JoinSupport,
+    ViewSupport,
+    SchemaSupport,
+    IndexSupport,
+    SequenceSupport,
+    TableSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CTEMixin,
@@ -46,6 +51,11 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     UpsertMixin,
     LateralJoinMixin,
     JoinMixin,
+    ViewMixin,
+    SchemaMixin,
+    IndexMixin,
+    SequenceMixin,
+    TableMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
@@ -70,6 +80,11 @@ class MySQLDialect(
     UpsertMixin,
     LateralJoinMixin,  # MySQL 8.0.14+ supports LATERAL
     JoinMixin,
+    ViewMixin,
+    SchemaMixin,
+    IndexMixin,
+    SequenceMixin,
+    TableMixin,
     # Protocols for type checking
     CTESupport,
     FilterClauseSupport,
@@ -89,6 +104,11 @@ class MySQLDialect(
     LateralJoinSupport,
     WildcardSupport,
     JoinSupport,
+    ViewSupport,
+    SchemaSupport,
+    IndexSupport,
+    SequenceSupport,
+    TableSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -354,4 +374,136 @@ class MySQLDialect(
         """Check if MySQL version supports -> and ->> operators."""
         # -> and ->> operators were added in MySQL 5.7.9
         return self.version >= (5, 7, 9)
+
+    # region View Support
+    def supports_or_replace_view(self) -> bool:
+        """Whether CREATE OR REPLACE VIEW is supported."""
+        return True  # MySQL supports OR REPLACE
+
+    def supports_temporary_view(self) -> bool:
+        """Whether TEMPORARY views are supported."""
+        return True  # MySQL supports TEMPORARY views
+
+    def supports_materialized_view(self) -> bool:
+        """Whether materialized views are supported."""
+        return False  # MySQL does not support materialized views
+
+    def supports_if_exists_view(self) -> bool:
+        """Whether DROP VIEW IF EXISTS is supported."""
+        return True  # MySQL supports IF EXISTS
+
+    def supports_view_check_option(self) -> bool:
+        """Whether WITH CHECK OPTION is supported."""
+        return True  # MySQL supports WITH CHECK OPTION
+
+    def supports_cascade_view(self) -> bool:
+        """Whether DROP VIEW CASCADE is supported."""
+        return False  # MySQL does not support CASCADE for views
+
+    def format_create_view_statement(
+        self, expr: "CreateViewExpression"
+    ) -> Tuple[str, tuple]:
+        """Format CREATE VIEW statement for MySQL."""
+        parts = ["CREATE"]
+
+        if expr.temporary:
+            parts.append("TEMPORARY")
+
+        if expr.replace:
+            parts.append("OR REPLACE")
+
+        parts.append("VIEW")
+        parts.append(self.format_identifier(expr.view_name))
+
+        if expr.column_aliases:
+            cols = ', '.join(self.format_identifier(c) for c in expr.column_aliases)
+            parts.append(f"({cols})")
+
+        query_sql, query_params = expr.query.to_sql()
+        parts.append(f"AS {query_sql}")
+
+        if expr.options and expr.options.check_option:
+            check_option = expr.options.check_option.value
+            parts.append(f"WITH {check_option} CHECK OPTION")
+
+        return ' '.join(parts), query_params
+
+    def format_drop_view_statement(
+        self, expr: "DropViewExpression"
+    ) -> Tuple[str, tuple]:
+        """Format DROP VIEW statement for MySQL."""
+        parts = ["DROP VIEW"]
+        if expr.if_exists:
+            parts.append("IF EXISTS")
+        parts.append(self.format_identifier(expr.view_name))
+        return ' '.join(parts), ()
+    # endregion
+
+    # region Schema Support
+    def supports_create_schema(self) -> bool:
+        """Whether CREATE SCHEMA is supported."""
+        return True  # MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
+
+    def supports_drop_schema(self) -> bool:
+        """Whether DROP SCHEMA is supported."""
+        return True  # MySQL supports DROP SCHEMA (alias for DROP DATABASE)
+
+    def supports_schema_if_not_exists(self) -> bool:
+        """Whether CREATE SCHEMA IF NOT EXISTS is supported."""
+        return True
+
+    def supports_schema_if_exists(self) -> bool:
+        """Whether DROP SCHEMA IF EXISTS is supported."""
+        return True
+    # endregion
+
+    # region Index Support
+    def supports_create_index(self) -> bool:
+        """Whether CREATE INDEX is supported."""
+        return True
+
+    def supports_drop_index(self) -> bool:
+        """Whether DROP INDEX is supported."""
+        return True
+
+    def supports_unique_index(self) -> bool:
+        """Whether UNIQUE indexes are supported."""
+        return True
+
+    def supports_index_if_not_exists(self) -> bool:
+        """Whether CREATE INDEX IF NOT EXISTS is supported."""
+        return False  # MySQL does not support IF NOT EXISTS for indexes
+
+    def supports_index_if_exists(self) -> bool:
+        """Whether DROP INDEX IF EXISTS is supported."""
+        return False  # MySQL does not support IF EXISTS for indexes
+    # endregion
+
+    # region Sequence Support
+    def supports_create_sequence(self) -> bool:
+        """Whether CREATE SEQUENCE is supported."""
+        return False  # MySQL does not support sequences (uses AUTO_INCREMENT)
+
+    def supports_drop_sequence(self) -> bool:
+        """Whether DROP SEQUENCE is supported."""
+        return False
+    # endregion
+
+    # region Table Support
+    def supports_if_not_exists_table(self) -> bool:
+        """Whether CREATE TABLE IF NOT EXISTS is supported."""
+        return True
+
+    def supports_if_exists_table(self) -> bool:
+        """Whether DROP TABLE IF EXISTS is supported."""
+        return True
+
+    def supports_temporary_table(self) -> bool:
+        """Whether TEMPORARY tables are supported."""
+        return True
+
+    def supports_table_partitioning(self) -> bool:
+        """Whether table partitioning is supported."""
+        return True  # MySQL supports partitioning
+    # endregion
     # endregion
