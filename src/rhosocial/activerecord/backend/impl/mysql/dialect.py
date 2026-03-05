@@ -5,7 +5,7 @@ MySQL backend SQL dialect implementation.
 This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.dialect.protocols import (
@@ -58,6 +58,11 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TableMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements import (
+        CreateTableExpression, CreateViewExpression, DropViewExpression
+    )
 
 
 class MySQLDialect(
@@ -505,5 +510,90 @@ class MySQLDialect(
     def supports_table_partitioning(self) -> bool:
         """Whether table partitioning is supported."""
         return True  # MySQL supports partitioning
+
+    def format_create_table_statement(
+        self, expr: "CreateTableExpression"
+    ) -> Tuple[str, tuple]:
+        """
+        Format CREATE TABLE statement for MySQL, including LIKE syntax support.
+
+        MySQL LIKE syntax copies: columns, indexes, constraints, defaults,
+        auto_increment settings.
+
+        The behavior is controlled by the `dialect_options` parameter in
+        CreateTableExpression:
+
+        1. When `dialect_options` contains 'like_table' key:
+           - LIKE syntax takes highest priority
+           - All other parameters (columns, indexes, constraints, etc.) are IGNORED
+           - Only temporary and if_not_exists flags are considered
+
+        2. When `dialect_options` does NOT contain 'like_table':
+           - Falls back to base class implementation
+           - Standard CREATE TABLE with column definitions is generated
+
+        Usage Examples:
+            # Basic LIKE syntax
+            CreateTableExpression(
+                dialect=mysql_dialect,
+                table_name="users_copy",
+                columns=[],  # Ignored when like_table is present
+                dialect_options={'like_table': 'users'}
+            )
+            # Generates: CREATE TABLE `users_copy` LIKE `users`
+
+            # LIKE with schema-qualified source table
+            CreateTableExpression(
+                dialect=mysql_dialect,
+                table_name="users_copy",
+                columns=[...],  # Will be ignored
+                dialect_options={'like_table': ('production', 'users')}
+            )
+            # Generates: CREATE TABLE `users_copy` LIKE `production`.`users`
+
+            # LIKE with TEMPORARY and IF NOT EXISTS
+            CreateTableExpression(
+                dialect=mysql_dialect,
+                table_name="temp_users",
+                columns=[],
+                temporary=True,
+                if_not_exists=True,
+                dialect_options={'like_table': 'users'}
+            )
+            # Generates: CREATE TABLE TEMPORARY IF NOT EXISTS `temp_users` LIKE `users`
+
+        Args:
+            expr: CreateTableExpression instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        # Check for LIKE syntax in dialect_options (highest priority)
+        if 'like_table' in expr.dialect_options:
+            like_table = expr.dialect_options['like_table']
+
+            parts = ["CREATE TABLE"]
+
+            if expr.temporary:
+                parts.append("TEMPORARY")
+
+            if expr.if_not_exists:
+                parts.append("IF NOT EXISTS")
+
+            parts.append(self.format_identifier(expr.table_name))
+
+            # Handle schema-qualified table name: ('schema', 'table')
+            if isinstance(like_table, tuple):
+                schema, table = like_table
+                like_table_str = f"{self.format_identifier(schema)}.{self.format_identifier(table)}"
+            else:
+                like_table_str = self.format_identifier(like_table)
+
+            parts.append(f"LIKE {like_table_str}")
+
+            return ' '.join(parts), ()
+
+        # Otherwise, delegate to base implementation
+        return super().format_create_table_statement(expr)
     # endregion
     # endregion
