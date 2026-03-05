@@ -9,7 +9,6 @@ This module provides:
 - Type mapping and value conversion
 - Transaction management with savepoint support (sync and async)
 - MySQL dialect and expression handling
-- MySQL-specific type definitions and mappings
 
 Architecture:
 - MySQLBackend: Synchronous implementation using mysql-connector-python
@@ -23,11 +22,6 @@ from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .async_transaction import AsyncMySQLTransactionManager
-from .types import (
-    MySQLTypes,
-    MySQLColumnType,
-    MYSQL_TYPE_MAPPINGS,
-)
 
 
 __all__ = [
@@ -46,9 +40,4 @@ __all__ = [
     # Transaction - Sync and Async
     'MySQLTransactionManager',
     'AsyncMySQLTransactionManager',
-
-    # Types
-    'MySQLTypes',
-    'MySQLColumnType',
-    'MYSQL_TYPE_MAPPINGS',
 ]
