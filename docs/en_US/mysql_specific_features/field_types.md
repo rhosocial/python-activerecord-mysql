@@ -126,4 +126,46 @@ adapter.to_database(
 3. **Storage**: Uses 1 byte for < 256 values, 2 bytes for 256-65535 values
 4. **Sorting**: ENUM values sort by index order, not alphabetically
 
+#### MySQL Native ENUM Type
+
+The adapter works seamlessly with MySQL's native ENUM column type:
+
+```sql
+CREATE TABLE posts (
+    id INT PRIMARY KEY,
+    status ENUM('draft', 'published', 'archived')
+);
+```
+
+```python
+from enum import Enum
+
+
+class Status(str, Enum):
+    DRAFT = 'draft'
+    PUBLISHED = 'published'
+    ARCHIVED = 'archived'
+
+
+# Insert into MySQL ENUM column
+backend.execute(
+    "INSERT INTO posts (id, status) VALUES (%s, %s)",
+    (1, Status.PUBLISHED)  # Automatically converts to 'published'
+)
+
+# Query from MySQL ENUM column
+result = backend.execute("SELECT status FROM posts WHERE id = %s", (1,))
+status = result.data[0]['status']  # Returns 'published'
+# Convert back to Python Enum
+py_status = Status(status)  # Status.PUBLISHED
+```
+
+**Benefits of MySQL Native ENUM**:
+- **Storage efficiency**: Uses only 1-2 bytes regardless of string length
+- **Data validation**: MySQL validates values at the database level
+- **Better performance**: Faster comparisons and sorting
+- **Type safety**: Prevents invalid values from being inserted
+
+**Note**: The MySQLEnumAdapter automatically handles both native ENUM columns and regular VARCHAR/INT columns.
+
 💡 *AI Prompt:* "What are the performance implications of MySQL ENUM vs VARCHAR?"
