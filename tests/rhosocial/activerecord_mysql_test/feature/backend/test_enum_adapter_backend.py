@@ -130,6 +130,41 @@ class TestMySQLEnumAdapterBackend:
         # Cleanup
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_enum_null")
 
+    def test_native_mysql_enum_type(self, mysql_backend):
+        """Test integration with MySQL native ENUM column type."""
+        # Create table with native ENUM type
+        mysql_backend.execute("""
+            CREATE TEMPORARY TABLE test_native_enum (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                status ENUM('draft', 'published', 'archived')
+            )
+        """)
+        
+        # Get adapter
+        from enum import Enum
+        adapter = mysql_backend.adapter_registry.get_adapter(Enum, str)
+        
+        # Insert using adapter
+        db_value = adapter.to_database(Status.PUBLISHED, str)
+        mysql_backend.execute(
+            "INSERT INTO test_native_enum (status) VALUES (%s)",
+            (db_value,)
+        )
+        
+        # Query and convert back
+        result = mysql_backend.execute(
+            "SELECT status FROM test_native_enum WHERE id = %s",
+            (1,)
+        )
+        
+        db_result = result.data[0]['status']
+        py_status = adapter.from_database(db_result, Status)
+        
+        assert py_status == Status.PUBLISHED
+        
+        # Cleanup
+        mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_native_enum")
+
 
 class TestAsyncMySQLEnumAdapterBackend:
     """Asynchronous tests for MySQL ENUM adapter with real database."""

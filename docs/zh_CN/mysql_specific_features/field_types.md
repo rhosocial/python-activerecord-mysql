@@ -126,4 +126,46 @@ adapter.to_database(
 3. **存储**：< 256 个值使用 1 字节，256-65535 个值使用 2 字节
 4. **排序**：ENUM 值按索引顺序排序，而不是按字母顺序
 
+#### MySQL 原生 ENUM 类型
+
+适配器可以与 MySQL 原生 ENUM 列类型无缝协作：
+
+```sql
+CREATE TABLE posts (
+    id INT PRIMARY KEY,
+    status ENUM('draft', 'published', 'archived')
+);
+```
+
+```python
+from enum import Enum
+
+
+class Status(str, Enum):
+    DRAFT = 'draft'
+    PUBLISHED = 'published'
+    ARCHIVED = 'archived'
+
+
+# 插入到 MySQL ENUM 列
+backend.execute(
+    "INSERT INTO posts (id, status) VALUES (%s, %s)",
+    (1, Status.PUBLISHED)  # 自动转换为 'published'
+)
+
+# 从 MySQL ENUM 列查询
+result = backend.execute("SELECT status FROM posts WHERE id = %s", (1,))
+status = result.data[0]['status']  # 返回 'published'
+# 转换回 Python 枚举
+py_status = Status(status)  # Status.PUBLISHED
+```
+
+**MySQL 原生 ENUM 的优势**：
+- **存储效率**：无论字符串长度如何，仅使用 1-2 字节
+- **数据验证**：MySQL 在数据库层面验证值
+- **更好的性能**：更快的比较和排序
+- **类型安全**：防止插入无效值
+
+**注意**：MySQLEnumAdapter 自动处理原生 ENUM 列和常规 VARCHAR/INT 列。
+
 💡 *AI 提示词：* "MySQL ENUM 和 VARCHAR 在性能上有什么影响？"
