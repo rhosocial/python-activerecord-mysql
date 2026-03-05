@@ -58,8 +58,14 @@ class Config(UUIDMixin, ActiveRecord):
 
 ### ENUM
 
+MySQL ENUM 是一个字符串对象，其值从允许值列表中选择。内部存储时，MySQL 将 ENUM 值存储为整数（1, 2, 3...）以节省空间。
+
+#### 基本用法
+
 ```python
 from enum import Enum
+from rhosocial.activerecord.model import ActiveRecord
+from rhosocial.activerecord.field import UUIDMixin
 
 
 class Status(str, Enum):
@@ -71,12 +77,53 @@ class Status(str, Enum):
 class Post(UUIDMixin, ActiveRecord):
     title: str
     status: Status  # ENUM('draft', 'published', 'archived')
-    
-    c: ClassVar[FieldProxy] = FieldProxy()
-    
+
     @classmethod
     def table_name(cls) -> str:
         return 'posts'
 ```
 
-💡 *AI 提示词：* "VARCHAR 和 TEXT 有什么区别？何时使用哪个？"
+#### 性能优化
+
+为了更好的性能，可以使用 MySQL 的内部整数表示：
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLEnumAdapter
+
+# 在 backend 初始化后配置
+backend.adapter_registry.register(
+    MySQLEnumAdapter(use_int_storage=True),
+    Enum,
+    int,
+    allow_override=True
+)
+```
+
+这将：
+- 将 ENUM 值存储为整数（1, 2, 3...）而不是字符串
+- 将存储从约 N 字节减少到 1-2 字节
+- 在 Python 中保持相同的逻辑接口
+
+#### 值验证
+
+可以在发送到数据库之前验证枚举值：
+
+```python
+adapter = MySQLEnumAdapter()
+
+# 根据允许的值进行验证
+adapter.to_database(
+    Status.DRAFT, 
+    str, 
+    {'enum_values': ['draft', 'published']}
+)
+```
+
+#### 重要说明
+
+1. **值验证**：MySQL 自动验证 ENUM 值
+2. **大小写敏感**：ENUM 值默认不区分大小写（取决于排序规则）
+3. **存储**：< 256 个值使用 1 字节，256-65535 个值使用 2 字节
+4. **排序**：ENUM 值按索引顺序排序，而不是按字母顺序
+
+💡 *AI 提示词：* "MySQL ENUM 和 VARCHAR 在性能上有什么影响？"

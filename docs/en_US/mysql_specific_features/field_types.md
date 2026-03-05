@@ -58,8 +58,14 @@ class Config(UUIDMixin, ActiveRecord):
 
 ### ENUM
 
+MySQL ENUM is a string object with a value chosen from a list of permitted values. Internally, MySQL stores ENUM values as integers (1, 2, 3, ...) for compact storage.
+
+#### Basic Usage
+
 ```python
 from enum import Enum
+from rhosocial.activerecord.model import ActiveRecord
+from rhosocial.activerecord.field import UUIDMixin
 
 
 class Status(str, Enum):
@@ -71,12 +77,53 @@ class Status(str, Enum):
 class Post(UUIDMixin, ActiveRecord):
     title: str
     status: Status  # ENUM('draft', 'published', 'archived')
-    
-    c: ClassVar[FieldProxy] = FieldProxy()
-    
+
     @classmethod
     def table_name(cls) -> str:
         return 'posts'
 ```
 
-💡 *AI Prompt:* "What is the difference between VARCHAR and TEXT? When should I use each?"
+#### Performance Optimization
+
+For better performance, you can use MySQL's internal integer representation:
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLEnumAdapter
+
+# Configure after backend initialization
+backend.adapter_registry.register(
+    MySQLEnumAdapter(use_int_storage=True),
+    Enum,
+    int,
+    allow_override=True
+)
+```
+
+This will:
+- Store ENUM values as integers (1, 2, 3...) instead of strings
+- Reduce storage from ~N bytes to 1-2 bytes
+- Maintain the same logical interface in Python
+
+#### Value Validation
+
+You can validate enum values before sending to database:
+
+```python
+adapter = MySQLEnumAdapter()
+
+# Validate against allowed values
+adapter.to_database(
+    Status.DRAFT, 
+    str, 
+    {'enum_values': ['draft', 'published']}
+)
+```
+
+#### Important Notes
+
+1. **Value Validation**: MySQL automatically validates ENUM values
+2. **Case Sensitivity**: ENUM values are case-insensitive by default (depends on collation)
+3. **Storage**: Uses 1 byte for < 256 values, 2 bytes for 256-65535 values
+4. **Sorting**: ENUM values sort by index order, not alphabetically
+
+💡 *AI Prompt:* "What are the performance implications of MySQL ENUM vs VARCHAR?"
