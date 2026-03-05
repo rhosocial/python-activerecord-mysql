@@ -3,6 +3,7 @@ import datetime
 import json
 import uuid
 from decimal import Decimal
+from enum import Enum
 from typing import Any, Dict, List, Tuple, Type, Union, Optional
 from datetime import timezone, timedelta
 
@@ -223,3 +224,139 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
             return dt
         # Fallback for unexpected types
         return datetime.datetime.fromisoformat(str(value)).replace(tzinfo=datetime.timezone.utc)
+
+
+class MySQLEnumAdapter(SQLTypeAdapter):
+    """
+    Adapts Python Enum to MySQL ENUM type and vice-versa.
+
+    MySQL ENUM stores values as integers internally (1, 2, 3...) but displays as strings.
+    This adapter supports both string and integer representations.
+
+    By default, uses string representation for better readability and compatibility.
+    Can optionally use MySQL's internal integer representation for performance.
+    """
+
+    def __init__(self, use_int_storage: bool = False):
+        """
+        Initialize MySQL ENUM adapter.
+
+        Args:
+            use_int_storage: If True, uses integer representation when writing to database
+                           (MySQL stores ENUM as 1-based index). If False, uses string
+                           representation (default, recommended).
+        """
+        self._use_int_storage = use_int_storage
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {Enum: [str, int]}
+
+    def to_database(self, value: Enum, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+        """
+        Convert Python Enum to database value.
+
+        Args:
+            value: Python Enum instance
+            target_type: Target database type (str or int)
+            options: Optional settings:
+                - 'use_int_storage': Override instance setting for this call
+                - 'enum_values': List of allowed values for validation
+
+        Returns:
+            str or int representation of the enum
+
+        Raises:
+            ValueError: If enum value is not in allowed values
+            TypeError: If target_type is not str or int
+        """
+        if value is None:
+            return None
+
+        # Validate against allowed values if provided
+        enum_values = options.get('enum_values') if options else None
+        if enum_values and value.value not in enum_values:
+            raise ValueError(
+                f"Invalid enum value '{value.value}'. "
+                f"Allowed values: {enum_values}"
+            )
+
+        # Determine which representation to use
+        use_int = (options.get('use_int_storage', self._use_int_storage)
+                   if options else self._use_int_storage)
+
+        if target_type == str:
+            # Default: use string representation (enum member value)
+            return str(value.value)
+
+        if target_type == int:
+            if use_int:
+                # Use MySQL's internal integer index (1-based)
+                # Get the enum class members in definition order
+                enum_members = list(type(value))
+                return enum_members.index(value) + 1
+            else:
+                # Use the enum's value if it's already an int
+                if isinstance(value.value, int):
+                    return value.value
+                raise TypeError(
+                    f"Cannot convert string-based enum to int. "
+                    f"Set 'use_int_storage=True' to use MySQL internal index, "
+                    f"or ensure enum values are integers."
+                )
+
+        raise TypeError(
+            f"Cannot convert {type(value).__name__} to {target_type.__name__}"
+        )
+
+    def from_database(self, value: Any, target_type: Type[Enum], options: Optional[Dict[str, Any]] = None) -> Enum:
+        """
+        Convert database value to Python Enum.
+
+        Args:
+            value: Database value (str or int)
+            target_type: Target Python Enum class
+            options: Optional settings (currently unused)
+
+        Returns:
+            Python Enum instance
+
+        Raises:
+            ValueError: If value is invalid for the enum
+            TypeError: If value type is not str or int
+        """
+        if value is None:
+            return None
+
+        if isinstance(value, str):
+            # Lookup by value (for string enums)
+            # First try to match the value directly
+            for member in target_type:
+                if str(member.value) == value:
+                    return member
+            # If not found, try name lookup as fallback
+            try:
+                return target_type[value]
+            except KeyError:
+                raise ValueError(f"Invalid enum value '{value}'. "
+                               f"Valid values: {[m.value for m in target_type]}")
+
+        if isinstance(value, int):
+            # Try to interpret as MySQL ENUM index (1-based)
+            enum_members = list(target_type)
+            if 1 <= value <= len(enum_members):
+                return enum_members[value - 1]
+
+            # If out of range, try direct value lookup
+            # (in case enum values themselves are integers)
+            try:
+                return target_type(value)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid enum index {value}. "
+                    f"Valid range: 1-{len(enum_members)} or matching enum values"
+                )
+
+        raise TypeError(
+            f"Cannot convert {type(value).__name__} to {target_type.__name__}"
+        )
