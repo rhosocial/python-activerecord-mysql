@@ -4,6 +4,52 @@
 
 MySQL 有一些特定的 SQL 语法和函数，本节介绍常用的 MySQL 特有表达式。
 
+## DDL 语句
+
+### CREATE TABLE ... LIKE
+
+MySQL 支持使用 `LIKE` 子句复制表结构。这对于创建具有相同结构的表备份或测试表非常有用。
+
+```python
+from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+# 基本用法 - 复制表结构
+create_expr = CreateTableExpression(
+    dialect=MySQLDialect(),
+    table_name="users_copy",
+    columns=[],
+    dialect_options={'like_table': 'users'}
+)
+# 生成: CREATE TABLE `users_copy` LIKE `users`
+
+# 带模式限定的源表
+create_expr = CreateTableExpression(
+    dialect=MySQLDialect(),
+    table_name="users_copy",
+    columns=[],
+    dialect_options={'like_table': ('production', 'users')}
+)
+# 生成: CREATE TABLE `users_copy` LIKE `production`.`users`
+
+# 带临时表和 IF NOT EXISTS
+create_expr = CreateTableExpression(
+    dialect=MySQLDialect(),
+    table_name="temp_users",
+    columns=[],
+    temporary=True,
+    if_not_exists=True,
+    dialect_options={'like_table': 'users'}
+)
+# 生成: CREATE TABLE TEMPORARY IF NOT EXISTS `temp_users` LIKE `users`
+```
+
+**重要说明：**
+- 当 `dialect_options` 中指定 `like_table` 时，具有最高优先级
+- 所有其他参数（columns、indexes、constraints 等）都会被忽略
+- 只有 `temporary` 和 `if_not_exists` 标志会被考虑
+- MySQL 的 LIKE 会复制：列、索引、约束、默认值、auto_increment 设置
+
 ## 特有的运算符
 
 ### LIKE 表达式
