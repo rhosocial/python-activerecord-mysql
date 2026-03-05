@@ -256,12 +256,19 @@ class MySQLEnumAdapter(SQLTypeAdapter):
         """
         Convert Python Enum to database value.
 
+        Supports three scenarios:
+        1. Python Enum -> MySQL VARCHAR/TEXT (default): returns string
+        2. Python Enum -> MySQL ENUM field: returns string (same as default)
+        3. Python Enum -> MySQL INT: returns integer (requires use_int_storage or int-based enum)
+
         Args:
             value: Python Enum instance
             target_type: Target database type (str or int)
             options: Optional settings:
                 - 'use_int_storage': Override instance setting for this call
                 - 'enum_values': List of allowed values for validation
+                - 'mysql_enum_type': Set to True if target field is MySQL ENUM type
+                  (no behavioral change, but used for documentation/validation)
 
         Returns:
             str or int representation of the enum
@@ -281,12 +288,17 @@ class MySQLEnumAdapter(SQLTypeAdapter):
                 f"Allowed values: {enum_values}"
             )
 
+        # Note: mysql_enum_type option doesn't change behavior
+        # because MySQL ENUM type accepts and returns strings by default
+        # This option is just for documentation/validation purposes
+
         # Determine which representation to use
         use_int = (options.get('use_int_storage', self._use_int_storage)
                    if options else self._use_int_storage)
 
         if target_type == str:
             # Default: use string representation (enum member value)
+            # Works for both VARCHAR and MySQL ENUM fields
             return str(value.value)
 
         if target_type == int:
