@@ -38,6 +38,7 @@ from .adapters import (
     MySQLDateAdapter,
     MySQLDatetimeAdapter,
     MySQLDecimalAdapter,
+    MySQLEnumAdapter,
     MySQLJSONAdapter,
     MySQLTimeAdapter,
     MySQLUUIDAdapter,
@@ -121,6 +122,7 @@ class AsyncMySQLBackend(AsyncStorageBackend):
             MySQLDateAdapter(),
             MySQLDatetimeAdapter(self._version),
             MySQLDecimalAdapter(),
+            MySQLEnumAdapter(use_int_storage=False),  # Default to string representation
             MySQLJSONAdapter(),
             MySQLTimeAdapter(),
             MySQLUUIDAdapter(),
