@@ -58,6 +58,14 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TableMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from .protocols import (
+    MySQLTriggerSupport,
+    MySQLTableSupport,
+)
+from .mixins import (
+    MySQLTriggerMixin,
+    MySQLTableMixin,
+)
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
@@ -74,7 +82,7 @@ class MySQLDialect(
     FilterClauseMixin,
     WindowFunctionMixin,
     JSONMixin,
-    ReturningMixin,  # MySQL doesn't support RETURNING, but we'll override to indicate this
+    ReturningMixin, # MySQL doesn't support RETURNING, but we'll override to indicate this
     AdvancedGroupingMixin,
     ArrayMixin,
     ExplainMixin,
@@ -85,13 +93,16 @@ class MySQLDialect(
     QualifyClauseMixin,
     TemporalTableMixin,
     UpsertMixin,
-    LateralJoinMixin,  # MySQL 8.0.14+ supports LATERAL
+    LateralJoinMixin, # MySQL 8.0.14+ supports LATERAL
     JoinMixin,
     ViewMixin,
     SchemaMixin,
     IndexMixin,
     SequenceMixin,
     TableMixin,
+    # MySQL-specific mixins
+    MySQLTriggerMixin,
+    MySQLTableMixin,
     # Protocols for type checking
     CTESupport,
     FilterClauseSupport,
@@ -116,6 +127,9 @@ class MySQLDialect(
     IndexSupport,
     SequenceSupport,
     TableSupport,
+    # MySQL-specific protocols
+    MySQLTriggerSupport,
+    MySQLTableSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -489,11 +503,12 @@ class MySQLDialect(
     # region Sequence Support
     def supports_create_sequence(self) -> bool:
         """Whether CREATE SEQUENCE is supported."""
-        return False  # MySQL does not support sequences (uses AUTO_INCREMENT)
+        return False # MySQL does not support sequences (uses AUTO_INCREMENT)
 
     def supports_drop_sequence(self) -> bool:
         """Whether DROP SEQUENCE is supported."""
         return False
+    # endregion
     # endregion
 
     # region Table Support
