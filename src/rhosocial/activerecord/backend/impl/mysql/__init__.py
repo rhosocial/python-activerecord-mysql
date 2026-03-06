@@ -9,6 +9,7 @@ This module provides:
 - Type mapping and value conversion
 - Transaction management with savepoint support (sync and async)
 - MySQL dialect and expression handling
+- MySQL-specific type helpers (ENUM, SET)
 
 Architecture:
 - MySQLBackend: Synchronous implementation using mysql-connector-python
@@ -22,22 +23,27 @@ from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .async_transaction import AsyncMySQLTransactionManager
+from .types import MySQLEnumType, MySQLSetType
 
 
 __all__ = [
-    # Synchronous Backend
-    'MySQLBackend',
+# Synchronous Backend
+'MySQLBackend',
 
-    # Asynchronous Backend
-    'AsyncMySQLBackend',
+# Asynchronous Backend
+'AsyncMySQLBackend',
 
-    # Configuration
-    'MySQLConnectionConfig',
+# Configuration
+'MySQLConnectionConfig',
 
-    # Dialect related
-    'MySQLDialect',
+# Dialect related
+'MySQLDialect',
 
-    # Transaction - Sync and Async
-    'MySQLTransactionManager',
-    'AsyncMySQLTransactionManager',
+# Transaction - Sync and Async
+'MySQLTransactionManager',
+'AsyncMySQLTransactionManager',
+
+# MySQL-specific Type Helpers
+'MySQLEnumType',
+'MySQLSetType',
 ]
