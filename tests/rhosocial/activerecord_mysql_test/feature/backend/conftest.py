@@ -90,6 +90,7 @@ class BackendFeatureProvider:
         backend_class, config = get_scenario(scenario_name)
         self._backend = backend_class(connection_config=config)
         self._backend.connect()
+        self._backend.introspect_and_adapt()
         return self._backend
 
     async def setup_async_backend(self, scenario_name: str):
@@ -98,6 +99,7 @@ class BackendFeatureProvider:
         _, config = get_scenario(scenario_name)
         self._async_backend = AsyncMySQLBackend(connection_config=config)
         await self._async_backend.connect()
+        await self._async_backend.introspect_and_adapt()
         return self._async_backend
 
     def cleanup(self):
@@ -130,3 +132,75 @@ async def async_mysql_backend(request):
     backend = await provider.setup_async_backend(scenario_name)
     yield backend
     await provider.async_cleanup()
+
+
+# --- Type Adapters ---
+
+@pytest.fixture(scope="module")
+def json_column_adapter():
+    """
+    Module-scoped fixture providing MySQLJSONAdapter instance.
+
+    This adapter can be used with column_adapters parameter to automatically
+    parse JSON columns returned as strings by mysql-connector-python.
+
+    Usage:
+        result = mysql_backend.execute(
+            "SELECT data FROM table",
+            column_adapters={'data': (json_column_adapter, dict)}
+        )
+    """
+    from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLJSONAdapter
+    return MySQLJSONAdapter()
+
+
+# --- Protocol Requirement Checking ---
+
+@pytest.fixture(scope="function", autouse=True)
+def check_protocol_requirements(request):
+    """
+    Auto-used fixture that checks if the current backend supports required protocols.
+
+    This fixture runs automatically for each test and checks if the test has
+    a 'requires_protocol' marker. If so, it verifies that the current backend
+    supports the required protocols, skipping the test if not.
+
+    Note: This fixture accesses the backend through request.getfixturevalue()
+    to avoid parameterization conflicts.
+    """
+    requires_protocol_marker = request.node.get_closest_marker("requires_protocol")
+    if requires_protocol_marker:
+        required_protocol_info = requires_protocol_marker.args[0]
+
+        # Check if we're running an async test
+        is_async = 'async_mysql_backend' in request.fixturenames
+        fixture_name = 'async_mysql_backend' if is_async else 'mysql_backend'
+
+        if fixture_name in request.fixturenames:
+            try:
+                # Get the backend fixture
+                backend = request.getfixturevalue(fixture_name)
+
+                if backend is not None:
+                    protocol_class, method_name = required_protocol_info
+
+                    # Check if backend implements the protocol
+                    if not isinstance(backend.dialect, protocol_class):
+                        pytest.skip(
+                            f"Skipping test - backend dialect does not implement {protocol_class.__name__} protocol"
+                        )
+
+                    # If a specific method name is provided, check if it's supported
+                    if method_name:
+                        if hasattr(backend.dialect, method_name):
+                            method = getattr(backend.dialect, method_name)
+                            if callable(method):
+                                # For support checking methods that return bool
+                                if method_name.startswith('supports_'):
+                                    if not method():
+                                        feature_name = method_name.replace('supports_', '')
+                                        pytest.skip(
+                                            f"Skipping test - backend dialect does not support {feature_name}"
+                                        )
+            except Exception:
+                pass

@@ -10,6 +10,7 @@ This module provides:
 - Transaction management with savepoint support (sync and async)
 - MySQL dialect and expression handling
 - MySQL-specific type helpers (ENUM, SET)
+- MySQL-specific SQL function factories (JSON, spatial, full-text, etc.)
 
 Architecture:
 - MySQLBackend: Synchronous implementation using mysql-connector-python
@@ -25,25 +26,86 @@ from .transaction import MySQLTransactionManager
 from .async_transaction import AsyncMySQLTransactionManager
 from .types import MySQLEnumType, MySQLSetType
 
+# Import MySQL-specific functions directly for convenience
+from .functions import (
+    # JSON functions
+    json_extract,
+    json_unquote,
+    json_object,
+    json_array,
+    json_contains,
+    json_set,
+    json_remove,
+    json_type,
+    json_valid,
+    json_search,
+    # Spatial functions
+    st_geom_from_text,
+    st_geom_from_wkb,
+    st_as_text,
+    st_as_geojson,
+    st_distance,
+    st_within,
+    st_contains,
+    st_intersects,
+    # Full-text search
+    match_against,
+    # SET type functions
+    find_in_set,
+    # Enum type functions
+    elt,
+    field,
+)
+
 
 __all__ = [
-# Synchronous Backend
-'MySQLBackend',
+    # Synchronous Backend
+    'MySQLBackend',
 
-# Asynchronous Backend
-'AsyncMySQLBackend',
+    # Asynchronous Backend
+    'AsyncMySQLBackend',
 
-# Configuration
-'MySQLConnectionConfig',
+    # Configuration
+    'MySQLConnectionConfig',
 
-# Dialect related
-'MySQLDialect',
+    # Dialect related
+    'MySQLDialect',
 
-# Transaction - Sync and Async
-'MySQLTransactionManager',
-'AsyncMySQLTransactionManager',
+    # Transaction - Sync and Async
+    'MySQLTransactionManager',
+    'AsyncMySQLTransactionManager',
 
-# MySQL-specific Type Helpers
-'MySQLEnumType',
-'MySQLSetType',
+    # MySQL-specific Type Helpers
+    'MySQLEnumType',
+    'MySQLSetType',
+
+    # MySQL-specific Functions - JSON
+    'json_extract',
+    'json_unquote',
+    'json_object',
+    'json_array',
+    'json_contains',
+    'json_set',
+    'json_remove',
+    'json_type',
+    'json_valid',
+    'json_search',
+
+    # MySQL-specific Functions - Spatial
+    'st_geom_from_text',
+    'st_geom_from_wkb',
+    'st_as_text',
+    'st_as_geojson',
+    'st_distance',
+    'st_within',
+    'st_contains',
+    'st_intersects',
+
+    # MySQL-specific Functions - Full-text Search
+    'match_against',
+
+    # MySQL-specific Functions - SET/Enum
+    'find_in_set',
+    'elt',
+    'field',
 ]
