@@ -61,10 +61,16 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from .protocols import (
     MySQLTriggerSupport,
     MySQLTableSupport,
+    MySQLSetTypeSupport,
+    MySQLJSONFunctionSupport,
+    MySQLSpatialSupport,
 )
 from .mixins import (
     MySQLTriggerMixin,
     MySQLTableMixin,
+    MySQLSetTypeMixin,
+    MySQLJSONFunctionMixin,
+    MySQLSpatialMixin,
 )
 
 if TYPE_CHECKING:
@@ -103,6 +109,9 @@ class MySQLDialect(
     # MySQL-specific mixins
     MySQLTriggerMixin,
     MySQLTableMixin,
+    MySQLSetTypeMixin,
+    MySQLJSONFunctionMixin,
+    MySQLSpatialMixin,
     # Protocols for type checking
     CTESupport,
     FilterClauseSupport,
@@ -130,6 +139,9 @@ class MySQLDialect(
     # MySQL-specific protocols
     MySQLTriggerSupport,
     MySQLTableSupport,
+    MySQLSetTypeSupport,
+    MySQLJSONFunctionSupport,
+    MySQLSpatialSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -509,7 +521,6 @@ class MySQLDialect(
         """Whether DROP SEQUENCE is supported."""
         return False
     # endregion
-    # endregion
 
     # region Table Support
     def supports_if_not_exists_table(self) -> bool:
@@ -847,5 +858,18 @@ class MySQLDialect(
 
         return " ".join(parts), ()
     # endregion
-    # endregion
+    
+    # region FULLTEXT Index Support
+    def supports_fulltext_index(self) -> bool:
+        """MySQL 5.6+ supports FULLTEXT for InnoDB."""
+        return self.version >= (5, 6, 0)
+    
+    def supports_fulltext_parser(self) -> bool:
+        """MySQL supports FULLTEXT parser plugins."""
+        return self.version >= (5, 1, 0)
+    
+    def supports_fulltext_query_expansion(self) -> bool:
+        """MySQL supports QUERY EXPANSION."""
+        return True  # All versions with FULLTEXT support this
+
     # endregion
