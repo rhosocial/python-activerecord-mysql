@@ -1,6 +1,5 @@
-# src/rhosocial/activerecord/backend/impl/mysql/mixins.py
 """MySQL dialect-specific Mixin implementations."""
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 
 class MySQLTriggerMixin:
@@ -311,3 +310,372 @@ class MySQLTableMixin:
         for key, value in storage_options.items():
             parts.append(f"{key}={value}")
         return ' '.join(parts)
+
+
+class MySQLSetTypeMixin:
+    """MySQL SET type implementation.
+
+    MySQL SET type features:
+    - String object with zero or more values from predefined list
+    - Stored as integer (bit flags) internally
+    - Maximum 64 members
+    - Supports FIND_IN_SET, LIKE operations
+    - Automatically sorted on storage
+
+    Version Requirements:
+    - All MySQL versions
+    """
+
+    def supports_set_type(self) -> bool:
+        """MySQL supports SET type in all versions."""
+        return True
+
+    def format_set_literal(
+        self,
+        values: List[str],
+        column_values: Optional[List[str]] = None
+    ) -> Tuple[str, tuple]:
+        """Format SET literal value.
+
+        Args:
+            values: Values to include in the SET
+            column_values: Allowed values for the column (for validation)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+
+        Raises:
+            ValueError: If values exceed 64 members or contain invalid values
+        """
+        if len(values) > 64:
+            raise ValueError("MySQL SET type supports maximum 64 members")
+
+        if column_values is not None:
+            invalid_values = [v for v in values if v not in column_values]
+            if invalid_values:
+                raise ValueError(
+                    f"Invalid SET values: {invalid_values}. "
+                    f"Allowed values: {column_values}"
+                )
+
+        if not values:
+            return "'", ()
+
+        sorted_values = sorted(values)
+        literal = ','.join(sorted_values)
+        return "%s", (literal,)
+
+    def format_find_in_set(
+        self,
+        value: str,
+        set_column: str
+    ) -> Tuple[str, tuple]:
+        """Format FIND_IN_SET function.
+
+        Args:
+            value: Value to find
+            set_column: SET column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"FIND_IN_SET(%s, {self.format_identifier(set_column)}) > 0", (value,)
+
+    def format_set_contains(
+        self,
+        column: str,
+        values: List[str]
+    ) -> Tuple[str, tuple]:
+        """Format SET contains check.
+
+        Checks if all values are present in the SET column.
+
+        Args:
+            column: SET column name
+            values: Values to check for
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        conditions = []
+        params: List[str] = []
+
+        for value in values:
+            conditions.append(f"FIND_IN_SET(%s, {self.format_identifier(column)}) > 0")
+            params.append(value)
+
+        return " AND ".join(conditions), tuple(params)
+
+
+class MySQLJSONFunctionMixin:
+    """MySQL JSON function implementation.
+
+    MySQL JSON functions (since 5.7.8+):
+    - JSON_EXTRACT: Extract data from JSON documents
+    - JSON_UNQUOTE: Unquote JSON value
+    - JSON_OBJECT: Create JSON object
+    - JSON_ARRAY: Create JSON array
+    - JSON_CONTAINS: Check if JSON contains value
+    - JSON_SEARCH: Search in JSON
+    - JSON_SET: Set value in JSON
+    - JSON_INSERT: Insert value into JSON
+    - JSON_REPLACE: Replace value in JSON
+    - JSON_REMOVE: Remove data from JSON
+    - JSON_TYPE: Get type of JSON value
+    - JSON_VALID: Validate JSON
+
+    Version Requirements:
+    - JSON type and basic functions: MySQL 5.7.8+
+    - JSON_MERGE_PATCH: MySQL 8.0.3+
+    - JSON_TABLE: MySQL 8.0.4+
+    - JSON_VALUE: MySQL 8.0.21+
+    """
+
+    # Function version requirements
+    _JSON_FUNCTION_VERSIONS = {
+        'JSON_TABLE': (8, 0, 4),
+        'JSON_VALUE': (8, 0, 21),
+        'JSON_SCHEMA_VALID': (8, 0, 17),
+        'JSON_MERGE_PATCH': (8, 0, 3),
+    }
+
+    def supports_json_function(self, function_name: str) -> bool:
+        """Check if specific JSON function is supported."""
+        if function_name in self._JSON_FUNCTION_VERSIONS:
+            return self.version >= self._JSON_FUNCTION_VERSIONS[function_name]
+        # Basic JSON functions are supported since 5.7.8
+        return self.version >= (5, 7, 8)
+
+    def format_json_extract(
+        self,
+        json_doc: str,
+        path: str,
+        paths: Optional[List[str]] = None
+    ) -> Tuple[str, tuple]:
+        """Format JSON_EXTRACT function."""
+        all_paths = [path]
+        if paths:
+            all_paths.extend(paths)
+
+        path_placeholders = ', '.join(['%s' for _ in all_paths])
+        return f"JSON_EXTRACT({json_doc}, {path_placeholders})", tuple(all_paths)
+
+    def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
+        """Format JSON_UNQUOTE function."""
+        return f"JSON_UNQUOTE({json_val})", ()
+
+    def format_json_object(
+        self,
+        key_value_pairs: List[Tuple[str, Any]]
+    ) -> Tuple[str, tuple]:
+        """Format JSON_OBJECT function."""
+        if not key_value_pairs:
+            return "JSON_OBJECT()", ()
+
+        parts = []
+        params: List[Any] = []
+
+        for key, value in key_value_pairs:
+            parts.append('%s')
+            parts.append('%s')
+            params.append(key)
+            params.append(value)
+
+        return f"JSON_OBJECT({', '.join(parts)})", tuple(params)
+
+    def format_json_array(self, values: List[Any]) -> Tuple[str, tuple]:
+        """Format JSON_ARRAY function."""
+        if not values:
+            return "JSON_ARRAY()", ()
+
+        placeholders = ', '.join(['%s' for _ in values])
+        return f"JSON_ARRAY({placeholders})", tuple(values)
+
+    def format_json_contains(
+        self,
+        target: str,
+        candidate: str,
+        path: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format JSON_CONTAINS function."""
+        if path:
+            return f"JSON_CONTAINS({target}, %s, %s)", (candidate, path)
+        return f"JSON_CONTAINS({target}, %s)", (candidate,)
+
+    def format_json_set(
+        self,
+        json_doc: str,
+        path: str,
+        value: Any,
+        path_value_pairs: Optional[List[Tuple[str, Any]]] = None
+    ) -> Tuple[str, tuple]:
+        """Format JSON_SET function."""
+        all_pairs = [(path, value)]
+        if path_value_pairs:
+            all_pairs.extend(path_value_pairs)
+
+        parts = []
+        params: List[Any] = []
+
+        for p, v in all_pairs:
+            parts.append('%s')
+            parts.append('%s')
+            params.append(p)
+            params.append(v)
+
+        return f"JSON_SET({json_doc}, {', '.join(parts)})", tuple(params)
+
+    def format_json_remove(
+        self,
+        json_doc: str,
+        path: str,
+        paths: Optional[List[str]] = None
+    ) -> Tuple[str, tuple]:
+        """Format JSON_REMOVE function."""
+        all_paths = [path]
+        if paths:
+            all_paths.extend(paths)
+
+        path_placeholders = ', '.join(['%s' for _ in all_paths])
+        return f"JSON_REMOVE({json_doc}, {path_placeholders})", tuple(all_paths)
+
+    def format_json_type(self, json_val: str) -> Tuple[str, tuple]:
+        """Format JSON_TYPE function."""
+        return f"JSON_TYPE({json_val})", ()
+
+    def format_json_valid(self, json_val: str) -> Tuple[str, tuple]:
+        """Format JSON_VALID function."""
+        return f"JSON_VALID({json_val})", ()
+
+    def format_json_search(
+        self,
+        json_doc: str,
+        search_str: str,
+        path: Optional[str] = None,
+        all: bool = False
+    ) -> Tuple[str, tuple]:
+        """Format JSON_SEARCH function."""
+        one_or_all = "'all'" if all else "'one'"
+        if path:
+            return f"JSON_SEARCH({json_doc}, {one_or_all}, %s, NULL, %s)", (search_str, path)
+        return f"JSON_SEARCH({json_doc}, {one_or_all}, %s)", (search_str,)
+
+
+class MySQLSpatialMixin:
+    """MySQL spatial data type implementation.
+
+    MySQL spatial types (since 5.7+):
+    - GEOMETRY: Base type for all spatial values
+    - POINT: A point in 2D/3D/4D space
+    - LINESTRING: A sequence of points forming a line
+    - POLYGON: A closed area with one or more rings
+    - MULTIPOINT, MULTILINESTRING, MULTIPOLYGON: Collections
+    - GEOMETRYCOLLECTION: Heterogeneous collection
+
+    Version Requirements:
+    - Basic spatial types: MySQL 5.7+
+    - GeoJSON support: MySQL 5.7.5+
+    - Improved SRID handling: MySQL 8.0+
+    """
+
+    def supports_spatial_type(self, type_name: str) -> bool:
+        """Check if specific spatial type is supported."""
+        valid_types = {
+            'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON',
+            'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON',
+            'GEOMETRYCOLLECTION'
+        }
+        if type_name.upper() not in valid_types:
+            return False
+        # All spatial types require MySQL 5.7+
+        return self.version >= (5, 7, 0)
+
+    def supports_spatial_index(self) -> bool:
+        """Whether SPATIAL indexes are supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_geojson(self) -> bool:
+        """Whether GeoJSON functions are supported."""
+        return self.version >= (5, 7, 5)
+
+    def format_spatial_literal(
+        self,
+        wkt: str,
+        srid: Optional[int] = None
+    ) -> Tuple[str, tuple]:
+        """Format spatial literal from WKT."""
+        if srid is not None:
+            return f"ST_GeomFromText(%s, %s)", (wkt, srid)
+        return f"ST_GeomFromText(%s)", (wkt,)
+
+    def format_st_geom_from_text(
+        self,
+        wkt: str,
+        srid: Optional[int] = None
+    ) -> Tuple[str, tuple]:
+        """Format ST_GeomFromText function."""
+        if srid is not None:
+            return f"ST_GeomFromText(%s, %s)", (wkt, srid)
+        return f"ST_GeomFromText(%s)", (wkt,)
+
+    def format_st_geom_from_wkb(
+        self,
+        wkb: bytes,
+        srid: Optional[int] = None
+    ) -> Tuple[str, tuple]:
+        """Format ST_GeomFromWKB function."""
+        if srid is not None:
+            return f"ST_GeomFromWKB(%s, %s)", (wkb, srid)
+        return f"ST_GeomFromWKB(%s)", (wkb,)
+
+    def format_st_as_text(self, geom: str) -> Tuple[str, tuple]:
+        """Format ST_AsText function."""
+        return f"ST_AsText({geom})", ()
+
+    def format_st_as_geojson(self, geom: str) -> Tuple[str, tuple]:
+        """Format ST_AsGeoJSON function (MySQL 5.7.5+)."""
+        if not self.supports_geojson():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(self.name, "GeoJSON functions (requires MySQL 5.7.5+)")
+        return f"ST_AsGeoJSON({geom})", ()
+
+    def format_st_distance(
+        self,
+        geom1: str,
+        geom2: str
+    ) -> Tuple[str, tuple]:
+        """Format ST_Distance function."""
+        return f"ST_Distance({geom1}, {geom2})", ()
+
+    def format_st_within(
+        self,
+        geom1: str,
+        geom2: str
+    ) -> Tuple[str, tuple]:
+        """Format ST_Within function."""
+        return f"ST_Within({geom1}, {geom2})", ()
+
+    def format_st_contains(
+        self,
+        geom1: str,
+        geom2: str
+    ) -> Tuple[str, tuple]:
+        """Format ST_Contains function."""
+        return f"ST_Contains({geom1}, {geom2})", ()
+
+    def format_create_spatial_index(
+        self,
+        index_name: str,
+        table_name: str,
+        column: str
+    ) -> Tuple[str, tuple]:
+        """Format CREATE SPATIAL INDEX statement."""
+        if not self.supports_spatial_index():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
+        return (
+            f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
+            f"ON {self.format_identifier(table_name)} "
+            f"({self.format_identifier(column)})",
+            ()
+        )
