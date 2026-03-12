@@ -1,3 +1,10 @@
+## [v1.0.0.dev7] - 2026-03-13
+
+### Added
+
+- Added MySQL-specific DDL support including trigger DDL, enhanced CREATE TABLE with LIKE syntax, FULLTEXT/SPATIAL indexes, ENUM/SET type adapters, and spatial type functions. ([#10](https://github.com/rhosocial/python-activerecord-mysql/issues/10))
+
+
 ## [v1.0.0.dev6] - 2026-02-27
 
 ### Added
