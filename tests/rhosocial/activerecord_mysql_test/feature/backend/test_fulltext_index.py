@@ -9,6 +9,10 @@ This module tests MySQL-specific FULLTEXT index functionality including:
 """
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.expression.statements import (
+    CreateFulltextIndexExpression,
+    DropFulltextIndexExpression
+)
 
 
 class TestFullTextProtocol:
@@ -88,13 +92,15 @@ class TestFullTextProtocol:
     def test_format_create_fulltext_index(self):
         """Test CREATE FULLTEXT INDEX statement formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        sql, params = dialect.format_create_fulltext_index(
+
+        expr = CreateFulltextIndexExpression(
+            dialect=dialect,
             index_name='idx_content',
             table_name='articles',
             columns=['title', 'content']
         )
-        
+        sql, params = expr.to_sql()
+
         assert 'CREATE FULLTEXT INDEX' in sql
         assert '`idx_content`' in sql
         assert 'ON `articles`' in sql
@@ -104,14 +110,16 @@ class TestFullTextProtocol:
     def test_format_create_fulltext_index_with_parser(self):
         """Test CREATE FULLTEXT INDEX with parser plugin."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        sql, params = dialect.format_create_fulltext_index(
+
+        expr = CreateFulltextIndexExpression(
+            dialect=dialect,
             index_name='idx_content',
             table_name='articles',
             columns=['content'],
             parser='ngram'
         )
-        
+        sql, params = expr.to_sql()
+
         assert 'CREATE FULLTEXT INDEX' in sql
         assert 'WITH PARSER `ngram`' in sql
         assert params == ()
@@ -119,14 +127,18 @@ class TestFullTextProtocol:
     def test_fulltext_unsupported_raises_error(self):
         """Test that unsupported FULLTEXT raises error."""
         dialect = MySQLDialect(version=(5, 5, 0))
-        
+
         with pytest.raises(Exception):  # UnsupportedFeatureError
             dialect.format_fulltext_match(['title'], 'test')
-        
+
         with pytest.raises(Exception):  # UnsupportedFeatureError
-            dialect.format_create_fulltext_index(
-                'idx_test', 'test_table', ['content']
+            expr = CreateFulltextIndexExpression(
+                dialect=dialect,
+                index_name='idx_test',
+                table_name='test_table',
+                columns=['content']
             )
+            expr.to_sql()
 
 
 class TestAsyncFullTextProtocol:
