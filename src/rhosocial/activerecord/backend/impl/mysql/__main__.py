@@ -51,6 +51,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Groups that are specific to MySQL dialect
+DIALECT_SPECIFIC_GROUPS = {"MySQL-specific"}
+
 # Protocol family groups for display
 PROTOCOL_FAMILY_GROUPS: Dict[str, list] = {
     "Query Features": [
@@ -190,23 +193,78 @@ def get_provider(args):
 
 
 def get_protocol_support_methods(protocol_class: type) -> List[str]:
-    """Get all supports_* methods from a protocol class."""
+    """Get all support check methods from a protocol class.
+
+    Supports both 'supports_*' and 'is_*_available' naming patterns.
+    """
     methods = []
     for name, member in inspect.getmembers(protocol_class):
-        if name.startswith('supports_') and callable(member):
+        if callable(member) and (name.startswith('supports_') or name.startswith('is_') and name.endswith('_available')):
             methods.append(name)
     return sorted(methods)
 
 
-def check_protocol_support(dialect: MySQLDialect, protocol_class: type) -> Dict[str, bool]:
-    """Check all support methods for a protocol against the dialect."""
+# All possible test arguments for methods that require parameters
+# This allows detailed display of which specific arguments are supported
+SUPPORT_METHOD_ALL_ARGS: Dict[str, List[str]] = {
+    # ExplainSupport: all possible format types
+    'supports_explain_format': ['TEXT', 'JSON', 'TREE', 'XML', 'YAML', 'DOT'],
+    # MySQLJSONFunctionSupport: JSON functions with version-specific support
+    'supports_json_function': [
+        'JSON_EXTRACT', 'JSON_ARRAY', 'JSON_OBJECT', 'JSON_MERGE',
+        'JSON_TABLE', 'JSON_VALUE', 'JSON_SCHEMA_VALID', 'JSON_MERGE_PATCH'
+    ],
+    # MySQLSpatialSupport: spatial types
+    'supports_spatial_type': [
+        'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON',
+        'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON', 'GEOMETRYCOLLECTION'
+    ],
+}
+
+
+def check_protocol_support(dialect: MySQLDialect, protocol_class: type) -> Dict[str, Any]:
+    """Check all support methods for a protocol against the dialect.
+
+    For methods requiring parameters, tests all possible arguments.
+
+    Returns:
+        Dict with method names as keys. For no-arg methods: bool value.
+        For methods with parameters: dict with 'supported', 'total', 'args' keys.
+    """
     results = {}
     methods = get_protocol_support_methods(protocol_class)
     for method_name in methods:
         if hasattr(dialect, method_name):
             try:
-                result = getattr(dialect, method_name)()
-                results[method_name] = bool(result)
+                method = getattr(dialect, method_name)
+                # Check if method requires arguments (beyond self)
+                sig = inspect.signature(method)
+                params = [p for p in sig.parameters.values()
+                          if p.default == inspect.Parameter.empty]
+                required_params = [p for p in params if p.name != 'self']
+
+                if len(required_params) == 0:
+                    # No required parameters, call directly
+                    result = method()
+                    results[method_name] = bool(result)
+                elif method_name in SUPPORT_METHOD_ALL_ARGS:
+                    # Test all possible arguments
+                    all_args = SUPPORT_METHOD_ALL_ARGS[method_name]
+                    arg_results = {}
+                    for arg in all_args:
+                        try:
+                            arg_results[arg] = bool(method(arg))
+                        except Exception:
+                            arg_results[arg] = False
+                    supported_count = sum(1 for v in arg_results.values() if v)
+                    results[method_name] = {
+                        'supported': supported_count,
+                        'total': len(all_args),
+                        'args': arg_results
+                    }
+                else:
+                    # Unknown method requiring parameters, skip
+                    results[method_name] = False
             except Exception:
                 results[method_name] = False
         else:
@@ -235,11 +293,14 @@ def display_info(verbose: int = 0, output_format: str = 'table',
     dialect = MySQLDialect(version=version)
     version_display = f"{version[0]}.{version[1]}.{version[2]}"
 
+    # Unified structure for JSON output
     info = {
-        "mysql": {
+        "database": {
+            "type": "mysql",
             "version": version_display,
             "version_tuple": list(version),
         },
+        "features": {},
         "protocols": {}
     }
 
@@ -248,8 +309,20 @@ def display_info(verbose: int = 0, output_format: str = 'table',
         for protocol in protocols:
             protocol_name = protocol.__name__
             support_methods = check_protocol_support(dialect, protocol)
-            supported_count = sum(1 for v in support_methods.values() if v)
-            total_count = len(support_methods)
+
+            # Calculate supported/total counts
+            # For no-arg methods: value is bool
+            # For methods with parameters: value is dict with 'supported', 'total', 'args'
+            supported_count = 0
+            total_count = 0
+            for method_name, value in support_methods.items():
+                if isinstance(value, dict):
+                    supported_count += value['supported']
+                    total_count += value['total']
+                else:
+                    total_count += 1
+                    if value:
+                        supported_count += 1
 
             if verbose >= 2:
                 info["protocols"][group_name][protocol_name] = {
@@ -270,7 +343,12 @@ def display_info(verbose: int = 0, output_format: str = 'table',
     if output_format == 'json' or not RICH_AVAILABLE:
         print(json.dumps(info, indent=2))
     else:
-        _display_info_rich(info, verbose, version_display)
+        # Use legacy structure for rich display
+        info_legacy = {
+            "mysql": info["database"],
+            "protocols": info["protocols"]
+        }
+        _display_info_rich(info_legacy, verbose, version_display)
 
     return info
 
@@ -293,7 +371,11 @@ def _display_info_rich(info: Dict, verbose: int, version_display: str):
     console.print(f"[bold green]Protocol Support ({label}):[/bold green]")
 
     for group_name, protocols in info["protocols"].items():
-        console.print(f"\n  [bold underline]{group_name}:[/bold underline]")
+        # Mark dialect-specific groups
+        if group_name in DIALECT_SPECIFIC_GROUPS:
+            console.print(f"\n  [bold underline]{group_name}:[/bold underline] [dim](dialect-specific)[/dim]")
+        else:
+            console.print(f"\n  [bold underline]{group_name}:[/bold underline]")
         for protocol_name, stats in protocols.items():
             pct = stats["percentage"]
             if pct == 100:
@@ -321,10 +403,18 @@ def _display_info_rich(info: Dict, verbose: int, version_display: str):
             )
 
             if verbose >= 2 and "methods" in stats:
-                for method, supported in stats["methods"].items():
-                    method_display = method.replace("supports_", "").replace("_", " ")
-                    m_status = "[green][OK][/green]" if supported else "[red][X][/red]"
-                    console.print(f"        {m_status} {method_display}")
+                for method, value in stats["methods"].items():
+                    method_display = method.replace("supports_", "").replace("_", " ").replace("is_", "").replace("_available", "")
+                    if isinstance(value, dict):
+                        # Method with parameters - show each arg's support
+                        console.print(f"        [dim]{method_display}:[/dim]")
+                        for arg, supported in value.get('args', {}).items():
+                            m_status = "[green][OK][/green]" if supported else "[red][X][/red]"
+                            console.print(f"            {m_status} {arg}")
+                    else:
+                        # No-arg method
+                        m_status = "[green][OK][/green]" if value else "[red][X][/red]"
+                        console.print(f"        {m_status} {method_display}")
 
     console.print()
 
