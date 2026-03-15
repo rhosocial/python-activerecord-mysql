@@ -398,8 +398,32 @@ def main():
 
     if args.info:
         output_format = args.output if args.output != 'table' or RICH_AVAILABLE else 'json'
+
+        # Try to connect and get real version if database is provided
+        actual_version = args.version
+
+        if args.database:
+            try:
+                config = MySQLConnectionConfig(
+                    host=args.host, port=args.port, database=args.database,
+                    username=args.user, password=args.password, charset=args.charset,
+                )
+                backend = MySQLBackend(connection_config=config)
+                backend.connect()
+                backend.introspect_and_adapt()
+
+                # Get actual version
+                version_tuple = backend.get_server_version()
+                if version_tuple:
+                    actual_version = f"{version_tuple[0]}.{version_tuple[1]}.{version_tuple[2]}"
+
+                backend.disconnect()
+            except Exception as e:
+                logger.warning("Could not connect to database for introspection: %s", e)
+                # Fall back to command-line version or default
+
         display_info(verbose=args.verbose, output_format=output_format,
-                     version_str=args.version)
+                     version_str=actual_version)
         return
 
     numeric_level = getattr(logging, args.log_level.upper(), None)
