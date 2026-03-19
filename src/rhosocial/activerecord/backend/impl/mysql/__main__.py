@@ -199,7 +199,9 @@ def get_protocol_support_methods(protocol_class: type) -> List[str]:
     """
     methods = []
     for name, member in inspect.getmembers(protocol_class):
-        if callable(member) and (name.startswith('supports_') or name.startswith('is_') and name.endswith('_available')):
+        is_supports = name.startswith('supports_')
+        is_available = (name.startswith('is_') and name.endswith('_available'))
+        if callable(member) and (is_supports or is_available):
             methods.append(name)
     return sorted(methods)
 
@@ -315,7 +317,7 @@ def display_info(verbose: int = 0, output_format: str = 'table',
             # For methods with parameters: value is dict with 'supported', 'total', 'args'
             supported_count = 0
             total_count = 0
-            for method_name, value in support_methods.items():
+            for _method_name, value in support_methods.items():
                 if isinstance(value, dict):
                     supported_count += value['supported']
                     total_count += value['total']
@@ -404,7 +406,13 @@ def _display_info_rich(info: Dict, verbose: int, version_display: str):
 
             if verbose >= 2 and "methods" in stats:
                 for method, value in stats["methods"].items():
-                    method_display = method.replace("supports_", "").replace("_", " ").replace("is_", "").replace("_available", "")
+                    # Format method name for display
+                    method_display = (
+                        method.replace("supports_", "")
+                        .replace("_", " ")
+                        .replace("is_", "")
+                        .replace("_available", "")
+                    )
                     if isinstance(value, dict):
                         # Method with parameters - show each arg's support
                         console.print(f"        [dim]{method_display}:[/dim]")

@@ -5,7 +5,7 @@ import uuid
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Tuple, Type, Union, Optional
-from datetime import timezone, timedelta
+from datetime import timedelta
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
@@ -296,12 +296,12 @@ class MySQLEnumAdapter(SQLTypeAdapter):
         use_int = (options.get('use_int_storage', self._use_int_storage)
                    if options else self._use_int_storage)
 
-        if target_type == str:
+        if target_type is str:
             # Default: use string representation (enum member value)
             # Works for both VARCHAR and MySQL ENUM fields
             return str(value.value)
 
-        if target_type == int:
+        if target_type is int:
             if use_int:
                 # Use MySQL's internal integer index (1-based)
                 # Get the enum class members in definition order
