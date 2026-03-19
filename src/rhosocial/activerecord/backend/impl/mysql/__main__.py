@@ -199,7 +199,9 @@ def get_protocol_support_methods(protocol_class: type) -> List[str]:
     """
     methods = []
     for name, member in inspect.getmembers(protocol_class):
-        if callable(member) and (name.startswith('supports_') or name.startswith('is_') and name.endswith('_available')):
+        is_supports = name.startswith('supports_')
+        is_available = (name.startswith('is_') and name.endswith('_available'))
+        if callable(member) and (is_supports or is_available):
             methods.append(name)
     return sorted(methods)
 
@@ -281,6 +283,71 @@ def parse_version(version_str: str) -> Tuple[int, int, int]:
     return (major, minor, patch)
 
 
+def _calculate_protocol_stats(support_methods: Dict[str, Any]) -> Tuple[int, int]:
+    """Calculate supported and total counts from support methods.
+
+    Args:
+        support_methods: Dict with method names as keys.
+            For no-arg methods: bool value.
+            For methods with parameters: dict with 'supported', 'total', 'args' keys.
+
+    Returns:
+        Tuple of (supported_count, total_count)
+    """
+    supported_count = 0
+    total_count = 0
+    for value in support_methods.values():
+        if isinstance(value, dict):
+            supported_count += value['supported']
+            total_count += value['total']
+        else:
+            total_count += 1
+            if value:
+                supported_count += 1
+    return supported_count, total_count
+
+
+def _build_protocol_info(
+    dialect: MySQLDialect,
+    group_name: str,
+    protocols: List[type],
+    verbose: int
+) -> Dict[str, Dict[str, Any]]:
+    """Build protocol support information for a single group.
+
+    Args:
+        dialect: MySQLDialect instance to check against
+        group_name: Name of the protocol group
+        protocols: List of protocol classes in this group
+        verbose: Verbosity level for output detail
+
+    Returns:
+        Dict mapping protocol names to their support statistics
+    """
+    group_info = {}
+    for protocol in protocols:
+        protocol_name = protocol.__name__
+        support_methods = check_protocol_support(dialect, protocol)
+        supported_count, total_count = _calculate_protocol_stats(support_methods)
+
+        percentage = round(supported_count / total_count * 100, 1) if total_count > 0 else 0
+
+        if verbose >= 2:
+            group_info[protocol_name] = {
+                "supported": supported_count,
+                "total": total_count,
+                "percentage": percentage,
+                "methods": support_methods
+            }
+        else:
+            group_info[protocol_name] = {
+                "supported": supported_count,
+                "total": total_count,
+                "percentage": percentage
+            }
+    return group_info
+
+
 def display_info(verbose: int = 0, output_format: str = 'table',
                  version_str: Optional[str] = None):
     """Display MySQL environment information."""
@@ -304,41 +371,11 @@ def display_info(verbose: int = 0, output_format: str = 'table',
         "protocols": {}
     }
 
+    # Build protocol support information
     for group_name, protocols in PROTOCOL_FAMILY_GROUPS.items():
-        info["protocols"][group_name] = {}
-        for protocol in protocols:
-            protocol_name = protocol.__name__
-            support_methods = check_protocol_support(dialect, protocol)
-
-            # Calculate supported/total counts
-            # For no-arg methods: value is bool
-            # For methods with parameters: value is dict with 'supported', 'total', 'args'
-            supported_count = 0
-            total_count = 0
-            for method_name, value in support_methods.items():
-                if isinstance(value, dict):
-                    supported_count += value['supported']
-                    total_count += value['total']
-                else:
-                    total_count += 1
-                    if value:
-                        supported_count += 1
-
-            if verbose >= 2:
-                info["protocols"][group_name][protocol_name] = {
-                    "supported": supported_count,
-                    "total": total_count,
-                    "percentage": (round(supported_count / total_count * 100, 1)
-                                   if total_count > 0 else 0),
-                    "methods": support_methods
-                }
-            else:
-                info["protocols"][group_name][protocol_name] = {
-                    "supported": supported_count,
-                    "total": total_count,
-                    "percentage": (round(supported_count / total_count * 100, 1)
-                                   if total_count > 0 else 0)
-                }
+        info["protocols"][group_name] = _build_protocol_info(
+            dialect, group_name, protocols, verbose
+        )
 
     if output_format == 'json' or not RICH_AVAILABLE:
         print(json.dumps(info, indent=2))
@@ -353,15 +390,130 @@ def display_info(verbose: int = 0, output_format: str = 'table',
     return info
 
 
+def _get_status_style(pct: float) -> Tuple[str, str]:
+    """Get color and symbol based on percentage.
+
+    Args:
+        pct: Percentage value (0-100)
+
+    Returns:
+        Tuple of (color, symbol) for rich display
+    """
+    SYM_OK = "[OK]"
+    SYM_PARTIAL = "[~]"
+    SYM_FAIL = "[X]"
+
+    if pct == 100:
+        return "green", SYM_OK
+    elif pct >= 50:
+        return "yellow", SYM_PARTIAL
+    elif pct > 0:
+        return "red", SYM_PARTIAL
+    else:
+        return "red", SYM_FAIL
+
+
+def _format_method_display(method: str) -> str:
+    """Format method name for display.
+
+    Args:
+        method: Original method name
+
+    Returns:
+        Human-readable method name
+    """
+    return (
+        method.replace("supports_", "")
+        .replace("_", " ")
+        .replace("is_", "")
+        .replace("_available", "")
+    )
+
+
+def _display_method_details(console: Any, method: str, value: Any) -> None:
+    """Display detailed method support information.
+
+    Args:
+        console: Rich console instance
+        method: Method name
+        value: Support value (bool or dict with args)
+    """
+    method_display = _format_method_display(method)
+
+    if isinstance(value, dict):
+        # Method with parameters - show each arg's support
+        console.print(f"        [dim]{method_display}:[/dim]")
+        for arg, supported in value.get('args', {}).items():
+            m_status = "[green][OK][/green]" if supported else "[red][X][/red]"
+            console.print(f"            {m_status} {arg}")
+    else:
+        # No-arg method
+        m_status = "[green][OK][/green]" if value else "[red][X][/red]"
+        console.print(f"        {m_status} {method_display}")
+
+
+def _display_protocol_item(
+    console: Any,
+    protocol_name: str,
+    stats: Dict[str, Any],
+    verbose: int
+) -> None:
+    """Display a single protocol's support information.
+
+    Args:
+        console: Rich console instance
+        protocol_name: Name of the protocol
+        stats: Support statistics dict
+        verbose: Verbosity level
+    """
+    pct = stats["percentage"]
+    color, symbol = _get_status_style(pct)
+
+    bar_len = 20
+    filled = int(pct / 100 * bar_len)
+    progress_bar = "#" * filled + "-" * (bar_len - filled)
+
+    sup = stats['supported']
+    tot = stats['total']
+    console.print(
+        f"    [{color}]{symbol}[/{color}] {protocol_name}: "
+        f"[{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
+    )
+
+    if verbose >= 2 and "methods" in stats:
+        for method, value in stats["methods"].items():
+            _display_method_details(console, method, value)
+
+
+def _display_protocol_group(
+    console: Any,
+    group_name: str,
+    protocols: Dict[str, Any],
+    verbose: int
+) -> None:
+    """Display a protocol group's support information.
+
+    Args:
+        console: Rich console instance
+        group_name: Name of the protocol group
+        protocols: Dict mapping protocol names to their stats
+        verbose: Verbosity level
+    """
+    # Mark dialect-specific groups
+    if group_name in DIALECT_SPECIFIC_GROUPS:
+        console.print(f"\n  [bold underline]{group_name}:[/bold underline] [dim](dialect-specific)[/dim]")
+    else:
+        console.print(f"\n  [bold underline]{group_name}:[/bold underline]")
+
+    for protocol_name, stats in protocols.items():
+        _display_protocol_item(console, protocol_name, stats, verbose)
+
+
 def _display_info_rich(info: Dict, verbose: int, version_display: str):
     """Display info using rich console."""
     from rich.console import Console
 
     console = Console(force_terminal=True)
-
-    SYM_OK = "[OK]"
-    SYM_PARTIAL = "[~]"
-    SYM_FAIL = "[X]"
 
     console.print("\n[bold cyan]MySQL Environment Information[/bold cyan]\n")
 
@@ -371,50 +523,7 @@ def _display_info_rich(info: Dict, verbose: int, version_display: str):
     console.print(f"[bold green]Protocol Support ({label}):[/bold green]")
 
     for group_name, protocols in info["protocols"].items():
-        # Mark dialect-specific groups
-        if group_name in DIALECT_SPECIFIC_GROUPS:
-            console.print(f"\n  [bold underline]{group_name}:[/bold underline] [dim](dialect-specific)[/dim]")
-        else:
-            console.print(f"\n  [bold underline]{group_name}:[/bold underline]")
-        for protocol_name, stats in protocols.items():
-            pct = stats["percentage"]
-            if pct == 100:
-                color = "green"
-                symbol = SYM_OK
-            elif pct >= 50:
-                color = "yellow"
-                symbol = SYM_PARTIAL
-            elif pct > 0:
-                color = "red"
-                symbol = SYM_PARTIAL
-            else:
-                color = "red"
-                symbol = SYM_FAIL
-
-            bar_len = 20
-            filled = int(pct / 100 * bar_len)
-            progress_bar = "#" * filled + "-" * (bar_len - filled)
-
-            sup = stats['supported']
-            tot = stats['total']
-            console.print(
-                f"    [{color}]{symbol}[/{color}] {protocol_name}: "
-                f"[{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
-            )
-
-            if verbose >= 2 and "methods" in stats:
-                for method, value in stats["methods"].items():
-                    method_display = method.replace("supports_", "").replace("_", " ").replace("is_", "").replace("_available", "")
-                    if isinstance(value, dict):
-                        # Method with parameters - show each arg's support
-                        console.print(f"        [dim]{method_display}:[/dim]")
-                        for arg, supported in value.get('args', {}).items():
-                            m_status = "[green][OK][/green]" if supported else "[red][X][/red]"
-                            console.print(f"            {m_status} {arg}")
-                    else:
-                        # No-arg method
-                        m_status = "[green][OK][/green]" if value else "[red][X][/red]"
-                        console.print(f"        {m_status} {method_display}")
+        _display_protocol_group(console, group_name, protocols, verbose)
 
     console.print()
 

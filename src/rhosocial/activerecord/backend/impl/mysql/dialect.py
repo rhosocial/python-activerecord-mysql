@@ -76,8 +76,7 @@ from .mixins import (
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
         CreateTableExpression, CreateViewExpression, DropViewExpression,
-        ColumnDefinition, ColumnConstraint, TableConstraint, IndexDefinition,
-        ColumnConstraintType, TableConstraintType
+        ColumnDefinition, TableConstraint, IndexDefinition,
     )
 
 
@@ -772,11 +771,6 @@ class MySQLDialect(
         - Does not support REFERENCING clause
         - Uses trigger body directly instead of function call
         """
-        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-        from rhosocial.activerecord.backend.expression.statements import (
-            CreateTriggerExpression
-        )
-
         if not self.supports_trigger():
             raise UnsupportedFeatureError(self.name, "triggers")
 
@@ -844,8 +838,6 @@ class MySQLDialect(
         expr
     ):
         """Format DROP TRIGGER statement (MySQL syntax)."""
-        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-
         if not self.supports_trigger():
             raise UnsupportedFeatureError(self.name, "triggers")
 

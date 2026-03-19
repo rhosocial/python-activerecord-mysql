@@ -145,7 +145,7 @@ class QueryProvider(IQueryProvider):
             # If there's an error, ensure foreign key checks are re-enabled
             try:
                 model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
-            except:
+            except Exception:
                 pass  # Ignore any errors when re-enabling foreign key checks
             # Continue anyway since the table might not exist
         
@@ -367,12 +367,12 @@ class QueryProvider(IQueryProvider):
             except Exception:
                 try:
                     await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-                except:
+                except Exception:
                     pass
             finally:
                 try:
                     await backend_instance.disconnect()
-                except:
+                except Exception:
                     pass
         
         self._active_backends.clear()
@@ -408,7 +408,7 @@ class QueryProvider(IQueryProvider):
                 # If there's an error, ensure foreign key checks are re-enabled
                 try:
                     backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-                except:
+                except Exception:
                     pass  # Ignore any errors when re-enabling foreign key checks
             finally:
                 # Always disconnect the backend instance that was used in the test

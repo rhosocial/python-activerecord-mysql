@@ -19,10 +19,11 @@ Version Requirements:
 - Full-text search: MySQL 5.6+ (with some features requiring 5.7+)
 - SET type: All MySQL versions
 """
-from typing import Union, Optional, List, Any, Tuple, TYPE_CHECKING
+from typing import Union, Optional, List, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
+    from rhosocial.activerecord.backend.expression import bases, core, operators
     from .dialect import MySQLDialect
 
 
