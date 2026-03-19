@@ -30,8 +30,8 @@ from rhosocial.activerecord.backend.errors import (
     IntegrityError,
     OperationalError,
     QueryError,
-    ReturningNotSupportedError,
 )
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.config import ConnectionConfig
@@ -345,8 +345,10 @@ class MySQLBackend(StorageBackend):
         if self.dialect.supports_returning_clause():
             return True
         else:
-            raise ReturningNotSupportedError(
-                "RETURNING clause is not supported by MySQL. "
+            raise UnsupportedFeatureError(
+                self.name,
+                "RETURNING clause",
+                "MySQL does not support RETURNING clause. "
                 "Consider using LAST_INSERT_ID() or alternative approaches."
             )
 

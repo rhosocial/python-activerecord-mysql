@@ -5,13 +5,13 @@ on:
   push:
     branches:
       - main
-      - 'release/v**'
-      - 'maint/**'
+      - "release/v**"
+      - "maint/**"
   pull_request:
     branches:
       - main
-      - 'release/v**'
-      - 'maint/**'
+      - "release/v**"
+      - "maint/**"
 
 permissions:
   contents: read
@@ -36,82 +36,82 @@ jobs:
           - 3306:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.8"
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.8"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3306,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 5.6 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3306
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-            ssl_disabled: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3306,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 5.6 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3306
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+              ssl_disabled: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py39-mysql57:
     name: Run tests with Python 3.9 and MySQL 5.7
@@ -130,81 +130,81 @@ jobs:
           - 3307:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.9"
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3307,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 5.7 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3307
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3307,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 5.7 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3307
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py310-mysql80:
     name: Run tests with Python 3.10 and MySQL 8.0
@@ -223,81 +223,81 @@ jobs:
           - 3308:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.10"
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3308,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 8.0 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3308
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3308,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 8.0 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3308
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py311-mysql84:
     name: Run tests with Python 3.11 and MySQL 8.4
@@ -316,81 +316,81 @@ jobs:
           - 3309:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.11"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3309,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 8.4 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3309
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3309,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 8.4 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3309
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py312-mysql90:
     name: Run tests with Python 3.12 and MySQL 9.0
@@ -409,81 +409,81 @@ jobs:
           - 3310:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.12"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3310,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.0 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3310
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3310,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.0 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3310
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py313-mysql91:
     name: Run tests with Python 3.13 and MySQL 9.1
@@ -502,81 +502,81 @@ jobs:
           - 3311:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.13"
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3311,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.1 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3311
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3311,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.1 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3311
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py314-mysql92:
     name: Run tests with Python 3.14 and MySQL 9.2 (with coverage)
@@ -595,107 +595,107 @@ jobs:
           - 3312:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.14
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-        pip install codecov build
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install codecov build
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        conn = mysql.connector.connect(host='127.0.0.1', port=3312, user='root', password='password')
-        cursor = conn.cursor()
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        cursor.execute('USE test_db')
-        print('Successfully created test_db')
-        cursor.close()
-        conn.close()
-        "
+      - name: Create test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          conn = mysql.connector.connect(host='127.0.0.1', port=3312, user='root', password='password')
+          cursor = conn.cursor()
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('USE test_db')
+          print('Successfully created test_db')
+          cursor.close()
+          conn.close()
+          "
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3312,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.2 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3312
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3312,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests with coverage
-      run: |
-        export PYTHONPATH=src
-        coverage run -m pytest tests/
-        coverage xml
-        coverage report
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage.xml
-        flags: unittests,python-3.14,mysql-9.2
-        name: codecov-mysql-3.14-9.2
-        fail_ci_if_error: false
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.2 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3312
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests with coverage
+        run: |
+          export PYTHONPATH=src
+          coverage run -m pytest tests/
+          coverage xml
+          coverage report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests,python-3.14,mysql-9.2
+          name: codecov-mysql-3.14-9.2
+          fail_ci_if_error: false
 
   test-py313t-mysql93:
     name: Run tests with Python 3.13t and MySQL 9.3
@@ -714,81 +714,81 @@ jobs:
           - 3313:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.13t
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.13t"
+      - name: Set up Python 3.13t
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13t"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3313,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.3 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3313
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3313,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.3 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3313
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py314t-mysql94:
     name: Run tests with Python 3.14t and MySQL 9.4
@@ -807,81 +807,81 @@ jobs:
           - 3314:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.14t
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14t"
+      - name: Set up Python 3.14t
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14t"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3314,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.4 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3314
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3314,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.4 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3314
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py314-mysql95:
     name: Run tests with Python 3.14 and MySQL 9.5
@@ -900,81 +900,81 @@ jobs:
           - 3315:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.14
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3315,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.5 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3315
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3315,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.5 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3315
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/
 
   test-py314t-mysql96:
     name: Run tests with Python 3.14t and MySQL 9.6
@@ -993,78 +993,78 @@ jobs:
           - 3316:3306
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v3
+      - name: Check out the repository
+        uses: actions/checkout@v6
 
-    - name: Set up Python 3.14t
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14t"
+      - name: Set up Python 3.14t
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14t"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-    - name: Install activerecord and testsuite from git
-      run: |
-        pip install rhosocial-activerecord==1.0.0.dev16
-        pip install rhosocial-activerecord-testsuite==1.0.0.dev6
+      - name: Install activerecord and testsuite from git
+        run: |
+          pip install rhosocial-activerecord==1.0.0.dev18
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev7
 
-    - name: Create and test database
-      run: |
-        pip install mysql-connector-python
-        python -c "
-        import mysql.connector
-        # Connect to MySQL
-        ssl_disabled = True  # 默认不启用SSL
-        ssl_mode = 'required' if not ssl_disabled else 'disabled'
-        
-        conn_params = {
-            'host': '127.0.0.1',
-            'port': 3316,
-            'user': 'root',
-            'password': 'password',
-            'database': 'mysql'
-        }
-        
-        if not ssl_disabled:
-            conn_params['ssl_disabled'] = False
-        else:
-            conn_params['ssl_disabled'] = True
-            
-        conn = mysql.connector.connect(**conn_params)
-        cursor = conn.cursor()
-        
-        # Create test database
-        cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
-        print('Successfully created test_db')
-        
-        # Test basic connectivity with SELECT NOW()
-        cursor.execute('SELECT NOW()')
-        result = cursor.fetchone()
-        print('MySQL 9.6 connectivity test passed - Current time:', result[0])
-        
-        cursor.close()
-        conn.close()
-        "
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          # Connect to MySQL
+          ssl_disabled = True  # 默认不启用SSL
+          ssl_mode = 'required' if not ssl_disabled else 'disabled'
 
-    - name: Create MySQL scenario config
-      run: |
-        cat > mysql_scenarios.yaml << EOF
-        scenarios:
-          mysql_default:
-            host: 127.0.0.1
-            port: 3316
-            database: test_db
-            username: root
-            password: password
-            charset: utf8mb4
-            autocommit: true
-        EOF
-        echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+          conn_params = {
+              'host': '127.0.0.1',
+              'port': 3316,
+              'user': 'root',
+              'password': 'password',
+              'database': 'mysql'
+          }
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=src
-        python -m pytest tests/
+          if not ssl_disabled:
+              conn_params['ssl_disabled'] = False
+          else:
+              conn_params['ssl_disabled'] = True
+              
+          conn = mysql.connector.connect(**conn_params)
+          cursor = conn.cursor()
+
+          # Create test database
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          print('Successfully created test_db')
+
+          # Test basic connectivity with SELECT NOW()
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.6 connectivity test passed - Current time:', result[0])
+
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3316
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src
+          python -m pytest tests/

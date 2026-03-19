@@ -22,27 +22,37 @@ jobs:
       - name: Check for changelog fragment
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Fetch the base branch explicitly to ensure it's available for comparison
           git fetch origin ${{ github.base_ref }}
-          
+
+          # --- EXEMPTION FOR RELEASE BRANCH MERGES ---
+          # Release branches already contain changelog fragments from development
+          # Skip fragment check for PRs from release/* branches to main
+          if [[ "$HEAD_REF" =~ ^release/ ]]; then
+            echo "✓ Release branch PR, fragment check skipped (fragments already in branch history)"
+            exit 0
+          fi
+          # --- END RELEASE BRANCH EXEMPTION ---
+
           # Compare the head of the PR (current HEAD) with the base branch's remote tracking ref
           # This compares the changes introduced by the PR branch relative to its base.
           # Use --diff-filter=A to only consider added files for fragment check
           CHANGED_FILES=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD)
-          
+
           # Debugging: Print the diff command and its output
           echo "Executing: git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD"
           echo "Changed files (added only): $CHANGED_FILES"
-          
-          # --- NEW EXEMPTION FOR CHANGELOG BUILD PRS ---
+
+          # --- EXEMPTION FOR CHANGELOG BUILD PRS ---
           # Check if PR title indicates a changelog update (e.g., "docs: update CHANGELOG")
           # This exempts PRs that are specifically for building the changelog (which remove fragments)
           if [[ "$PR_TITLE" =~ ^docs:\ update\ CHANGELOG ]]; then
             echo "✓ PR title indicates changelog update, fragment check skipped"
             exit 0
           fi
-          # --- END NEW EXEMPTION ---
+          # --- END EXEMPTION ---
           
           # Check if any changelog fragment was added
           if echo "$CHANGED_FILES" | grep -q "^changelog.d/[0-9].*\.md$"; then

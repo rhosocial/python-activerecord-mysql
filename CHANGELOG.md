@@ -1,3 +1,17 @@
+## [v1.0.0.dev8] - 2026-03-20
+
+### Added
+
+- Added MySQL CLI protocol support display with database introspection for version detection, enabling users to view detailed feature availability based on actual server version. ([#12](https://github.com/rhosocial/python-activerecord-mysql/issues/12))
+- Added Python version-aware fixture selection for MySQL backend testing, enabling Python 3.10+ UnionType syntax support. ([#13](https://github.com/rhosocial/python-activerecord-mysql/issues/13))
+
+
+
+### Fixed
+
+- Reduced cognitive complexity in CLI display_info functions to comply with SonarCloud quality standards. ([#14](https://github.com/rhosocial/python-activerecord-mysql/issues/14))
+
+
 ## [v1.0.0.dev7] - 2026-03-13
 
 ### Added

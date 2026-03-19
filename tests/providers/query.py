@@ -11,13 +11,95 @@ Its main responsibilities are:
 3.  Cleaning up any resources (like temporary database files) after a test runs.
 """
 import os
+import sys
+import logging
 from typing import Type, List, Tuple
+
 from rhosocial.activerecord.model import ActiveRecord
-from rhosocial.activerecord.testsuite.feature.query.interfaces import IQueryProvider
-# The models are defined generically in the testsuite...
-from rhosocial.activerecord.testsuite.feature.query.fixtures.models import User, Order, OrderItem, Post, Comment, MappedUser, MappedPost, MappedComment
+
+# Setup logging for fixture selection debugging
+logger = logging.getLogger(__name__)
+
+# Import the fixture selector utility
+from rhosocial.activerecord.testsuite.utils import select_fixture
+
+# Import base version models (Python 3.8+)
+from rhosocial.activerecord.testsuite.feature.query.fixtures.models import (
+    User as UserBase, JsonUser as JsonUserBase,
+    Order as OrderBase, OrderItem as OrderItemBase,
+    Post as PostBase, Comment as CommentBase,
+    MappedUser as MappedUserBase, MappedPost as MappedPostBase, MappedComment as MappedCommentBase
+)
 from rhosocial.activerecord.testsuite.feature.query.fixtures.cte_models import Node
 from rhosocial.activerecord.testsuite.feature.query.fixtures.extended_models import ExtendedOrder, ExtendedOrderItem
+
+# Conditionally import Python 3.10+ models
+User310 = JsonUser310 = Order310 = OrderItem310 = Post310 = Comment310 = None
+MappedUser310 = MappedPost310 = MappedComment310 = None
+
+if sys.version_info >= (3, 10):
+    try:
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models_py310 import (
+            User as User310, JsonUser as JsonUser310,
+            Order as Order310, OrderItem as OrderItem310,
+            Post as Post310, Comment as Comment310,
+            MappedUser as MappedUser310, MappedPost as MappedPost310, MappedComment as MappedComment310
+        )
+    except ImportError as e:
+        logger.warning(f"Failed to import Python 3.10+ fixtures: {e}")
+
+# Conditionally import Python 3.11+ models
+User311 = JsonUser311 = Order311 = OrderItem311 = Post311 = Comment311 = None
+MappedUser311 = MappedPost311 = MappedComment311 = None
+
+if sys.version_info >= (3, 11):
+    try:
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models_py311 import (
+            User as User311, JsonUser as JsonUser311,
+            Order as Order311, OrderItem as OrderItem311,
+            Post as Post311, Comment as Comment311,
+            MappedUser as MappedUser311, MappedPost as MappedPost311, MappedComment as MappedComment311
+        )
+    except ImportError as e:
+        logger.warning(f"Failed to import Python 3.11+ fixtures: {e}")
+
+# Conditionally import Python 3.12+ models
+User312 = JsonUser312 = Order312 = OrderItem312 = Post312 = Comment312 = None
+MappedUser312 = MappedPost312 = MappedComment312 = None
+
+if sys.version_info >= (3, 12):
+    try:
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models_py312 import (
+            User as User312, JsonUser as JsonUser312,
+            Order as Order312, OrderItem as OrderItem312,
+            Post as Post312, Comment as Comment312,
+            MappedUser as MappedUser312, MappedPost as MappedPost312, MappedComment as MappedComment312
+        )
+    except ImportError as e:
+        logger.warning(f"Failed to import Python 3.12+ fixtures: {e}")
+
+
+# Select appropriate fixture classes based on Python version
+def _select_model_class(base_cls, py312_cls, py311_cls, py310_cls, model_name: str) -> Type:
+    """Select the most appropriate model class for the current Python version."""
+    candidates = [c for c in [py312_cls, py311_cls, py310_cls, base_cls] if c is not None]
+    selected = select_fixture(*candidates)
+    logger.info(f"Selected {model_name}: {selected.__name__} from {selected.__module__}")
+    return selected
+
+
+# Select sync models
+User = _select_model_class(UserBase, User312, User311, User310, "User")
+JsonUser = _select_model_class(JsonUserBase, JsonUser312, JsonUser311, JsonUser310, "JsonUser")
+Order = _select_model_class(OrderBase, Order312, Order311, Order310, "Order")
+OrderItem = _select_model_class(OrderItemBase, OrderItem312, OrderItem311, OrderItem310, "OrderItem")
+Post = _select_model_class(PostBase, Post312, Post311, Post310, "Post")
+Comment = _select_model_class(CommentBase, Comment312, Comment311, Comment310, "Comment")
+MappedUser = _select_model_class(MappedUserBase, MappedUser312, MappedUser311, MappedUser310, "MappedUser")
+MappedPost = _select_model_class(MappedPostBase, MappedPost312, MappedPost311, MappedPost310, "MappedPost")
+MappedComment = _select_model_class(MappedCommentBase, MappedComment312, MappedComment311, MappedComment310, "MappedComment")
+
+from rhosocial.activerecord.testsuite.feature.query.interfaces import IQueryProvider
 # ...and the scenarios are defined specifically for this backend.
 from .scenarios import get_enabled_scenarios, get_scenario
 
@@ -63,7 +145,7 @@ class QueryProvider(IQueryProvider):
             # If there's an error, ensure foreign key checks are re-enabled
             try:
                 model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
-            except:
+            except Exception:
                 pass  # Ignore any errors when re-enabling foreign key checks
             # Continue anyway since the table might not exist
         
@@ -139,7 +221,6 @@ class QueryProvider(IQueryProvider):
     def setup_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         """Sets up the database for the JSON user model tests."""
         import pytest
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import JsonUser
         backend_class, config = get_scenario(scenario_name)
         JsonUser.configure(config, backend_class)
         backend_instance = JsonUser.__backend__
@@ -286,12 +367,12 @@ class QueryProvider(IQueryProvider):
             except Exception:
                 try:
                     await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-                except:
+                except Exception:
                     pass
             finally:
                 try:
                     await backend_instance.disconnect()
-                except:
+                except Exception:
                     pass
         
         self._active_backends.clear()
@@ -327,7 +408,7 @@ class QueryProvider(IQueryProvider):
                 # If there's an error, ensure foreign key checks are re-enabled
                 try:
                     backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-                except:
+                except Exception:
                     pass  # Ignore any errors when re-enabling foreign key checks
             finally:
                 # Always disconnect the backend instance that was used in the test
