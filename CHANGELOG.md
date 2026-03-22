@@ -1,3 +1,10 @@
+## [v1.0.0.dev9] - 2026-03-22
+
+### Added
+
+- Added MySQL SET and VECTOR type support, and refactored backend code to extract common functionality into mixin classes for better code reuse between sync and async implementations. ([#16](https://github.com/rhosocial/python-activerecord-mysql/issues/16))
+
+
 ## [v1.0.0.dev8] - 2026-03-20
 
 ### Added
