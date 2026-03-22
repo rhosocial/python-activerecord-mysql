@@ -453,6 +453,60 @@ class MySQLSetAdapter(SQLTypeAdapter):
         sorted_values = sorted(str(v) for v in value)
         return ','.join(sorted_values) if sorted_values else ''
 
+    def _decode_set_from_int(
+        self,
+        value: int,
+        target_type: Type,
+        allowed_values: Optional[List[str]]
+    ) -> Union[set, frozenset]:
+        """
+        Decode MySQL SET from integer bit flags.
+
+        Args:
+            value: Integer bit flags
+            target_type: Target Python type (set or frozenset)
+            allowed_values: List of allowed values for decoding
+
+        Returns:
+            Python set or frozenset
+
+        Raises:
+            ValueError: If allowed_values is not provided
+        """
+        if allowed_values is None:
+            raise ValueError(
+                "Cannot decode SET from integer without allowed_values. "
+                "Provide allowed_values in constructor or options."
+            )
+
+        result = set()
+        for i, val in enumerate(allowed_values):
+            if value & (1 << i):
+                result.add(val)
+
+        return frozenset(result) if target_type is frozenset else result
+
+    def _decode_set_from_string(
+        self,
+        value: str,
+        target_type: Type
+    ) -> Union[set, frozenset]:
+        """
+        Decode MySQL SET from comma-separated string.
+
+        Args:
+            value: Comma-separated string
+            target_type: Target Python type (set or frozenset)
+
+        Returns:
+            Python set or frozenset
+        """
+        if not value:
+            result = set()
+        else:
+            result = set(value.split(','))
+        return frozenset(result) if target_type is frozenset else result
+
     def from_database(
         self,
         value: Any,
@@ -478,29 +532,12 @@ class MySQLSetAdapter(SQLTypeAdapter):
 
         # Handle integer storage (bit flags)
         if isinstance(value, int):
-            # MySQL stores SET as bit flags: bit 0 = first value, bit 1 = second, etc.
-            # Need allowed_values to decode
             allowed_values = self._allowed_values or (options.get('allowed_values') if options else None)
-            if allowed_values is None:
-                raise ValueError(
-                    "Cannot decode SET from integer without allowed_values. "
-                    "Provide allowed_values in constructor or options."
-                )
-
-            result = set()
-            for i, val in enumerate(allowed_values):
-                if value & (1 << i):
-                    result.add(val)
-
-            return frozenset(result) if target_type is frozenset else result
+            return self._decode_set_from_int(value, target_type, allowed_values)
 
         # Handle string storage (comma-separated)
         if isinstance(value, str):
-            if not value:
-                result = set()
-            else:
-                result = set(value.split(','))
-            return frozenset(result) if target_type is frozenset else result
+            return self._decode_set_from_string(value, target_type)
 
         raise TypeError(
             f"Cannot convert {type(value).__name__} to {target_type.__name__}"
@@ -595,6 +632,62 @@ class MySQLVectorAdapter(SQLTypeAdapter):
             return vector_str.encode('utf-8')
         return vector_str
 
+    def _decode_vector_from_bytes(self, value: bytes) -> List[float]:
+        """
+        Decode MySQL VECTOR from binary format.
+
+        Args:
+            value: Binary data (either UTF-8 encoded string or packed floats)
+
+        Returns:
+            List of float values
+
+        Raises:
+            ValueError: If binary format is invalid
+        """
+        # Try UTF-8 decode first (string format stored as bytes)
+        try:
+            return self._decode_vector_from_string(value.decode('utf-8'))
+        except UnicodeDecodeError:
+            pass
+
+        # Binary format: packed IEEE 754 float32 values (little-endian)
+        import struct
+        float_count = len(value) // 4
+        if len(value) % 4 != 0:
+            raise ValueError(
+                f"Invalid VECTOR binary length: {len(value)} bytes "
+                f"(must be multiple of 4 for float32 values)"
+            ) from None
+        return list(struct.unpack(f'<{float_count}f', value))
+
+    def _decode_vector_from_string(self, value: str) -> List[float]:
+        """
+        Decode MySQL VECTOR from string format.
+
+        Args:
+            value: String representation like '[1.0,2.0,3.0]'
+
+        Returns:
+            List of float values
+
+        Raises:
+            ValueError: If string cannot be parsed
+        """
+        # Remove brackets and split
+        value = value.strip()
+        if value.startswith('[') and value.endswith(']'):
+            value = value[1:-1]
+
+        if not value:
+            return []
+
+        # Split by comma and convert to floats
+        try:
+            return [float(v.strip()) for v in value.split(',')]
+        except ValueError as e:
+            raise ValueError(f"Cannot parse VECTOR value: {value}") from e
+
     def from_database(
         self,
         value: Any,
@@ -629,37 +722,13 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         if isinstance(value, list):
             return [float(v) for v in value]
 
-        # Binary format - could be either string bytes or packed floats
+        # Binary format
         if isinstance(value, bytes):
-            # Try UTF-8 decode first (string format stored as bytes)
-            try:
-                value = value.decode('utf-8')
-            except UnicodeDecodeError:
-                # Binary format: packed IEEE 754 float32 values (little-endian)
-                import struct
-                float_count = len(value) // 4
-                if len(value) % 4 != 0:
-                    raise ValueError(
-                        f"Invalid VECTOR binary length: {len(value)} bytes "
-                        f"(must be multiple of 4 for float32 values)"
-                    ) from None
-                return list(struct.unpack(f'<{float_count}f', value))
+            return self._decode_vector_from_bytes(value)
 
-        # String format: '[1.0,2.0,3.0]' or similar
+        # String format
         if isinstance(value, str):
-            # Remove brackets and split
-            value = value.strip()
-            if value.startswith('[') and value.endswith(']'):
-                value = value[1:-1]
-
-            if not value:
-                return []
-
-            # Split by comma and convert to floats
-            try:
-                return [float(v.strip()) for v in value.split(',')]
-            except ValueError as e:
-                raise ValueError(f"Cannot parse VECTOR value: {value}") from e
+            return self._decode_vector_from_string(value)
 
         raise TypeError(
             f"Cannot convert {type(value).__name__} to vector (list of floats)"
