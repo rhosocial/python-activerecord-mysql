@@ -6,23 +6,27 @@ This module provides async transaction management capabilities for MySQL,
 including savepoints and proper isolation level handling.
 """
 import logging
-from typing import Dict, Optional
 
 from rhosocial.activerecord.backend.transaction import (
     AsyncTransactionManager,
     IsolationLevel,
     TransactionState,
-    TransactionError
+    TransactionError,
 )
+from .mixins import MySQLTransactionMixin
 
 
-class AsyncMySQLTransactionManager(AsyncTransactionManager):
+class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManager):
     """Asynchronous transaction manager for MySQL backend."""
+
+    _ISOLATION_LEVELS = MySQLTransactionMixin._ISOLATION_LEVELS
 
     def __init__(self, connection, logger=None):
         """Initialize async MySQL transaction manager."""
         super().__init__(connection, logger)
         self._savepoint_counter = 0
+        self._isolation_level = IsolationLevel.REPEATABLE_READ
+        self._state = TransactionState.INACTIVE
 
     async def _ensure_connection_ready(self):
         """Ensure connection is ready for transaction operations asynchronously."""
@@ -39,7 +43,7 @@ class AsyncMySQLTransactionManager(AsyncTransactionManager):
         except Exception:
             error_msg = "Connection is not active"
             self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg)
+            raise TransactionError(error_msg) from None
 
     async def _do_begin(self) -> None:
         """Begin a new transaction"""

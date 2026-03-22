@@ -64,6 +64,7 @@ from .protocols import (
     MySQLSetTypeSupport,
     MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
+    MySQLVectorSupport,
 )
 from .mixins import (
     MySQLTriggerMixin,
@@ -71,6 +72,7 @@ from .mixins import (
     MySQLSetTypeMixin,
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
+    MySQLVectorMixin,
 )
 
 if TYPE_CHECKING:
@@ -111,6 +113,7 @@ class MySQLDialect(
     MySQLSetTypeMixin,
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
+    MySQLVectorMixin,  # MySQL 9.0+ VECTOR type support
     # Protocols for type checking
     CTESupport,
     FilterClauseSupport,
@@ -141,6 +144,7 @@ class MySQLDialect(
     MySQLSetTypeSupport,
     MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
+    MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -864,4 +868,48 @@ class MySQLDialect(
         """MySQL supports QUERY EXPANSION."""
         return True  # All versions with FULLTEXT support this
 
+    # endregion
+
+    # region MySQL 8.0 Index Features
+    def supports_invisible_index(self) -> bool:
+        """Whether INVISIBLE indexes are supported.
+
+        MySQL 8.0+ supports invisible indexes that are not used by the optimizer.
+        """
+        return self.version >= (8, 0, 0)
+
+    def supports_descending_index(self) -> bool:
+        """Whether descending indexes are supported.
+
+        MySQL 8.0+ supports true descending indexes (not just reverse scans).
+        """
+        return self.version >= (8, 0, 0)
+
+    def supports_functional_index(self) -> bool:
+        """Whether functional (expression) indexes are supported.
+
+        MySQL 8.0+ supports indexes on expressions (functional indexes).
+        """
+        return self.version >= (8, 0, 0)
+
+    def supports_check_constraint(self) -> bool:
+        """Whether CHECK constraints are enforced.
+
+        MySQL 8.0.16+ enforces CHECK constraints (before that, they were parsed but ignored).
+        """
+        return self.version >= (8, 0, 16)
+
+    def supports_generated_column(self) -> bool:
+        """Whether generated (computed) columns are supported.
+
+        MySQL 5.7+ supports generated columns (STORED and VIRTUAL).
+        """
+        return self.version >= (5, 7, 0)
+
+    def supports_default_column_value_expression(self) -> bool:
+        """Whether DEFAULT column values can use expressions.
+
+        MySQL 8.0+ supports expressions in DEFAULT column values.
+        """
+        return self.version >= (8, 0, 0)
     # endregion
