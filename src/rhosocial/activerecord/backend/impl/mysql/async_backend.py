@@ -9,7 +9,7 @@ the synchronous backend but uses async/await for I/O operations.
 """
 import datetime
 import logging
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import List, Optional, Tuple
 
 import mysql.connector.aio as mysql_async
 from mysql.connector.errors import (
@@ -17,7 +17,6 @@ from mysql.connector.errors import (
     Error as MySQLError,
     IntegrityError as MySQLIntegrityError,
     OperationalError as MySQLOperationalError,
-    ProgrammingError,
 )
 
 from rhosocial.activerecord.backend.base import AsyncStorageBackend
@@ -29,26 +28,14 @@ from rhosocial.activerecord.backend.errors import (
     OperationalError,
     QueryError,
 )
-from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 from rhosocial.activerecord.backend.result import QueryResult
-from .adapters import (
-    MySQLBlobAdapter,
-    MySQLBooleanAdapter,
-    MySQLDateAdapter,
-    MySQLDatetimeAdapter,
-    MySQLDecimalAdapter,
-    MySQLEnumAdapter,
-    MySQLJSONAdapter,
-    MySQLTimeAdapter,
-    MySQLUUIDAdapter,
-)
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
+from .mixins import MySQLBackendMixin
 
 
-class AsyncMySQLBackend(AsyncStorageBackend):
+class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -114,28 +101,6 @@ class AsyncMySQLBackend(AsyncStorageBackend):
 
         self.log(logging.INFO, "AsyncMySQLBackend initialized")
 
-    def _register_mysql_adapters(self):
-        """Register MySQL-specific type adapters."""
-        mysql_adapters = [
-            MySQLBlobAdapter(),
-            MySQLBooleanAdapter(),
-            MySQLDateAdapter(),
-            MySQLDatetimeAdapter(self._version),
-            MySQLDecimalAdapter(),
-            MySQLEnumAdapter(use_int_storage=False),  # Default to string representation
-            MySQLJSONAdapter(),
-            MySQLTimeAdapter(),
-            MySQLUUIDAdapter(),
-        ]
-
-        for adapter in mysql_adapters:
-            for py_type, db_types in adapter.supported_types.items():
-                for db_type in db_types:
-                    # Use allow_override=True to allow re-registration with updated version
-                    self.adapter_registry.register(adapter, py_type, db_type, allow_override=True)
-
-        self.log(logging.DEBUG, "Registered MySQL-specific type adapters")
-
     async def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.
 
@@ -151,21 +116,6 @@ class AsyncMySQLBackend(AsyncStorageBackend):
             self._dialect = MySQLDialect(actual_version)
             self._register_mysql_adapters()
             self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
-
-    @property
-    def dialect(self):
-        """Get the MySQL dialect instance (lazy loads with configured version)."""
-        if self._dialect is None:
-            self._dialect = MySQLDialect(self._version)
-        return self._dialect
-
-    @property
-    def transaction_manager(self):
-        """Get the async MySQL transaction manager."""
-        # Update the transaction manager's connection if needed
-        if self._transaction_manager:
-            self._transaction_manager._connection = self._connection
-        return self._transaction_manager
 
     async def connect(self):
         """Establish async connection to MySQL database."""
@@ -204,7 +154,8 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                 'read_timeout', 'write_timeout', 'use_pure', 'get_warnings',
                 'buffered', 'raw', 'compress', 'allow_local_infile', 'conn_attrs',
                 'client_flags', 'unix_socket', 'ssl_disabled'
-                # Note: Connection pool parameters (pool_name, pool_size, pool_pre_ping, etc.) are not supported by async connector
+                # Note: Connection pool parameters (pool_name, pool_size,
+                # pool_pre_ping, etc.) are not supported by async connector
             ]
 
             for param in additional_params:
@@ -226,10 +177,14 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                 await cursor.execute(init_command)
                 await cursor.close()
 
-            self.log(logging.INFO, f"Connected to MySQL database: {self.config.host}:{self.config.port}/{self.config.database}")
+            self.log(
+                logging.INFO,
+                f"Connected to MySQL database: "
+                f"{self.config.host}:{self.config.port}/{self.config.database}"
+            )
         except mysql_async.Error as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
-            raise ConnectionError(f"Failed to connect to MySQL: {str(e)}")
+            raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
 
     async def disconnect(self):
         """Close async connection to MySQL database."""
@@ -244,7 +199,7 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                 self.log(logging.INFO, "Disconnected from MySQL database")
             except mysql_async.Error as e:
                 self.log(logging.ERROR, f"Error during disconnection: {str(e)}")
-                raise OperationalError(f"Error during MySQL disconnection: {str(e)}")
+                raise OperationalError(f"Error during MySQL disconnection: {str(e)}") from e
 
     async def _get_cursor(self):
         """Get a database cursor, ensuring connection is active."""
@@ -286,18 +241,22 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                 duration=duration
             )
 
-            self.log(logging.INFO, f"Batch operation completed, affected {affected_rows} rows, duration={duration:.3f}s")
+            self.log(
+                logging.INFO,
+                f"Batch operation completed, affected {affected_rows} rows, "
+                f"duration={duration:.3f}s"
+            )
             return result
 
         except MySQLIntegrityError as e:
             self.log(logging.ERROR, f"Integrity error in batch: {str(e)}")
-            raise IntegrityError(str(e))
+            raise IntegrityError(str(e)) from e
         except MySQLError as e:
             self.log(logging.ERROR, f"MySQL error in batch: {str(e)}")
-            raise DatabaseError(str(e))
+            raise DatabaseError(str(e)) from e
         except Exception as e:
             self.log(logging.ERROR, f"Unexpected error during batch execution: {str(e)}")
-            raise QueryError(str(e))
+            raise QueryError(str(e)) from e
         finally:
             if cursor:
                 await cursor.close()
@@ -332,23 +291,6 @@ class AsyncMySQLBackend(AsyncStorageBackend):
         finally:
             if cursor:
                 await cursor.close()
-
-    def requires_manual_commit(self) -> bool:
-        """Check if manual commit is required for this database."""
-        return not getattr(self.config, 'autocommit', True)
-
-    def _check_returning_compatibility(self, returning_clause):
-        """Check if RETURNING clause is compatible with this MySQL version."""
-        # MySQL does not support RETURNING clause
-        if self.dialect.supports_returning_clause():
-            return True
-        else:
-            raise UnsupportedFeatureError(
-                self.name,
-                "RETURNING clause",
-                "MySQL does not support RETURNING clause. "
-                "Consider using LAST_INSERT_ID() or alternative approaches."
-            )
 
     async def ping(self, reconnect: bool = True) -> bool:
         """Ping the MySQL server to check if the connection is alive."""
@@ -447,68 +389,6 @@ class AsyncMySQLBackend(AsyncStorageBackend):
                 await self._connection.commit()
                 self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
 
-    def get_default_adapter_suggestions(self) -> Dict[Type, Tuple['SQLTypeAdapter', Type]]:
-        """
-        [Backend Implementation] Provides default type adapter suggestions for MySQL.
-
-        This method defines a curated set of type adapter suggestions for common Python
-        types, mapping them to their typical MySQL-compatible representations as
-        demonstrated in test fixtures. It explicitly retrieves necessary `SQLTypeAdapter`
-        instances from the backend's `adapter_registry`. If an adapter for a specific
-        (Python type, DB driver type) pair is not registered, no suggestion will be
-        made for that Python type.
-
-        Returns:
-            Dict[Type, Tuple[SQLTypeAdapter, Type]]: A dictionary where keys are
-            original Python types (`TypeRegistry`'s `py_type`), and values are
-            tuples containing a `SQLTypeAdapter` instance and the target
-            Python type (`TypeRegistry`'s `db_type`) expected by the driver.
-        """
-        suggestions: Dict[Type, Tuple['SQLTypeAdapter', Type]] = {}
-
-        # Define a list of desired Python type to DB driver type mappings.
-        # This list reflects types seen in test fixtures and common usage,
-        # along with their preferred database-compatible Python types for the driver.
-        # Types that are natively compatible with the DB driver (e.g., Python str, int, float)
-        # and for which no specific conversion logic is needed are omitted from this list.
-        # The consuming layer should assume pass-through behavior for any Python type
-        # that does not have an explicit adapter suggestion.
-        #
-        # Exception: If a user requires specific processing for a natively compatible type
-        # (e.g., custom serialization/deserialization for JSON strings beyond basic conversion),
-        # they would need to implement and register their own specialized adapter.
-        # This backend's default suggestions do not cater to such advanced processing needs.
-        from datetime import date, datetime, time
-        from decimal import Decimal
-        from uuid import UUID
-        from enum import Enum
-
-        type_mappings = [
-            (bool, int),        # Python bool -> DB driver int (MySQL TINYINT)
-            # Why str for date/time?
-            # MySQL accepts string representations of dates/times and converts them appropriately.
-            (datetime, str),    # Python datetime -> DB driver str (MySQL DATETIME/TIMESTAMP)
-            (date, str),        # Python date -> DB driver str (MySQL DATE)
-            (time, str),        # Python time -> DB driver str (MySQL TIME)
-            (Decimal, float),   # Python Decimal -> DB driver float (MySQL DECIMAL)
-            (UUID, str),        # Python UUID -> DB driver str (MySQL CHAR/VARCHAR/BINARY)
-            (dict, str),        # Python dict -> DB driver str (MySQL TEXT for JSON)
-            (list, str),        # Python list -> DB driver str (MySQL TEXT for JSON)
-            (Enum, str),        # Python Enum -> DB driver str (MySQL TEXT/VARCHAR)
-        ]
-
-        # Iterate through the defined mappings and retrieve adapters from the registry.
-        for py_type, db_type in type_mappings:
-            adapter = self.adapter_registry.get_adapter(py_type, db_type)
-            if adapter:
-                suggestions[py_type] = (adapter, db_type)
-            else:
-                # Log a debug message if a specific adapter is expected but not found.
-                self.log(logging.DEBUG, f"No adapter found for ({py_type.__name__}, {db_type.__name__}). "
-                                      "Suggestion will not be provided for this type.")
-
-        return suggestions
-
     async def execute(self, sql: str, params: Optional[Tuple] = None, *, options=None, **kwargs) -> QueryResult:
         """Execute a SQL statement with optional parameters asynchronously."""
         from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
@@ -548,11 +428,3 @@ class AsyncMySQLBackend(AsyncStorageBackend):
             return await super().execute(mysql_sql, params, options=options)
         else:
             return await super().execute(sql, params, options=options)
-
-    def log(self, level: int, message: str):
-        """Log a message with the specified level."""
-        if hasattr(self, '_logger') and self._logger:
-            self._logger.log(level, message)
-        else:
-            # Fallback logging
-            print(f"[{logging.getLevelName(level)}] {message}")
