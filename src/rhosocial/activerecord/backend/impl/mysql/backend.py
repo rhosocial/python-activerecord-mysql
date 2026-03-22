@@ -43,6 +43,7 @@ from .adapters import (
     MySQLDecimalAdapter,
     MySQLEnumAdapter,
     MySQLJSONAdapter,
+    MySQLSetAdapter,
     MySQLTimeAdapter,
     MySQLUUIDAdapter,
 )
@@ -129,6 +130,7 @@ class MySQLBackend(StorageBackend):
             MySQLDecimalAdapter(),
             MySQLEnumAdapter(use_int_storage=False),  # Default to string representation
             MySQLJSONAdapter(),
+            MySQLSetAdapter(),  # MySQL SET type support
             MySQLTimeAdapter(),
             MySQLUUIDAdapter(),
         ]
@@ -497,6 +499,8 @@ class MySQLBackend(StorageBackend):
             (dict, str),        # Python dict -> DB driver str (MySQL TEXT for JSON)
             (list, str),        # Python list -> DB driver str (MySQL TEXT for JSON)
             (Enum, str),        # Python Enum -> DB driver str (MySQL TEXT/VARCHAR)
+            (set, str),         # Python set -> DB driver str (MySQL SET)
+            (frozenset, str),   # Python frozenset -> DB driver str (MySQL SET)
         ]
 
         # Iterate through the defined mappings and retrieve adapters from the registry.

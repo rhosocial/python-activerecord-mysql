@@ -679,3 +679,174 @@ class MySQLSpatialMixin:
             f"({self.format_identifier(column)})",
             ()
         )
+
+
+class MySQLVectorMixin:
+    """MySQL vector data type implementation.
+
+    MySQL VECTOR type (since 9.0+) features:
+    - Multi-dimensional vector storage for AI/ML applications
+    - Similarity search with distance functions
+    - Maximum 16,384 dimensions
+    - Binary storage format for optimized operations
+    - VECTOR indexes for fast similarity search
+
+    Version Requirements:
+    - VECTOR type: MySQL 9.0+
+    - VECTOR indexes: MySQL 9.0.1+
+    """
+
+    # Maximum dimension supported by MySQL 9.0
+    MAX_VECTOR_DIMENSION = 16384
+
+    def supports_vector_type(self) -> bool:
+        """VECTOR type is supported since MySQL 9.0."""
+        return self.version >= (9, 0, 0)
+
+    def supports_vector_index(self) -> bool:
+        """VECTOR indexes are supported since MySQL 9.0.1."""
+        return self.version >= (9, 0, 1)
+
+    def get_max_vector_dimension(self) -> int:
+        """Get maximum supported vector dimension."""
+        return self.MAX_VECTOR_DIMENSION
+
+    def format_vector_literal(
+        self,
+        values: List[float]
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR literal value.
+
+        Args:
+            values: List of float values representing the vector
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        if len(values) > self.MAX_VECTOR_DIMENSION:
+            raise ValueError(
+                f"Vector dimension {len(values)} exceeds maximum "
+                f"supported dimension {self.MAX_VECTOR_DIMENSION}"
+            )
+        # Use STRING_TO_VECTOR for literal creation
+        vector_str = '[' + ','.join(str(v) for v in values) + ']'
+        return "STRING_TO_VECTOR(%s)", (vector_str,)
+
+    def format_string_to_vector(
+        self,
+        vector_str: str
+    ) -> Tuple[str, tuple]:
+        """Format STRING_TO_VECTOR function.
+
+        Args:
+            vector_str: String representation of vector (e.g., '[1.0,2.0,3.0]')
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return "STRING_TO_VECTOR(%s)", (vector_str,)
+
+    def format_vector_to_string(
+        self,
+        vector_col: str
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR_TO_STRING function.
+
+        Args:
+            vector_col: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"VECTOR_TO_STRING({vector_col})", ()
+
+    def format_vector_dim(
+        self,
+        vector_col: str
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR_DIM function.
+
+        Args:
+            vector_col: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"VECTOR_DIM({vector_col})", ()
+
+    def format_distance_euclidean(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_EUCLIDEAN function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"DISTANCE_EUCLIDEAN({vector1}, {vector2})", ()
+
+    def format_distance_cosine(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_COSINE function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"DISTANCE_COSINE({vector1}, {vector2})", ()
+
+    def format_distance_dot(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_DOT function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"DISTANCE_DOT({vector1}, {vector2})", ()
+
+    def format_create_vector_index(
+        self,
+        index_name: str,
+        table_name: str,
+        column: str
+    ) -> Tuple[str, tuple]:
+        """Format CREATE VECTOR INDEX statement.
+
+        Note: MySQL uses CREATE INDEX with VECTOR keyword, not CREATE VECTOR INDEX.
+
+        Args:
+            index_name: Name of the vector index
+            table_name: Name of the table
+            column: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        if not self.supports_vector_index():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(self.name, "VECTOR indexes (requires MySQL 9.0.1+)")
+        # MySQL 9.0.1+ syntax for vector index
+        return (
+            f"CREATE VECTOR INDEX {self.format_identifier(index_name)} "
+            f"ON {self.format_identifier(table_name)} "
+            f"({self.format_identifier(column)})",
+            ()
+        )
