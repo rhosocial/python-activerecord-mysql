@@ -597,3 +597,176 @@ class MySQLSpatialSupport(Protocol):
             Tuple of (SQL string, parameters tuple)
         """
         ...
+
+
+@runtime_checkable
+class MySQLVectorSupport(Protocol):
+    """MySQL vector data type protocol.
+
+    Feature Source: MySQL 9.0+ (AI/ML vector storage)
+
+    MySQL VECTOR type features:
+    - VECTOR: Store multi-dimensional vectors for AI/ML applications
+    - Supports similarity search with vector distance functions
+    - Maximum dimension: 16,384
+    - Storage: Binary format (optimized for similarity operations)
+    - Indexing: Supports VECTOR index for fast similarity search
+
+    Vector Functions (MySQL 9.0+):
+    - VECTOR_DIM(): Get vector dimension
+    - STRING_TO_VECTOR(): Convert string to vector
+    - VECTOR_TO_STRING(): Convert vector to string
+    - DISTANCE_EUCLIDEAN(): Euclidean distance
+    - DISTANCE_COSINE(): Cosine distance
+    - DISTANCE_DOT(): Dot product distance
+
+    Official Documentation:
+    - VECTOR Type: https://dev.mysql.com/doc/refman/9.0/en/vector-type.html
+    - Vector Functions: https://dev.mysql.com/doc/refman/9.0/en/spatial-vector-functions.html
+
+    Version Requirements:
+    - VECTOR type and functions: MySQL 9.0+
+    """
+
+    def supports_vector_type(self) -> bool:
+        """Whether VECTOR type is supported.
+
+        MySQL 9.0+ supports VECTOR type for AI/ML applications.
+        """
+        ...
+
+    def supports_vector_index(self) -> bool:
+        """Whether VECTOR indexes are supported.
+
+        MySQL 9.0.1+ supports VECTOR indexes for fast similarity search.
+        """
+        ...
+
+    def get_max_vector_dimension(self) -> int:
+        """Get maximum supported vector dimension.
+
+        MySQL 9.0 supports up to 16,384 dimensions.
+        """
+        ...
+
+    def format_vector_literal(
+        self,
+        values: List[float]
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR literal value.
+
+        Args:
+            values: List of float values representing the vector
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_string_to_vector(
+        self,
+        vector_str: str
+    ) -> Tuple[str, tuple]:
+        """Format STRING_TO_VECTOR function.
+
+        Args:
+            vector_str: String representation of vector
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_vector_to_string(
+        self,
+        vector_col: str
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR_TO_STRING function.
+
+        Args:
+            vector_col: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_vector_dim(
+        self,
+        vector_col: str
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR_DIM function.
+
+        Args:
+            vector_col: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_distance_euclidean(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_EUCLIDEAN function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_distance_cosine(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_COSINE function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_distance_dot(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_DOT function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_create_vector_index(
+        self,
+        index_name: str,
+        table_name: str,
+        column: str
+    ) -> Tuple[str, tuple]:
+        """Format CREATE VECTOR INDEX statement.
+
+        Args:
+            index_name: Name of the vector index
+            table_name: Name of the table
+            column: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...

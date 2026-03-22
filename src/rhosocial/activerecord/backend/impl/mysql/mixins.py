@@ -1,5 +1,210 @@
 """MySQL dialect-specific Mixin implementations."""
-from typing import Any, Dict, List, Optional, Tuple, Union
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Type
+
+from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
+from rhosocial.activerecord.backend.errors import TransactionError
+from rhosocial.activerecord.backend.transaction import IsolationLevel
+
+
+class MySQLTransactionMixin:
+    """MySQL transaction common functionality.
+
+    Provides shared isolation level management for both sync and async
+    MySQL transaction managers.
+    """
+
+    _ISOLATION_LEVELS: Dict[IsolationLevel, str] = {
+        IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
+        IsolationLevel.READ_COMMITTED: "READ COMMITTED",
+        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
+        IsolationLevel.SERIALIZABLE: "SERIALIZABLE"
+    }
+
+    @property
+    def isolation_level(self) -> Optional[IsolationLevel]:
+        """Get current transaction isolation level."""
+        return self._isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, level: Optional[IsolationLevel]):
+        """Set transaction isolation level."""
+        from rhosocial.activerecord.backend.transaction import IsolationLevelError
+        self.log(logging.DEBUG, f"Setting isolation level to {level}")
+        if self.is_active:
+            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
+            raise IsolationLevelError("Cannot change isolation level during active transaction")
+
+        if level is not None and level not in self._ISOLATION_LEVELS:
+            error_msg = f"Unsupported isolation level: {level}"
+            self.log(logging.ERROR, error_msg)
+            raise TransactionError(error_msg)
+
+        self._isolation_level = level
+
+
+class MySQLBackendMixin:
+    """MySQL backend common functionality.
+
+    Provides shared non-I/O methods for both sync and async MySQL backends.
+    This mixin assumes the following attributes exist in the class:
+    - self._version: MySQL server version tuple
+    - self._dialect: MySQLDialect instance (lazy loaded)
+    - self._transaction_manager: Transaction manager instance
+    - self._connection: Database connection
+    - self.adapter_registry: Type adapter registry
+    - self.config: Connection configuration
+    - self._logger: Logger instance
+    """
+
+    def _register_mysql_adapters(self):
+        """Register MySQL-specific type adapters."""
+        from .adapters import (
+            MySQLBlobAdapter,
+            MySQLBooleanAdapter,
+            MySQLDateAdapter,
+            MySQLDatetimeAdapter,
+            MySQLDecimalAdapter,
+            MySQLEnumAdapter,
+            MySQLJSONAdapter,
+            MySQLSetAdapter,
+            MySQLTimeAdapter,
+            MySQLUUIDAdapter,
+        )
+
+        mysql_adapters = [
+            MySQLBlobAdapter(),
+            MySQLBooleanAdapter(),
+            MySQLDateAdapter(),
+            MySQLDatetimeAdapter(self._version),
+            MySQLDecimalAdapter(),
+            MySQLEnumAdapter(use_int_storage=False),  # Default to string representation
+            MySQLJSONAdapter(),
+            MySQLSetAdapter(),  # MySQL SET type support
+            MySQLTimeAdapter(),
+            MySQLUUIDAdapter(),
+        ]
+
+        for adapter in mysql_adapters:
+            for py_type, db_types in adapter.supported_types.items():
+                for db_type in db_types:
+                    # Use allow_override=True to replace default adapters with MySQL-specific ones
+                    self.adapter_registry.register(adapter, py_type, db_type, allow_override=True)
+
+        self.log(logging.DEBUG, "Registered MySQL-specific type adapters")
+
+    @property
+    def dialect(self):
+        """Get the MySQL dialect instance (lazy loads with configured version)."""
+        from .dialect import MySQLDialect
+        if self._dialect is None:
+            self._dialect = MySQLDialect(self._version)
+        return self._dialect
+
+    @property
+    def transaction_manager(self):
+        """Get the MySQL transaction manager."""
+        # Update the transaction manager's connection if needed
+        if self._transaction_manager:
+            self._transaction_manager._connection = self._connection
+        return self._transaction_manager
+
+    def requires_manual_commit(self) -> bool:
+        """Check if manual commit is required for this database."""
+        return not getattr(self.config, 'autocommit', True)
+
+    def _check_returning_compatibility(self, _returning_clause):
+        """Check if RETURNING clause is compatible with this MySQL version.
+
+        Args:
+            _returning_clause: Unused parameter (MySQL doesn't support RETURNING).
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+        # MySQL does not support RETURNING clause
+        if self.dialect.supports_returning_clause():
+            return True
+        else:
+            raise UnsupportedFeatureError(
+                self.name,
+                "RETURNING clause",
+                "MySQL does not support RETURNING clause. "
+                "Consider using LAST_INSERT_ID() or alternative approaches."
+            )
+
+    def get_default_adapter_suggestions(self) -> Dict[Type, Tuple[SQLTypeAdapter, Type]]:
+        """
+        [Backend Implementation] Provides default type adapter suggestions for MySQL.
+
+        This method defines a curated set of type adapter suggestions for common Python
+        types, mapping them to their typical MySQL-compatible representations as
+        demonstrated in test fixtures. It explicitly retrieves necessary `SQLTypeAdapter`
+        instances from the backend's `adapter_registry`. If an adapter for a specific
+        (Python type, DB driver type) pair is not registered, no suggestion will be
+        made for that Python type.
+
+        Returns:
+            Dict[Type, Tuple[SQLTypeAdapter, Type]]: A dictionary where keys are
+            original Python types (`TypeRegistry`'s `py_type`), and values are
+            tuples containing a `SQLTypeAdapter` instance and the target
+            Python type (`TypeRegistry`'s `db_type`) expected by the driver.
+        """
+        from datetime import date, datetime, time
+        from decimal import Decimal
+        from uuid import UUID
+        from enum import Enum
+
+        suggestions: Dict[Type, Tuple[SQLTypeAdapter, Type]] = {}
+
+        # Define a list of desired Python type to DB driver type mappings.
+        # This list reflects types seen in test fixtures and common usage,
+        # along with their preferred database-compatible Python types for the driver.
+        # Types that are natively compatible with the DB driver (e.g., Python str, int, float)
+        # and for which no specific conversion logic is needed are omitted from this list.
+        # The consuming layer should assume pass-through behavior for any Python type
+        # that does not have an explicit adapter suggestion.
+        #
+        # Exception: If a user requires specific processing for a natively compatible type
+        # (e.g., custom serialization/deserialization for JSON strings beyond basic conversion),
+        # they would need to implement and register their own specialized adapter.
+        # This backend's default suggestions do not cater to such advanced processing needs.
+        type_mappings = [
+            (bool, int),        # Python bool -> DB driver int (MySQL TINYINT)
+            # Why str for date/time?
+            # MySQL accepts string representations of dates/times and converts them appropriately.
+            (datetime, str),    # Python datetime -> DB driver str (MySQL DATETIME/TIMESTAMP)
+            (date, str),        # Python date -> DB driver str (MySQL DATE)
+            (time, str),        # Python time -> DB driver str (MySQL TIME)
+            (Decimal, float),   # Python Decimal -> DB driver float (MySQL DECIMAL)
+            (UUID, str),        # Python UUID -> DB driver str (MySQL CHAR/VARCHAR/BINARY)
+            (dict, str),        # Python dict -> DB driver str (MySQL TEXT for JSON)
+            (list, str),        # Python list -> DB driver str (MySQL TEXT for JSON)
+            (Enum, str),        # Python Enum -> DB driver str (MySQL TEXT/VARCHAR)
+            (set, str),         # Python set -> DB driver str (MySQL SET)
+            (frozenset, str),   # Python frozenset -> DB driver str (MySQL SET)
+        ]
+
+        # Iterate through the defined mappings and retrieve adapters from the registry.
+        for py_type, db_type in type_mappings:
+            adapter = self.adapter_registry.get_adapter(py_type, db_type)
+            if adapter:
+                suggestions[py_type] = (adapter, db_type)
+            else:
+                # Log a debug message if a specific adapter is expected but not found.
+                self.log(
+                    logging.DEBUG,
+                    f"No adapter found for ({py_type.__name__}, {db_type.__name__}). "
+                    "Suggestion will not be provided for this type."
+                )
+
+        return suggestions
+
+    def log(self, level: int, message: str):
+        """Log a message with the specified level."""
+        if hasattr(self, '_logger') and self._logger:
+            self._logger.log(level, message)
+        else:
+            # Fallback logging
+            print(f"[{logging.getLevelName(level)}] {message}")
 
 
 class MySQLTriggerMixin:
@@ -675,6 +880,177 @@ class MySQLSpatialMixin:
             raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
         return (
             f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
+            f"ON {self.format_identifier(table_name)} "
+            f"({self.format_identifier(column)})",
+            ()
+        )
+
+
+class MySQLVectorMixin:
+    """MySQL vector data type implementation.
+
+    MySQL VECTOR type (since 9.0+) features:
+    - Multi-dimensional vector storage for AI/ML applications
+    - Similarity search with distance functions
+    - Maximum 16,384 dimensions
+    - Binary storage format for optimized operations
+    - VECTOR indexes for fast similarity search
+
+    Version Requirements:
+    - VECTOR type: MySQL 9.0+
+    - VECTOR indexes: MySQL 9.0.1+
+    """
+
+    # Maximum dimension supported by MySQL 9.0
+    MAX_VECTOR_DIMENSION = 16384
+
+    def supports_vector_type(self) -> bool:
+        """VECTOR type is supported since MySQL 9.0."""
+        return self.version >= (9, 0, 0)
+
+    def supports_vector_index(self) -> bool:
+        """VECTOR indexes are supported since MySQL 9.0.1."""
+        return self.version >= (9, 0, 1)
+
+    def get_max_vector_dimension(self) -> int:
+        """Get maximum supported vector dimension."""
+        return self.MAX_VECTOR_DIMENSION
+
+    def format_vector_literal(
+        self,
+        values: List[float]
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR literal value.
+
+        Args:
+            values: List of float values representing the vector
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        if len(values) > self.MAX_VECTOR_DIMENSION:
+            raise ValueError(
+                f"Vector dimension {len(values)} exceeds maximum "
+                f"supported dimension {self.MAX_VECTOR_DIMENSION}"
+            )
+        # Use STRING_TO_VECTOR for literal creation
+        vector_str = '[' + ','.join(str(v) for v in values) + ']'
+        return "STRING_TO_VECTOR(%s)", (vector_str,)
+
+    def format_string_to_vector(
+        self,
+        vector_str: str
+    ) -> Tuple[str, tuple]:
+        """Format STRING_TO_VECTOR function.
+
+        Args:
+            vector_str: String representation of vector (e.g., '[1.0,2.0,3.0]')
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return "STRING_TO_VECTOR(%s)", (vector_str,)
+
+    def format_vector_to_string(
+        self,
+        vector_col: str
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR_TO_STRING function.
+
+        Args:
+            vector_col: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"VECTOR_TO_STRING({vector_col})", ()
+
+    def format_vector_dim(
+        self,
+        vector_col: str
+    ) -> Tuple[str, tuple]:
+        """Format VECTOR_DIM function.
+
+        Args:
+            vector_col: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"VECTOR_DIM({vector_col})", ()
+
+    def format_distance_euclidean(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_EUCLIDEAN function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"DISTANCE_EUCLIDEAN({vector1}, {vector2})", ()
+
+    def format_distance_cosine(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_COSINE function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"DISTANCE_COSINE({vector1}, {vector2})", ()
+
+    def format_distance_dot(
+        self,
+        vector1: str,
+        vector2: str
+    ) -> Tuple[str, tuple]:
+        """Format DISTANCE_DOT function.
+
+        Args:
+            vector1: First vector (column or literal)
+            vector2: Second vector (column or literal)
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        return f"DISTANCE_DOT({vector1}, {vector2})", ()
+
+    def format_create_vector_index(
+        self,
+        index_name: str,
+        table_name: str,
+        column: str
+    ) -> Tuple[str, tuple]:
+        """Format CREATE VECTOR INDEX statement.
+
+        Note: MySQL uses CREATE INDEX with VECTOR keyword, not CREATE VECTOR INDEX.
+
+        Args:
+            index_name: Name of the vector index
+            table_name: Name of the table
+            column: VECTOR column name
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        if not self.supports_vector_index():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(self.name, "VECTOR indexes (requires MySQL 9.0.1+)")
+        # MySQL 9.0.1+ syntax for vector index
+        return (
+            f"CREATE VECTOR INDEX {self.format_identifier(index_name)} "
             f"ON {self.format_identifier(table_name)} "
             f"({self.format_identifier(column)})",
             ()
