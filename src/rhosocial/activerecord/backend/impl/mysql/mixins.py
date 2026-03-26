@@ -1,10 +1,75 @@
 """MySQL dialect-specific Mixin implementations."""
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 from rhosocial.activerecord.backend.errors import TransactionError
 from rhosocial.activerecord.backend.transaction import IsolationLevel
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.introspection.types import IntrospectionScope
+
+
+class MySQLIntrospectionMixin:
+    """MySQL introspection capability declaration.
+
+    This mixin implements the IntrospectionSupport protocol by declaring
+    which introspection features MySQL supports. The actual introspection
+    implementation is in the backend layer via MySQLIntrospectionMixin
+    from the introspection module.
+
+    Dialects only declare capabilities (supports_* methods), they do not
+    implement the actual introspection methods.
+
+    MySQL supports all introspection features via information_schema.
+    """
+
+    # ========== Capability Detection ==========
+
+    def supports_introspection(self) -> bool:
+        """MySQL supports introspection via information_schema."""
+        return True
+
+    def supports_database_info(self) -> bool:
+        """MySQL supports database info via information_schema.SCHEMATA."""
+        return True
+
+    def supports_table_introspection(self) -> bool:
+        """MySQL supports table introspection via information_schema.TABLES."""
+        return True
+
+    def supports_column_introspection(self) -> bool:
+        """MySQL supports column introspection via information_schema.COLUMNS."""
+        return True
+
+    def supports_index_introspection(self) -> bool:
+        """MySQL supports index introspection via information_schema.STATISTICS."""
+        return True
+
+    def supports_foreign_key_introspection(self) -> bool:
+        """MySQL supports foreign key introspection via information_schema."""
+        return True
+
+    def supports_view_introspection(self) -> bool:
+        """MySQL supports view introspection via information_schema.VIEWS."""
+        return True
+
+    def supports_trigger_introspection(self) -> bool:
+        """MySQL supports trigger introspection via information_schema.TRIGGERS."""
+        return True
+
+    def get_supported_introspection_scopes(self) -> List["IntrospectionScope"]:
+        """Get list of supported introspection scopes."""
+        from rhosocial.activerecord.backend.introspection.types import IntrospectionScope
+        return [
+            IntrospectionScope.DATABASE,
+            IntrospectionScope.TABLE,
+            IntrospectionScope.COLUMN,
+            IntrospectionScope.INDEX,
+            IntrospectionScope.FOREIGN_KEY,
+            IntrospectionScope.VIEW,
+            IntrospectionScope.TRIGGER,
+        ]
 
 
 class MySQLTransactionMixin:

@@ -32,6 +32,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     IndexSupport,
     SequenceSupport,
     TableSupport,
+    IntrospectionSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CTEMixin,
@@ -56,6 +57,7 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     IndexMixin,
     SequenceMixin,
     TableMixin,
+    IntrospectionMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
@@ -73,6 +75,7 @@ from .mixins import (
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
     MySQLVectorMixin,
+    MySQLIntrospectionMixin,
 )
 
 if TYPE_CHECKING:
@@ -107,13 +110,15 @@ class MySQLDialect(
     IndexMixin,
     SequenceMixin,
     TableMixin,
-    # MySQL-specific mixins
+    # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTriggerMixin,
     MySQLTableMixin,
     MySQLSetTypeMixin,
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
     MySQLVectorMixin,  # MySQL 9.0+ VECTOR type support
+    MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
+    IntrospectionMixin,
     # Protocols for type checking
     CTESupport,
     FilterClauseSupport,
@@ -138,6 +143,7 @@ class MySQLDialect(
     IndexSupport,
     SequenceSupport,
     TableSupport,
+    IntrospectionSupport,
     # MySQL-specific protocols
     MySQLTriggerSupport,
     MySQLTableSupport,

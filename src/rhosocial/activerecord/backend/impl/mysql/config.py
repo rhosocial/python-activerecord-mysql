@@ -49,7 +49,7 @@ class MySQLConnectionConfig(
 
     # MySQL-specific flags
     use_pure: bool = True
-    get_warnings: bool = True
+    get_warnings: bool = False
     ssl_disabled: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:

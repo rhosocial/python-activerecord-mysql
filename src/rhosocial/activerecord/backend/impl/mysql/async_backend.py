@@ -18,8 +18,10 @@ from mysql.connector.errors import (
     IntegrityError as MySQLIntegrityError,
     OperationalError as MySQLOperationalError,
 )
+from mysql.connector.constants import ClientFlag
 
 from rhosocial.activerecord.backend.base import AsyncStorageBackend
+from rhosocial.activerecord.backend.dialect.protocols import IntrospectionSupport
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     DatabaseError,
@@ -33,9 +35,10 @@ from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
 from .mixins import MySQLBackendMixin
+from .async_introspection import AsyncMySQLIntrospectionMixin
 
 
-class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
+class AsyncMySQLBackend(MySQLBackendMixin, AsyncMySQLIntrospectionMixin, AsyncStorageBackend, IntrospectionSupport):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -392,7 +395,7 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
     async def execute(self, sql: str, params: Optional[Tuple] = None, *, options=None, **kwargs) -> QueryResult:
         """Execute a SQL statement with optional parameters asynchronously."""
         from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
-        
+
         # If no options provided, create default options from kwargs
         if options is None:
             # Determine statement type based on SQL
@@ -403,11 +406,11 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
                 stmt_type = StatementType.DML
             else:
                 stmt_type = StatementType.DDL
-                
+
             # Extract column_mapping and column_adapters from kwargs if present
             column_mapping = kwargs.get('column_mapping')
             column_adapters = kwargs.get('column_adapters')
-            
+
             options = ExecutionOptions(
                 stmt_type=stmt_type,
                 process_result_set=None,  # Let the base logic determine this based on stmt_type
@@ -421,10 +424,89 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
                 options.column_mapping = kwargs['column_mapping']
             if 'column_adapters' in kwargs:
                 options.column_adapters = kwargs['column_adapters']
-        
+
         # Convert '?' placeholders to '%s' for MySQL
         if params:
             mysql_sql = sql.replace('?', '%s')
             return await super().execute(mysql_sql, params, options=options)
         else:
             return await super().execute(sql, params, options=options)
+
+    async def executescript(self, sql_script: str) -> None:
+        """Execute a multi-statement SQL script asynchronously.
+
+        This method uses MySQL's native multi-statement capability by enabling
+        the MULTI_STATEMENTS client flag. The driver handles statement parsing
+        internally, so no SQL parsing is needed at the backend level.
+
+        Args:
+            sql_script: A string containing one or more SQL statements separated
+                       by semicolons.
+
+        Note:
+            This method is similar to SQLite's async executescript but uses MySQL's
+            native multi-statement support via the MULTI_STATEMENTS client flag.
+        """
+        import time
+
+        self.log(logging.INFO, "Executing SQL script asynchronously.")
+        start_time = time.perf_counter()
+
+        if not self._connection:
+            await self.connect()
+
+        cursor = None
+        try:
+            # Create a new connection with MULTI_STATEMENTS enabled if not already
+            current_flags = self._connection._client_flags
+
+            if not (current_flags & ClientFlag.MULTI_STATEMENTS):
+                # Need to reconnect with MULTI_STATEMENTS enabled
+                self.log(logging.DEBUG, "Reconnecting with MULTI_STATEMENTS enabled")
+                conn_params = {
+                    'host': self.config.host,
+                    'port': self.config.port,
+                    'database': self.config.database,
+                    'user': self.config.username,
+                    'password': self.config.password,
+                    'charset': getattr(self.config, 'charset', 'utf8mb4'),
+                    'autocommit': getattr(self.config, 'autocommit', True),
+                    'use_unicode': getattr(self.config, 'use_unicode', True),
+                    'client_flags': [ClientFlag.MULTI_STATEMENTS],
+                }
+                # Copy other relevant parameters
+                for param in ['ssl_ca', 'ssl_cert', 'ssl_key', 'ssl_verify_cert',
+                              'ssl_verify_identity', 'ssl_disabled']:
+                    if hasattr(self.config, param):
+                        val = getattr(self.config, param)
+                        if val is not None:
+                            conn_params[param] = val
+
+                await self._connection.close()
+                self._connection = await mysql_async.connect(**conn_params)
+
+            cursor = await self._connection.cursor()
+
+            # Execute the multi-statement script
+            # MySQL driver handles parsing internally when MULTI_STATEMENTS is enabled
+            await cursor.execute(sql_script)
+
+            # Consume all results (required for multi-statement execution)
+            # This iterates through all result sets
+            while True:
+                # Consume current result set
+                if cursor.with_rows:
+                    await cursor.fetchall()
+                # Move to next result set
+                if not await cursor.nextset():
+                    break
+
+            duration = time.perf_counter() - start_time
+            self.log(logging.INFO, f"Async SQL script executed successfully, duration={duration:.3f}s")
+
+        except MySQLError as e:
+            self.log(logging.ERROR, f"Error executing SQL script: {str(e)}")
+            await self._handle_error(e)
+        finally:
+            if cursor:
+                await cursor.close()
