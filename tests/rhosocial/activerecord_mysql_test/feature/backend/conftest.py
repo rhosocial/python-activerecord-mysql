@@ -125,6 +125,19 @@ def mysql_backend(request):
     yield backend
     provider.cleanup()
 
+
+@pytest.fixture(scope="function")
+def mysql_backend_single():
+    """Non-parameterized fixture using the first available scenario."""
+    scenario_names = get_scenario_names()
+    if not scenario_names:
+        pytest.skip("No MySQL scenarios configured")
+    scenario_name = scenario_names[0]
+    provider = BackendFeatureProvider()
+    backend = provider.setup_backend(scenario_name)
+    yield backend
+    provider.cleanup()
+
 @pytest_asyncio.fixture(scope="function", params=get_scenario_names())
 async def async_mysql_backend(request):
     scenario_name = request.param

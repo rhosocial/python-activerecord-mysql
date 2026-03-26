@@ -18,36 +18,36 @@ class TestListTriggers:
 
     def test_list_triggers_empty_database(self, mysql_backend_single):
         """Test list_triggers on database without triggers."""
-        triggers = mysql_backend_single.list_triggers()
+        triggers = mysql_backend_single.introspector.list_triggers()
 
         assert isinstance(triggers, list)
         # May have system triggers, just verify it returns a list
 
     def test_list_triggers_with_trigger(self, backend_with_trigger):
         """Test list_triggers returns created triggers."""
-        triggers = backend_with_trigger.list_triggers()
+        triggers = backend_with_trigger.introspector.list_triggers()
 
         trigger_names = [t.name for t in triggers]
         assert "update_user_timestamp" in trigger_names
 
     def test_list_triggers_returns_trigger_info(self, backend_with_trigger):
         """Test that list_triggers returns TriggerInfo objects."""
-        triggers = backend_with_trigger.list_triggers()
+        triggers = backend_with_trigger.introspector.list_triggers()
 
         for trigger in triggers:
             assert isinstance(trigger, TriggerInfo)
 
     def test_list_triggers_caching(self, backend_with_trigger):
         """Test that trigger list is cached."""
-        triggers1 = backend_with_trigger.list_triggers()
-        triggers2 = backend_with_trigger.list_triggers()
+        triggers1 = backend_with_trigger.introspector.list_triggers()
+        triggers2 = backend_with_trigger.introspector.list_triggers()
 
         # Should return the same cached list
         assert triggers1 is triggers2
 
     def test_list_triggers_filter_by_table(self, backend_with_trigger):
         """Test filtering triggers by table."""
-        triggers = backend_with_trigger.list_triggers(table_name="users")
+        triggers = backend_with_trigger.introspector.list_triggers(table_name="users")
 
         for trigger in triggers:
             assert trigger.table_name == "users"
@@ -58,7 +58,7 @@ class TestGetTriggerInfo:
 
     def test_get_trigger_info_existing(self, backend_with_trigger):
         """Test get_trigger_info for existing trigger."""
-        trigger = backend_with_trigger.get_trigger_info("update_user_timestamp")
+        trigger = backend_with_trigger.introspector.get_trigger_info("update_user_timestamp")
 
         assert trigger is not None
         assert isinstance(trigger, TriggerInfo)
@@ -66,13 +66,13 @@ class TestGetTriggerInfo:
 
     def test_get_trigger_info_nonexistent(self, backend_with_trigger):
         """Test get_trigger_info for non-existent trigger."""
-        trigger = backend_with_trigger.get_trigger_info("nonexistent")
+        trigger = backend_with_trigger.introspector.get_trigger_info("nonexistent")
 
         assert trigger is None
 
     def test_get_trigger_info_table_name(self, backend_with_trigger):
         """Test that table_name is correctly set."""
-        trigger = backend_with_trigger.get_trigger_info("update_user_timestamp")
+        trigger = backend_with_trigger.introspector.get_trigger_info("update_user_timestamp")
 
         assert trigger is not None
         assert trigger.table_name == "users"
@@ -95,7 +95,7 @@ class TestTriggerDetails:
             INSERT INTO audit_log (action, table_name) VALUES ('DELETE', 'users');
         """)
 
-        triggers = backend_with_trigger.list_triggers()
+        triggers = backend_with_trigger.introspector.list_triggers()
 
         trigger_names = {t.name for t in triggers}
         assert "update_user_timestamp" in trigger_names
@@ -110,7 +110,7 @@ class TestTriggerDetails:
 
     def test_trigger_timing(self, backend_with_trigger):
         """Test trigger timing detection."""
-        trigger = backend_with_trigger.get_trigger_info("update_user_timestamp")
+        trigger = backend_with_trigger.introspector.get_trigger_info("update_user_timestamp")
 
         assert trigger is not None
         # Timing may be extracted from definition or metadata
@@ -123,7 +123,7 @@ class TestTriggerDetails:
 
     def test_trigger_events(self, backend_with_trigger):
         """Test trigger events detection."""
-        trigger = backend_with_trigger.get_trigger_info("update_user_timestamp")
+        trigger = backend_with_trigger.introspector.get_trigger_info("update_user_timestamp")
 
         assert trigger is not None
         # Events may be extracted from definition or metadata
@@ -147,7 +147,7 @@ class TestTriggerDetails:
             END;
         """)
 
-        trigger = backend_with_trigger.get_trigger_info("validate_before_insert")
+        trigger = backend_with_trigger.introspector.get_trigger_info("validate_before_insert")
 
         assert trigger is not None
         assert trigger.definition is not None
@@ -171,7 +171,7 @@ class TestTriggerDetails:
             INSERT INTO audit_log (action) VALUES ('DELETE');
         """)
 
-        trigger = backend_with_trigger.get_trigger_info("after_delete_audit")
+        trigger = backend_with_trigger.introspector.get_trigger_info("after_delete_audit")
 
         assert trigger is not None
         assert trigger.definition is not None
@@ -190,7 +190,7 @@ class TestAsyncTriggerIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_triggers(self, async_backend_with_trigger):
         """Test async list_triggers returns TriggerInfo objects."""
-        triggers = await async_backend_with_trigger.list_triggers()
+        triggers = await async_backend_with_trigger.introspector.list_triggers_async()
 
         trigger_names = [t.name for t in triggers]
         assert "update_user_timestamp" in trigger_names
@@ -198,7 +198,7 @@ class TestAsyncTriggerIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_trigger_info(self, async_backend_with_trigger):
         """Test async get_trigger_info for existing trigger."""
-        trigger = await async_backend_with_trigger.get_trigger_info("update_user_timestamp")
+        trigger = await async_backend_with_trigger.introspector.get_trigger_info_async("update_user_timestamp")
 
         assert trigger is not None
         assert isinstance(trigger, TriggerInfo)
@@ -207,8 +207,8 @@ class TestAsyncTriggerIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_triggers_caching(self, async_backend_with_trigger):
         """Test that async trigger list is cached."""
-        triggers1 = await async_backend_with_trigger.list_triggers()
-        triggers2 = await async_backend_with_trigger.list_triggers()
+        triggers1 = await async_backend_with_trigger.introspector.list_triggers_async()
+        triggers2 = await async_backend_with_trigger.introspector.list_triggers_async()
 
         # Should return the same cached list
         assert triggers1 is triggers2

@@ -77,6 +77,7 @@ from .mixins import (
     MySQLVectorMixin,
     MySQLIntrospectionMixin,
 )
+from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
@@ -118,6 +119,7 @@ class MySQLDialect(
     MySQLSpatialMixin,
     MySQLVectorMixin,  # MySQL 9.0+ VECTOR type support
     MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
+    MySQLShowDialectMixin,  # MySQL SHOW commands
     IntrospectionMixin,
     # Protocols for type checking
     CTESupport,

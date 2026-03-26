@@ -18,7 +18,7 @@ class TestListViews:
 
     def test_list_views_returns_view_info(self, backend_with_view):
         """Test that list_views returns ViewInfo objects."""
-        views = backend_with_view.list_views()
+        views = backend_with_view.introspector.list_views()
 
         assert isinstance(views, list)
         assert len(views) > 0
@@ -28,22 +28,22 @@ class TestListViews:
 
     def test_list_views_includes_created_view(self, backend_with_view):
         """Test that created views are listed."""
-        views = backend_with_view.list_views()
+        views = backend_with_view.introspector.list_views()
         view_names = [v.name for v in views]
 
         assert "user_summary" in view_names
 
     def test_list_views_no_views(self, backend_with_tables):
         """Test list_views when no views exist."""
-        views = backend_with_tables.list_views()
+        views = backend_with_tables.introspector.list_views()
 
         assert isinstance(views, list)
         assert len(views) == 0
 
     def test_list_views_caching(self, backend_with_view):
         """Test that view list is cached."""
-        views1 = backend_with_view.list_views()
-        views2 = backend_with_view.list_views()
+        views1 = backend_with_view.introspector.list_views()
+        views2 = backend_with_view.introspector.list_views()
 
         # Should return the same cached list
         assert views1 is views2
@@ -54,7 +54,7 @@ class TestGetViewInfo:
 
     def test_get_view_info_existing(self, backend_with_view):
         """Test get_view_info for existing view."""
-        view = backend_with_view.get_view_info("user_summary")
+        view = backend_with_view.introspector.get_view_info("user_summary")
 
         assert view is not None
         assert isinstance(view, ViewInfo)
@@ -62,7 +62,7 @@ class TestGetViewInfo:
 
     def test_get_view_info_nonexistent(self, backend_with_view):
         """Test get_view_info for non-existent view."""
-        view = backend_with_view.get_view_info("nonexistent")
+        view = backend_with_view.introspector.get_view_info("nonexistent")
 
         assert view is None
 
@@ -72,15 +72,15 @@ class TestViewExists:
 
     def test_view_exists_true(self, backend_with_view):
         """Test view_exists returns True for existing view."""
-        assert backend_with_view.view_exists("user_summary") is True
+        assert backend_with_view.introspector.view_exists("user_summary") is True
 
     def test_view_exists_false(self, backend_with_view):
         """Test view_exists returns False for non-existent view."""
-        assert backend_with_view.view_exists("nonexistent") is False
+        assert backend_with_view.introspector.view_exists("nonexistent") is False
 
     def test_view_exists_table_not_view(self, backend_with_tables):
         """Test view_exists returns False for a table."""
-        assert backend_with_tables.view_exists("users") is False
+        assert backend_with_tables.introspector.view_exists("users") is False
 
 
 class TestViewInfoDetails:
@@ -88,7 +88,7 @@ class TestViewInfoDetails:
 
     def test_view_definition(self, backend_with_view):
         """Test that view definition is returned."""
-        view = backend_with_view.get_view_info("user_summary")
+        view = backend_with_view.introspector.get_view_info("user_summary")
 
         assert view is not None
         assert view.definition is not None
@@ -97,7 +97,7 @@ class TestViewInfoDetails:
 
     def test_view_check_option(self, backend_with_view):
         """Test check option detection."""
-        view = backend_with_view.get_view_info("user_summary")
+        view = backend_with_view.introspector.get_view_info("user_summary")
 
         assert view is not None
         # MySQL views have check_option (NONE, LOCAL, CASCADED)
@@ -106,7 +106,7 @@ class TestViewInfoDetails:
 
     def test_view_is_updatable(self, backend_with_view):
         """Test is_updatable detection."""
-        view = backend_with_view.get_view_info("user_summary")
+        view = backend_with_view.introspector.get_view_info("user_summary")
 
         assert view is not None
         # is_updatable depends on view definition
@@ -119,7 +119,7 @@ class TestViewInfoDetails:
             SELECT id, name FROM users;
         """)
 
-        views = backend_with_view.list_views()
+        views = backend_with_view.introspector.list_views()
 
         view_names = [v.name for v in views]
         assert "user_summary" in view_names
@@ -129,7 +129,7 @@ class TestViewInfoDetails:
 
     def test_view_with_join(self, backend_with_view):
         """Test view with JOIN."""
-        view = backend_with_view.get_view_info("user_summary")
+        view = backend_with_view.introspector.get_view_info("user_summary")
 
         assert view is not None
         # View definition should contain JOIN
@@ -142,7 +142,7 @@ class TestAsyncViewIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_views(self, async_backend_with_view):
         """Test async list_views returns ViewInfo objects."""
-        views = await async_backend_with_view.list_views()
+        views = await async_backend_with_view.introspector.list_views_async()
 
         assert isinstance(views, list)
         assert len(views) > 0
@@ -153,7 +153,7 @@ class TestAsyncViewIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_view_info(self, async_backend_with_view):
         """Test async get_view_info for existing view."""
-        view = await async_backend_with_view.get_view_info("user_summary")
+        view = await async_backend_with_view.introspector.get_view_info_async("user_summary")
 
         assert view is not None
         assert isinstance(view, ViewInfo)
@@ -162,14 +162,14 @@ class TestAsyncViewIntrospection:
     @pytest.mark.asyncio
     async def test_async_view_exists(self, async_backend_with_view):
         """Test async view_exists returns True for existing view."""
-        exists = await async_backend_with_view.view_exists("user_summary")
+        exists = await async_backend_with_view.introspector.view_exists_async("user_summary")
         assert exists is True
 
     @pytest.mark.asyncio
     async def test_async_list_views_caching(self, async_backend_with_view):
         """Test that async view list is cached."""
-        views1 = await async_backend_with_view.list_views()
-        views2 = await async_backend_with_view.list_views()
+        views1 = await async_backend_with_view.introspector.list_views_async()
+        views2 = await async_backend_with_view.introspector.list_views_async()
 
         # Should return the same cached list
         assert views1 is views2

@@ -19,7 +19,7 @@ class TestListTables:
 
     def test_list_tables_returns_table_info(self, backend_with_tables):
         """Test that list_tables returns TableInfo objects."""
-        tables = backend_with_tables.list_tables()
+        tables = backend_with_tables.introspector.list_tables()
 
         assert isinstance(tables, list)
         assert len(tables) > 0
@@ -29,7 +29,7 @@ class TestListTables:
 
     def test_list_tables_includes_created_tables(self, backend_with_tables):
         """Test that created tables are listed."""
-        tables = backend_with_tables.list_tables()
+        tables = backend_with_tables.introspector.list_tables()
         table_names = [t.name for t in tables]
 
         assert "users" in table_names
@@ -39,15 +39,15 @@ class TestListTables:
 
     def test_list_tables_excludes_system_tables(self, backend_with_tables):
         """Test that system tables are excluded by default."""
-        tables = backend_with_tables.list_tables()
+        tables = backend_with_tables.introspector.list_tables()
 
         for table in tables:
             assert table.table_type != TableType.SYSTEM_TABLE
 
     def test_list_tables_caching(self, backend_with_tables):
         """Test that table list is cached."""
-        tables1 = backend_with_tables.list_tables()
-        tables2 = backend_with_tables.list_tables()
+        tables1 = backend_with_tables.introspector.list_tables()
+        tables2 = backend_with_tables.introspector.list_tables()
 
         # Should return the same cached list
         assert tables1 is tables2
@@ -55,7 +55,7 @@ class TestListTables:
     def test_list_tables_empty_database(self, mysql_backend_single):
         """Test list_tables on empty database (no user tables)."""
         # Clear any existing tables first
-        tables = mysql_backend_single.list_tables()
+        tables = mysql_backend_single.introspector.list_tables()
 
         # MySQL always has some tables, but they might be filtered
         # This test just verifies the method works
@@ -67,7 +67,7 @@ class TestGetTableInfo:
 
     def test_get_table_info_existing(self, backend_with_tables):
         """Test get_table_info for existing table."""
-        table = backend_with_tables.get_table_info("users")
+        table = backend_with_tables.introspector.get_table_info("users")
 
         assert table is not None
         assert isinstance(table, TableInfo)
@@ -75,13 +75,13 @@ class TestGetTableInfo:
 
     def test_get_table_info_nonexistent(self, backend_with_tables):
         """Test get_table_info for non-existent table."""
-        table = backend_with_tables.get_table_info("nonexistent")
+        table = backend_with_tables.introspector.get_table_info("nonexistent")
 
         assert table is None
 
     def test_get_table_info_includes_columns(self, backend_with_tables):
         """Test that get_table_info includes column information."""
-        table = backend_with_tables.get_table_info("users")
+        table = backend_with_tables.introspector.get_table_info("users")
 
         assert table is not None
         assert table.columns is not None
@@ -89,7 +89,7 @@ class TestGetTableInfo:
 
     def test_get_table_info_includes_indexes(self, backend_with_tables):
         """Test that get_table_info includes index information."""
-        table = backend_with_tables.get_table_info("users")
+        table = backend_with_tables.introspector.get_table_info("users")
 
         assert table is not None
         assert table.indexes is not None
@@ -97,7 +97,7 @@ class TestGetTableInfo:
 
     def test_get_table_info_includes_foreign_keys(self, backend_with_tables):
         """Test that get_table_info includes foreign key information."""
-        table = backend_with_tables.get_table_info("posts")
+        table = backend_with_tables.introspector.get_table_info("posts")
 
         assert table is not None
         assert table.foreign_keys is not None
@@ -109,12 +109,12 @@ class TestTableExists:
 
     def test_table_exists_true(self, backend_with_tables):
         """Test table_exists returns True for existing table."""
-        assert backend_with_tables.table_exists("users") is True
-        assert backend_with_tables.table_exists("posts") is True
+        assert backend_with_tables.introspector.table_exists("users") is True
+        assert backend_with_tables.introspector.table_exists("posts") is True
 
     def test_table_exists_false(self, backend_with_tables):
         """Test table_exists returns False for non-existent table."""
-        assert backend_with_tables.table_exists("nonexistent") is False
+        assert backend_with_tables.introspector.table_exists("nonexistent") is False
 
 
 class TestTableInfoDetails:
@@ -122,7 +122,7 @@ class TestTableInfoDetails:
 
     def test_table_type_base_table(self, backend_with_tables):
         """Test that regular tables are BASE_TABLE type."""
-        tables = backend_with_tables.list_tables()
+        tables = backend_with_tables.introspector.list_tables()
 
         user_tables = [t for t in tables if t.name in ("users", "posts", "tags", "post_tags")]
         for table in user_tables:
@@ -138,7 +138,7 @@ class TestTableInfoDetails:
             ) COMMENT 'Test table comment';
         """)
 
-        table = backend_with_tables.get_table_info("test_comment")
+        table = backend_with_tables.introspector.get_table_info("test_comment")
 
         assert table is not None
         assert table.comment == "Test table comment"
@@ -152,9 +152,9 @@ class TestTableInfoDetails:
         backend_with_tables.execute("INSERT INTO users (name, email) VALUES ('Test', 'test@example.com')")
 
         # Clear cache to get fresh data
-        backend_with_tables.clear_introspection_cache()
+        backend_with_tables.introspector.clear_cache()
 
-        table = backend_with_tables.get_table_info("users")
+        table = backend_with_tables.introspector.get_table_info("users")
 
         assert table is not None
         # Note: TABLE_ROWS from information_schema may be approximate
@@ -168,9 +168,9 @@ class TestTableInfoDetails:
         backend_with_tables.execute("INSERT INTO users (name, email) VALUES ('Test', 'test@example.com')")
 
         # Clear cache
-        backend_with_tables.clear_introspection_cache()
+        backend_with_tables.introspector.clear_cache()
 
-        table = backend_with_tables.get_table_info("users")
+        table = backend_with_tables.introspector.get_table_info("users")
 
         assert table is not None
         # auto_increment should be at least 2 after one insert
@@ -179,7 +179,7 @@ class TestTableInfoDetails:
 
     def test_table_create_time(self, backend_with_tables):
         """Test that create_time can be retrieved."""
-        table = backend_with_tables.get_table_info("users")
+        table = backend_with_tables.introspector.get_table_info("users")
 
         assert table is not None
         assert table.create_time is not None
@@ -191,7 +191,7 @@ class TestAsyncTableIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_tables(self, async_backend_with_tables):
         """Test async list_tables returns TableInfo objects."""
-        tables = await async_backend_with_tables.list_tables()
+        tables = await async_backend_with_tables.introspector.list_tables_async()
 
         assert isinstance(tables, list)
         assert len(tables) > 0
@@ -202,7 +202,7 @@ class TestAsyncTableIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_table_info(self, async_backend_with_tables):
         """Test async get_table_info for existing table."""
-        table = await async_backend_with_tables.get_table_info("users")
+        table = await async_backend_with_tables.introspector.get_table_info_async("users")
 
         assert table is not None
         assert isinstance(table, TableInfo)
@@ -211,14 +211,14 @@ class TestAsyncTableIntrospection:
     @pytest.mark.asyncio
     async def test_async_table_exists(self, async_backend_with_tables):
         """Test async table_exists returns True for existing table."""
-        exists = await async_backend_with_tables.table_exists("users")
+        exists = await async_backend_with_tables.introspector.table_exists_async("users")
         assert exists is True
 
     @pytest.mark.asyncio
     async def test_async_list_tables_caching(self, async_backend_with_tables):
         """Test that async table list is cached."""
-        tables1 = await async_backend_with_tables.list_tables()
-        tables2 = await async_backend_with_tables.list_tables()
+        tables1 = await async_backend_with_tables.introspector.list_tables_async()
+        tables2 = await async_backend_with_tables.introspector.list_tables_async()
 
         # Should return the same cached list
         assert tables1 is tables2

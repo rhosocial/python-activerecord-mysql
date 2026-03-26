@@ -20,7 +20,7 @@ class TestListIndexes:
 
     def test_list_indexes_returns_index_info(self, backend_with_tables):
         """Test that list_indexes returns IndexInfo objects."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
 
         assert isinstance(indexes, list)
         assert len(indexes) > 0
@@ -30,7 +30,7 @@ class TestListIndexes:
 
     def test_list_indexes_all_indexes_present(self, backend_with_tables):
         """Test that all indexes are returned."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
         index_names = [i.name for i in indexes]
 
         # PRIMARY key is always present
@@ -42,7 +42,7 @@ class TestListIndexes:
 
     def test_list_indexes_nonexistent_table(self, backend_with_tables):
         """Test list_indexes for non-existent table."""
-        indexes = backend_with_tables.list_indexes("nonexistent")
+        indexes = backend_with_tables.introspector.list_indexes("nonexistent")
 
         # Should return empty list for non-existent table
         assert isinstance(indexes, list)
@@ -50,8 +50,8 @@ class TestListIndexes:
 
     def test_list_indexes_caching(self, backend_with_tables):
         """Test that index list is cached."""
-        indexes1 = backend_with_tables.list_indexes("users")
-        indexes2 = backend_with_tables.list_indexes("users")
+        indexes1 = backend_with_tables.introspector.list_indexes("users")
+        indexes2 = backend_with_tables.introspector.list_indexes("users")
 
         # Should return the same cached list
         assert indexes1 is indexes2
@@ -62,7 +62,7 @@ class TestGetIndexInfo:
 
     def test_get_index_info_existing(self, backend_with_tables):
         """Test get_index_info for existing index."""
-        idx = backend_with_tables.get_index_info("users", "idx_users_email")
+        idx = backend_with_tables.introspector.get_index_info("users", "idx_users_email")
 
         assert idx is not None
         assert isinstance(idx, IndexInfo)
@@ -71,7 +71,7 @@ class TestGetIndexInfo:
 
     def test_get_index_info_nonexistent(self, backend_with_tables):
         """Test get_index_info for non-existent index."""
-        idx = backend_with_tables.get_index_info("users", "nonexistent")
+        idx = backend_with_tables.introspector.get_index_info("users", "nonexistent")
 
         assert idx is None
 
@@ -81,7 +81,7 @@ class TestGetPrimaryKey:
 
     def test_get_primary_key_single(self, backend_with_tables):
         """Test get_primary_key for table with single-column PK."""
-        pk = backend_with_tables.get_primary_key("users")
+        pk = backend_with_tables.introspector.get_primary_key("users")
 
         assert pk is not None
         assert pk.is_primary is True
@@ -90,7 +90,7 @@ class TestGetPrimaryKey:
 
     def test_get_primary_key_composite(self, backend_with_tables):
         """Test get_primary_key for table with composite PK."""
-        pk = backend_with_tables.get_primary_key("post_tags")
+        pk = backend_with_tables.introspector.get_primary_key("post_tags")
 
         assert pk is not None
         assert pk.is_primary is True
@@ -106,7 +106,7 @@ class TestIndexInfoDetails:
 
     def test_index_is_unique(self, backend_with_tables):
         """Test unique index detection."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
 
         email_idx = next((i for i in indexes if i.name == "idx_users_email"), None)
         assert email_idx is not None
@@ -114,7 +114,7 @@ class TestIndexInfoDetails:
 
     def test_index_is_non_unique(self, backend_with_tables):
         """Test non-unique index detection."""
-        indexes = backend_with_tables.list_indexes("posts")
+        indexes = backend_with_tables.introspector.list_indexes("posts")
 
         user_idx = next((i for i in indexes if i.name == "idx_posts_user_id"), None)
         assert user_idx is not None
@@ -122,7 +122,7 @@ class TestIndexInfoDetails:
 
     def test_index_type_btree(self, backend_with_tables):
         """Test BTREE index type detection."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
 
         for idx in indexes:
             # MySQL default is BTREE
@@ -130,7 +130,7 @@ class TestIndexInfoDetails:
 
     def test_index_columns(self, backend_with_tables):
         """Test index column information."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
 
         name_age_idx = next(i for i in indexes if i.name == "idx_users_name_age")
         assert len(name_age_idx.columns) == 2
@@ -141,7 +141,7 @@ class TestIndexInfoDetails:
 
     def test_index_column_ordinal_positions(self, backend_with_tables):
         """Test index column ordinal positions."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
 
         name_age_idx = next(i for i in indexes if i.name == "idx_users_name_age")
         positions = [c.ordinal_position for c in name_age_idx.columns]
@@ -151,7 +151,7 @@ class TestIndexInfoDetails:
 
     def test_primary_key_detection_in_indexes(self, backend_with_tables):
         """Test that primary key is detected in index list."""
-        indexes = backend_with_tables.list_indexes("users")
+        indexes = backend_with_tables.introspector.list_indexes("users")
 
         pk_indexes = [i for i in indexes if i.is_primary]
 
@@ -161,8 +161,8 @@ class TestIndexInfoDetails:
 
     def test_multi_table_indexes(self, backend_with_tables):
         """Test indexes for multiple tables."""
-        users_indexes = backend_with_tables.list_indexes("users")
-        posts_indexes = backend_with_tables.list_indexes("posts")
+        users_indexes = backend_with_tables.introspector.list_indexes("users")
+        posts_indexes = backend_with_tables.introspector.list_indexes("posts")
 
         assert len(users_indexes) > 0
         assert len(posts_indexes) > 0
@@ -192,7 +192,7 @@ class TestFulltextIndex:
             ) ENGINE=InnoDB;
         """)
 
-        indexes = backend_with_tables.list_indexes("articles")
+        indexes = backend_with_tables.introspector.list_indexes("articles")
 
         fulltext_idx = next((i for i in indexes if i.name == "idx_fulltext_content"), None)
         assert fulltext_idx is not None
@@ -207,7 +207,7 @@ class TestAsyncIndexIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_indexes(self, async_backend_with_tables):
         """Test async list_indexes returns IndexInfo objects."""
-        indexes = await async_backend_with_tables.list_indexes("users")
+        indexes = await async_backend_with_tables.introspector.list_indexes_async("users")
 
         assert isinstance(indexes, list)
         assert len(indexes) > 0
@@ -218,7 +218,7 @@ class TestAsyncIndexIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_index_info(self, async_backend_with_tables):
         """Test async get_index_info for existing index."""
-        idx = await async_backend_with_tables.get_index_info("users", "idx_users_email")
+        idx = await async_backend_with_tables.introspector.get_index_info_async("users", "idx_users_email")
 
         assert idx is not None
         assert isinstance(idx, IndexInfo)
@@ -227,7 +227,7 @@ class TestAsyncIndexIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_primary_key(self, async_backend_with_tables):
         """Test async get_primary_key for table with single-column PK."""
-        pk = await async_backend_with_tables.get_primary_key("users")
+        pk = await async_backend_with_tables.introspector.get_primary_key_async("users")
 
         assert pk is not None
         assert pk.is_primary is True
@@ -236,8 +236,8 @@ class TestAsyncIndexIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_indexes_caching(self, async_backend_with_tables):
         """Test that async index list is cached."""
-        indexes1 = await async_backend_with_tables.list_indexes("users")
-        indexes2 = await async_backend_with_tables.list_indexes("users")
+        indexes1 = await async_backend_with_tables.introspector.list_indexes_async("users")
+        indexes2 = await async_backend_with_tables.introspector.list_indexes_async("users")
 
         # Should return the same cached list
         assert indexes1 is indexes2

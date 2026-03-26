@@ -18,10 +18,8 @@ from mysql.connector.errors import (
     IntegrityError as MySQLIntegrityError,
     OperationalError as MySQLOperationalError,
 )
-from mysql.connector.constants import ClientFlag
 
 from rhosocial.activerecord.backend.base import AsyncStorageBackend
-from rhosocial.activerecord.backend.dialect.protocols import IntrospectionSupport
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     DatabaseError,
@@ -31,14 +29,14 @@ from rhosocial.activerecord.backend.errors import (
     QueryError,
 )
 from rhosocial.activerecord.backend.result import QueryResult
+from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
 from .mixins import MySQLBackendMixin
-from .async_introspection import AsyncMySQLIntrospectionMixin
 
 
-class AsyncMySQLBackend(MySQLBackendMixin, AsyncMySQLIntrospectionMixin, AsyncStorageBackend, IntrospectionSupport):
+class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -103,6 +101,12 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncMySQLIntrospectionMixin, AsyncSt
         self._register_mysql_adapters()
 
         self.log(logging.INFO, "AsyncMySQLBackend initialized")
+
+    def _create_introspector(self):
+        """Create a MySQLIntrospector backed by an AsyncIntrospectorExecutor."""
+        from rhosocial.activerecord.backend.introspection.executor import AsyncIntrospectorExecutor
+        from .introspection import MySQLIntrospector
+        return MySQLIntrospector(self, AsyncIntrospectorExecutor(self))
 
     async def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.
@@ -435,17 +439,12 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncMySQLIntrospectionMixin, AsyncSt
     async def executescript(self, sql_script: str) -> None:
         """Execute a multi-statement SQL script asynchronously.
 
-        This method uses MySQL's native multi-statement capability by enabling
-        the MULTI_STATEMENTS client flag. The driver handles statement parsing
-        internally, so no SQL parsing is needed at the backend level.
+        Splits the script on semicolons and executes each non-empty statement
+        individually, which is compatible with aiomysql's cursor interface.
 
         Args:
             sql_script: A string containing one or more SQL statements separated
                        by semicolons.
-
-        Note:
-            This method is similar to SQLite's async executescript but uses MySQL's
-            native multi-statement support via the MULTI_STATEMENTS client flag.
         """
         import time
 
@@ -457,49 +456,16 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncMySQLIntrospectionMixin, AsyncSt
 
         cursor = None
         try:
-            # Create a new connection with MULTI_STATEMENTS enabled if not already
-            current_flags = self._connection._client_flags
-
-            if not (current_flags & ClientFlag.MULTI_STATEMENTS):
-                # Need to reconnect with MULTI_STATEMENTS enabled
-                self.log(logging.DEBUG, "Reconnecting with MULTI_STATEMENTS enabled")
-                conn_params = {
-                    'host': self.config.host,
-                    'port': self.config.port,
-                    'database': self.config.database,
-                    'user': self.config.username,
-                    'password': self.config.password,
-                    'charset': getattr(self.config, 'charset', 'utf8mb4'),
-                    'autocommit': getattr(self.config, 'autocommit', True),
-                    'use_unicode': getattr(self.config, 'use_unicode', True),
-                    'client_flags': [ClientFlag.MULTI_STATEMENTS],
-                }
-                # Copy other relevant parameters
-                for param in ['ssl_ca', 'ssl_cert', 'ssl_key', 'ssl_verify_cert',
-                              'ssl_verify_identity', 'ssl_disabled']:
-                    if hasattr(self.config, param):
-                        val = getattr(self.config, param)
-                        if val is not None:
-                            conn_params[param] = val
-
-                await self._connection.close()
-                self._connection = await mysql_async.connect(**conn_params)
-
             cursor = await self._connection.cursor()
 
-            # Execute the multi-statement script
-            # MySQL driver handles parsing internally when MULTI_STATEMENTS is enabled
-            await cursor.execute(sql_script)
-
-            # Consume all results (required for multi-statement execution)
-            # This iterates through all result sets
-            while True:
-                # Consume current result set
-                if cursor.with_rows:
-                    await cursor.fetchall()
-                # Move to next result set
-                if not await cursor.nextset():
-                    break
+            # Split on semicolons and execute each statement individually.
+            # aiomysql does not support multi=True like mysql-connector-python.
+            for stmt in sql_script.split(";"):
+                stmt = stmt.strip()
+                if stmt:
+                    await cursor.execute(stmt)
+                    if cursor.description:
+                        await cursor.fetchall()
 
             duration = time.perf_counter() - start_time
             self.log(logging.INFO, f"Async SQL script executed successfully, duration={duration:.3f}s")

@@ -19,7 +19,7 @@ class TestListColumns:
 
     def test_list_columns_returns_column_info(self, backend_with_tables):
         """Test that list_columns returns ColumnInfo objects."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         assert isinstance(columns, list)
         assert len(columns) > 0
@@ -29,7 +29,7 @@ class TestListColumns:
 
     def test_list_columns_users_table(self, backend_with_tables):
         """Test columns for users table."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
         column_names = [c.name for c in columns]
 
         assert "id" in column_names
@@ -40,7 +40,7 @@ class TestListColumns:
 
     def test_list_columns_nonexistent_table(self, backend_with_tables):
         """Test list_columns for non-existent table."""
-        columns = backend_with_tables.list_columns("nonexistent")
+        columns = backend_with_tables.introspector.list_columns("nonexistent")
 
         # Should return empty list for non-existent table
         assert isinstance(columns, list)
@@ -48,8 +48,8 @@ class TestListColumns:
 
     def test_list_columns_caching(self, backend_with_tables):
         """Test that column list is cached."""
-        columns1 = backend_with_tables.list_columns("users")
-        columns2 = backend_with_tables.list_columns("users")
+        columns1 = backend_with_tables.introspector.list_columns("users")
+        columns2 = backend_with_tables.introspector.list_columns("users")
 
         # Should return the same cached list
         assert columns1 is columns2
@@ -60,7 +60,7 @@ class TestGetColumnInfo:
 
     def test_get_column_info_existing(self, backend_with_tables):
         """Test get_column_info for existing column."""
-        col = backend_with_tables.get_column_info("users", "email")
+        col = backend_with_tables.introspector.get_column_info("users", "email")
 
         assert col is not None
         assert isinstance(col, ColumnInfo)
@@ -68,13 +68,13 @@ class TestGetColumnInfo:
 
     def test_get_column_info_nonexistent_column(self, backend_with_tables):
         """Test get_column_info for non-existent column."""
-        col = backend_with_tables.get_column_info("users", "nonexistent")
+        col = backend_with_tables.introspector.get_column_info("users", "nonexistent")
 
         assert col is None
 
     def test_get_column_info_nonexistent_table(self, backend_with_tables):
         """Test get_column_info for non-existent table."""
-        col = backend_with_tables.get_column_info("nonexistent", "id")
+        col = backend_with_tables.introspector.get_column_info("nonexistent", "id")
 
         assert col is None
 
@@ -84,12 +84,12 @@ class TestColumnExists:
 
     def test_column_exists_true(self, backend_with_tables):
         """Test column_exists returns True for existing column."""
-        assert backend_with_tables.column_exists("users", "id") is True
-        assert backend_with_tables.column_exists("users", "email") is True
+        assert backend_with_tables.introspector.column_exists("users", "id") is True
+        assert backend_with_tables.introspector.column_exists("users", "email") is True
 
     def test_column_exists_false(self, backend_with_tables):
         """Test column_exists returns False for non-existent column."""
-        assert backend_with_tables.column_exists("users", "nonexistent") is False
+        assert backend_with_tables.introspector.column_exists("users", "nonexistent") is False
 
 
 class TestColumnInfoDetails:
@@ -97,7 +97,7 @@ class TestColumnInfoDetails:
 
     def test_column_ordinal_position(self, backend_with_tables):
         """Test column ordinal positions are correct."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         # Columns should be ordered by ordinal position
         positions = [c.ordinal_position for c in columns]
@@ -109,7 +109,7 @@ class TestColumnInfoDetails:
 
     def test_column_data_type(self, backend_with_tables):
         """Test column data type detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         id_col = next(c for c in columns if c.name == "id")
         assert id_col.data_type == "int"
@@ -119,14 +119,14 @@ class TestColumnInfoDetails:
 
     def test_column_data_type_full(self, backend_with_tables):
         """Test full data type includes length."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         name_col = next(c for c in columns if c.name == "name")
         assert "varchar(100)" in name_col.data_type_full.lower()
 
     def test_column_nullable(self, backend_with_tables):
         """Test nullable column detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         id_col = next(c for c in columns if c.name == "id")
         assert id_col.nullable == ColumnNullable.NOT_NULL
@@ -136,7 +136,7 @@ class TestColumnInfoDetails:
 
     def test_column_primary_key(self, backend_with_tables):
         """Test primary key detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         id_col = next(c for c in columns if c.name == "id")
         assert id_col.is_primary_key is True
@@ -146,7 +146,7 @@ class TestColumnInfoDetails:
 
     def test_column_unique(self, backend_with_tables):
         """Test unique column detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         email_col = next(c for c in columns if c.name == "email")
         # email has unique index
@@ -154,21 +154,21 @@ class TestColumnInfoDetails:
 
     def test_column_auto_increment(self, backend_with_tables):
         """Test auto increment detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         id_col = next(c for c in columns if c.name == "id")
         assert id_col.is_auto_increment is True
 
     def test_column_default_value(self, backend_with_tables):
         """Test default value detection."""
-        columns = backend_with_tables.list_columns("posts")
+        columns = backend_with_tables.introspector.list_columns("posts")
 
         status_col = next(c for c in columns if c.name == "status")
         assert status_col.default_value is not None
 
     def test_column_charset_collation(self, backend_with_tables):
         """Test charset and collation detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         name_col = next(c for c in columns if c.name == "name")
         assert name_col.charset is not None
@@ -184,7 +184,7 @@ class TestColumnInfoDetails:
             );
         """)
 
-        columns = backend_with_tables.list_columns("test_numeric")
+        columns = backend_with_tables.introspector.list_columns("test_numeric")
 
         amount_col = next(c for c in columns if c.name == "amount")
         assert amount_col.numeric_precision == 10
@@ -194,14 +194,14 @@ class TestColumnInfoDetails:
 
     def test_column_character_maximum_length(self, backend_with_tables):
         """Test character maximum length detection."""
-        columns = backend_with_tables.list_columns("users")
+        columns = backend_with_tables.introspector.list_columns("users")
 
         name_col = next(c for c in columns if c.name == "name")
         assert name_col.character_maximum_length == 100
 
     def test_enum_column_type(self, backend_with_tables):
         """Test ENUM column type detection."""
-        columns = backend_with_tables.list_columns("posts")
+        columns = backend_with_tables.introspector.list_columns("posts")
 
         status_col = next(c for c in columns if c.name == "status")
         assert "enum" in status_col.data_type_full.lower()
@@ -209,7 +209,7 @@ class TestColumnInfoDetails:
 
     def test_text_column_type(self, backend_with_tables):
         """Test TEXT column type detection."""
-        columns = backend_with_tables.list_columns("posts")
+        columns = backend_with_tables.introspector.list_columns("posts")
 
         content_col = next(c for c in columns if c.name == "content")
         assert content_col.data_type == "text"
@@ -220,7 +220,7 @@ class TestCompositePrimaryKey:
 
     def test_composite_primary_key(self, backend_with_tables):
         """Test composite primary key detection."""
-        columns = backend_with_tables.list_columns("post_tags")
+        columns = backend_with_tables.introspector.list_columns("post_tags")
 
         pk_columns = [c for c in columns if c.is_primary_key]
         assert len(pk_columns) == 2
@@ -236,7 +236,7 @@ class TestAsyncColumnIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_columns(self, async_backend_with_tables):
         """Test async list_columns returns ColumnInfo objects."""
-        columns = await async_backend_with_tables.list_columns("users")
+        columns = await async_backend_with_tables.introspector.list_columns_async("users")
 
         assert isinstance(columns, list)
         assert len(columns) > 0
@@ -247,7 +247,7 @@ class TestAsyncColumnIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_column_info(self, async_backend_with_tables):
         """Test async get_column_info for existing column."""
-        col = await async_backend_with_tables.get_column_info("users", "email")
+        col = await async_backend_with_tables.introspector.get_column_info_async("users", "email")
 
         assert col is not None
         assert isinstance(col, ColumnInfo)
@@ -256,14 +256,14 @@ class TestAsyncColumnIntrospection:
     @pytest.mark.asyncio
     async def test_async_column_exists(self, async_backend_with_tables):
         """Test async column_exists returns True for existing column."""
-        exists = await async_backend_with_tables.column_exists("users", "id")
+        exists = await async_backend_with_tables.introspector.column_exists_async("users", "id")
         assert exists is True
 
     @pytest.mark.asyncio
     async def test_async_list_columns_caching(self, async_backend_with_tables):
         """Test that async column list is cached."""
-        columns1 = await async_backend_with_tables.list_columns("users")
-        columns2 = await async_backend_with_tables.list_columns("users")
+        columns1 = await async_backend_with_tables.introspector.list_columns_async("users")
+        columns2 = await async_backend_with_tables.introspector.list_columns_async("users")
 
         # Should return the same cached list
         assert columns1 is columns2

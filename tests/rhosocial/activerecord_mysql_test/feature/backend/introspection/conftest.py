@@ -134,11 +134,11 @@ _CLEANUP_TRIGGER_SQL = """
 @pytest.fixture(scope="function")
 def backend_with_tables(mysql_backend):
     """Fixture providing backend with test tables created."""
-    mysql_backend.clear_introspection_cache()
+    mysql_backend.introspector.clear_cache()
     mysql_backend.executescript(_TABLES_SQL)
     yield mysql_backend
     try:
-        mysql_backend.clear_introspection_cache()
+        mysql_backend.introspector.clear_cache()
         mysql_backend.executescript(_CLEANUP_TABLES_SQL)
     except Exception:
         pass
@@ -147,11 +147,11 @@ def backend_with_tables(mysql_backend):
 @pytest_asyncio.fixture(scope="function")
 async def async_backend_with_tables(async_mysql_backend):
     """Async fixture providing backend with test tables created."""
-    await async_mysql_backend.clear_introspection_cache()
+    async_mysql_backend.introspector.clear_cache()
     await async_mysql_backend.executescript(_TABLES_SQL)
     yield async_mysql_backend
     try:
-        await async_mysql_backend.clear_introspection_cache()
+        async_mysql_backend.introspector.clear_cache()
         await async_mysql_backend.executescript(_CLEANUP_TABLES_SQL)
     except Exception:
         pass
@@ -160,11 +160,11 @@ async def async_backend_with_tables(async_mysql_backend):
 @pytest.fixture(scope="function")
 def backend_with_view(mysql_backend):
     """Fixture providing backend with a test view."""
-    mysql_backend.clear_introspection_cache()
+    mysql_backend.introspector.clear_cache()
     mysql_backend.executescript(_VIEW_SQL)
     yield mysql_backend
     try:
-        mysql_backend.clear_introspection_cache()
+        mysql_backend.introspector.clear_cache()
         mysql_backend.executescript(_CLEANUP_VIEW_SQL)
     except Exception:
         pass
@@ -173,11 +173,11 @@ def backend_with_view(mysql_backend):
 @pytest_asyncio.fixture(scope="function")
 async def async_backend_with_view(async_mysql_backend):
     """Async fixture providing backend with a test view."""
-    await async_mysql_backend.clear_introspection_cache()
+    async_mysql_backend.introspector.clear_cache()
     await async_mysql_backend.executescript(_VIEW_SQL)
     yield async_mysql_backend
     try:
-        await async_mysql_backend.clear_introspection_cache()
+        async_mysql_backend.introspector.clear_cache()
         await async_mysql_backend.executescript(_CLEANUP_VIEW_SQL)
     except Exception:
         pass
@@ -186,11 +186,11 @@ async def async_backend_with_view(async_mysql_backend):
 @pytest.fixture(scope="function")
 def backend_with_trigger(mysql_backend):
     """Fixture providing backend with a test trigger."""
-    mysql_backend.clear_introspection_cache()
+    mysql_backend.introspector.clear_cache()
     mysql_backend.executescript(_TRIGGER_SQL)
     yield mysql_backend
     try:
-        mysql_backend.clear_introspection_cache()
+        mysql_backend.introspector.clear_cache()
         mysql_backend.executescript(_CLEANUP_TRIGGER_SQL)
     except Exception:
         pass
@@ -199,11 +199,11 @@ def backend_with_trigger(mysql_backend):
 @pytest_asyncio.fixture(scope="function")
 async def async_backend_with_trigger(async_mysql_backend):
     """Async fixture providing backend with a test trigger."""
-    await async_mysql_backend.clear_introspection_cache()
+    async_mysql_backend.introspector.clear_cache()
     await async_mysql_backend.executescript(_TRIGGER_SQL)
     yield async_mysql_backend
     try:
-        await async_mysql_backend.clear_introspection_cache()
+        async_mysql_backend.introspector.clear_cache()
         await async_mysql_backend.executescript(_CLEANUP_TRIGGER_SQL)
     except Exception:
         pass

@@ -17,7 +17,6 @@ from mysql.connector.errors import (
     IntegrityError as MySQLIntegrityError,
     OperationalError as MySQLOperationalError,
 )
-from mysql.connector.constants import ClientFlag
 
 from rhosocial.activerecord.backend.base import StorageBackend
 from rhosocial.activerecord.backend.errors import (
@@ -29,15 +28,14 @@ from rhosocial.activerecord.backend.errors import (
     QueryError,
 )
 from rhosocial.activerecord.backend.result import QueryResult
-from rhosocial.activerecord.backend.dialect.protocols import IntrospectionSupport
+from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .mixins import MySQLBackendMixin
-from .introspection import MySQLIntrospectionMixin
 
 
-class MySQLBackend(MySQLBackendMixin, MySQLIntrospectionMixin, StorageBackend, IntrospectionSupport):
+class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
     """MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -104,6 +102,12 @@ class MySQLBackend(MySQLBackendMixin, MySQLIntrospectionMixin, StorageBackend, I
         self._register_mysql_adapters()
 
         self.log(logging.INFO, "MySQLBackend initialized")
+
+    def _create_introspector(self):
+        """Create a MySQLIntrospector backed by a SyncIntrospectorExecutor."""
+        from rhosocial.activerecord.backend.introspection.executor import SyncIntrospectorExecutor
+        from .introspection import MySQLIntrospector
+        return MySQLIntrospector(self, SyncIntrospectorExecutor(self))
 
     def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.
@@ -433,17 +437,12 @@ class MySQLBackend(MySQLBackendMixin, MySQLIntrospectionMixin, StorageBackend, I
     def executescript(self, sql_script: str) -> None:
         """Execute a multi-statement SQL script.
 
-        This method uses MySQL's native multi-statement capability by enabling
-        the MULTI_STATEMENTS client flag. The driver handles statement parsing
-        internally, so no SQL parsing is needed at the backend level.
+        Uses cursor.execute(sql, multi=True) to handle multiple statements
+        separated by semicolons in a single call.
 
         Args:
             sql_script: A string containing one or more SQL statements separated
                        by semicolons.
-
-        Note:
-            This method is similar to SQLite's executescript but uses MySQL's
-            native multi-statement support via the MULTI_STATEMENTS client flag.
         """
         import time
 
@@ -455,51 +454,16 @@ class MySQLBackend(MySQLBackendMixin, MySQLIntrospectionMixin, StorageBackend, I
 
         cursor = None
         try:
-            # Create a new connection with MULTI_STATEMENTS enabled if not already
-            current_flags = self._connection._client_flags
-
-            if not (current_flags & ClientFlag.MULTI_STATEMENTS):
-                # Need to reconnect with MULTI_STATEMENTS enabled
-                self.log(logging.DEBUG, "Reconnecting with MULTI_STATEMENTS enabled")
-                conn_params = {
-                    'host': self.config.host,
-                    'port': self.config.port,
-                    'database': self.config.database,
-                    'user': self.config.username,
-                    'password': self.config.password,
-                    'charset': getattr(self.config, 'charset', 'utf8mb4'),
-                    'autocommit': getattr(self.config, 'autocommit', True),
-                    'use_unicode': getattr(self.config, 'use_unicode', True),
-                    'get_warnings': getattr(self.config, 'get_warnings', False),
-                    'raise_on_warnings': getattr(self.config, 'raise_on_warnings', False),
-                    'client_flags': [ClientFlag.MULTI_STATEMENTS],
-                }
-                # Copy other relevant parameters
-                for param in ['ssl_ca', 'ssl_cert', 'ssl_key', 'ssl_verify_cert',
-                              'ssl_verify_identity', 'ssl_disabled']:
-                    if hasattr(self.config, param):
-                        val = getattr(self.config, param)
-                        if val is not None:
-                            conn_params[param] = val
-
-                self._connection.close()
-                self._connection = mysql.connector.connect(**conn_params)
-
             cursor = self._connection.cursor()
 
-            # Execute the multi-statement script
-            # MySQL driver handles parsing internally when MULTI_STATEMENTS is enabled
-            cursor.execute(sql_script)
+            # Use multi=True to handle multiple statements in one execute call.
+            # cursor.execute() returns a generator of result cursors when multi=True.
+            results = cursor.execute(sql_script, multi=True)
 
-            # Consume all results (required for multi-statement execution)
-            # This iterates through all result sets
-            while True:
-                # Consume current result set
-                if cursor.with_rows:
-                    cursor.fetchall()
-                # Move to next result set
-                if not cursor.nextset():
-                    break
+            # Consume all result sets to allow the server to process every statement.
+            for result in results:
+                if result.with_rows:
+                    result.fetchall()
 
             duration = time.perf_counter() - start_time
             self.log(logging.INFO, f"SQL script executed successfully, duration={duration:.3f}s")
