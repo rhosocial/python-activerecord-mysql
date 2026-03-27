@@ -104,10 +104,10 @@ class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
         self.log(logging.INFO, "MySQLBackend initialized")
 
     def _create_introspector(self):
-        """Create a MySQLIntrospector backed by a SyncIntrospectorExecutor."""
+        """Create a SyncMySQLIntrospector backed by a SyncIntrospectorExecutor."""
         from rhosocial.activerecord.backend.introspection.executor import SyncIntrospectorExecutor
-        from .introspection import MySQLIntrospector
-        return MySQLIntrospector(self, SyncIntrospectorExecutor(self))
+        from .introspection import SyncMySQLIntrospector
+        return SyncMySQLIntrospector(self, SyncIntrospectorExecutor(self))
 
     def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.

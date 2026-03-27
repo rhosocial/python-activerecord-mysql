@@ -1,20 +1,22 @@
 # src/rhosocial/activerecord/backend/impl/mysql/introspection/show_introspector.py
 """
-MySQL SHOW command sub-introspector.
+MySQL SHOW command sub-introspectors.
 
-Provides MySQL-specific SHOW commands as a sub-introspector accessible via
-``backend.introspector.show``.  Execution is delegated to the parent
-IntrospectorExecutor, keeping the class I/O-free except for the
-executor calls.
+Provides MySQL-specific SHOW commands as sub-introspectors accessible via
+``backend.introspector.show``. Execution is delegated to the executor,
+keeping the class I/O-free except for the executor calls.
 
-Sync and async are unified in one class: synchronous callers use the
-regular methods, async callers use the ``_async``-suffixed counterparts.
-All _parse_* helpers are pure functions and are shared by both paths.
+Design principle: Sync and Async are separate and cannot coexist.
+- SyncShowIntrospector: for synchronous backends (method names without _async suffix)
+- AsyncShowIntrospector: for asynchronous backends (method names without _async suffix)
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from rhosocial.activerecord.backend.introspection.executor import IntrospectorExecutor
+from rhosocial.activerecord.backend.introspection.executor import (
+    SyncIntrospectorExecutor,
+    AsyncIntrospectorExecutor,
+)
 from ..show.expressions import (
     ShowCreateTableExpression,
     ShowCreateViewExpression,
@@ -38,45 +40,23 @@ from ..show.expressions import (
 )
 
 
-class ShowIntrospector:
-    """MySQL SHOW command sub-introspector.
+class ShowMixin:
+    """Mixin providing shared SHOW command logic.
 
-    Exposes all MySQL SHOW commands.  Access via
-    ``backend.introspector.show``::
-
-        tables    = backend.introspector.show.tables()
-        create    = backend.introspector.show.create_table("users")
-        variables = backend.introspector.show.variables(like="max_%")
-
-    All methods have an async counterpart with ``_async`` suffix::
-
-        tables = await backend.introspector.show.tables_async()
+    Both SyncShowIntrospector and AsyncShowIntrospector inherit
+    from this mixin to share:
+    - Dialect access
+    - SQL generation helpers
+    - _parse_* static methods
     """
-
-    def __init__(self, backend: Any, executor: IntrospectorExecutor) -> None:
-        self._backend = backend
-        self._executor = executor
-
-    # ------------------------------------------------------------------ #
-    # Dialect shortcut
-    # ------------------------------------------------------------------ #
 
     @property
     def dialect(self):
+        """Get the SQL dialect from the backend."""
         return self._backend.dialect
 
     # ------------------------------------------------------------------ #
-    # Internal: execute helpers
-    # ------------------------------------------------------------------ #
-
-    def _exec(self, sql: str, params: tuple) -> List[Dict[str, Any]]:
-        return self._executor.execute(sql, params)
-
-    async def _exec_async(self, sql: str, params: tuple) -> List[Dict[str, Any]]:
-        return await self._executor.execute_async(sql, params)
-
-    # ------------------------------------------------------------------ #
-    # Pure parse helpers (shared by sync and async)
+    # Pure parse helpers (shared by sync and async, no I/O)
     # ------------------------------------------------------------------ #
 
     @staticmethod
@@ -327,8 +307,29 @@ class ShowIntrospector:
             for row in rows
         ]
 
+
+class SyncShowIntrospector(ShowMixin):
+    """Synchronous SHOW command sub-introspector for MySQL backends.
+
+    All methods are synchronous. Method names do NOT have an _async suffix.
+
+    Access via ``backend.introspector.show``::
+
+        tables    = backend.introspector.show.tables()
+        create    = backend.introspector.show.create_table("users")
+        variables = backend.introspector.show.variables(like="max_%")
+    """
+
+    def __init__(self, backend: Any, executor: SyncIntrospectorExecutor) -> None:
+        self._backend = backend
+        self._executor = executor
+
+    def _exec(self, sql: str, params: tuple) -> List[Dict[str, Any]]:
+        """Execute SQL synchronously."""
+        return self._executor.execute(sql, params)
+
     # ------------------------------------------------------------------ #
-    # Sync public API
+    # Public synchronous API
     # ------------------------------------------------------------------ #
 
     def create_table(self, table_name: str, schema: Optional[str] = None):
@@ -506,34 +507,56 @@ class ShowIntrospector:
         sql, params = expr.to_sql()
         return self._parse_plugins(self._exec(sql, params))
 
+
+class AsyncShowIntrospector(ShowMixin):
+    """Asynchronous SHOW command sub-introspector for MySQL backends.
+
+    All methods are async. Method names match the sync version (no _async suffix).
+
+    Access via ``backend.introspector.show``::
+
+        tables    = await backend.introspector.show.tables()
+        create    = await backend.introspector.show.create_table("users")
+        variables = await backend.introspector.show.variables(like="max_%")
+    """
+
+    def __init__(self, backend: Any, executor: AsyncIntrospectorExecutor) -> None:
+        self._backend = backend
+        self._executor = executor
+
+    async def _exec(self, sql: str, params: tuple) -> List[Dict[str, Any]]:
+        """Execute SQL asynchronously."""
+        return await self._executor.execute(sql, params)
+
     # ------------------------------------------------------------------ #
-    # Async public API  (identical structure, only _exec → _exec_async)
+    # Public asynchronous API
+    # Method names match the sync version (no _async suffix).
     # ------------------------------------------------------------------ #
 
-    async def create_table_async(self, table_name: str, schema: Optional[str] = None):
-        """Async version of create_table."""
+    async def create_table(self, table_name: str, schema: Optional[str] = None):
+        """Get CREATE TABLE statement for a table."""
         expr = ShowCreateTableExpression(self.dialect, table_name)
         if schema:
             expr.schema(schema)
         sql, params = expr.to_sql()
-        return self._parse_create_table(await self._exec_async(sql, params), table_name)
+        return self._parse_create_table(await self._exec(sql, params), table_name)
 
-    async def create_view_async(self, view_name: str, schema: Optional[str] = None):
-        """Async version of create_view."""
+    async def create_view(self, view_name: str, schema: Optional[str] = None):
+        """Get CREATE VIEW statement for a view."""
         expr = ShowCreateViewExpression(self.dialect, view_name)
         if schema:
             expr.schema(schema)
         sql, params = expr.to_sql()
-        return self._parse_create_view(await self._exec_async(sql, params), view_name)
+        return self._parse_create_view(await self._exec(sql, params), view_name)
 
-    async def columns_async(
+    async def columns(
         self,
         table_name: str,
         schema: Optional[str] = None,
         full: bool = False,
         like: Optional[str] = None,
     ):
-        """Async version of columns."""
+        """Get column information for a table."""
         expr = ShowColumnsExpression(self.dialect, table_name)
         if schema:
             expr.schema(schema)
@@ -542,23 +565,23 @@ class ShowIntrospector:
         if like:
             expr.like(like)
         sql, params = expr.to_sql()
-        return self._parse_columns(await self._exec_async(sql, params))
+        return self._parse_columns(await self._exec(sql, params))
 
-    async def indexes_async(self, table_name: str, schema: Optional[str] = None):
-        """Async version of indexes."""
+    async def indexes(self, table_name: str, schema: Optional[str] = None):
+        """Get index information for a table."""
         expr = ShowIndexExpression(self.dialect, table_name)
         if schema:
             expr.schema(schema)
         sql, params = expr.to_sql()
-        return self._parse_indexes(await self._exec_async(sql, params))
+        return self._parse_indexes(await self._exec(sql, params))
 
-    async def tables_async(
+    async def tables(
         self,
         schema: Optional[str] = None,
         like: Optional[str] = None,
         full: bool = False,
     ):
-        """Async version of tables."""
+        """List tables in the database."""
         expr = ShowTablesExpression(self.dialect)
         if schema:
             expr.schema(schema)
@@ -567,120 +590,120 @@ class ShowIntrospector:
         if full:
             expr.full()
         sql, params = expr.to_sql()
-        return self._parse_tables(await self._exec_async(sql, params))
+        return self._parse_tables(await self._exec(sql, params))
 
-    async def databases_async(self, like: Optional[str] = None):
-        """Async version of databases."""
+    async def databases(self, like: Optional[str] = None):
+        """List databases."""
         expr = ShowDatabasesExpression(self.dialect)
         if like:
             expr.like(like)
         sql, params = expr.to_sql()
-        return self._parse_databases(await self._exec_async(sql, params))
+        return self._parse_databases(await self._exec(sql, params))
 
-    async def table_status_async(self, schema: Optional[str] = None, like: Optional[str] = None):
-        """Async version of table_status."""
+    async def table_status(self, schema: Optional[str] = None, like: Optional[str] = None):
+        """Get table status information."""
         expr = ShowTableStatusExpression(self.dialect)
         if schema:
             expr.schema(schema)
         if like:
             expr.like(like)
         sql, params = expr.to_sql()
-        return self._parse_table_status(await self._exec_async(sql, params))
+        return self._parse_table_status(await self._exec(sql, params))
 
-    async def triggers_async(self, schema: Optional[str] = None, table_name: Optional[str] = None):
-        """Async version of triggers."""
+    async def triggers(self, schema: Optional[str] = None, table_name: Optional[str] = None):
+        """List triggers."""
         expr = ShowTriggersExpression(self.dialect)
         if schema:
             expr.schema(schema)
         if table_name:
             expr.for_table(table_name)
         sql, params = expr.to_sql()
-        return self._parse_triggers(await self._exec_async(sql, params))
+        return self._parse_triggers(await self._exec(sql, params))
 
-    async def create_trigger_async(self, trigger_name: str, schema: Optional[str] = None):
-        """Async version of create_trigger."""
+    async def create_trigger(self, trigger_name: str, schema: Optional[str] = None):
+        """Get CREATE TRIGGER statement."""
         expr = ShowCreateTriggerExpression(self.dialect, trigger_name)
         if schema:
             expr.schema(schema)
         sql, params = expr.to_sql()
-        return self._parse_create_trigger(await self._exec_async(sql, params), trigger_name)
+        return self._parse_create_trigger(await self._exec(sql, params), trigger_name)
 
-    async def variables_async(self, like: Optional[str] = None, session: bool = True):
-        """Async version of variables."""
+    async def variables(self, like: Optional[str] = None, session: bool = True):
+        """Show server variables."""
         expr = ShowVariablesExpression(self.dialect)
         if like:
             expr.like(like)
         if not session:
             expr.global_vars()
         sql, params = expr.to_sql()
-        return self._parse_variables(await self._exec_async(sql, params))
+        return self._parse_variables(await self._exec(sql, params))
 
-    async def status_async(self, like: Optional[str] = None, session: bool = True):
-        """Async version of status."""
+    async def status(self, like: Optional[str] = None, session: bool = True):
+        """Show server status."""
         expr = ShowStatusExpression(self.dialect)
         if like:
             expr.like(like)
         if not session:
             expr.global_status()
         sql, params = expr.to_sql()
-        return self._parse_status(await self._exec_async(sql, params))
+        return self._parse_status(await self._exec(sql, params))
 
-    async def processlist_async(self, full: bool = False):
-        """Async version of processlist."""
+    async def processlist(self, full: bool = False):
+        """Show process list."""
         expr = ShowProcessListExpression(self.dialect)
         if full:
             expr.full()
         sql, params = expr.to_sql()
-        return self._parse_processlist(await self._exec_async(sql, params))
+        return self._parse_processlist(await self._exec(sql, params))
 
-    async def warnings_async(self, limit: Optional[int] = None):
-        """Async version of warnings."""
+    async def warnings(self, limit: Optional[int] = None):
+        """Show warnings."""
         expr = ShowWarningsExpression(self.dialect)
         if limit is not None:
             expr.limit(limit)
         sql, params = expr.to_sql()
-        return self._parse_warnings(await self._exec_async(sql, params))
+        return self._parse_warnings(await self._exec(sql, params))
 
-    async def errors_async(self, limit: Optional[int] = None):
-        """Async version of errors."""
+    async def errors(self, limit: Optional[int] = None):
+        """Show errors."""
         expr = ShowErrorsExpression(self.dialect)
         if limit is not None:
             expr.limit(limit)
         sql, params = expr.to_sql()
-        return self._parse_warnings(await self._exec_async(sql, params))
+        return self._parse_warnings(await self._exec(sql, params))
 
-    async def engines_async(self):
-        """Async version of engines."""
+    async def engines(self):
+        """Show storage engines."""
         expr = ShowEnginesExpression(self.dialect)
         sql, params = expr.to_sql()
-        return self._parse_engines(await self._exec_async(sql, params))
+        return self._parse_engines(await self._exec(sql, params))
 
-    async def charset_async(self, like: Optional[str] = None):
-        """Async version of charset."""
+    async def charset(self, like: Optional[str] = None):
+        """Show character sets."""
         expr = ShowCharsetExpression(self.dialect)
         if like:
             expr.like(like)
         sql, params = expr.to_sql()
-        return self._parse_charset(await self._exec_async(sql, params))
+        return self._parse_charset(await self._exec(sql, params))
 
-    async def collation_async(self, like: Optional[str] = None):
-        """Async version of collation."""
+    async def collation(self, like: Optional[str] = None):
+        """Show collations."""
         expr = ShowCollationExpression(self.dialect)
         if like:
             expr.like(like)
         sql, params = expr.to_sql()
-        return self._parse_collation(await self._exec_async(sql, params))
+        return self._parse_collation(await self._exec(sql, params))
 
-    async def grants_async(self, user: Optional[str] = None, host: Optional[str] = None):
-        """Async version of grants."""
+    async def grants(self, user: Optional[str] = None, host: Optional[str] = None):
+        """Show grants."""
         expr = ShowGrantsExpression(self.dialect)
         if user:
             expr.for_user(user, host)
         sql, params = expr.to_sql()
-        return self._parse_grants(await self._exec_async(sql, params))
+        return self._parse_grants(await self._exec(sql, params))
 
-    async def plugins_async(self):
-        """Async version of plugins."""
+    async def plugins(self):
+        """Show plugins."""
         expr = ShowPluginsExpression(self.dialect)
         sql, params = expr.to_sql()
-        return self._parse_plugins(await self._exec_async(sql, params))
+        return self._parse_plugins(await self._exec(sql, params))

@@ -1,24 +1,35 @@
 # src/rhosocial/activerecord/backend/impl/mysql/introspection/introspector.py
 """
-MySQL concrete introspector.
+MySQL concrete introspectors.
 
-Implements AbstractIntrospector for MySQL databases using the
-information_schema system tables for metadata queries.
+Implements SyncAbstractIntrospector and AsyncAbstractIntrospector for MySQL
+databases using the information_schema system tables for metadata queries.
 
-The introspector is exposed via ``backend.introspector`` and also provides
+The introspectors are exposed via ``backend.introspector`` and also provide
 MySQL-specific access through ``backend.introspector.show``.
 
 Key behaviours:
   - Queries information_schema.TABLES, COLUMNS, STATISTICS,
     KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS, VIEWS, TRIGGERS
-  - _parse_* methods are pure Python — shared by sync and async paths
+  - _parse_* methods are pure Python — shared by sync and async introspectors
+
+Design principle: Sync and Async are separate and cannot coexist.
+- SyncMySQLIntrospector: for synchronous backends
+- AsyncMySQLIntrospector: for asynchronous backends
 """
 
 import copy
 from typing import Any, Dict, List, Optional
 
-from rhosocial.activerecord.backend.introspection.base import AbstractIntrospector
-from rhosocial.activerecord.backend.introspection.executor import IntrospectorExecutor
+from rhosocial.activerecord.backend.introspection.base import (
+    IntrospectorMixin,
+    SyncAbstractIntrospector,
+    AsyncAbstractIntrospector,
+)
+from rhosocial.activerecord.backend.introspection.executor import (
+    SyncIntrospectorExecutor,
+    AsyncIntrospectorExecutor,
+)
 from rhosocial.activerecord.backend.introspection.types import (
     DatabaseInfo,
     TableInfo,
@@ -34,41 +45,22 @@ from rhosocial.activerecord.backend.introspection.types import (
     TriggerInfo,
     IntrospectionScope,
 )
-from .show_introspector import ShowIntrospector
+from .show_introspector import (
+    SyncShowIntrospector,
+    AsyncShowIntrospector,
+)
 
 
-class MySQLIntrospector(AbstractIntrospector):
-    """Introspector for MySQL backends.
+class MySQLIntrospectorMixin(IntrospectorMixin):
+    """Mixin providing shared MySQL-specific introspection logic.
 
-    In addition to the standard AbstractIntrospector interface, exposes the
-    ``.show`` sub-introspector for direct SHOW command access::
-
-        # Standard API
-        tables = backend.introspector.list_tables()
-
-        # MySQL-specific
-        create_sql = backend.introspector.show.create_table("users")
-        variables  = backend.introspector.show.variables(like="max_%")
+    Both SyncMySQLIntrospector and AsyncMySQLIntrospector inherit
+    from this mixin to share:
+    - Default schema handling
+    - MySQL version detection
+    - SQL generation overrides
+    - _parse_* implementations
     """
-
-    def __init__(self, backend: Any, executor: IntrospectorExecutor) -> None:
-        super().__init__(backend, executor)
-        self._show_instance: Optional[ShowIntrospector] = None
-
-    # ------------------------------------------------------------------ #
-    # Sub-introspector: SHOW
-    # ------------------------------------------------------------------ #
-
-    @property
-    def show(self) -> ShowIntrospector:
-        """MySQL-specific SHOW sub-introspector (lazily created)."""
-        if self._show_instance is None:
-            self._show_instance = ShowIntrospector(self._backend, self._executor)
-        return self._show_instance
-
-    # ------------------------------------------------------------------ #
-    # Internal helpers
-    # ------------------------------------------------------------------ #
 
     def _get_default_schema(self) -> str:
         """Return the MySQL database name from the backend config."""
@@ -82,6 +74,7 @@ class MySQLIntrospector(AbstractIntrospector):
 
     # ------------------------------------------------------------------ #
     # SQL generation overrides
+    # MySQL uses information_schema for all introspection.
     # ------------------------------------------------------------------ #
 
     def _build_database_info_sql(self):
@@ -400,6 +393,32 @@ class MySQLIntrospector(AbstractIntrospector):
             for row in rows
         ]
 
+
+class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
+    """Synchronous introspector for MySQL backends.
+
+    In addition to the standard SyncAbstractIntrospector interface, exposes the
+    ``.show`` sub-introspector for direct SHOW command access::
+
+        # Standard API
+        tables = backend.introspector.list_tables()
+
+        # MySQL-specific
+        create_sql = backend.introspector.show.create_table("users")
+        variables  = backend.introspector.show.variables(like="max_%")
+    """
+
+    def __init__(self, backend: Any, executor: SyncIntrospectorExecutor) -> None:
+        super().__init__(backend, executor)
+        self._show_instance: Optional[SyncShowIntrospector] = None
+
+    @property
+    def show(self) -> SyncShowIntrospector:
+        """MySQL-specific SHOW sub-introspector (lazily created)."""
+        if self._show_instance is None:
+            self._show_instance = SyncShowIntrospector(self._backend, self._executor)
+        return self._show_instance
+
     # ------------------------------------------------------------------ #
     # get_table_info override
     # ------------------------------------------------------------------ #
@@ -426,7 +445,37 @@ class MySQLIntrospector(AbstractIntrospector):
         self._set_cached(key, table)
         return table
 
-    async def get_table_info_async(
+
+class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
+    """Asynchronous introspector for MySQL backends.
+
+    In addition to the standard AsyncAbstractIntrospector interface, exposes the
+    ``.show`` sub-introspector for direct SHOW command access::
+
+        # Standard API
+        tables = await backend.introspector.list_tables()
+
+        # MySQL-specific
+        create_sql = await backend.introspector.show.create_table("users")
+        variables  = await backend.introspector.show.variables(like="max_%")
+    """
+
+    def __init__(self, backend: Any, executor: AsyncIntrospectorExecutor) -> None:
+        super().__init__(backend, executor)
+        self._show_instance: Optional[AsyncShowIntrospector] = None
+
+    @property
+    def show(self) -> AsyncShowIntrospector:
+        """MySQL-specific SHOW sub-introspector (lazily created)."""
+        if self._show_instance is None:
+            self._show_instance = AsyncShowIntrospector(self._backend, self._executor)
+        return self._show_instance
+
+    # ------------------------------------------------------------------ #
+    # get_table_info override
+    # ------------------------------------------------------------------ #
+
+    async def get_table_info(
         self, table_name: str, schema: Optional[str] = None
     ) -> Optional[TableInfo]:
         key = self._make_cache_key(
@@ -436,14 +485,14 @@ class MySQLIntrospector(AbstractIntrospector):
         if cached is not None:
             return cached
 
-        tables = await self.list_tables_async(schema)
+        tables = await self.list_tables(schema)
         table = next((t for t in tables if t.name == table_name), None)
         if table is None:
             return None
 
         table = copy.copy(table)
-        table.columns = await self.list_columns_async(table_name, schema)
-        table.indexes = await self.list_indexes_async(table_name, schema)
-        table.foreign_keys = await self.list_foreign_keys_async(table_name, schema)
+        table.columns = await self.list_columns(table_name, schema)
+        table.indexes = await self.list_indexes(table_name, schema)
+        table.foreign_keys = await self.list_foreign_keys(table_name, schema)
         self._set_cached(key, table)
         return table

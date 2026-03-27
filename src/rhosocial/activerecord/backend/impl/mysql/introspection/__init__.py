@@ -3,11 +3,24 @@
 MySQL introspection package.
 
 Provides:
-  MySQLIntrospector  — concrete AbstractIntrospector for MySQL databases
-  ShowIntrospector   — MySQL-specific SHOW command sub-introspector
+  SyncMySQLIntrospector   — synchronous introspector for MySQL databases
+  AsyncMySQLIntrospector  — asynchronous introspector for MySQL databases
+  SyncShowIntrospector    — synchronous MySQL-specific SHOW command sub-introspector
+  AsyncShowIntrospector   — asynchronous MySQL-specific SHOW command sub-introspector
 """
 
-from .introspector import MySQLIntrospector
-from .show_introspector import ShowIntrospector
+from .introspector import (
+    SyncMySQLIntrospector,
+    AsyncMySQLIntrospector,
+)
+from .show_introspector import (
+    SyncShowIntrospector,
+    AsyncShowIntrospector,
+)
 
-__all__ = ["MySQLIntrospector", "ShowIntrospector"]
+__all__ = [
+    "SyncMySQLIntrospector",
+    "AsyncMySQLIntrospector",
+    "SyncShowIntrospector",
+    "AsyncShowIntrospector",
+]

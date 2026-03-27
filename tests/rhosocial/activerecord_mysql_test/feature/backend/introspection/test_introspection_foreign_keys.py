@@ -259,7 +259,7 @@ class TestAsyncForeignKeyIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_foreign_keys(self, async_backend_with_tables):
         """Test async list_foreign_keys returns ForeignKeyInfo objects."""
-        fks = await async_backend_with_tables.introspector.list_foreign_keys_async("posts")
+        fks = await async_backend_with_tables.introspector.list_foreign_keys("posts")
 
         assert isinstance(fks, list)
         assert len(fks) > 0
@@ -270,11 +270,11 @@ class TestAsyncForeignKeyIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_foreign_key_info(self, async_backend_with_tables):
         """Test async get_foreign_key_info for existing FK."""
-        fks = await async_backend_with_tables.introspector.list_foreign_keys_async("posts")
+        fks = await async_backend_with_tables.introspector.list_foreign_keys("posts")
         assert len(fks) > 0
 
         fk_name = fks[0].name
-        fk = await async_backend_with_tables.introspector.get_foreign_key_info_async("posts", fk_name)
+        fk = await async_backend_with_tables.introspector.get_foreign_key_info("posts", fk_name)
 
         assert fk is not None
         assert isinstance(fk, ForeignKeyInfo)
@@ -283,8 +283,8 @@ class TestAsyncForeignKeyIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_foreign_keys_caching(self, async_backend_with_tables):
         """Test that async foreign key list is cached."""
-        fks1 = await async_backend_with_tables.introspector.list_foreign_keys_async("posts")
-        fks2 = await async_backend_with_tables.introspector.list_foreign_keys_async("posts")
+        fks1 = await async_backend_with_tables.introspector.list_foreign_keys("posts")
+        fks2 = await async_backend_with_tables.introspector.list_foreign_keys("posts")
 
         # Should return the same cached list
         assert fks1 is fks2

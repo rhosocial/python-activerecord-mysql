@@ -142,7 +142,7 @@ class TestAsyncViewIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_views(self, async_backend_with_view):
         """Test async list_views returns ViewInfo objects."""
-        views = await async_backend_with_view.introspector.list_views_async()
+        views = await async_backend_with_view.introspector.list_views()
 
         assert isinstance(views, list)
         assert len(views) > 0
@@ -153,7 +153,7 @@ class TestAsyncViewIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_view_info(self, async_backend_with_view):
         """Test async get_view_info for existing view."""
-        view = await async_backend_with_view.introspector.get_view_info_async("user_summary")
+        view = await async_backend_with_view.introspector.get_view_info("user_summary")
 
         assert view is not None
         assert isinstance(view, ViewInfo)
@@ -162,14 +162,14 @@ class TestAsyncViewIntrospection:
     @pytest.mark.asyncio
     async def test_async_view_exists(self, async_backend_with_view):
         """Test async view_exists returns True for existing view."""
-        exists = await async_backend_with_view.introspector.view_exists_async("user_summary")
+        exists = await async_backend_with_view.introspector.view_exists("user_summary")
         assert exists is True
 
     @pytest.mark.asyncio
     async def test_async_list_views_caching(self, async_backend_with_view):
         """Test that async view list is cached."""
-        views1 = await async_backend_with_view.introspector.list_views_async()
-        views2 = await async_backend_with_view.introspector.list_views_async()
+        views1 = await async_backend_with_view.introspector.list_views()
+        views2 = await async_backend_with_view.introspector.list_views()
 
         # Should return the same cached list
         assert views1 is views2

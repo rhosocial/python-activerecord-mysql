@@ -136,7 +136,7 @@ class TestAsyncDatabaseInfo:
     @pytest.mark.asyncio
     async def test_async_get_database_info(self, async_mysql_backend):
         """Test async get_database_info returns valid DatabaseInfo."""
-        db_info = await async_mysql_backend.introspector.get_database_info_async()
+        db_info = await async_mysql_backend.introspector.get_database_info()
 
         assert isinstance(db_info, DatabaseInfo)
         assert db_info.name is not None
@@ -145,8 +145,8 @@ class TestAsyncDatabaseInfo:
     @pytest.mark.asyncio
     async def test_async_database_info_caching(self, async_mysql_backend):
         """Test that async database info is cached."""
-        db_info1 = await async_mysql_backend.introspector.get_database_info_async()
-        db_info2 = await async_mysql_backend.introspector.get_database_info_async()
+        db_info1 = await async_mysql_backend.introspector.get_database_info()
+        db_info2 = await async_mysql_backend.introspector.get_database_info()
 
         # Should return the same cached object
         assert db_info1 is db_info2
@@ -154,11 +154,11 @@ class TestAsyncDatabaseInfo:
     @pytest.mark.asyncio
     async def test_async_database_info_cache_invalidation(self, async_mysql_backend):
         """Test that async cache can be invalidated."""
-        db_info1 = await async_mysql_backend.introspector.get_database_info_async()
+        db_info1 = await async_mysql_backend.introspector.get_database_info()
 
         async_mysql_backend.introspector.clear_cache()
 
-        db_info2 = await async_mysql_backend.introspector.get_database_info_async()
+        db_info2 = await async_mysql_backend.introspector.get_database_info()
 
         # Should be different objects after cache clear
         assert db_info1 is not db_info2

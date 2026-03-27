@@ -190,7 +190,7 @@ class TestAsyncTriggerIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_triggers(self, async_backend_with_trigger):
         """Test async list_triggers returns TriggerInfo objects."""
-        triggers = await async_backend_with_trigger.introspector.list_triggers_async()
+        triggers = await async_backend_with_trigger.introspector.list_triggers()
 
         trigger_names = [t.name for t in triggers]
         assert "update_user_timestamp" in trigger_names
@@ -198,7 +198,7 @@ class TestAsyncTriggerIntrospection:
     @pytest.mark.asyncio
     async def test_async_get_trigger_info(self, async_backend_with_trigger):
         """Test async get_trigger_info for existing trigger."""
-        trigger = await async_backend_with_trigger.introspector.get_trigger_info_async("update_user_timestamp")
+        trigger = await async_backend_with_trigger.introspector.get_trigger_info("update_user_timestamp")
 
         assert trigger is not None
         assert isinstance(trigger, TriggerInfo)
@@ -207,8 +207,8 @@ class TestAsyncTriggerIntrospection:
     @pytest.mark.asyncio
     async def test_async_list_triggers_caching(self, async_backend_with_trigger):
         """Test that async trigger list is cached."""
-        triggers1 = await async_backend_with_trigger.introspector.list_triggers_async()
-        triggers2 = await async_backend_with_trigger.introspector.list_triggers_async()
+        triggers1 = await async_backend_with_trigger.introspector.list_triggers()
+        triggers2 = await async_backend_with_trigger.introspector.list_triggers()
 
         # Should return the same cached list
         assert triggers1 is triggers2

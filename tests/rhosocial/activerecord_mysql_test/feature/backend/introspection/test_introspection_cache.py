@@ -253,9 +253,9 @@ class TestAsyncCacheManagement:
     async def test_async_clear_introspection_cache(self, async_backend_with_tables):
         """Test async clear_introspection_cache clears all cache."""
         # First, populate cache
-        await async_backend_with_tables.introspector.get_database_info_async()
-        await async_backend_with_tables.introspector.list_tables_async()
-        await async_backend_with_tables.introspector.list_columns_async("users")
+        await async_backend_with_tables.introspector.get_database_info()
+        await async_backend_with_tables.introspector.list_tables()
+        await async_backend_with_tables.introspector.list_columns("users")
 
         # Clear cache
         async_backend_with_tables.introspector.clear_cache()
@@ -266,8 +266,8 @@ class TestAsyncCacheManagement:
     @pytest.mark.asyncio
     async def test_async_cache_hit(self, async_backend_with_tables):
         """Test that async cached results are returned."""
-        db_info1 = await async_backend_with_tables.introspector.get_database_info_async()
-        db_info2 = await async_backend_with_tables.introspector.get_database_info_async()
+        db_info1 = await async_backend_with_tables.introspector.get_database_info()
+        db_info2 = await async_backend_with_tables.introspector.get_database_info()
 
         # Same object reference means it was cached
         assert db_info1 is db_info2
@@ -275,9 +275,9 @@ class TestAsyncCacheManagement:
     @pytest.mark.asyncio
     async def test_async_cache_miss_after_clear(self, async_backend_with_tables):
         """Test async cache miss after clear."""
-        db_info1 = await async_backend_with_tables.introspector.get_database_info_async()
+        db_info1 = await async_backend_with_tables.introspector.get_database_info()
         async_backend_with_tables.introspector.clear_cache()
-        db_info2 = await async_backend_with_tables.introspector.get_database_info_async()
+        db_info2 = await async_backend_with_tables.introspector.get_database_info()
 
         # Different object reference means cache was cleared
         assert db_info1 is not db_info2
@@ -286,9 +286,9 @@ class TestAsyncCacheManagement:
     async def test_async_invalidate_all_scopes(self, async_backend_with_tables):
         """Test async invalidating all caches."""
         # Populate multiple caches
-        await async_backend_with_tables.introspector.get_database_info_async()
-        await async_backend_with_tables.introspector.list_tables_async()
-        await async_backend_with_tables.introspector.list_columns_async("users")
+        await async_backend_with_tables.introspector.get_database_info()
+        await async_backend_with_tables.introspector.list_tables()
+        await async_backend_with_tables.introspector.list_columns("users")
 
         # Invalidate all
         async_backend_with_tables.introspector.invalidate_cache()
@@ -299,8 +299,8 @@ class TestAsyncCacheManagement:
     async def test_async_invalidate_specific_scope(self, async_backend_with_tables):
         """Test async invalidating specific scope."""
         # Populate caches
-        db_info = await async_backend_with_tables.introspector.get_database_info_async()
-        tables = await async_backend_with_tables.introspector.list_tables_async()
+        db_info = await async_backend_with_tables.introspector.get_database_info()
+        tables = await async_backend_with_tables.introspector.list_tables()
 
         # Invalidate only database scope
         async_backend_with_tables.introspector.invalidate_cache(
@@ -308,9 +308,9 @@ class TestAsyncCacheManagement:
         )
 
         # Database cache should be cleared
-        db_info2 = await async_backend_with_tables.introspector.get_database_info_async()
+        db_info2 = await async_backend_with_tables.introspector.get_database_info()
         assert db_info2 is not None
 
         # Table cache should still be cached
-        tables2 = await async_backend_with_tables.introspector.list_tables_async()
+        tables2 = await async_backend_with_tables.introspector.list_tables()
         assert tables is tables2
