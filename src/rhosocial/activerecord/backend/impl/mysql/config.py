@@ -5,8 +5,8 @@ This module provides MySQL-specific connection configuration classes that extend
 the base ConnectionConfig with MySQL-specific parameters and functionality.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Tuple
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
 from rhosocial.activerecord.backend.config import (
     ConnectionConfig,

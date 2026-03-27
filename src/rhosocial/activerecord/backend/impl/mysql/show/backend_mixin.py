@@ -7,11 +7,9 @@ to MySQL backends. The show() method returns a MySQLShowFunctionality
 instance that provides all MySQL SHOW commands.
 """
 
-from typing import Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..backend import MySQLBackend
-    from ..async_backend import AsyncMySQLBackend
     from .functionality import MySQLShowFunctionality, AsyncMySQLShowFunctionality
 
 

@@ -45,7 +45,9 @@ class MySQLJSONAdapter(SQLTypeAdapter):
         # MySQL JSON type often stores as TEXT, so we serialize to string
         return json.dumps(value, ensure_ascii=False)
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[Union[dict, list]]:
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Optional[Union[dict, list]]:
         if value is None:
             return None
         # MySQL connector might return str for JSON, or already dict/list for some drivers
@@ -67,7 +69,9 @@ class MySQLUUIDAdapter(SQLTypeAdapter):
             return None
         return str(value)
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[uuid.UUID]:
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Optional[uuid.UUID]:
         if value is None:
             return None
         if isinstance(value, uuid.UUID):
@@ -114,7 +118,9 @@ class MySQLDecimalAdapter(SQLTypeAdapter):
             return str(value)
         raise TypeError(f"Cannot convert {type(value).__name__} to {target_type.__name__}")
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[Decimal]:
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Optional[Decimal]:
         if value is None:
             return None
         if isinstance(value, Decimal):
@@ -136,7 +142,9 @@ class MySQLDateAdapter(SQLTypeAdapter):
             return None
         return value.isoformat() # "YYYY-MM-DD"
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[datetime.date]:
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Optional[datetime.date]:
         if value is None:
             return None
         if isinstance(value, datetime.date):
@@ -160,7 +168,9 @@ class MySQLTimeAdapter(SQLTypeAdapter):
             return None
         return value.isoformat(timespec='microseconds') # "HH:MM:SS.ffffff"
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[datetime.time]:
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Optional[datetime.time]:
         if value is None:
             return None
         if isinstance(value, datetime.time):
@@ -206,7 +216,9 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
         # If it's already naive, assume it's in the desired timezone (conventionally UTC)
         return value
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[datetime.datetime]:
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Optional[datetime.datetime]:
         if value is None:
             return None
         # The driver returns a naive datetime; we assume it's UTC and make it aware.
@@ -312,16 +324,18 @@ class MySQLEnumAdapter(SQLTypeAdapter):
                 if isinstance(value.value, int):
                     return value.value
                 raise TypeError(
-                    f"Cannot convert string-based enum to int. "
-                    f"Set 'use_int_storage=True' to use MySQL internal index, "
-                    f"or ensure enum values are integers."
+                    "Cannot convert string-based enum to int. "
+                    "Set 'use_int_storage=True' to use MySQL internal index, "
+                    "or ensure enum values are integers."
                 )
 
         raise TypeError(
             f"Cannot convert {type(value).__name__} to {target_type.__name__}"
         )
 
-    def from_database(self, value: Any, target_type: Type[Enum], options: Optional[Dict[str, Any]] = None) -> Optional[Enum]:
+    def from_database(
+        self, value: Any, target_type: Type[Enum], options: Optional[Dict[str, Any]] = None
+    ) -> Optional[Enum]:
         """
         Convert database value to Python Enum.
 
@@ -350,8 +364,10 @@ class MySQLEnumAdapter(SQLTypeAdapter):
             try:
                 return target_type[value]
             except KeyError:
-                raise ValueError(f"Invalid enum value '{value}'. "
-                               f"Valid values: {[m.value for m in target_type]}")
+                raise ValueError(
+                    f"Invalid enum value '{value}'. "
+                    f"Valid values: {[m.value for m in target_type]}"
+                ) from None
 
         if isinstance(value, int):
             # Try to interpret as MySQL ENUM index (1-based)
@@ -367,7 +383,7 @@ class MySQLEnumAdapter(SQLTypeAdapter):
                 raise ValueError(
                     f"Invalid enum index {value}. "
                     f"Valid range: 1-{len(enum_members)} or matching enum values"
-                )
+                ) from None
 
         raise TypeError(
             f"Cannot convert {type(value).__name__} to {target_type.__name__}"

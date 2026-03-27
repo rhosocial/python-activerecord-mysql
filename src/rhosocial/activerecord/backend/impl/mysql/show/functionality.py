@@ -13,7 +13,7 @@ The implementation:
 - Parses results into typed dataclasses
 """
 
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 
 from .expressions import (
     ShowCreateTableExpression,

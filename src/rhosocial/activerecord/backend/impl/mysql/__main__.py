@@ -11,6 +11,8 @@ import json
 import logging
 import os
 import sys
+from dataclasses import asdict, is_dataclass
+from enum import Enum
 from typing import Dict, List, Any, Optional, Tuple
 
 from . import MySQLBackend, AsyncMySQLBackend
@@ -79,25 +81,50 @@ PROTOCOL_FAMILY_GROUPS: Dict[str, list] = {
     ],
 }
 
+# Supported introspection types for CLI
+INTROSPECT_TYPES = [
+    "tables", "views", "table", "columns",
+    "indexes", "foreign-keys", "triggers", "database"
+]
+
+
+def _serialize_for_output(obj: Any) -> Any:
+    """Serialize object for JSON output, handling non-serializable types.
+
+    Handles Pydantic models, dataclasses, Enums, and nested structures.
+    """
+    if obj is None:
+        return None
+    if hasattr(obj, 'model_dump'):
+        # Pydantic model
+        try:
+            result = obj.model_dump(mode='json')
+            return _serialize_for_output(result)
+        except TypeError:
+            result = obj.model_dump()
+            return _serialize_for_output(result)
+    if is_dataclass(obj) and not isinstance(obj, type):
+        # Dataclass instance
+        return {k: _serialize_for_output(v) for k, v in asdict(obj).items()}
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, dict):
+        return {k: _serialize_for_output(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_serialize_for_output(item) for item in obj]
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    # Fallback: convert to string
+    return str(obj)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Execute SQL queries against a MySQL backend.",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    # Input source arguments
-    parser.add_argument(
-        'query',
-        nargs='?',
-        default=None,
-        help='SQL query to execute. If not provided, reads from --file or stdin.'
-    )
-    parser.add_argument(
-        '-f', '--file',
-        default=None,
-        help='Path to a file containing SQL to execute.'
-    )
-    # Connection parameters
+
+    # Connection parameters (global, used by both main command and introspect)
     parser.add_argument(
         '--host',
         default=os.getenv('MYSQL_HOST', 'localhost'),
@@ -130,10 +157,10 @@ def parse_args():
         help='Connection charset'
     )
 
-    # Execution options
+    # Execution options (global)
     parser.add_argument('--use-async', action='store_true', help='Use asynchronous backend')
 
-    # Output and logging options
+    # Output and logging options (global)
     parser.add_argument(
         '--output',
         choices=['table', 'json', 'csv', 'tsv'],
@@ -149,6 +176,36 @@ def parse_args():
         '--rich-ascii',
         action='store_true',
         help='Use ASCII characters for rich table borders.'
+    )
+
+    # Create subparsers for commands
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+
+    # Introspect subcommand
+    introspect_parser = subparsers.add_parser(
+        'introspect',
+        help='Database introspection commands'
+    )
+    introspect_parser.add_argument(
+        'type',
+        choices=INTROSPECT_TYPES,
+        help='Introspection type: tables, views, table, columns, indexes, foreign-keys, triggers, database'
+    )
+    introspect_parser.add_argument(
+        'name',
+        nargs='?',
+        default=None,
+        help='Table/view name (required for table, columns, indexes, foreign-keys types)'
+    )
+    introspect_parser.add_argument(
+        '--schema',
+        default=None,
+        help='Schema name (for databases that support schemas)'
+    )
+    introspect_parser.add_argument(
+        '--include-system',
+        action='store_true',
+        help='Include system tables in output'
     )
 
     # Info display options
@@ -168,6 +225,19 @@ def parse_args():
         type=str,
         default=None,
         help='MySQL version to simulate (e.g., "8.0.0", "5.7.8"). Default: 8.0.0.'
+    )
+
+    # Input source arguments (positional, for main command)
+    parser.add_argument(
+        'query',
+        nargs='?',
+        default=None,
+        help='SQL query to execute. If not provided, reads from --file or stdin.'
+    )
+    parser.add_argument(
+        '-f', '--file',
+        default=None,
+        help='Path to a file containing SQL to execute.'
     )
 
     return parser.parse_args()
@@ -592,8 +662,206 @@ async def execute_query_async(sql_query: str, backend: AsyncMySQLBackend,
             provider.display_disconnect(is_async=True)
 
 
+def handle_introspect_sync(args, backend: MySQLBackend, provider: Any):
+    """Handle introspect subcommand synchronously."""
+    try:
+        backend.connect()
+
+        introspector = backend.introspector
+
+        if args.type == "tables":
+            tables = introspector.list_tables(
+                schema=args.schema,
+                include_system=args.include_system
+            )
+            data = _serialize_for_output(tables)
+            provider.display_results(data, title="Tables")
+
+        elif args.type == "views":
+            views = introspector.list_views(schema=args.schema)
+            data = _serialize_for_output(views)
+            provider.display_results(data, title="Views")
+
+        elif args.type == "table":
+            if not args.name:
+                print("Error: Table name is required for 'table' introspection", file=sys.stderr)
+                sys.exit(1)
+            info = introspector.get_table_info(args.name, schema=args.schema)
+            if info:
+                # Display columns
+                provider.display_results(_serialize_for_output(info.columns), title=f"Columns of {args.name}")
+                # Display indexes
+                if info.indexes:
+                    provider.display_results(_serialize_for_output(info.indexes), title=f"Indexes of {args.name}")
+                # Display foreign keys
+                if info.foreign_keys:
+                    provider.display_results(_serialize_for_output(info.foreign_keys), title=f"Foreign Keys of {args.name}")
+            else:
+                print(f"Error: Table '{args.name}' not found", file=sys.stderr)
+                sys.exit(1)
+
+        elif args.type == "columns":
+            if not args.name:
+                print("Error: Table name is required for 'columns' introspection", file=sys.stderr)
+                sys.exit(1)
+            columns = introspector.list_columns(args.name, schema=args.schema)
+            data = _serialize_for_output(columns)
+            provider.display_results(data, title=f"Columns of {args.name}")
+
+        elif args.type == "indexes":
+            if not args.name:
+                print("Error: Table name is required for 'indexes' introspection", file=sys.stderr)
+                sys.exit(1)
+            indexes = introspector.list_indexes(args.name, schema=args.schema)
+            data = _serialize_for_output(indexes)
+            provider.display_results(data, title=f"Indexes of {args.name}")
+
+        elif args.type == "foreign-keys":
+            if not args.name:
+                print("Error: Table name is required for 'foreign-keys' introspection", file=sys.stderr)
+                sys.exit(1)
+            fks = introspector.list_foreign_keys(args.name, schema=args.schema)
+            data = _serialize_for_output(fks)
+            provider.display_results(data, title=f"Foreign Keys of {args.name}")
+
+        elif args.type == "triggers":
+            triggers = introspector.list_triggers(
+                table_name=args.name,
+                schema=args.schema
+            )
+            data = _serialize_for_output(triggers)
+            provider.display_results(data, title="Triggers")
+
+        elif args.type == "database":
+            info = introspector.get_database_info()
+            data = _serialize_for_output(info)
+            provider.display_results([data], title="Database Info")
+
+    except ConnectionError as e:
+        provider.display_connection_error(e)
+        sys.exit(1)
+    except QueryError as e:
+        provider.display_query_error(e)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error during introspection: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if backend._connection:  # type: ignore
+            backend.disconnect()
+
+
+async def handle_introspect_async(args, backend: AsyncMySQLBackend, provider: Any):
+    """Handle introspect subcommand asynchronously."""
+    try:
+        await backend.connect()
+
+        introspector = backend.introspector
+
+        if args.type == "tables":
+            tables = await introspector.list_tables_async(
+                schema=args.schema,
+                include_system=args.include_system
+            )
+            data = _serialize_for_output(tables)
+            provider.display_results(data, title="Tables")
+
+        elif args.type == "views":
+            views = await introspector.list_views_async(schema=args.schema)
+            data = _serialize_for_output(views)
+            provider.display_results(data, title="Views")
+
+        elif args.type == "table":
+            if not args.name:
+                print("Error: Table name is required for 'table' introspection", file=sys.stderr)
+                sys.exit(1)
+            info = await introspector.get_table_info_async(args.name, schema=args.schema)
+            if info:
+                # Display columns
+                provider.display_results(_serialize_for_output(info.columns), title=f"Columns of {args.name}")
+                # Display indexes
+                if info.indexes:
+                    provider.display_results(_serialize_for_output(info.indexes), title=f"Indexes of {args.name}")
+                # Display foreign keys
+                if info.foreign_keys:
+                    provider.display_results(_serialize_for_output(info.foreign_keys), title=f"Foreign Keys of {args.name}")
+            else:
+                print(f"Error: Table '{args.name}' not found", file=sys.stderr)
+                sys.exit(1)
+
+        elif args.type == "columns":
+            if not args.name:
+                print("Error: Table name is required for 'columns' introspection", file=sys.stderr)
+                sys.exit(1)
+            columns = await introspector.list_columns_async(args.name, schema=args.schema)
+            data = _serialize_for_output(columns)
+            provider.display_results(data, title=f"Columns of {args.name}")
+
+        elif args.type == "indexes":
+            if not args.name:
+                print("Error: Table name is required for 'indexes' introspection", file=sys.stderr)
+                sys.exit(1)
+            indexes = await introspector.list_indexes_async(args.name, schema=args.schema)
+            data = _serialize_for_output(indexes)
+            provider.display_results(data, title=f"Indexes of {args.name}")
+
+        elif args.type == "foreign-keys":
+            if not args.name:
+                print("Error: Table name is required for 'foreign-keys' introspection", file=sys.stderr)
+                sys.exit(1)
+            fks = await introspector.list_foreign_keys_async(args.name, schema=args.schema)
+            data = _serialize_for_output(fks)
+            provider.display_results(data, title=f"Foreign Keys of {args.name}")
+
+        elif args.type == "triggers":
+            triggers = await introspector.list_triggers_async(
+                table_name=args.name,
+                schema=args.schema
+            )
+            data = _serialize_for_output(triggers)
+            provider.display_results(data, title="Triggers")
+
+        elif args.type == "database":
+            info = await introspector.get_database_info_async()
+            data = _serialize_for_output(info)
+            provider.display_results([data], title="Database Info")
+
+    except ConnectionError as e:
+        provider.display_connection_error(e)
+        sys.exit(1)
+    except QueryError as e:
+        provider.display_query_error(e)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error during introspection: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if backend._connection:  # type: ignore
+            await backend.disconnect()
+
+
 def main():
     args = parse_args()
+
+    # Handle introspect subcommand
+    if args.command == "introspect":
+        if not args.database:
+            print("Error: --database is required for introspection", file=sys.stderr)
+            sys.exit(1)
+
+        provider = get_provider(args)
+        config = MySQLConnectionConfig(
+            host=args.host, port=args.port, database=args.database,
+            username=args.user, password=args.password, charset=args.charset,
+        )
+
+        if args.use_async:
+            backend = AsyncMySQLBackend(connection_config=config)
+            asyncio.run(handle_introspect_async(args, backend, provider))
+        else:
+            backend = MySQLBackend(connection_config=config)
+            handle_introspect_sync(args, backend, provider)
+        return
 
     if args.info:
         output_format = args.output if args.output != 'table' or RICH_AVAILABLE else 'json'

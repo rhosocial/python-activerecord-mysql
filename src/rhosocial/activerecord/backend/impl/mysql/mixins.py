@@ -544,8 +544,13 @@ class MySQLTableMixin:
         elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
             if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
                 cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ', '.join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {self.format_identifier(t_const.foreign_key_table)} ({ref_cols_str})")
+                ref_cols_str = ', '.join(
+                    self.format_identifier(c) for c in t_const.foreign_key_columns
+                )
+                ref_table = self.format_identifier(t_const.foreign_key_table)
+                parts.append(
+                    f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})"
+                )
 
         return ' '.join(parts), params
 
@@ -875,8 +880,8 @@ class MySQLSpatialMixin:
     ) -> Tuple[str, tuple]:
         """Format spatial literal from WKT."""
         if srid is not None:
-            return f"ST_GeomFromText(%s, %s)", (wkt, srid)
-        return f"ST_GeomFromText(%s)", (wkt,)
+            return "ST_GeomFromText(%s, %s)", (wkt, srid)
+        return "ST_GeomFromText(%s)", (wkt,)
 
     def format_st_geom_from_text(
         self,
@@ -885,8 +890,8 @@ class MySQLSpatialMixin:
     ) -> Tuple[str, tuple]:
         """Format ST_GeomFromText function."""
         if srid is not None:
-            return f"ST_GeomFromText(%s, %s)", (wkt, srid)
-        return f"ST_GeomFromText(%s)", (wkt,)
+            return "ST_GeomFromText(%s, %s)", (wkt, srid)
+        return "ST_GeomFromText(%s)", (wkt,)
 
     def format_st_geom_from_wkb(
         self,
@@ -895,8 +900,8 @@ class MySQLSpatialMixin:
     ) -> Tuple[str, tuple]:
         """Format ST_GeomFromWKB function."""
         if srid is not None:
-            return f"ST_GeomFromWKB(%s, %s)", (wkb, srid)
-        return f"ST_GeomFromWKB(%s)", (wkb,)
+            return "ST_GeomFromWKB(%s, %s)", (wkb, srid)
+        return "ST_GeomFromWKB(%s)", (wkb,)
 
     def format_st_as_text(self, geom: str) -> Tuple[str, tuple]:
         """Format ST_AsText function."""

@@ -312,8 +312,8 @@ class MySQLShowDialectMixin:
 
         if user:
             if host:
-                return f"SHOW GRANTS FOR %s@%s", (user, host)
-            return f"SHOW GRANTS FOR %s", (user,)
+                return "SHOW GRANTS FOR %s@%s", (user, host)
+            return "SHOW GRANTS FOR %s", (user,)
         return "SHOW GRANTS", ()
 
     def format_show_plugins(self, expr: "ShowPluginsExpression") -> Tuple[str, tuple]:

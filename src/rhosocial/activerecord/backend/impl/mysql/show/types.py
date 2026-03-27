@@ -6,8 +6,8 @@ This module defines result dataclasses for MySQL SHOW commands.
 These types provide structured access to SHOW command output.
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from dataclasses import dataclass
+from typing import Optional
 
 
 # ==================== CREATE Statement Results ====================

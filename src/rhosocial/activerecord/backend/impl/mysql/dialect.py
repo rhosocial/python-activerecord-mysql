@@ -5,7 +5,7 @@ MySQL backend SQL dialect implementation.
 This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
-from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.dialect.protocols import (
@@ -702,8 +702,13 @@ class MySQLDialect(
         elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
             if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
                 cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ', '.join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {self.format_identifier(t_const.foreign_key_table)} ({ref_cols_str})")
+                ref_cols_str = ', '.join(
+                    self.format_identifier(c) for c in t_const.foreign_key_columns
+                )
+                ref_table = self.format_identifier(t_const.foreign_key_table)
+                parts.append(
+                    f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})"
+                )
 
         return ' '.join(parts), params
 
