@@ -29,13 +29,14 @@ from rhosocial.activerecord.backend.errors import (
     QueryError,
 )
 from rhosocial.activerecord.backend.result import QueryResult
+from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
 from .mixins import MySQLBackendMixin
 
 
-class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
+class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -100,6 +101,12 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
         self._register_mysql_adapters()
 
         self.log(logging.INFO, "AsyncMySQLBackend initialized")
+
+    def _create_introspector(self):
+        """Create an AsyncMySQLIntrospector backed by an AsyncIntrospectorExecutor."""
+        from rhosocial.activerecord.backend.introspection.executor import AsyncIntrospectorExecutor
+        from .introspection import AsyncMySQLIntrospector
+        return AsyncMySQLIntrospector(self, AsyncIntrospectorExecutor(self))
 
     async def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.
@@ -392,7 +399,7 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
     async def execute(self, sql: str, params: Optional[Tuple] = None, *, options=None, **kwargs) -> QueryResult:
         """Execute a SQL statement with optional parameters asynchronously."""
         from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
-        
+
         # If no options provided, create default options from kwargs
         if options is None:
             # Determine statement type based on SQL
@@ -403,11 +410,11 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
                 stmt_type = StatementType.DML
             else:
                 stmt_type = StatementType.DDL
-                
+
             # Extract column_mapping and column_adapters from kwargs if present
             column_mapping = kwargs.get('column_mapping')
             column_adapters = kwargs.get('column_adapters')
-            
+
             options = ExecutionOptions(
                 stmt_type=stmt_type,
                 process_result_set=None,  # Let the base logic determine this based on stmt_type
@@ -421,10 +428,51 @@ class AsyncMySQLBackend(MySQLBackendMixin, AsyncStorageBackend):
                 options.column_mapping = kwargs['column_mapping']
             if 'column_adapters' in kwargs:
                 options.column_adapters = kwargs['column_adapters']
-        
+
         # Convert '?' placeholders to '%s' for MySQL
         if params:
             mysql_sql = sql.replace('?', '%s')
             return await super().execute(mysql_sql, params, options=options)
         else:
             return await super().execute(sql, params, options=options)
+
+    async def executescript(self, sql_script: str) -> None:
+        """Execute a multi-statement SQL script asynchronously.
+
+        Splits the script on semicolons and executes each non-empty statement
+        individually, which is compatible with aiomysql's cursor interface.
+
+        Args:
+            sql_script: A string containing one or more SQL statements separated
+                       by semicolons.
+        """
+        import time
+
+        self.log(logging.INFO, "Executing SQL script asynchronously.")
+        start_time = time.perf_counter()
+
+        if not self._connection:
+            await self.connect()
+
+        cursor = None
+        try:
+            cursor = await self._connection.cursor()
+
+            # Split on semicolons and execute each statement individually.
+            # aiomysql does not support multi=True like mysql-connector-python.
+            for stmt in sql_script.split(";"):
+                stmt = stmt.strip()
+                if stmt:
+                    await cursor.execute(stmt)
+                    if cursor.description:
+                        await cursor.fetchall()
+
+            duration = time.perf_counter() - start_time
+            self.log(logging.INFO, f"Async SQL script executed successfully, duration={duration:.3f}s")
+
+        except MySQLError as e:
+            self.log(logging.ERROR, f"Error executing SQL script: {str(e)}")
+            await self._handle_error(e)
+        finally:
+            if cursor:
+                await cursor.close()

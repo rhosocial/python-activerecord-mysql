@@ -28,13 +28,14 @@ from rhosocial.activerecord.backend.errors import (
     QueryError,
 )
 from rhosocial.activerecord.backend.result import QueryResult
+from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .mixins import MySQLBackendMixin
 
 
-class MySQLBackend(MySQLBackendMixin, StorageBackend):
+class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
     """MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -102,6 +103,12 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
 
         self.log(logging.INFO, "MySQLBackend initialized")
 
+    def _create_introspector(self):
+        """Create a SyncMySQLIntrospector backed by a SyncIntrospectorExecutor."""
+        from rhosocial.activerecord.backend.introspection.executor import SyncIntrospectorExecutor
+        from .introspection import SyncMySQLIntrospector
+        return SyncMySQLIntrospector(self, SyncIntrospectorExecutor(self))
+
     def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.
 
@@ -132,6 +139,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
                 'autocommit': getattr(self.config, 'autocommit', True),
                 'use_unicode': getattr(self.config, 'use_unicode', True),
                 'raise_on_warnings': getattr(self.config, 'raise_on_warnings', False),
+                'get_warnings': getattr(self.config, 'get_warnings', False),
                 'connection_timeout': getattr(self.config, 'connect_timeout', 10),
                 'sql_mode': getattr(self.config, 'sql_mode', 'STRICT_TRANS_TABLES'),
             }
@@ -389,7 +397,7 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
     def execute(self, sql: str, params: Optional[Tuple] = None, *, options=None, **kwargs) -> QueryResult:
         """Execute a SQL statement with optional parameters."""
         from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
-        
+
         # If no options provided, create default options from kwargs
         if options is None:
             # Determine statement type based on SQL
@@ -400,11 +408,11 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
                 stmt_type = StatementType.DML
             else:
                 stmt_type = StatementType.DDL
-                
+
             # Extract column_mapping and column_adapters from kwargs if present
             column_mapping = kwargs.get('column_mapping')
             column_adapters = kwargs.get('column_adapters')
-            
+
             options = ExecutionOptions(
                 stmt_type=stmt_type,
                 process_result_set=None,  # Let the base logic determine this based on stmt_type
@@ -418,10 +426,65 @@ class MySQLBackend(MySQLBackendMixin, StorageBackend):
                 options.column_mapping = kwargs['column_mapping']
             if 'column_adapters' in kwargs:
                 options.column_adapters = kwargs['column_adapters']
-        
+
         # Convert '?' placeholders to '%s' for MySQL
         if params:
             mysql_sql = sql.replace('?', '%s')
             return super().execute(mysql_sql, params, options=options)
         else:
             return super().execute(sql, params, options=options)
+
+    def executescript(self, sql_script: str) -> None:
+        """Execute a multi-statement SQL script.
+
+        Handles mysql-connector-python version differences:
+        - 9.2.0+: Uses execute() + nextset() (multi parameter removed)
+        - < 9.2.0: Uses execute(sql, multi=True)
+
+        Args:
+            sql_script: A string containing one or more SQL statements separated
+                       by semicolons.
+        """
+        import time
+        import mysql.connector
+
+        self.log(logging.INFO, "Executing SQL script.")
+        start_time = time.perf_counter()
+
+        if not self._connection:
+            self.connect()
+
+        cursor = None
+        try:
+            cursor = self._connection.cursor()
+
+            # Check mysql-connector-python version for API compatibility
+            # Version 9.2.0+ removed the 'multi' parameter
+            version = mysql.connector.version.VERSION
+            use_new_api = version >= (9, 2, 0)
+
+            if use_new_api:
+                # 9.2.0+: Execute directly, use nextset() for multiple result sets
+                cursor.execute(sql_script)
+                # Consume all result sets
+                if cursor.with_rows:
+                    cursor.fetchall()
+                while cursor.nextset():
+                    if cursor.with_rows:
+                        cursor.fetchall()
+            else:
+                # < 9.2.0: Use multi=True parameter
+                results = cursor.execute(sql_script, multi=True)
+                for result in results:
+                    if result.with_rows:
+                        result.fetchall()
+
+            duration = time.perf_counter() - start_time
+            self.log(logging.INFO, f"SQL script executed successfully, duration={duration:.3f}s")
+
+        except MySQLError as e:
+            self.log(logging.ERROR, f"Error executing SQL script: {str(e)}")
+            self._handle_error(e)
+        finally:
+            if cursor:
+                cursor.close()

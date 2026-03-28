@@ -130,7 +130,7 @@ def json_object(dialect: "MySQLDialect",
     if not key_value_pairs:
         return core.FunctionCall(dialect, "JSON_OBJECT")
     args = []
-    for i, val in enumerate(key_value_pairs):
+    for _i, val in enumerate(key_value_pairs):
         args.append(core.Literal(dialect, val))
     return core.FunctionCall(dialect, "JSON_OBJECT", *args)
 
@@ -555,10 +555,8 @@ def match_against(dialect: "MySQLDialect",
         cols_sql, cols_params = columns.to_sql()
     elif isinstance(columns, list):
         cols_sql = ", ".join(dialect.format_identifier(c) for c in columns)
-        cols_params = ()
     else:
         cols_sql = dialect.format_identifier(columns)
-        cols_params = ()
 
     search_expr = core.Literal(dialect, search_string)
     search_sql, search_params = search_expr.to_sql()

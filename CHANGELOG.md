@@ -1,3 +1,10 @@
+## [v1.0.0.dev10] - 2026-03-28
+
+### Added
+
+- Added comprehensive introspection support for MySQL backend, including database schema discovery, metadata retrieval via SHOW commands, CLI introspection subcommand, and batch SQL execution via executescript method. ([#18](https://github.com/rhosocial/python-activerecord-mysql/issues/18))
+
+
 ## [v1.0.0.dev9] - 2026-03-22
 
 ### Added
