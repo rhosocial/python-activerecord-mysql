@@ -437,14 +437,16 @@ class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
     def executescript(self, sql_script: str) -> None:
         """Execute a multi-statement SQL script.
 
-        Uses cursor.execute(sql, multi=True) to handle multiple statements
-        separated by semicolons in a single call.
+        Handles mysql-connector-python version differences:
+        - 9.2.0+: Uses execute() + nextset() (multi parameter removed)
+        - < 9.2.0: Uses execute(sql, multi=True)
 
         Args:
             sql_script: A string containing one or more SQL statements separated
                        by semicolons.
         """
         import time
+        import mysql.connector
 
         self.log(logging.INFO, "Executing SQL script.")
         start_time = time.perf_counter()
@@ -456,14 +458,26 @@ class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
         try:
             cursor = self._connection.cursor()
 
-            # Use multi=True to handle multiple statements in one execute call.
-            # cursor.execute() returns a generator of result cursors when multi=True.
-            results = cursor.execute(sql_script, multi=True)
+            # Check mysql-connector-python version for API compatibility
+            # Version 9.2.0+ removed the 'multi' parameter
+            version = mysql.connector.version.VERSION
+            use_new_api = version >= (9, 2, 0)
 
-            # Consume all result sets to allow the server to process every statement.
-            for result in results:
-                if result.with_rows:
-                    result.fetchall()
+            if use_new_api:
+                # 9.2.0+: Execute directly, use nextset() for multiple result sets
+                cursor.execute(sql_script)
+                # Consume all result sets
+                if cursor.with_rows:
+                    cursor.fetchall()
+                while cursor.nextset():
+                    if cursor.with_rows:
+                        cursor.fetchall()
+            else:
+                # < 9.2.0: Use multi=True parameter
+                results = cursor.execute(sql_script, multi=True)
+                for result in results:
+                    if result.with_rows:
+                        result.fetchall()
 
             duration = time.perf_counter() - start_time
             self.log(logging.INFO, f"SQL script executed successfully, duration={duration:.3f}s")
