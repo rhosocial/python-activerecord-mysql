@@ -57,6 +57,65 @@ from .functions import (
     field,
 )
 
+# Import MySQL SHOW command expressions
+from .show.expressions import (
+    ShowExpression,
+    ShowCreateTableExpression,
+    ShowColumnsExpression,
+    ShowTableStatusExpression,
+    ShowIndexExpression,
+    ShowTablesExpression,
+    ShowDatabasesExpression,
+    ShowTriggersExpression,
+    ShowCreateViewExpression,
+    ShowVariablesExpression,
+    ShowStatusExpression,
+    ShowWarningsExpression,
+    ShowErrorsExpression,
+    ShowCreateTriggerExpression,
+    ShowGrantsExpression,
+    ShowProcessListExpression,
+    ShowEnginesExpression,
+    ShowCharsetExpression,
+    ShowCollationExpression,
+    ShowPluginsExpression,
+)
+
+# Import MySQL SHOW command result types
+from .show.types import (
+    # CREATE statement results
+    ShowCreateTableResult,
+    ShowCreateViewResult,
+    ShowCreateTriggerResult,
+    # Column information results
+    ShowColumnResult,
+    # Table status results
+    ShowTableStatusResult,
+    # Index information results
+    ShowIndexResult,
+    # Database and table list results
+    ShowTableResult,
+    ShowDatabaseResult,
+    # Trigger results
+    ShowTriggerResult,
+    # Variables and status results
+    ShowVariableResult,
+    ShowStatusResult,
+    # Warning and error results
+    ShowWarningResult,
+    # Grants results
+    ShowGrantResult,
+    # Process list results
+    ShowProcessListResult,
+    # Engine results
+    ShowEngineResult,
+    # Charset and collation results
+    ShowCharsetResult,
+    ShowCollationResult,
+    # Plugin results
+    ShowPluginResult,
+)
+
 
 __all__ = [
     # Synchronous Backend
@@ -108,4 +167,46 @@ __all__ = [
     'find_in_set',
     'elt',
     'field',
+
+    # MySQL SHOW Command Expressions
+    'ShowExpression',
+    'ShowCreateTableExpression',
+    'ShowColumnsExpression',
+    'ShowTableStatusExpression',
+    'ShowIndexExpression',
+    'ShowTablesExpression',
+    'ShowDatabasesExpression',
+    'ShowTriggersExpression',
+    'ShowCreateViewExpression',
+    'ShowVariablesExpression',
+    'ShowStatusExpression',
+    'ShowWarningsExpression',
+    'ShowErrorsExpression',
+    'ShowCreateTriggerExpression',
+    'ShowGrantsExpression',
+    'ShowProcessListExpression',
+    'ShowEnginesExpression',
+    'ShowCharsetExpression',
+    'ShowCollationExpression',
+    'ShowPluginsExpression',
+
+    # MySQL SHOW Command Result Types
+    'ShowCreateTableResult',
+    'ShowCreateViewResult',
+    'ShowCreateTriggerResult',
+    'ShowColumnResult',
+    'ShowTableStatusResult',
+    'ShowIndexResult',
+    'ShowTableResult',
+    'ShowDatabaseResult',
+    'ShowTriggerResult',
+    'ShowVariableResult',
+    'ShowStatusResult',
+    'ShowWarningResult',
+    'ShowGrantResult',
+    'ShowProcessListResult',
+    'ShowEngineResult',
+    'ShowCharsetResult',
+    'ShowCollationResult',
+    'ShowPluginResult',
 ]
