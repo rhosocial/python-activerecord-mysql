@@ -8,6 +8,12 @@ databases using the information_schema system tables for metadata queries.
 The introspectors are exposed via ``backend.introspector`` and also provide
 MySQL-specific access through ``backend.introspector.show``.
 
+Architecture:
+  - SQL generation: Delegated to MySQLIntrospectionMixin.format_*_query()
+    methods in the Dialect layer via Expression.to_sql()
+  - Query execution: Handled by IntrospectorExecutor
+  - Result parsing: _parse_* methods in this module (pure Python, no I/O)
+
 Key behaviours:
   - Queries information_schema.TABLES, COLUMNS, STATISTICS,
     KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS, VIEWS, TRIGGERS
@@ -58,8 +64,10 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     from this mixin to share:
     - Default schema handling
     - MySQL version detection
-    - SQL generation overrides
     - _parse_* implementations
+
+    SQL generation is delegated to the Dialect layer via Expression.to_sql()
+    which calls MySQLIntrospectionMixin.format_*_query() methods.
     """
 
     def _get_default_schema(self) -> str:
@@ -71,125 +79,6 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     def _get_version(self) -> tuple:
         """Return the MySQL server version tuple from the backend."""
         return getattr(self._backend, '_version', (8, 0, 0))
-
-    # ------------------------------------------------------------------ #
-    # SQL generation overrides
-    # MySQL uses information_schema for all introspection.
-    # ------------------------------------------------------------------ #
-
-    def _build_database_info_sql(self):
-        """Return SQL that fetches charset/collation for the current database."""
-        db_name = self._get_default_schema()
-        sql = (
-            "SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME "
-            "FROM information_schema.SCHEMATA "
-            "WHERE SCHEMA_NAME = %s"
-        )
-        return sql, (db_name,)
-
-    def _build_table_list_sql(
-        self,
-        schema: Optional[str],
-        include_system: bool,
-        include_views: bool = True,
-        table_type: Optional[str] = None,
-    ):
-        target_db = schema if schema is not None else self._get_default_schema()
-        conditions = ["TABLE_SCHEMA = %s"]
-        params: list = [target_db]
-        if not include_system:
-            conditions.append("TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')")
-        if not include_views:
-            conditions.append("TABLE_TYPE = 'BASE TABLE'")
-        if table_type:
-            conditions.append("TABLE_TYPE = %s")
-            params.append(table_type)
-        where = " AND ".join(conditions)
-        sql = (
-            "SELECT TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, TABLE_ROWS, "
-            "DATA_LENGTH, AUTO_INCREMENT, CREATE_TIME, UPDATE_TIME "
-            f"FROM information_schema.TABLES WHERE {where}"
-        )
-        return sql, tuple(params)
-
-    def _build_column_info_sql(self, table_name: str, schema: Optional[str]):
-        target_db = schema if schema is not None else self._get_default_schema()
-        sql = (
-            "SELECT COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, "
-            "DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE, "
-            "COLUMN_TYPE, COLUMN_KEY, EXTRA, COLUMN_COMMENT, "
-            "CHARACTER_SET_NAME, COLLATION_NAME "
-            "FROM information_schema.COLUMNS "
-            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
-            "ORDER BY ORDINAL_POSITION"
-        )
-        return sql, (target_db, table_name)
-
-    def _build_index_info_sql(self, table_name: str, schema: Optional[str]):
-        target_db = schema if schema is not None else self._get_default_schema()
-        sql = (
-            "SELECT INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, "
-            "INDEX_TYPE, SUB_PART, NULLABLE "
-            "FROM information_schema.STATISTICS "
-            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
-            "ORDER BY INDEX_NAME, SEQ_IN_INDEX"
-        )
-        return sql, (target_db, table_name)
-
-    def _build_foreign_key_sql(self, table_name: str, schema: Optional[str]):
-        target_db = schema if schema is not None else self._get_default_schema()
-        sql = (
-            "SELECT kcu.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.ORDINAL_POSITION, "
-            "kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, "
-            "rc.UPDATE_RULE, rc.DELETE_RULE "
-            "FROM information_schema.KEY_COLUMN_USAGE kcu "
-            "JOIN information_schema.REFERENTIAL_CONSTRAINTS rc "
-            "  ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME "
-            "  AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA "
-            "WHERE kcu.TABLE_SCHEMA = %s AND kcu.TABLE_NAME = %s "
-            "  AND kcu.REFERENCED_TABLE_NAME IS NOT NULL "
-            "ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION"
-        )
-        return sql, (target_db, table_name)
-
-    def _build_view_list_sql(self, schema: Optional[str], include_system: bool):
-        target_db = schema if schema is not None else self._get_default_schema()
-        conditions = ["TABLE_SCHEMA = %s"]
-        params: list = [target_db]
-        if not include_system:
-            conditions.append("TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')")
-        where = " AND ".join(conditions)
-        sql = (
-            "SELECT TABLE_NAME, VIEW_DEFINITION, CHECK_OPTION, IS_UPDATABLE "
-            f"FROM information_schema.VIEWS WHERE {where} "
-            "ORDER BY TABLE_NAME"
-        )
-        return sql, tuple(params)
-
-    def _build_view_info_sql(self, view_name: str, schema: Optional[str]):
-        target_db = schema if schema is not None else self._get_default_schema()
-        sql = (
-            "SELECT TABLE_NAME, VIEW_DEFINITION, CHECK_OPTION, IS_UPDATABLE "
-            "FROM information_schema.VIEWS "
-            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s"
-        )
-        return sql, (target_db, view_name)
-
-    def _build_trigger_list_sql(self, table_name: Optional[str], schema: Optional[str]):
-        target_db = schema if schema is not None else self._get_default_schema()
-        conditions = ["TRIGGER_SCHEMA = %s"]
-        params: list = [target_db]
-        if table_name:
-            conditions.append("EVENT_OBJECT_TABLE = %s")
-            params.append(table_name)
-        where = " AND ".join(conditions)
-        sql = (
-            "SELECT TRIGGER_NAME, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, "
-            "ACTION_TIMING, ACTION_STATEMENT, CREATED "
-            f"FROM information_schema.TRIGGERS WHERE {where} "
-            "ORDER BY TRIGGER_NAME"
-        )
-        return sql, tuple(params)
 
     # ------------------------------------------------------------------ #
     # Parse methods — pure Python, no I/O
