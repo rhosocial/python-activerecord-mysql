@@ -29,13 +29,14 @@ from rhosocial.activerecord.backend.errors import (
 )
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
+from rhosocial.activerecord.backend.explain import SyncExplainBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .mixins import MySQLBackendMixin
 
 
-class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
+class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
     """MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -402,7 +403,7 @@ class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
         if options is None:
             # Determine statement type based on SQL
             sql_upper = sql.strip().upper()
-            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA')):
+            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA', 'EXPLAIN')):
                 stmt_type = StatementType.DQL
             elif sql_upper.startswith(('INSERT', 'UPDATE', 'DELETE', 'REPLACE')):
                 stmt_type = StatementType.DML
@@ -488,3 +489,9 @@ class MySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
         finally:
             if cursor:
                 cursor.close()
+
+    def _parse_explain_result(self, raw_rows, sql, duration):
+        """Return a typed :class:`MySQLExplainResult` for MySQL's tabular EXPLAIN output."""
+        from .explain import MySQLExplainResult, MySQLExplainRow
+        rows = [MySQLExplainRow(**r) for r in raw_rows]
+        return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)

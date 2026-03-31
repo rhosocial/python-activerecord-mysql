@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
         CreateTableExpression, CreateViewExpression, DropViewExpression,
         ColumnDefinition, TableConstraint, IndexDefinition,
+        ExplainExpression,
     )
 
 
@@ -269,6 +270,36 @@ class MySQLDialect(
             return self.version >= (8, 0, 16)  # TREE format since 8.0.16
         else:
             return False
+
+    def format_explain_statement(self, explain_expr: "ExplainExpression") -> str:
+        """Build the MySQL EXPLAIN prefix string.
+
+        MySQL syntax variants:
+        - ``EXPLAIN <stmt>``
+        - ``EXPLAIN FORMAT=TEXT|JSON|TREE <stmt>``
+        - ``EXPLAIN ANALYZE <stmt>``          (8.0.18+)
+        - ``EXPLAIN ANALYZE FORMAT=JSON <stmt>``  (8.0.21+)
+
+        The prefix is appended with a space; the caller appends the inner SQL.
+        """
+        from rhosocial.activerecord.backend.expression.statements import ExplainType
+
+        options = explain_expr.options
+        parts = ["EXPLAIN"]
+
+        if options is not None:
+            # ANALYZE goes before FORMAT (MySQL ordering)
+            if options.analyze:
+                parts.append("ANALYZE")
+
+            if options.format is not None:
+                fmt_name = options.format.name if hasattr(options.format, "name") else str(options.format)
+                parts.append(f"FORMAT={fmt_name.upper()}")
+            elif options.type is not None and options.type == ExplainType.QUERY_PLAN:
+                # MySQL has no QUERY PLAN keyword; fall through to plain EXPLAIN
+                pass
+
+        return " ".join(parts)
 
     def supports_graph_match(self) -> bool:
         """Whether graph query MATCH clause is supported."""

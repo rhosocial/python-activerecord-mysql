@@ -30,13 +30,14 @@ from rhosocial.activerecord.backend.errors import (
 )
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
+from rhosocial.activerecord.backend.explain import AsyncExplainBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
 from .mixins import MySQLBackendMixin
 
 
-class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
+class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -404,7 +405,7 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
         if options is None:
             # Determine statement type based on SQL
             sql_upper = sql.strip().upper()
-            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA')):
+            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA', 'EXPLAIN')):
                 stmt_type = StatementType.DQL
             elif sql_upper.startswith(('INSERT', 'UPDATE', 'DELETE', 'REPLACE')):
                 stmt_type = StatementType.DML
@@ -476,3 +477,9 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
         finally:
             if cursor:
                 await cursor.close()
+
+    def _parse_explain_result(self, raw_rows, sql, duration):
+        """Return a typed :class:`MySQLExplainResult` for MySQL's tabular EXPLAIN output."""
+        from .explain import MySQLExplainResult, MySQLExplainRow
+        rows = [MySQLExplainRow(**r) for r in raw_rows]
+        return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)
