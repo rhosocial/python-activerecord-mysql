@@ -271,19 +271,18 @@ class MySQLDialect(
         else:
             return False
 
-    def format_explain_statement(self, explain_expr: "ExplainExpression") -> str:
-        """Build the MySQL EXPLAIN prefix string.
+    def format_explain_statement(self, explain_expr: "ExplainExpression") -> tuple:
+        """Build the MySQL EXPLAIN SQL string and return (sql, params).
 
         MySQL syntax variants:
         - ``EXPLAIN <stmt>``
         - ``EXPLAIN FORMAT=TEXT|JSON|TREE <stmt>``
         - ``EXPLAIN ANALYZE <stmt>``          (8.0.18+)
         - ``EXPLAIN ANALYZE FORMAT=JSON <stmt>``  (8.0.21+)
-
-        The prefix is appended with a space; the caller appends the inner SQL.
         """
         from rhosocial.activerecord.backend.expression.statements import ExplainType
 
+        statement_sql, statement_params = explain_expr.statement.to_sql()
         options = explain_expr.options
         parts = ["EXPLAIN"]
 
@@ -299,7 +298,7 @@ class MySQLDialect(
                 # MySQL has no QUERY PLAN keyword; fall through to plain EXPLAIN
                 pass
 
-        return " ".join(parts)
+        return f"{' '.join(parts)} {statement_sql}", statement_params
 
     def supports_graph_match(self) -> bool:
         """Whether graph query MATCH clause is supported."""
