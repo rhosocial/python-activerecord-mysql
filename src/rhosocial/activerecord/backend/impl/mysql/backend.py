@@ -211,10 +211,21 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 raise OperationalError(f"Error during MySQL disconnection: {str(e)}") from e
 
     def _get_cursor(self):
-        """Get a database cursor, ensuring connection is active."""
+        """Get a database cursor, ensuring connection is active.
+
+        This method implements automatic connection health checking (Plan A):
+        - Checks if connection object exists
+        - Checks if connection is still valid using is_connected()
+        - Automatically reconnects if connection was lost
+        """
         if not self._connection:
+            self.log(logging.DEBUG, "No connection, connecting...")
             self.connect()
-        
+        elif not self._connection.is_connected():
+            self.log(logging.DEBUG, "Connection lost, reconnecting...")
+            self.disconnect()
+            self.connect()
+
         return self._connection.cursor()
 
 
@@ -299,7 +310,17 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 cursor.close()
 
     def ping(self, reconnect: bool = True) -> bool:
-        """Ping the MySQL server to check if the connection is alive."""
+        """
+        Ping the MySQL server to check if the connection is alive.
+
+        Args:
+            reconnect: If True, attempt to reconnect if the connection is dead.
+                      If False, just return the current connection status.
+
+        Returns:
+            True if the connection is alive (or was successfully reconnected),
+            False if the connection is dead and reconnect is False or reconnection failed.
+        """
         try:
             if not self._connection:
                 if reconnect:
@@ -307,13 +328,22 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                     return True
                 else:
                     return False
-            
-            # Try to execute a simple query to check connection
+
+            # Check connection status without triggering auto-reconnect
+            if not self._connection.is_connected():
+                if reconnect:
+                    self.disconnect()
+                    self.connect()
+                    return True
+                else:
+                    return False
+
+            # Try to execute a simple query to verify connection is actually working
             cursor = self._get_cursor()
             cursor.execute("SELECT 1")
             cursor.fetchone()
             cursor.close()
-            
+
             return True
         except (MySQLError, mysql.connector.Error) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
@@ -326,6 +356,124 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                     self.log(logging.ERROR, f"Failed to reconnect after ping failure: {str(connect_error)}")
                     return False
             return False
+
+    # MySQL connection error codes that indicate connection loss
+    # Reference: https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
+    CONNECTION_ERROR_CODES = {
+        2003,  # CR_CONN_HOST_ERROR - Can't connect to MySQL server
+        2006,  # CR_SERVER_GONE_ERROR - MySQL server has gone away
+        2013,  # CR_SERVER_LOST - Lost connection to MySQL server during query
+        2048,  # CR_CONN_UNKNOW_PROTOCOL - Invalid connection protocol
+        2055,  # CR_SERVER_LOST_EXTENDED - Lost connection to MySQL server
+    }
+
+    def _is_connection_error(self, error: Exception) -> bool:
+        """
+        Check if an error indicates a connection loss.
+
+        This method identifies errors that result from lost or invalid connections,
+        which should trigger automatic reconnection attempts.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error indicates a connection problem, False otherwise
+        """
+        # Check for MySQL error codes
+        if hasattr(error, 'errno'):
+            if error.errno in self.CONNECTION_ERROR_CODES:
+                return True
+
+        # Fallback to string matching for error messages
+        error_str = str(error).lower()
+        connection_error_patterns = [
+            'server has gone away',
+            'lost connection',
+            "can't connect to mysql server",
+            'connection refused',
+            'broken pipe',
+            'connection reset',
+        ]
+        return any(pattern in error_str for pattern in connection_error_patterns)
+
+    def _reconnect(self) -> bool:
+        """
+        Attempt to reconnect to the MySQL server.
+
+        This method safely disconnects and reconnects, handling any errors
+        that might occur during the process.
+
+        Returns:
+            True if reconnection was successful, False otherwise
+        """
+        try:
+            self.log(logging.INFO, "Attempting to reconnect...")
+            self.disconnect()
+            self.connect()
+            self.log(logging.INFO, "Reconnection successful")
+            return True
+        except Exception as e:
+            self.log(logging.ERROR, f"Reconnection failed: {str(e)}")
+            return False
+
+    def execute(self, sql: str, params: Optional[Tuple] = None, *, options, max_retries: int = 2) -> 'QueryResult':
+        """
+        Execute a SQL statement with automatic reconnection on connection errors.
+
+        This method extends the parent execute method with retry logic for connection
+        errors. If a connection error occurs during execution, it will automatically
+        attempt to reconnect and retry the query up to max_retries times.
+
+        This implements Plan B: Error retry mechanism for handling connection loss
+        that occurs mid-query (which Plan A's pre-check cannot prevent).
+
+        Args:
+            sql: The SQL statement to execute
+            params: Optional tuple of parameter values
+            options: ExecutionOptions object
+            max_retries: Maximum number of retry attempts (default: 2)
+
+        Returns:
+            QueryResult object containing execution results
+
+        Raises:
+            DatabaseError: If execution fails after all retries
+            Other exceptions from parent execute method
+        """
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return super().execute(sql, params, options=options)
+            except (MySQLOperationalError, MySQLError) as e:
+                last_error = e
+
+                # Check if this is a connection error that warrants retry
+                if self._is_connection_error(e) and attempt < max_retries:
+                    self.log(
+                        logging.WARNING,
+                        f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}"
+                    )
+
+                    # Attempt to reconnect
+                    if self._reconnect():
+                        # Retry the query
+                        continue
+                    else:
+                        # Reconnection failed, no point in retrying
+                        self.log(logging.ERROR, "Reconnection failed, aborting retry")
+                        break
+                else:
+                    # Not a connection error or max retries reached
+                    break
+
+        # All retries exhausted or non-connection error
+        if last_error:
+            self._handle_error(last_error)
+
+        # This should not be reached, but for type safety
+        raise DatabaseError(f"Execution failed after {max_retries + 1} attempts")
 
     def _handle_error(self, error: Exception) -> None:
         """Handle MySQL-specific errors."""
