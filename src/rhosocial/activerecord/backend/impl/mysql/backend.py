@@ -198,17 +198,23 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
     def disconnect(self):
         """Close connection to MySQL database."""
         if self._connection:
+            conn = self._connection
+            self._connection = None  # Clear reference first to prevent recursion
             try:
                 # Rollback any active transaction
                 if self.transaction_manager.is_active:
-                    self.transaction_manager.rollback()
-                
-                self._connection.close()
-                self._connection = None
+                    try:
+                        self.transaction_manager.rollback()
+                    except Exception:
+                        pass  # Ignore rollback failure during disconnect
+
+                conn.close()
                 self.log(logging.INFO, "Disconnected from MySQL database")
-            except MySQLError as e:
-                self.log(logging.ERROR, f"Error during disconnection: {str(e)}")
-                raise OperationalError(f"Error during MySQL disconnection: {str(e)}") from e
+            except (MySQLError, BrokenPipeError, OSError) as e:
+                # MySQL 5.6 may raise BrokenPipeError when closing a dead connection
+                # after KILL CONNECTION. We treat disconnect as always successful
+                # since the reference is already cleared.
+                self.log(logging.WARNING, f"Error during disconnection (ignored): {str(e)}")
 
     def _get_cursor(self):
         """Get a database cursor, ensuring connection is active.
@@ -221,10 +227,17 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
         if not self._connection:
             self.log(logging.DEBUG, "No connection, connecting...")
             self.connect()
-        elif not self._connection.is_connected():
-            self.log(logging.DEBUG, "Connection lost, reconnecting...")
-            self.disconnect()
-            self.connect()
+        else:
+            # Protect is_connected() call - may raise BrokenPipeError in MySQL 5.6
+            try:
+                is_connected = self._connection.is_connected()
+            except (BrokenPipeError, OSError):
+                is_connected = False
+
+            if not is_connected:
+                self.log(logging.DEBUG, "Connection lost, reconnecting...")
+                self.disconnect()
+                self.connect()
 
         return self._connection.cursor()
 
@@ -345,13 +358,27 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 else:
                     return False
 
-            # Try to execute a simple query to verify connection is actually working
-            cursor = self._get_cursor()
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-            cursor.close()
+            # When reconnect=False, don't send SELECT 1 to avoid potential
+            # BrokenPipeError in MySQL 5.6 RST race condition.
+            # Just trust the is_connected() result.
+            if not reconnect:
+                return True
 
-            return True
+            # reconnect=True: verify connection with SELECT 1
+            try:
+                cursor = self._get_cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                cursor.close()
+                return True
+            except (BrokenPipeError, OSError):
+                # May occur in MySQL 5.6 RST race condition
+                if reconnect:
+                    self.disconnect()
+                    self.connect()
+                    return True
+                return False
+
         except (MySQLError, mysql.connector.Error, OSError) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
             if reconnect:

@@ -197,17 +197,23 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
     async def disconnect(self):
         """Close async connection to MySQL database."""
         if self._connection:
+            conn = self._connection
+            self._connection = None  # Clear reference first to prevent recursion
             try:
                 # Rollback any active transaction
                 if self.transaction_manager.is_active:
-                    await self.transaction_manager.rollback()
+                    try:
+                        await self.transaction_manager.rollback()
+                    except Exception:
+                        pass  # Ignore rollback failure during disconnect
 
-                await self._connection.close()
-                self._connection = None
+                await conn.close()
                 self.log(logging.INFO, "Disconnected from MySQL database")
-            except mysql_async.Error as e:
-                self.log(logging.ERROR, f"Error during disconnection: {str(e)}")
-                raise OperationalError(f"Error during MySQL disconnection: {str(e)}") from e
+            except (mysql_async.Error, BrokenPipeError, OSError) as e:
+                # MySQL 5.6 may raise BrokenPipeError when closing a dead connection
+                # after KILL CONNECTION. We treat disconnect as always successful
+                # since the reference is already cleared.
+                self.log(logging.WARNING, f"Error during disconnection (ignored): {str(e)}")
 
     async def _get_cursor(self):
         """Get a database cursor, ensuring connection is active.
@@ -220,10 +226,17 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         if not self._connection:
             self.log(logging.DEBUG, "No connection, connecting...")
             await self.connect()
-        elif not await self._connection.is_connected():
-            self.log(logging.DEBUG, "Connection lost, reconnecting...")
-            await self.disconnect()
-            await self.connect()
+        else:
+            # Protect is_connected() call - may raise BrokenPipeError in MySQL 5.6
+            try:
+                is_connected = await self._connection.is_connected()
+            except (BrokenPipeError, OSError):
+                is_connected = False
+
+            if not is_connected:
+                self.log(logging.DEBUG, "Connection lost, reconnecting...")
+                await self.disconnect()
+                await self.connect()
 
         return await self._connection.cursor()
 
@@ -347,13 +360,27 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 else:
                     return False
 
-            # Try to execute a simple query to verify connection is actually working
-            cursor = await self._get_cursor()
-            await cursor.execute("SELECT 1")
-            await cursor.fetchone()
-            await cursor.close()
+            # When reconnect=False, don't send SELECT 1 to avoid potential
+            # BrokenPipeError in MySQL 5.6 RST race condition.
+            # Just trust the is_connected() result.
+            if not reconnect:
+                return True
 
-            return True
+            # reconnect=True: verify connection with SELECT 1
+            try:
+                cursor = await self._get_cursor()
+                await cursor.execute("SELECT 1")
+                await cursor.fetchone()
+                await cursor.close()
+                return True
+            except (BrokenPipeError, OSError):
+                # May occur in MySQL 5.6 RST race condition or asyncio transport
+                if reconnect:
+                    await self.disconnect()
+                    await self.connect()
+                    return True
+                return False
+
         except (mysql_async.Error, OSError) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
             if reconnect:
