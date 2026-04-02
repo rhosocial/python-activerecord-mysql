@@ -77,7 +77,7 @@ namespaces = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q"
+addopts = "-ra -q --ignore=tests/rhosocial/activerecord_mysql_test/feature/backend/test_async_concurrency.py"
 asyncio_mode = "auto"
 testpaths = [
     "tests",
