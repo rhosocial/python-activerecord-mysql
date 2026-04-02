@@ -330,7 +330,14 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                     return False
 
             # Check connection status without triggering auto-reconnect
-            if not self._connection.is_connected():
+            # Note: is_connected() may raise BrokenPipeError/OSError in MySQL 5.6 +
+            # mysql-connector-python 9.x when connection has been killed
+            try:
+                is_connected = self._connection.is_connected()
+            except (BrokenPipeError, OSError):
+                is_connected = False
+
+            if not is_connected:
                 if reconnect:
                     self.disconnect()
                     self.connect()
@@ -345,7 +352,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
             cursor.close()
 
             return True
-        except (MySQLError, mysql.connector.Error) as e:
+        except (MySQLError, mysql.connector.Error, OSError) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
             if reconnect:
                 try:

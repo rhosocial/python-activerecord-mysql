@@ -33,6 +33,87 @@ def print_separator(title: str):
     print("=" * 70)
 
 
+def safe_is_connected(connection) -> bool:
+    """
+    Safely check if connection is alive, catching socket errors.
+
+    In MySQL 5.6 + mysql-connector-python 9.x, is_connected() may raise
+    BrokenPipeError when the connection has been killed by KILL CONNECTION
+    due to race conditions in TCP stack cleanup.
+
+    Returns:
+        True if connected, False if disconnected or error occurred.
+    """
+    try:
+        return connection.is_connected()
+    except (BrokenPipeError, OSError):
+        return False
+
+
+async def async_safe_is_connected(connection) -> bool:
+    """
+    Async version of safe_is_connected().
+
+    Returns:
+        True if connected, False if disconnected or error occurred.
+    """
+    try:
+        return await connection.is_connected()
+    except (BrokenPipeError, OSError):
+        return False
+
+
+def wait_until_dead(connection, timeout: float = 5.0, interval: float = 0.3) -> bool:
+    """
+    Wait until connection is confirmed dead.
+
+    This function polls is_connected() until it returns False or raises an error,
+    handling the race condition between KILL CONNECTION and TCP stack cleanup.
+
+    Args:
+        connection: The database connection object.
+        timeout: Maximum time to wait in seconds.
+        interval: Polling interval in seconds.
+
+    Returns:
+        True if connection is confirmed dead, False if still connected after timeout.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            connected = connection.is_connected()
+            if not connected:
+                return True
+        except (BrokenPipeError, OSError):
+            return True  # Exception indicates connection is dead
+        time.sleep(interval)
+    return False
+
+
+async def async_wait_until_dead(connection, timeout: float = 5.0, interval: float = 0.3) -> bool:
+    """
+    Async version of wait_until_dead().
+
+    Args:
+        connection: The database connection object.
+        timeout: Maximum time to wait in seconds.
+        interval: Polling interval in seconds.
+
+    Returns:
+        True if connection is confirmed dead, False if still connected after timeout.
+    """
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        try:
+            connected = await connection.is_connected()
+            if not connected:
+                return True
+        except (BrokenPipeError, OSError):
+            return True  # Exception indicates connection is dead
+        await asyncio.sleep(interval)
+    return False
+
+
 # ============================================================================
 # Synchronous Backend Tests
 # ============================================================================
@@ -65,12 +146,15 @@ class TestIsConnectedMethod:
 
         # Kill the connection
         mysql_control_backend.execute(f"KILL CONNECTION {connection_id}")
-        time.sleep(1)  # Wait for connection to be terminated
+
+        # Wait for connection to be confirmed dead with retry mechanism
+        assert wait_until_dead(mysql_backend_single._connection), \
+            "Connection did not die within timeout"
 
         # Verify is_connected() detects the disconnection
         # Note: _connection is not None, but is_connected() should return False
         assert mysql_backend_single._connection is not None
-        is_connected = mysql_backend_single._connection.is_connected()
+        is_connected = safe_is_connected(mysql_backend_single._connection)
         assert is_connected is False, "is_connected() should return False for killed connection"
 
 
@@ -224,10 +308,10 @@ class TestPingReconnect:
         # 2. Kill the connection
         print(f"Killing connection {original_conn_id}...")
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
-        time.sleep(1)
 
-        # 3. Verify connection is dead
-        assert mysql_backend_single._connection.is_connected() is False
+        # 3. Wait for connection to be confirmed dead
+        assert wait_until_dead(mysql_backend_single._connection), \
+            "Connection did not die within timeout"
         print("Connection confirmed dead")
 
         # 4. Ping with reconnect
@@ -237,7 +321,7 @@ class TestPingReconnect:
         assert ping_result is True, "Ping should succeed with reconnect=True"
 
         # 5. Verify connection is restored
-        assert mysql_backend_single._connection.is_connected() is True
+        assert safe_is_connected(mysql_backend_single._connection) is True
 
         # 6. Verify new connection ID
         new_conn_result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
@@ -262,10 +346,10 @@ class TestPingReconnect:
 
         # Kill the connection
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
-        time.sleep(1)
 
-        # Verify connection is dead
-        assert mysql_backend_single._connection.is_connected() is False
+        # Wait for connection to be confirmed dead
+        assert wait_until_dead(mysql_backend_single._connection), \
+            "Connection did not die within timeout"
 
         # Ping without reconnect
         ping_result = mysql_backend_single.ping(reconnect=False)
@@ -273,7 +357,7 @@ class TestPingReconnect:
         assert ping_result is False, "Ping should return False for dead connection"
 
         # Connection should still be dead
-        assert mysql_backend_single._connection.is_connected() is False
+        assert safe_is_connected(mysql_backend_single._connection) is False
 
 
 class TestGetCursorAutoReconnect:
@@ -298,17 +382,17 @@ class TestGetCursorAutoReconnect:
 
         # Kill the connection
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
-        time.sleep(1)
 
-        # Verify connection is dead
-        assert mysql_backend_single._connection.is_connected() is False
+        # Wait for connection to be confirmed dead
+        assert wait_until_dead(mysql_backend_single._connection), \
+            "Connection did not die within timeout"
 
         # Call _get_cursor - should trigger reconnection
         cursor = mysql_backend_single._get_cursor()
         print("_get_cursor() returned cursor successfully")
 
         # Verify connection is now alive
-        assert mysql_backend_single._connection.is_connected() is True
+        assert safe_is_connected(mysql_backend_single._connection) is True
 
         # Clean up cursor
         cursor.close()
@@ -355,11 +439,14 @@ class TestAsyncIsConnectedMethod:
 
         # Kill the connection
         await async_mysql_control_backend.execute(f"KILL CONNECTION {connection_id}")
-        await asyncio.sleep(1)  # Wait for connection to be terminated
+
+        # Wait for connection to be confirmed dead with retry mechanism
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+            "Connection did not die within timeout"
 
         # Verify is_connected() detects the disconnection
         assert async_mysql_backend_single._connection is not None
-        is_connected = await async_mysql_backend_single._connection.is_connected()
+        is_connected = await async_safe_is_connected(async_mysql_backend_single._connection)
         assert is_connected is False, "is_connected() should return False for killed connection"
 
 
@@ -486,10 +573,10 @@ class TestAsyncPingReconnect:
         # 2. Kill the connection
         print(f"Killing connection {original_conn_id}...")
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
-        await asyncio.sleep(1)
 
-        # 3. Verify connection is dead
-        assert await async_mysql_backend_single._connection.is_connected() is False
+        # 3. Wait for connection to be confirmed dead
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+            "Connection did not die within timeout"
         print("Connection confirmed dead")
 
         # 4. Ping with reconnect
@@ -499,7 +586,7 @@ class TestAsyncPingReconnect:
         assert ping_result is True, "Ping should succeed with reconnect=True"
 
         # 5. Verify connection is restored
-        assert await async_mysql_backend_single._connection.is_connected() is True
+        assert await async_safe_is_connected(async_mysql_backend_single._connection) is True
 
         # 6. Verify new connection ID
         new_conn_result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
@@ -522,10 +609,10 @@ class TestAsyncPingReconnect:
 
         # Kill the connection
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
-        await asyncio.sleep(1)
 
-        # Verify connection is dead
-        assert await async_mysql_backend_single._connection.is_connected() is False
+        # Wait for connection to be confirmed dead
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+            "Connection did not die within timeout"
 
         # Ping without reconnect
         ping_result = await async_mysql_backend_single.ping(reconnect=False)
@@ -533,7 +620,7 @@ class TestAsyncPingReconnect:
         assert ping_result is False, "Ping should return False for dead connection"
 
         # Connection should still be dead
-        assert await async_mysql_backend_single._connection.is_connected() is False
+        assert await async_safe_is_connected(async_mysql_backend_single._connection) is False
 
 
 class TestAsyncGetCursorAutoReconnect:
@@ -555,17 +642,17 @@ class TestAsyncGetCursorAutoReconnect:
 
         # Kill the connection
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
-        await asyncio.sleep(1)
 
-        # Verify connection is dead
-        assert await async_mysql_backend_single._connection.is_connected() is False
+        # Wait for connection to be confirmed dead
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+            "Connection did not die within timeout"
 
         # Call _get_cursor - should trigger reconnection
         cursor = await async_mysql_backend_single._get_cursor()
         print("_get_cursor() returned cursor successfully")
 
         # Verify connection is now alive
-        assert await async_mysql_backend_single._connection.is_connected() is True
+        assert await async_safe_is_connected(async_mysql_backend_single._connection) is True
 
         # Clean up cursor
         await cursor.close()
