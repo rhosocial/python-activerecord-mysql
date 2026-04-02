@@ -23,29 +23,38 @@ os.environ.setdefault(
 )
 
 
-@pytest.fixture(autouse=True)
-def suppress_asyncio_broken_pipe(event_loop):
+@pytest.fixture(scope="session", autouse=True)
+def setup_asyncio_broken_pipe_handler():
     """
-    Suppress BrokenPipeError in asyncio event loop exception handler.
+    Set up asyncio event loop exception handler to suppress BrokenPipeError.
 
     In MySQL 5.6 + Python 3.8 asyncio combination, writes to dead connections
     may raise BrokenPipeError through the asyncio transport layer via the
     event loop's exception handler rather than through normal try/except.
 
-    This fixture suppresses BrokenPipeError in the event loop to prevent
-    test failures caused by this asyncio-specific behavior.
+    This fixture sets up the handler at session start and restores it at end.
     """
-    original_handler = event_loop.get_exception_handler()
-
     def handler(loop, context):
         exc = context.get("exception")
         if isinstance(exc, BrokenPipeError):
             return  # suppress BrokenPipeError
-        if original_handler:
-            original_handler(loop, context)
-        else:
-            loop.default_exception_handler(context)
+        loop.default_exception_handler(context)
 
-    event_loop.set_exception_handler(handler)
+    # Set up handler for any existing loop
+    try:
+        loop = asyncio.get_running_loop()
+        original_handler = loop.get_exception_handler()
+        loop.set_exception_handler(handler)
+    except RuntimeError:
+        # No running loop yet
+        original_handler = None
+
     yield
-    event_loop.set_exception_handler(original_handler)
+
+    # Restore original handler if we modified one
+    try:
+        loop = asyncio.get_running_loop()
+        if original_handler:
+            loop.set_exception_handler(original_handler)
+    except RuntimeError:
+        pass
