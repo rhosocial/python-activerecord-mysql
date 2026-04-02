@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
         CreateTableExpression, CreateViewExpression, DropViewExpression,
         ColumnDefinition, TableConstraint, IndexDefinition,
+        ExplainExpression,
     )
 
 
@@ -269,6 +270,51 @@ class MySQLDialect(
             return self.version >= (8, 0, 16)  # TREE format since 8.0.16
         else:
             return False
+
+    def format_explain_statement(self, explain_expr: "ExplainExpression") -> tuple:
+        """Build the MySQL EXPLAIN SQL string and return (sql, params).
+
+        MySQL syntax variants:
+        - ``EXPLAIN <stmt>``
+        - ``EXPLAIN FORMAT=TEXT|JSON|TREE|TRADITIONAL <stmt>``
+        - ``EXPLAIN ANALYZE <stmt>``          (8.0.18+)
+        - ``EXPLAIN ANALYZE FORMAT=JSON <stmt>``  (8.0.21+)
+
+        Note: MySQL 9.x defaults to TREE format which returns a single 'EXPLAIN' column
+        with text output. For consistent parsing, we force TRADITIONAL format for
+        MySQL 9.0+ when no explicit format is specified.
+        """
+        from rhosocial.activerecord.backend.expression.statements import ExplainType
+
+        statement_sql, statement_params = explain_expr.statement.to_sql()
+        options = explain_expr.options
+        parts = ["EXPLAIN"]
+
+        # Determine if we need to add FORMAT=TRADITIONAL
+        needs_traditional_format = False
+        if options is None:
+            # No options specified - check if MySQL 9.0+ needs TRADITIONAL format
+            needs_traditional_format = self.version >= (9, 0, 0)
+        else:
+            # ANALYZE goes before FORMAT (MySQL ordering)
+            if options.analyze:
+                parts.append("ANALYZE")
+
+            if options.format is not None:
+                fmt_name = options.format.name if hasattr(options.format, "name") else str(options.format)
+                parts.append(f"FORMAT={fmt_name.upper()}")
+            elif options.type is not None and options.type == ExplainType.QUERY_PLAN:
+                # MySQL has no QUERY PLAN keyword; fall through to plain EXPLAIN
+                pass
+            else:
+                # No format specified - check if MySQL 9.0+ needs TRADITIONAL format
+                needs_traditional_format = self.version >= (9, 0, 0)
+
+        # MySQL 9.0+ defaults to TREE format; force TRADITIONAL for consistent parsing
+        if needs_traditional_format:
+            parts.append("FORMAT=TRADITIONAL")
+
+        return f"{' '.join(parts)} {statement_sql}", statement_params
 
     def supports_graph_match(self) -> bool:
         """Whether graph query MATCH clause is supported."""
