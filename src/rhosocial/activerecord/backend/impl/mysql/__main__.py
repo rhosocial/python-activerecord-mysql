@@ -122,142 +122,181 @@ def parse_args():
     # =========================================================================
     # Design Notes:
     # =========================================================================
-    # Uses explicit subcommand mode: query and introspect are mutually exclusive.
+    # Uses explicit subcommand mode: info, query, and introspect are subcommands.
     # This avoids argparse misidentifying SQL queries as subcommand names.
     #
-    # Connection parameters are shared between subcommands and placed in parent parser.
-    # The main parser also inherits from parent, so global options like --info
-    # can access these parameters.
+    # Structure:
+    # - Main parser: contains only global options (-v/--verbose)
+    # - parent_parser: shared arguments for all subcommands
+    # - Each subcommand parser inherits from parent_parser
+    #
+    # Usage: python -m backend.impl.mysql <subcommand> [subcommand-options]
+    # Example: python -m backend.impl.mysql query --host localhost "SELECT 1"
     # =========================================================================
 
-    # Parent parser: shared connection parameters
+    # Parent parser: shared arguments for all subcommands
     parent_parser = argparse.ArgumentParser(add_help=False)
+    # Connection parameters
     parent_parser.add_argument(
-        '--host',
-        default=os.getenv('MYSQL_HOST', 'localhost'),
-        help='Database host'
+        "--host",
+        default=os.getenv("MYSQL_HOST", "localhost"),
+        help="Database host (env: MYSQL_HOST, default: localhost)",
     )
     parent_parser.add_argument(
-        '--port',
+        "--port",
         type=int,
-        default=int(os.getenv('MYSQL_PORT', '3306')),
-        help='Database port'
+        default=int(os.getenv("MYSQL_PORT", "3306")),
+        help="Database port (env: MYSQL_PORT, default: 3306)",
     )
     parent_parser.add_argument(
-        '--database',
-        default=os.getenv('MYSQL_DATABASE'),
-        help='Database name (optional for some operations like SHOW DATABASES)'
+        "--database",
+        default=os.getenv("MYSQL_DATABASE"),
+        help="Database name (env: MYSQL_DATABASE, optional for some operations)",
     )
     parent_parser.add_argument(
-        '--user',
-        default=os.getenv('MYSQL_USER', 'root'),
-        help='Database user'
+        "--user",
+        default=os.getenv("MYSQL_USER", "root"),
+        help="Database user (env: MYSQL_USER, default: root)",
     )
     parent_parser.add_argument(
-        '--password',
-        default=os.getenv('MYSQL_PASSWORD', ''),
-        help='Database password'
+        "--password",
+        default=os.getenv("MYSQL_PASSWORD", ""),
+        help="Database password (env: MYSQL_PASSWORD)",
     )
     parent_parser.add_argument(
-        '--charset',
-        default=os.getenv('MYSQL_CHARSET', 'utf8mb4'),
-        help='Connection charset'
+        "--charset",
+        default=os.getenv("MYSQL_CHARSET", "utf8mb4"),
+        help="Connection charset (env: MYSQL_CHARSET, default: utf8mb4)",
+    )
+    # Execution parameters
+    parent_parser.add_argument(
+        "--use-async",
+        action="store_true",
+        help="Use asynchronous backend",
     )
     parent_parser.add_argument(
-        '--output',
-        choices=['table', 'json', 'csv', 'tsv'],
-        default='table',
-        help='Output format. Defaults to "table" if rich is installed.'
-    )
-    parent_parser.add_argument(
-        '--log-level',
-        default='INFO',
-        help='Set logging level (e.g., DEBUG, INFO)'
-    )
-    parent_parser.add_argument(
-        '--rich-ascii',
-        action='store_true',
-        help='Use ASCII characters for rich table borders.'
-    )
-    parent_parser.add_argument(
-        '--use-async',
-        action='store_true',
-        help='Use asynchronous backend'
-    )
-    parent_parser.add_argument(
-        '--version',
+        "--version",
         type=str,
         default=None,
-        help='MySQL version to simulate (e.g., "8.0.0", "5.7.8"). Default: 8.0.0.'
+        help='MySQL version to simulate (e.g., "8.0.0", "5.7.8"). Default: 8.0.0.',
+    )
+    # Output parameters
+    parent_parser.add_argument(
+        "-o", "--output",
+        choices=["table", "json", "csv", "tsv"],
+        default="table",
+        help='Output format. Defaults to "table" if rich is installed.',
+    )
+    parent_parser.add_argument(
+        "--log-level",
+        default="INFO",
+        help="Set logging level (e.g., DEBUG, INFO)",
+    )
+    parent_parser.add_argument(
+        "--rich-ascii",
+        action="store_true",
+        help="Use ASCII characters for rich table borders.",
     )
 
-    # Main parser inherits from parent, so --info can access shared parameters
+    # Main parser: global options only
     parser = argparse.ArgumentParser(
         description="Execute SQL queries against a MySQL backend.",
         formatter_class=argparse.RawTextHelpFormatter,
-        parents=[parent_parser]
-    )
-
-    # Global options (no subcommand required)
-    parser.add_argument(
-        '--info',
-        action='store_true',
-        help='Display MySQL environment information.'
     )
     parser.add_argument(
-        '-v', '--verbose',
-        action='count',
+        "-v", "--verbose",
+        action="count",
         default=0,
-        help='Increase verbosity. -v for families, -vv for details.'
+        help="Increase verbosity. -v for families, -vv for details.",
     )
 
-    # Subcommands: query and introspect
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    # Subcommands: info, query, and introspect
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # info subcommand
+    info_parser = subparsers.add_parser(
+        "info",
+        help="Display MySQL environment information",
+        parents=[parent_parser],
+    )
 
     # query subcommand
     query_parser = subparsers.add_parser(
-        'query',
-        help='Execute SQL query',
-        parents=[parent_parser]
+        "query",
+        help="Execute SQL query",
+        parents=[parent_parser],
     )
     query_parser.add_argument(
-        'sql',
-        nargs='?',
+        "sql",
+        nargs="?",
         default=None,
-        help='SQL query to execute. If not provided, reads from --file or stdin.'
+        help="SQL query to execute. If not provided, reads from --file or stdin.",
     )
     query_parser.add_argument(
-        '-f', '--file',
+        "-f", "--file",
         default=None,
-        help='Path to a file containing SQL to execute.'
+        help="Path to a file containing SQL to execute.",
     )
 
     # introspect subcommand
     introspect_parser = subparsers.add_parser(
-        'introspect',
-        help='Database introspection commands',
-        parents=[parent_parser]
+        "introspect",
+        help="Database introspection commands",
+        parents=[parent_parser],
+        epilog="""Examples:
+  # List all tables in database
+  %(prog)s tables --database mydb
+
+  # List all views
+  %(prog)s views --database mydb
+
+  # Get detailed table info (columns, indexes, foreign keys)
+  %(prog)s table users --database mydb
+
+  # Get column details for a table
+  %(prog)s columns users --database mydb
+
+  # Get index information
+  %(prog)s indexes users --database mydb
+
+  # Get foreign key relationships
+  %(prog)s foreign-keys users --database mydb
+
+  # List triggers
+  %(prog)s triggers --database mydb
+
+  # Get database information
+  %(prog)s database --database mydb
+
+  # Output as JSON
+  %(prog)s tables --database mydb -o json
+
+  # Using environment variables for connection
+  export MYSQL_HOST=localhost MYSQL_DATABASE=mydb MYSQL_USER=root MYSQL_PASSWORD=secret
+  %(prog)s tables
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     introspect_parser.add_argument(
-        'type',
+        "type",
         choices=INTROSPECT_TYPES,
-        help='Introspection type: tables, views, table, columns, indexes, foreign-keys, triggers, database'
+        help="Introspection type: tables, views, table, columns, indexes, foreign-keys, triggers, database",
     )
     introspect_parser.add_argument(
-        'name',
-        nargs='?',
+        "name",
+        nargs="?",
         default=None,
-        help='Table/view name (required for table, columns, indexes, foreign-keys types)'
+        help="Table/view name (required for table, columns, indexes, foreign-keys types)",
     )
     introspect_parser.add_argument(
-        '--schema',
+        "--schema",
         default=None,
-        help='Schema name (for databases that support schemas)'
+        help="Schema name (for databases that support schemas)",
     )
     introspect_parser.add_argument(
-        '--include-system',
-        action='store_true',
-        help='Include system tables in output'
+        "--include-system",
+        action="store_true",
+        help="Include system tables in output",
     )
 
     return parser.parse_args()
@@ -266,17 +305,18 @@ def parse_args():
 def get_provider(args):
     """Factory function to get the correct output provider."""
     output_format = args.output
-    if output_format == 'table' and not RICH_AVAILABLE:
-        output_format = 'json'
+    if output_format == "table" and not RICH_AVAILABLE:
+        output_format = "json"
 
-    if output_format == 'table' and RICH_AVAILABLE:
+    if output_format == "table" and RICH_AVAILABLE:
         from rich.console import Console
+
         return RichOutputProvider(console=Console(), ascii_borders=args.rich_ascii)
-    if output_format == 'json':
+    if output_format == "json":
         return JsonOutputProvider()
-    if output_format == 'csv':
+    if output_format == "csv":
         return CsvOutputProvider()
-    if output_format == 'tsv':
+    if output_format == "tsv":
         return TsvOutputProvider()
 
     return JsonOutputProvider()
@@ -289,8 +329,8 @@ def get_protocol_support_methods(protocol_class: type) -> List[str]:
     """
     methods = []
     for name, member in inspect.getmembers(protocol_class):
-        is_supports = name.startswith('supports_')
-        is_available = (name.startswith('is_') and name.endswith('_available'))
+        is_supports = name.startswith("supports_")
+        is_available = name.startswith("is_") and name.endswith("_available")
         if callable(member) and (is_supports or is_available):
             methods.append(name)
     return sorted(methods)
@@ -300,16 +340,16 @@ def get_protocol_support_methods(protocol_class: type) -> List[str]:
 # This allows detailed display of which specific arguments are supported
 SUPPORT_METHOD_ALL_ARGS: Dict[str, List[str]] = {
     # ExplainSupport: all possible format types
-    'supports_explain_format': ['TEXT', 'JSON', 'TREE', 'XML', 'YAML', 'DOT'],
+    "supports_explain_format": ["TEXT", "JSON", "TREE", "XML", "YAML", "DOT"],
     # MySQLJSONFunctionSupport: JSON functions with version-specific support
-    'supports_json_function': [
-        'JSON_EXTRACT', 'JSON_ARRAY', 'JSON_OBJECT', 'JSON_MERGE',
-        'JSON_TABLE', 'JSON_VALUE', 'JSON_SCHEMA_VALID', 'JSON_MERGE_PATCH'
+    "supports_json_function": [
+        "JSON_EXTRACT", "JSON_ARRAY", "JSON_OBJECT", "JSON_MERGE",
+        "JSON_TABLE", "JSON_VALUE", "JSON_SCHEMA_VALID", "JSON_MERGE_PATCH",
     ],
     # MySQLSpatialSupport: spatial types
-    'supports_spatial_type': [
-        'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON',
-        'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON', 'GEOMETRYCOLLECTION'
+    "supports_spatial_type": [
+        "GEOMETRY", "POINT", "LINESTRING", "POLYGON",
+        "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
     ],
 }
 
@@ -331,9 +371,8 @@ def check_protocol_support(dialect: MySQLDialect, protocol_class: type) -> Dict[
                 method = getattr(dialect, method_name)
                 # Check if method requires arguments (beyond self)
                 sig = inspect.signature(method)
-                params = [p for p in sig.parameters.values()
-                          if p.default == inspect.Parameter.empty]
-                required_params = [p for p in params if p.name != 'self']
+                params = [p for p in sig.parameters.values() if p.default == inspect.Parameter.empty]
+                required_params = [p for p in params if p.name != "self"]
 
                 if len(required_params) == 0:
                     # No required parameters, call directly
@@ -350,9 +389,9 @@ def check_protocol_support(dialect: MySQLDialect, protocol_class: type) -> Dict[
                             arg_results[arg] = False
                     supported_count = sum(1 for v in arg_results.values() if v)
                     results[method_name] = {
-                        'supported': supported_count,
-                        'total': len(all_args),
-                        'args': arg_results
+                        "supported": supported_count,
+                        "total": len(all_args),
+                        "args": arg_results,
                     }
                 else:
                     # Unknown method requiring parameters, skip
@@ -388,8 +427,8 @@ def _calculate_protocol_stats(support_methods: Dict[str, Any]) -> Tuple[int, int
     total_count = 0
     for value in support_methods.values():
         if isinstance(value, dict):
-            supported_count += value['supported']
-            total_count += value['total']
+            supported_count += value["supported"]
+            total_count += value["total"]
         else:
             total_count += 1
             if value:
@@ -427,55 +466,95 @@ def _build_protocol_info(
                 "supported": supported_count,
                 "total": total_count,
                 "percentage": percentage,
-                "methods": support_methods
+                "methods": support_methods,
             }
         else:
             group_info[protocol_name] = {
                 "supported": supported_count,
                 "total": total_count,
-                "percentage": percentage
+                "percentage": percentage,
             }
     return group_info
 
 
-def display_info(verbose: int = 0, output_format: str = 'table',
-                 version_str: Optional[str] = None):
-    """Display MySQL environment information."""
-    # Parse version
-    if version_str:
-        version = parse_version(version_str)
-    else:
-        version = (8, 0, 0)  # Default version
+def handle_info(args, provider: Any):
+    """Handle info subcommand.
 
-    dialect = MySQLDialect(version=version)
-    version_display = f"{version[0]}.{version[1]}.{version[2]}"
+    Display MySQL environment information based on actual database connection
+    or default values if no database is provided.
+    """
+    output_format = args.output if args.output != "table" or RICH_AVAILABLE else "json"
+
+    # Track whether we're using actual database or defaults
+    is_connected = False
+    dialect = None
+    version_display = None
+
+    if args.database:
+        try:
+            config = MySQLConnectionConfig(
+                host=args.host,
+                port=args.port,
+                database=args.database,
+                username=args.user,
+                password=args.password,
+                charset=args.charset,
+            )
+            backend = MySQLBackend(connection_config=config)
+            backend.connect()
+            backend.introspect_and_adapt()
+
+            # Use the adapted dialect from backend
+            dialect = backend.dialect
+            version_tuple = backend.get_server_version()
+            if version_tuple:
+                version_display = f"{version_tuple[0]}.{version_tuple[1]}.{version_tuple[2]}"
+            is_connected = True
+
+            backend.disconnect()
+        except Exception as e:
+            logger.warning("Could not connect to database for introspection: %s", e)
+            logger.warning("Using default values for dialect information.")
+            # Fall back to command-line version or default
+
+    # Create default dialect if not connected
+    if dialect is None:
+        # Parse version from command line or use default
+        actual_version = args.version
+        if actual_version:
+            version = parse_version(actual_version)
+        else:
+            version = (8, 0, 0)  # Default version
+        dialect = MySQLDialect(version=version)
+        version_display = f"{version[0]}.{version[1]}.{version[2]}"
 
     # Unified structure for JSON output
     info = {
         "database": {
             "type": "mysql",
             "version": version_display,
-            "version_tuple": list(version),
+            "version_tuple": list(dialect.version),
+            "connected": is_connected,
         },
         "features": {},
-        "protocols": {}
+        "protocols": {},
     }
 
     # Build protocol support information
     for group_name, protocols in PROTOCOL_FAMILY_GROUPS.items():
         info["protocols"][group_name] = _build_protocol_info(
-            dialect, group_name, protocols, verbose
+            dialect, group_name, protocols, args.verbose
         )
 
-    if output_format == 'json' or not RICH_AVAILABLE:
+    if output_format == "json" or not RICH_AVAILABLE:
         print(json.dumps(info, indent=2))
     else:
         # Use legacy structure for rich display
         info_legacy = {
             "mysql": info["database"],
-            "protocols": info["protocols"]
+            "protocols": info["protocols"],
         }
-        _display_info_rich(info_legacy, verbose, version_display)
+        _display_info_rich(info_legacy, args.verbose, version_display, is_connected)
 
     return info
 
@@ -533,7 +612,7 @@ def _display_method_details(console: Any, method: str, value: Any) -> None:
     if isinstance(value, dict):
         # Method with parameters - show each arg's support
         console.print(f"        [dim]{method_display}:[/dim]")
-        for arg, supported in value.get('args', {}).items():
+        for arg, supported in value.get("args", {}).items():
             m_status = "[green][OK][/green]" if supported else "[red][X][/red]"
             console.print(f"            {m_status} {arg}")
     else:
@@ -563,8 +642,8 @@ def _display_protocol_item(
     filled = int(pct / 100 * bar_len)
     progress_bar = "#" * filled + "-" * (bar_len - filled)
 
-    sup = stats['supported']
-    tot = stats['total']
+    sup = stats["supported"]
+    tot = stats["total"]
     console.print(
         f"    [{color}]{symbol}[/{color}] {protocol_name}: "
         f"[{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
@@ -599,17 +678,28 @@ def _display_protocol_group(
         _display_protocol_item(console, protocol_name, stats, verbose)
 
 
-def _display_info_rich(info: Dict, verbose: int, version_display: str):
-    """Display info using rich console."""
+def _display_info_rich(info: Dict, verbose: int, version_display: str, is_connected: bool = True):
+    """Display info using rich console.
+
+    Args:
+        info: Information dictionary containing database and protocol info
+        verbose: Verbosity level for output detail
+        version_display: Version string for display
+        is_connected: Whether the info is from actual database connection
+    """
     from rich.console import Console
 
     console = Console(force_terminal=True)
 
     console.print("\n[bold cyan]MySQL Environment Information[/bold cyan]\n")
 
-    console.print(f"[bold]MySQL Version:[/bold] {version_display}\n")
+    # Show connection status
+    if is_connected:
+        console.print(f"[bold]MySQL Version:[/bold] {version_display} [dim](from actual connection)[/dim]\n")
+    else:
+        console.print(f"[bold]MySQL Version:[/bold] {version_display} [yellow](default value - no database connection)[/yellow]\n")
 
-    label = 'Detailed' if verbose >= 2 else 'Family Overview'
+    label = "Detailed" if verbose >= 2 else "Family Overview"
     console.print(f"[bold green]Protocol Support ({label}):[/bold green]")
 
     for group_name, protocols in info["protocols"].items():
@@ -863,42 +953,18 @@ async def handle_introspect_async(args, backend: AsyncMySQLBackend, provider: An
 def main():
     args = parse_args()
 
-    # Handle --info flag (global option, no subcommand needed)
-    if args.info:
-        output_format = args.output if args.output != 'table' or RICH_AVAILABLE else 'json'
-
-        # Try to connect and get real version if database is provided
-        actual_version = args.version
-
-        if args.database:
-            try:
-                config = MySQLConnectionConfig(
-                    host=args.host, port=args.port, database=args.database,
-                    username=args.user, password=args.password, charset=args.charset,
-                )
-                backend = MySQLBackend(connection_config=config)
-                backend.connect()
-                backend.introspect_and_adapt()
-
-                # Get actual version
-                version_tuple = backend.get_server_version()
-                if version_tuple:
-                    actual_version = f"{version_tuple[0]}.{version_tuple[1]}.{version_tuple[2]}"
-
-                backend.disconnect()
-            except Exception as e:
-                logger.warning("Could not connect to database for introspection: %s", e)
-                # Fall back to command-line version or default
-
-        display_info(verbose=args.verbose, output_format=output_format,
-                     version_str=actual_version)
-        return
-
-    # Require a subcommand if --info is not specified
+    # Require a subcommand
     if args.command is None:
-        print("Error: Please specify a command: 'query' or 'introspect'", file=sys.stderr)
+        print("Error: Please specify a command: 'info', 'query', or 'introspect'", file=sys.stderr)
         print("Use --help for more information.", file=sys.stderr)
         sys.exit(1)
+
+    provider = get_provider(args)
+
+    # Handle info subcommand
+    if args.command == "info":
+        handle_info(args, provider)
+        return
 
     # Handle introspect subcommand
     if args.command == "introspect":
@@ -906,10 +972,13 @@ def main():
             print("Error: --database is required for introspection", file=sys.stderr)
             sys.exit(1)
 
-        provider = get_provider(args)
         config = MySQLConnectionConfig(
-            host=args.host, port=args.port, database=args.database,
-            username=args.user, password=args.password, charset=args.charset,
+            host=args.host,
+            port=args.port,
+            database=args.database,
+            username=args.user,
+            password=args.password,
+            charset=args.charset,
         )
 
         if args.use_async:
@@ -923,28 +992,27 @@ def main():
     # Handle query subcommand
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError(f'Invalid log level: {args.log_level}')
-
-    provider = get_provider(args)
+        raise ValueError(f"Invalid log level: {args.log_level}")
 
     if RICH_AVAILABLE and isinstance(provider, RichOutputProvider):
         from rich.console import Console
+
         handler = RichHandler(
             rich_tracebacks=True,
             show_path=False,
-            console=Console(stderr=True)
+            console=Console(stderr=True),
         )
         logging.basicConfig(
             level=numeric_level,
             format="%(message)s",
             datefmt="[%X]",
-            handlers=[handler]
+            handlers=[handler],
         )
     else:
         logging.basicConfig(
             level=numeric_level,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            stream=sys.stderr
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            stream=sys.stderr,
         )
 
     provider.display_greeting()
@@ -954,7 +1022,7 @@ def main():
         sql_source = args.sql
     elif args.file:
         try:
-            with open(args.file, 'r', encoding='utf-8') as f:
+            with open(args.file, "r", encoding="utf-8") as f:
                 sql_source = f.read()
         except FileNotFoundError:
             logger.error(f"Error: File not found at {args.file}")
@@ -968,16 +1036,20 @@ def main():
         sys.exit(1)
 
     # Ensure only one statement is provided
-    if ';' in sql_source.strip().rstrip(';'):
+    if ";" in sql_source.strip().rstrip(";"):
         logger.error("Error: Multiple SQL statements are not supported.")
         sys.exit(1)
 
     config = MySQLConnectionConfig(
-        host=args.host, port=args.port, database=args.database,
-        username=args.user, password=args.password, charset=args.charset,
+        host=args.host,
+        port=args.port,
+        database=args.database,
+        username=args.user,
+        password=args.password,
+        charset=args.charset,
     )
 
-    kwargs = {'use_ascii': args.rich_ascii}
+    kwargs = {"use_ascii": args.rich_ascii}
     if args.use_async:
         backend = AsyncMySQLBackend(connection_config=config)
         asyncio.run(execute_query_async(sql_source, backend, provider, **kwargs))
