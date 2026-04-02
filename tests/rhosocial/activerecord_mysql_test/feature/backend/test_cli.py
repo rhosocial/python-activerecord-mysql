@@ -14,12 +14,13 @@ class TestCLIParseArgs:
     """Tests for CLI argument parsing."""
 
     def test_parse_args_default_values(self):
-        """Test default argument values."""
+        """Test default argument values for info subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, 'argv', ['mysql']):
+        with patch.object(sys, 'argv', ['mysql', 'info']):
             args = parse_args()
 
+            assert args.command == 'info'
             assert args.host == 'localhost'
             assert args.port == 3306
             assert args.user == 'root'
@@ -28,15 +29,14 @@ class TestCLIParseArgs:
             assert args.output == 'table'
             assert args.log_level == 'INFO'
             assert args.use_async is False
-            assert args.info is False
             assert args.verbose == 0
 
     def test_parse_args_custom_values(self):
-        """Test custom argument values."""
+        """Test custom argument values for query subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
         with patch.object(sys, 'argv', [
-            'mysql',
+            'mysql', 'query',
             '--host', 'db.example.com',
             '--port', '3307',
             '--user', 'admin',
@@ -45,9 +45,11 @@ class TestCLIParseArgs:
             '--charset', 'latin1',
             '--output', 'json',
             '--log-level', 'DEBUG',
+            'SELECT 1',
         ]):
             args = parse_args()
 
+            assert args.command == 'query'
             assert args.host == 'db.example.com'
             assert args.port == 3307
             assert args.user == 'admin'
@@ -109,42 +111,44 @@ class TestCLIParseArgs:
                 assert args.type == introspect_type
 
     def test_parse_args_use_async(self):
-        """Test --use-async flag."""
+        """Test --use-async flag in query subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, 'argv', ['mysql', '--use-async']):
+        with patch.object(sys, 'argv', ['mysql', 'query', '--use-async', 'SELECT 1']):
             args = parse_args()
 
+            assert args.command == 'query'
             assert args.use_async is True
 
     def test_parse_args_verbose(self):
-        """Test verbose flags."""
+        """Test verbose flags with subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, 'argv', ['mysql', '-v']):
+        with patch.object(sys, 'argv', ['mysql', '-v', 'info']):
             args = parse_args()
             assert args.verbose == 1
 
-        with patch.object(sys, 'argv', ['mysql', '-vv']):
+        with patch.object(sys, 'argv', ['mysql', '-vv', 'info']):
             args = parse_args()
             assert args.verbose == 2
 
-    def test_parse_args_info_flag(self):
-        """Test --info flag."""
+    def test_parse_args_info_command(self):
+        """Test info subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, 'argv', ['mysql', '--info']):
+        with patch.object(sys, 'argv', ['mysql', 'info']):
             args = parse_args()
 
-            assert args.info is True
+            assert args.command == 'info'
 
     def test_parse_args_version(self):
-        """Test --version option."""
+        """Test --version option in info subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, 'argv', ['mysql', '--version', '5.7.0']):
+        with patch.object(sys, 'argv', ['mysql', 'info', '--version', '5.7.0']):
             args = parse_args()
 
+            assert args.command == 'info'
             assert args.version == '5.7.0'
 
 
