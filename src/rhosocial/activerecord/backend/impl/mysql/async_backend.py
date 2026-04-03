@@ -214,6 +214,18 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 # after KILL CONNECTION. We treat disconnect as always successful
                 # since the reference is already cleared.
                 self.log(logging.WARNING, f"Error during disconnection (ignored): {str(e)}")
+            except RuntimeError as e:
+                # Python 3.8 + mysql-connector-python has a known issue where
+                # closing a connection raises RuntimeError during cursor set iteration:
+                # "Set changed size during iteration" in mysql/connector/aio/connection.py:672
+                # This happens because the cursor set is modified during close().
+                # We only catch this specific error to avoid masking other RuntimeError.
+                # See: https://bugs.mysql.com/?id=114095
+                if "Set changed size during iteration" in str(e):
+                    self.log(logging.WARNING, f"Python 3.8 mysql-connector cursor cleanup issue (ignored): {str(e)}")
+                else:
+                    # Re-raise other RuntimeError instances
+                    raise
 
     async def _get_cursor(self):
         """Get a database cursor, ensuring connection is active.
