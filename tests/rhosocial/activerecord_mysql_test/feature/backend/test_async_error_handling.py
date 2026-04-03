@@ -7,13 +7,13 @@ using the proper error classes from mysql.connector.errors (not mysql.connector.
 
 This ensures the fix for: AttributeError: module 'mysql.connector.aio' has no attribute 'Error'
 """
+import asyncio
 import pytest
 import pytest_asyncio
 
 from mysql.connector.errors import (
     Error as MySQLError,
     DatabaseError as MySQLDatabaseError,
-    IntegrityError as MySQLIntegrityError,
     OperationalError as MySQLOperationalError,
 )
 
@@ -34,12 +34,16 @@ async def setup_test_table(async_mysql_backend):
         CREATE TABLE error_test (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) UNIQUE,
-            CONSTRAINT fk_user FOREIGN KEY (name) REFERENCES non_existent_table(id)
+            email VARCHAR(255) UNIQUE
         )
     """)
     yield
-    await async_mysql_backend.execute("DROP TABLE IF EXISTS error_test")
+    # Give time for any pending async operations to complete
+    await asyncio.sleep(0.1)
+    try:
+        await async_mysql_backend.execute("DROP TABLE IF EXISTS error_test")
+    except Exception:
+        pass
 
 
 class TestAsyncHandleError:
@@ -49,55 +53,50 @@ class TestAsyncHandleError:
     async def test_handle_duplicate_entry_error(self, async_mysql_backend):
         """Test that Duplicate Entry error is converted to IntegrityError."""
         # Create table with unique constraint
-        await async_mysql_backend.execute("DROP TABLE IF EXISTS unique_test")
+        await async_mysql_backend.execute("DROP TABLE IF EXISTS unique_test_err")
         await async_mysql_backend.execute("""
-            CREATE TABLE unique_test (
+            CREATE TABLE unique_test_err (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 email VARCHAR(255) UNIQUE
             )
         """)
 
-        # Insert first row
-        await async_mysql_backend.execute(
-            "INSERT INTO unique_test (email) VALUES (%s)",
-            ("test@example.com",)
-        )
-
-        # Try to insert duplicate - should raise IntegrityError
-        with pytest.raises(IntegrityError) as exc_info:
+        try:
+            # Insert first row
             await async_mysql_backend.execute(
-                "INSERT INTO unique_test (email) VALUES (%s)",
+                "INSERT INTO unique_test_err (email) VALUES (%s)",
                 ("test@example.com",)
             )
 
-        # The error message contains "duplicate entry" (lowercase in MySQL error)
-        error_msg_lower = str(exc_info.value).lower()
-        assert "duplicate entry" in error_msg_lower
-        await async_mysql_backend.execute("DROP TABLE IF EXISTS unique_test")
+            # Try to insert duplicate - should raise IntegrityError
+            with pytest.raises(IntegrityError) as exc_info:
+                await async_mysql_backend.execute(
+                    "INSERT INTO unique_test_err (email) VALUES (%s)",
+                    ("test@example.com",)
+                )
+
+            # The error message contains "duplicate entry" (lowercase in MySQL error)
+            error_msg_lower = str(exc_info.value).lower()
+            assert "duplicate entry" in error_msg_lower
+        finally:
+            # Give time for any pending async operations
+            await asyncio.sleep(0.1)
+            try:
+                await async_mysql_backend.execute(
+                    "DROP TABLE IF EXISTS unique_test_err")
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
-    async def test_handle_deadlock_error(self, async_mysql_backend, async_mysql_control_backend):
+    async def test_handle_deadlock_error(self, async_mysql_backend):
         """Test that Deadlock error is converted to DeadlockError."""
-        # Create test table
-        await async_mysql_backend.execute("DROP TABLE IF EXISTS deadlock_test")
-        await async_mysql_backend.execute("""
-            CREATE TABLE deadlock_test (
-                id INT PRIMARY KEY,
-                value INT
-            )
-        """)
-        await async_mysql_backend.execute("INSERT INTO deadlock_test (id, value) VALUES (1, 10)")
-        await async_mysql_backend.execute("INSERT INTO deadlock_test (id, value) VALUES (2, 20)")
-
-        # This test would require concurrent transactions to trigger a deadlock
-        # For now, we verify that the error handling code path exists
-        # by checking the method directly
         backend = async_mysql_backend
 
         # Create a mock MySQLDatabaseError with deadlock message
         class MockDeadlockError(MySQLDatabaseError):
             def __init__(self):
                 self._msg = "Deadlock found when trying to get lock"
+
             def __str__(self):
                 return self._msg
 
@@ -106,24 +105,17 @@ class TestAsyncHandleError:
         with pytest.raises(DeadlockError):
             await backend._handle_error(mock_error)
 
-        await async_mysql_backend.execute("DROP TABLE IF EXISTS deadlock_test")
-
     @pytest.mark.asyncio
     async def test_handle_lock_wait_timeout_error(self, async_mysql_backend):
         """Test that Lock wait timeout error is converted to OperationalError."""
         backend = async_mysql_backend
 
         # Create a mock MySQLOperationalError with lock timeout message
-        # Note: MySQLOperationalError is a subclass of MySQLDatabaseError,
-        # so it will be caught by the DatabaseError branch first in the current implementation.
-        # The _handle_error checks MySQLIntegrityError -> MySQLDatabaseError -> MySQLOperationalError -> MySQLError
-        # Since MySQLOperationalError inherits from MySQLDatabaseError, it matches DatabaseError branch first.
-        # This test verifies the error is properly converted (to DatabaseError due to inheritance order).
-
         class MockLockTimeoutError(MySQLOperationalError):
             def __init__(self):
                 super().__init__()
                 self._msg = "Lock wait timeout exceeded"
+
             def __str__(self):
                 return self._msg
 
@@ -143,6 +135,7 @@ class TestAsyncHandleError:
         class MockDatabaseError(MySQLDatabaseError):
             def __init__(self, msg="Generic database error"):
                 self._msg = msg
+
             def __str__(self):
                 return self._msg
 
@@ -160,6 +153,7 @@ class TestAsyncHandleError:
         class MockMySQLError(MySQLError):
             def __init__(self, msg="Generic MySQL error"):
                 self._msg = msg
+
             def __str__(self):
                 return self._msg
 
@@ -171,47 +165,49 @@ class TestAsyncHandleError:
     @pytest.mark.asyncio
     async def test_handle_foreign_key_constraint_error(self, async_mysql_backend):
         """Test that foreign key constraint violation is converted to IntegrityError."""
-        # This test requires a table with foreign key constraint
-        # Skip if the database doesn't support foreign keys
         backend = async_mysql_backend
 
-        # Create parent table
-        await backend.execute("DROP TABLE IF EXISTS child_table")
-        await backend.execute("DROP TABLE IF EXISTS parent_table")
+        try:
+            # Create parent table
+            await backend.execute("DROP TABLE IF EXISTS child_table_err")
+            await backend.execute("DROP TABLE IF EXISTS parent_table_err")
 
-        await backend.execute("""
-            CREATE TABLE parent_table (
-                id INT PRIMARY KEY
-            )
-        """)
+            await backend.execute("""
+                CREATE TABLE parent_table_err (
+                    id INT PRIMARY KEY
+                )
+            """)
 
-        await backend.execute("""
-            CREATE TABLE child_table (
-                id INT PRIMARY KEY,
-                parent_id INT,
-                FOREIGN KEY (parent_id) REFERENCES parent_table(id)
-            )
-        """)
+            await backend.execute("""
+                CREATE TABLE child_table_err (
+                    id INT PRIMARY KEY,
+                    parent_id INT,
+                    FOREIGN KEY (parent_id) REFERENCES parent_table_err(id)
+                )
+            """)
 
-        # Try to insert with non-existent parent - should raise IntegrityError
-        with pytest.raises(IntegrityError) as exc_info:
-            await backend.execute(
-                "INSERT INTO child_table (id, parent_id) VALUES (1, 999)"
-            )
+            # Try to insert with non-existent parent - should raise IntegrityError
+            with pytest.raises(IntegrityError) as exc_info:
+                await backend.execute(
+                    "INSERT INTO child_table_err (id, parent_id) VALUES (1, 999)"
+                )
 
-        assert "foreign key constraint" in str(exc_info.value).lower()
-
-        await backend.execute("DROP TABLE IF EXISTS child_table")
-        await backend.execute("DROP TABLE IF EXISTS parent_table")
+            assert "foreign key constraint" in str(exc_info.value).lower()
+        finally:
+            await asyncio.sleep(0.1)
+            try:
+                await backend.execute("DROP TABLE IF EXISTS child_table_err")
+                await backend.execute("DROP TABLE IF EXISTS parent_table_err")
+            except Exception:
+                pass
 
 
 class TestAsyncErrorClassValidation:
-    """Tests to verify correct error class usage (no mysql_async.Error)."""
+    """Tests to verify correct error class usage."""
 
     @pytest.mark.asyncio
     async def test_error_classes_from_correct_module(self):
         """Verify that error classes are imported from mysql.connector.errors."""
-        # This test ensures the fix is in place
         from rhosocial.activerecord.backend.impl.mysql.async_backend import (
             MySQLError,
             MySQLDatabaseError,
@@ -226,13 +222,25 @@ class TestAsyncErrorClassValidation:
         assert MySQLOperationalError.__module__ == "mysql.connector.errors"
 
     @pytest.mark.asyncio
-    async def test_mysql_async_has_no_error_attribute(self):
-        """Verify that mysql.connector.aio does NOT have Error attribute."""
-        import mysql.connector.aio as mysql_async
+    async def test_mysql_async_error_is_same_as_connector_error(self):
+        """
+        Verify that mysql.connector.aio.Error (if exists) is the same as
+        mysql.connector.errors.Error.
 
-        # This should NOT exist
-        assert not hasattr(mysql_async, "Error"), \
-            "mysql.connector.aio should NOT have Error attribute - use mysql.connector.errors.Error instead"
+        In older mysql-connector-python versions, mysql_async.Error exists
+        and is an alias to mysql.connector.errors.Error.
+        In newer versions, mysql_async.Error may not exist.
+        Either way, we should use the error classes from mysql.connector.errors.
+        """
+        import mysql.connector.aio as mysql_async
+        from mysql.connector.errors import Error as MySQLError
+
+        # In some versions, mysql_async.Error exists and is the same class
+        if hasattr(mysql_async, 'Error'):
+            # It should be the same class, not a different one
+            assert mysql_async.Error is MySQLError
+        # In newer versions, mysql_async.Error may not exist, which is fine
+        # The important thing is that we use MySQLError from mysql.connector.errors
 
 
 class TestAsyncConnectionErrorHandling:
@@ -241,7 +249,9 @@ class TestAsyncConnectionErrorHandling:
     @pytest.mark.asyncio
     async def test_connection_error_on_invalid_host(self):
         """Test that connection to invalid host raises proper error."""
-        from rhosocial.activerecord.backend.errors import ConnectionError as ARConnectionError
+        from rhosocial.activerecord.backend.errors import (
+            ConnectionError as ARConnectionError
+        )
 
         backend = AsyncMySQLBackend(
             host="nonexistent-host-12345.invalid",
@@ -258,4 +268,6 @@ class TestAsyncConnectionErrorHandling:
     async def test_syntax_error_handling(self, async_mysql_backend):
         """Test that SQL syntax error raises proper DatabaseError."""
         with pytest.raises(DatabaseError):
-            await async_mysql_backend.execute("SELECT * FROM nonexistent_table_xyz")
+            await async_mysql_backend.execute(
+                "SELECT * FROM nonexistent_table_xyz"
+            )
