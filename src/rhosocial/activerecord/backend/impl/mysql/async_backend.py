@@ -190,7 +190,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 f"Connected to MySQL database: "
                 f"{self.config.host}:{self.config.port}/{self.config.database}"
             )
-        except mysql_async.Error as e:
+        except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
 
@@ -209,7 +209,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
 
                 await conn.close()
                 self.log(logging.INFO, "Disconnected from MySQL database")
-            except (mysql_async.Error, BrokenPipeError, OSError) as e:
+            except (MySQLError, BrokenPipeError, OSError) as e:
                 # MySQL 5.6 may raise BrokenPipeError when closing a dead connection
                 # after KILL CONNECTION. We treat disconnect as always successful
                 # since the reference is already cleared.
@@ -381,7 +381,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                     return True
                 return False
 
-        except (mysql_async.Error, OSError) as e:
+        except (MySQLError, OSError) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
             if reconnect:
                 try:
@@ -482,7 +482,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         for attempt in range(max_retries + 1):
             try:
                 return await super().execute(sql, params, options=options)
-            except (MySQLOperationalError, mysql_async.Error) as e:
+            except (MySQLOperationalError, MySQLError) as e:
                 last_error = e
 
                 # Check if this is a connection error that warrants retry
@@ -536,7 +536,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 raise OperationalError(error_msg)
             self.log(logging.ERROR, f"Operational error: {error_msg}")
             raise OperationalError(error_msg)
-        elif isinstance(error, mysql_async.Error):
+        elif isinstance(error, MySQLError):
             self.log(logging.ERROR, f"MySQL error: {error_msg}")
             raise DatabaseError(error_msg)
         else:
