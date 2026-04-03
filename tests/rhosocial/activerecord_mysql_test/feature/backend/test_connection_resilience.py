@@ -1186,8 +1186,17 @@ class TestConcurrentAccess:
     3. No locking mechanism to protect concurrent access
     4. Cursor objects are not isolated between threads
 
-    THESE TESTS USE SEQUENTIAL OPERATIONS to demonstrate the conceptual issues
-    without causing actual deadlocks in the test suite.
+    IMPORTANT: test_shared_backend_concurrent_queries is SKIPPED in CI.
+    -----------------------------------------------------------------------
+    That test uses real threading to demonstrate that sharing a single
+    backend across threads causes a C-level abort/core dump, especially on
+    free-threaded Python (3.13t, 3.14t, no GIL) and newer MySQL versions
+    (9.3+). It is kept for documentation purposes only and MUST NOT be run
+    in automated test suites.
+
+    The remaining tests (transaction isolation, sequential access) use
+    SEQUENTIAL OPERATIONS to demonstrate the conceptual issues safely,
+    without triggering the driver-level crash.
 
     SOLUTIONS FOR MULTI-THREADED ENVIRONMENTS:
     ------------------------------------------
@@ -1249,19 +1258,61 @@ class TestConcurrentAccess:
     ```
     """
 
+    @pytest.mark.skip(
+        reason=(
+            "mysql-connector-python is not thread-safe: sharing a single connection "
+            "across threads causes C-level abort/core dump on free-threaded Python "
+            "(3.13t, 3.14t) and certain MySQL versions (9.3+). This test documents "
+            "known non-thread-safe behavior and must not run in CI."
+        )
+    )
     def test_shared_backend_concurrent_queries(
         self,
         mysql_backend_single: MySQLBackend,
         mysql_control_backend: MySQLBackend
     ):
         """
-        Test concurrent queries on a shared backend instance.
+        DOCUMENTATION-ONLY TEST — DO NOT RUN IN PRODUCTION OR CI.
 
-        This test demonstrates that concurrent access to a single backend
-        instance can cause issues with:
-        - Connection state sharing
-        - Transaction isolation
-        - Result integrity
+        This test is permanently skipped (@pytest.mark.skip) because it
+        triggers a C-level abort (core dump) by sharing a single
+        mysql-connector-python connection across multiple threads
+        simultaneously. The crash is especially reliable on free-threaded
+        Python (3.13t / 3.14t, no GIL) and newer MySQL server versions
+        (9.3+), but the underlying race condition exists on all versions.
+
+        PURPOSE:
+        --------
+        Demonstrates that sharing one MySQLBackend instance across threads
+        causes:
+        - Connection state corruption (cursor re-entry)
+        - Transaction state confusion (one thread's rollback cancels all)
+        - Result data races (interleaved responses)
+        - C-level fatal error: Abort / SIGSEGV
+
+        CORRECT USAGE — never share a single backend across threads:
+        ------------------------------------------------------------
+        ❌ BAD (will crash):
+            backend = MySQLBackend(config)
+            backend.connect()
+
+            def worker():
+                backend.execute("SELECT 1")   # race condition!
+
+            threading.Thread(target=worker).start()
+            threading.Thread(target=worker).start()
+
+        ✅ GOOD — one backend per thread:
+            _thread_local = threading.local()
+
+            def get_backend():
+                if not hasattr(_thread_local, 'backend'):
+                    _thread_local.backend = MySQLBackend(config)
+                    _thread_local.backend.connect()
+                return _thread_local.backend
+
+            def worker():
+                get_backend().execute("SELECT 1")  # safe
         """
         print_separator("Test: Concurrent Queries on Shared Backend")
 
@@ -1444,7 +1495,52 @@ class TestConcurrentAccess:
 
 
 class TestAsyncConcurrentAccess:
-    """Async tests for concurrent access to a shared backend instance."""
+    """
+    Async tests for concurrent access to a shared backend instance.
+
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║                    ⚠️  CRITICAL WARNING ⚠️                           ║
+    ╠══════════════════════════════════════════════════════════════════════╣
+    ║  AsyncMySQLBackend is NOT safe for concurrent async tasks sharing    ║
+    ║  the same instance (e.g., asyncio.gather with shared backend).       ║
+    ║  All tests here use SEQUENTIAL await calls intentionally.            ║
+    ╚══════════════════════════════════════════════════════════════════════╝
+
+    WHY SEQUENTIAL:
+    ---------------
+    aiomysql / mysql-connector-python async connections are NOT coroutine-safe
+    for concurrent access on the same connection object. Interleaving awaits
+    from multiple coroutines sharing one AsyncMySQLBackend would cause:
+    - Protocol framing errors (interleaved packets)
+    - Transaction state corruption
+    - Unpredictable exceptions or silent data loss
+
+    CORRECT USAGE — never share one AsyncMySQLBackend across concurrent tasks:
+    ---------------------------------------------------------------------------
+    ❌ BAD (will corrupt state or crash):
+        backend = AsyncMySQLBackend(config)
+        await backend.connect()
+
+        async def task():
+            await backend.execute("SELECT 1")   # concurrent access!
+
+        await asyncio.gather(task(), task(), task())
+
+    ✅ GOOD — one backend per coroutine / task:
+        async def task():
+            b = AsyncMySQLBackend(config)
+            await b.connect()
+            try:
+                await b.execute("SELECT 1")
+            finally:
+                await b.disconnect()
+
+        await asyncio.gather(task(), task(), task())
+
+    ✅ GOOD — sequential use of a single backend is safe:
+        for i in range(3):
+            await backend.execute(f"SELECT {i}")
+    """
 
     @pytest.mark.asyncio
     async def test_shared_backend_sequential_queries(
@@ -1455,7 +1551,11 @@ class TestAsyncConcurrentAccess:
         """
         Test sequential async queries on a shared backend instance.
 
-        NOTE: Uses sequential execution to avoid connection contention.
+        Uses SEQUENTIAL execution (one await at a time) intentionally.
+        Concurrent execution via asyncio.gather on a shared backend would
+        interleave coroutines accessing the same connection, causing protocol
+        errors or data corruption — see class docstring for the correct usage
+        pattern.
         """
         print_separator("Test: Async Sequential Queries on Shared Backend")
 
@@ -1501,8 +1601,11 @@ class TestAsyncConcurrentAccess:
         """
         Test that transactions on a shared async backend affect all tasks.
 
-        NOTE: This test uses SEQUENTIAL operations to demonstrate the issue,
-        because sharing a single connection across concurrent tasks would cause issues.
+        Uses SEQUENTIAL operations to demonstrate the transaction-isolation
+        issue safely. Running these steps as concurrent coroutines on a
+        shared backend would corrupt the connection state — each coroutine
+        must have its own AsyncMySQLBackend instance. See class docstring
+        for correct usage patterns.
         """
         print_separator("Test: Async Transaction Isolation on Shared Backend")
 
