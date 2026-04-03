@@ -70,7 +70,9 @@ class TestAsyncHandleError:
                 ("test@example.com",)
             )
 
-        assert "Duplicate entry" in str(exc_info.value).lower()
+        # The error message contains "duplicate entry" (lowercase in MySQL error)
+        error_msg_lower = str(exc_info.value).lower()
+        assert "duplicate entry" in error_msg_lower
         await async_mysql_backend.execute("DROP TABLE IF EXISTS unique_test")
 
     @pytest.mark.asyncio
