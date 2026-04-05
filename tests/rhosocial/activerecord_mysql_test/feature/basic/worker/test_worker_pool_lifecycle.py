@@ -5,6 +5,6 @@ Bridge file for worker pool lifecycle tests.
 Imports tests from testsuite and makes them discoverable by pytest.
 """
 from rhosocial.activerecord.testsuite.feature.basic.worker.conftest import (
-    worker_connection_params,
+    user_class_for_worker,
 )
 from rhosocial.activerecord.testsuite.feature.basic.worker.test_worker_pool_lifecycle import *
