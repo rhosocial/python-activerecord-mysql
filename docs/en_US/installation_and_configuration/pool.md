@@ -2,78 +2,184 @@
 
 ## Overview
 
-This backend **does not support connection pools**. It is recommended to use a "connect on use, disconnect after use" pattern for database connection management.
+Both `MySQLBackend` (synchronous) and `AsyncMySQLBackend` (asynchronous) maintain a **single persistent connection** per backend instance. The `pool_*` configuration fields inherited from `ConnectionPoolMixin` are recognised by the config class but are **not yet consumed** by either backend—they are reserved for a future connection-pool implementation.
 
-⚠️ **Important Notes**:
+> 💡 **AI Prompt:** "My FastAPI application uses `AsyncMySQLBackend`. How should I manage the database connection lifecycle to avoid connection leaks or stale connections?"
 
-- Not recommended to develop your own connection pool solutions
-- Not recommended to use third-party connection pool libraries
-- Please keep a simple connection management strategy: establish connection on each operation, release immediately after operation completes
+---
 
-## Basic Usage
+## Current Behaviour
+
+### Synchronous Backend (`MySQLBackend`)
+
+`MySQLBackend.connect()` calls `mysql.connector.connect()` with credentials and timeout parameters. The `pool_name`, `pool_size`, and related fields are silently skipped.
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
 
-def get_user(user_id):
-    backend = MySQLBackend(
-        host='localhost',
-        port=3306,
-        database='myapp',
-        username='user',
-        password='password'
-    )
-    try:
-        backend.connect()
-        user = backend.find('User', user_id)
-        return user
-    finally:
-        backend.disconnect()
+config = MySQLConnectionConfig(
+    host="localhost",
+    port=3306,
+    database="myapp",
+    username="app",
+    password="secret",
+    pool_size=10,      # ← accepted by config, ignored by backend
+)
+backend = MySQLBackend(config)
+backend.connect()     # opens one persistent connection
 ```
 
-## Asynchronous Usage
+### Asynchronous Backend (`AsyncMySQLBackend`)
+
+`AsyncMySQLBackend.connect()` calls `mysql.connector.aio.connect()` with the same subset of parameters. Pool-related kwargs are also skipped, so a single `MySQLConnection` object is stored in `self._connection`.
 
 ```python
 import asyncio
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql import (
+    AsyncMySQLBackend, MySQLConnectionConfig,
+)
 
-async def get_user(user_id):
-    backend = AsyncMySQLBackend(
-        host='localhost',
-        port=3306,
-        database='myapp',
-        username='user',
-        password='password'
-    )
-    try:
-        await backend.connect()
-        user = await backend.find('User', user_id)
-        return user
-    finally:
-        await backend.disconnect()
+config = MySQLConnectionConfig(
+    host="localhost",
+    port=3306,
+    database="myapp",
+    username="app",
+    password="secret",
+)
+
+async def main():
+    backend = AsyncMySQLBackend(config)
+    await backend.connect()     # opens one persistent async connection
+    # ... use the backend ...
+    await backend.disconnect()
+
+asyncio.run(main())
 ```
+
+---
+
+## Connection Lifecycle Guidelines
+
+### One Backend Per Process
+
+Configure your models once at application startup (not inside request handlers). Each call to `Model.configure(config, backend_class)` creates a new backend instance and a new underlying connection.
+
+```python
+# application startup (e.g., FastAPI lifespan)
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from rhosocial.activerecord.backend.impl.mysql import (
+    AsyncMySQLBackend, MySQLConnectionConfig,
+)
+from myapp.models import User, Order
+
+_config = MySQLConnectionConfig(
+    host="db.prod.internal",
+    port=3306,
+    database="myapp",
+    username="app",
+    password="secret",
+)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: configure once, connect once
+    User.configure(_config, AsyncMySQLBackend)
+    Order.configure(_config, AsyncMySQLBackend)
+    await User.backend().connect()
+    await Order.backend().connect()
+    yield
+    # Shutdown: disconnect cleanly
+    await User.backend().disconnect()
+    await Order.backend().disconnect()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+### Do NOT Configure Inside Request Handlers
+
+```python
+# ❌ Anti-pattern — creates a new connection on every request
+@app.get("/users/{user_id}")
+async def get_user(user_id: int):
+    User.configure(_config, AsyncMySQLBackend)   # ← wrong
+    await User.backend().connect()
+    user = await User.find(user_id)
+    await User.backend().disconnect()
+    return user
+
+# ✅ Correct — connection already open from lifespan
+@app.get("/users/{user_id}")
+async def get_user(user_id: int):
+    return await User.find(user_id)
+```
+
+---
+
+## Async Pool Capability in `mysql.connector.aio`
+
+`mysql.connector.aio.connect()` does support creating a connection pool internally when `pool_name` and `pool_size` kwargs are supplied — it returns a `PooledMySQLConnection` that is checked out from and returned to the pool automatically. However, `AsyncMySQLBackend` does **not** pass these kwargs today.
+
+**What the driver supports (for reference):**
+
+```python
+import mysql.connector.aio as mysql_async
+
+# The driver CAN create a pool like this (not used by AsyncMySQLBackend yet):
+conn = await mysql_async.connect(
+    host="localhost",
+    user="app",
+    password="secret",
+    database="myapp",
+    pool_name="mypool",   # enables pooling in the driver
+    pool_size=10,
+)
+# conn is a PooledMySQLConnection; calling conn.close() returns it to the pool
+```
+
+Future versions of `AsyncMySQLBackend` may leverage this capability.  Until then, the `pool_*` configuration fields serve as forward-compatible placeholders.
+
+---
 
 ## Connection Timeout Configuration
 
-You can configure connection behavior with the following parameters:
-
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| connect_timeout | int | 10 | Connection timeout in seconds |
-| read_timeout | int | 30 | Read timeout in seconds |
-| write_timeout | int | 30 | Write timeout in seconds |
+| `connect_timeout` | `int` | `10` | Seconds before a connection attempt is abandoned |
+| `read_timeout` | `int` | `30` | Seconds before a read operation times out |
+| `write_timeout` | `int` | `30` | Seconds before a write operation times out |
 
 ```python
-backend = MySQLBackend(
-    host='localhost',
+config = MySQLConnectionConfig(
+    host="localhost",
     port=3306,
-    database='myapp',
-    username='user',
-    password='password',
-    connect_timeout=10,
-    read_timeout=30,
-    write_timeout=30,
+    database="myapp",
+    username="app",
+    password="secret",
+    connect_timeout=5,
+    read_timeout=20,
+    write_timeout=20,
 )
 ```
 
-💡 *AI Prompt:* "What is the principle of database connection pools? Why are they not recommended in some scenarios?"
+---
+
+## Reserved Pool Configuration Fields
+
+These fields are parsed by `MySQLConnectionConfig` (via `ConnectionPoolMixin`) and stored on the config object, but are currently **not forwarded** to the underlying driver:
+
+| Field | Type | Default | Reserved Purpose |
+|-------|------|---------|-----------------|
+| `pool_size` | `int` | `5` | Number of connections in the pool |
+| `pool_timeout` | `int` | `30` | Seconds to wait for a free connection |
+| `pool_name` | `str or None` | `None` | Named pool identifier |
+| `pool_reset_session` | `bool` | `True` | Reset session state on checkout |
+| `pool_pre_ping` | `bool` | `False` | Test connection health before use |
+
+---
+
+## See Also
+
+- [Connection Configuration](configuration.md) — full list of `MySQLConnectionConfig` options
+- [Troubleshooting: Connection Issues](../troubleshooting/connection.md) — diagnosing connection errors
+- [Async Connection Pool Patterns](../../../examples/async_connection_pool.py) — runnable demonstration script

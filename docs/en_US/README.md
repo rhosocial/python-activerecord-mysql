@@ -46,4 +46,7 @@
     *   **[Performance Issues](troubleshooting/performance.md)**: performance bottleneck analysis
     *   **[Character Set Issues](troubleshooting/charset.md)**: encoding problem handling
 
+8. **[Scenarios](scenarios/README.md)**
+    *   **[Parallel Worker Processing](scenarios/parallel_workers.md)**: correct usage in multi-process/async concurrent scenarios
+
 > 📖 **Core Library Documentation**: To learn about the complete functionality of the ActiveRecord framework, please refer to [rhosocial-activerecord documentation](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US).

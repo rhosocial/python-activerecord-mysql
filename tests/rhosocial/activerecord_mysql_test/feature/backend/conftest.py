@@ -147,6 +147,69 @@ async def async_mysql_backend(request):
     await provider.async_cleanup()
 
 
+@pytest_asyncio.fixture(scope="function")
+async def async_mysql_backend_single():
+    """Non-parameterized async fixture using the first available scenario."""
+    scenario_names = get_scenario_names()
+    if not scenario_names:
+        pytest.skip("No MySQL scenarios configured")
+    scenario_name = scenario_names[0]
+    provider = BackendFeatureProvider()
+    backend = await provider.setup_async_backend(scenario_name)
+    yield backend
+    await provider.async_cleanup()
+
+
+# --- Control Backend for Session Modification Tests ---
+
+@pytest.fixture(scope="function")
+def mysql_control_backend():
+    """
+    Dedicated control backend for tests that modify MySQL session settings.
+
+    This fixture provides an independent backend instance for operations that
+    need to control or interfere with the main test backend, such as:
+    - KILL CONNECTION statements
+    - Setting global variables
+    - Monitoring other connections
+
+    The fixture is NOT parameterized to ensure consistent behavior across
+    all MySQL scenarios.
+    """
+    scenario_names = get_scenario_names()
+    if not scenario_names:
+        pytest.skip("No MySQL scenarios configured")
+    scenario_name = scenario_names[0]
+    provider = BackendFeatureProvider()
+    backend = provider.setup_backend(scenario_name)
+    yield backend
+    provider.cleanup()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_mysql_control_backend():
+    """
+    Dedicated async control backend for tests that modify MySQL session settings.
+
+    This fixture provides an independent async backend instance for operations that
+    need to control or interfere with the main test backend, such as:
+    - KILL CONNECTION statements
+    - Setting global variables
+    - Monitoring other connections
+
+    The fixture is NOT parameterized to ensure consistent behavior across
+    all MySQL scenarios.
+    """
+    scenario_names = get_scenario_names()
+    if not scenario_names:
+        pytest.skip("No MySQL scenarios configured")
+    scenario_name = scenario_names[0]
+    provider = BackendFeatureProvider()
+    backend = await provider.setup_async_backend(scenario_name)
+    yield backend
+    await provider.async_cleanup()
+
+
 # --- Type Adapters ---
 
 @pytest.fixture(scope="module")

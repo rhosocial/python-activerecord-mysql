@@ -1,3 +1,11 @@
+## [v1.0.0.dev11] - 2026-04-06
+
+### Added
+
+- Added EXPLAIN clause support with typed MySQLExplainResult and automatic connection recovery with dual-layer protection (pre-query check + error retry) for MySQL backend, including async concurrency documentation. ([#20](https://github.com/rhosocial/python-activerecord-mysql/issues/20))
+- Improved MySQL backend CLI info command with connection status display and added introspect subcommand usage examples. ([#21](https://github.com/rhosocial/python-activerecord-mysql/issues/21))
+
+
 ## [v1.0.0.dev10] - 2026-03-28
 
 ### Added

@@ -162,11 +162,12 @@ AsyncColumnMappingModel = _select_model_class(AsyncColumnMappingModelBase, Async
 AsyncMixedAnnotationModel = _select_model_class(AsyncMixedAnnotationModelBase, AsyncMixedAnnotationModel312, AsyncMixedAnnotationModel311, AsyncMixedAnnotationModel310, "AsyncMixedAnnotationModel")
 
 from rhosocial.activerecord.testsuite.feature.basic.interfaces import IBasicProvider
+from rhosocial.activerecord.testsuite.core.protocols import WorkerTestProtocol
 # ...and the scenarios are defined specifically for this backend.
 from .scenarios import get_enabled_scenarios, get_scenario
 
 
-class BasicProvider(IBasicProvider):
+class BasicProvider(IBasicProvider, WorkerTestProtocol):
     """
     This is the MySQL backend's implementation for the basic features test group.
     It connects the generic tests in the testsuite with the actual MySQL database.
@@ -493,3 +494,72 @@ class BasicProvider(IBasicProvider):
             logger.warning(f"Error closing connection during cleanup: {type(e).__name__}: {e}")
 
         backend_instance._connection = None
+
+    # --- Implementation of WorkerTestProtocol ---
+
+    def get_worker_connection_params(self, scenario_name: str, fixture_type: str = None) -> dict:
+        """
+        Return serializable connection parameters for Worker processes.
+
+        This method provides all information needed to recreate the database
+        connection in a Worker process, including the schema SQL for table creation.
+
+        Args:
+            scenario_name: The test scenario name
+            fixture_type: Optional fixture type hint (e.g., 'user', 'async_user')
+                         Used to determine if async backend is needed
+
+        Returns:
+            Dictionary with connection parameters and schema SQL
+        """
+        from .scenarios import SCENARIO_MAP
+
+        # Determine if async backend is needed based on fixture_type
+        is_async = fixture_type and fixture_type.startswith('async_')
+        backend_class_name = 'AsyncMySQLBackend' if is_async else 'MySQLBackend'
+
+        # Determine schema file based on fixture_type
+        table_name = 'users'  # default
+        if fixture_type:
+            # Remove 'async_' prefix if present to get the base type
+            base_type = fixture_type.replace('async_', '')
+            table_map = {
+                'user': 'users',
+                'type_case': 'type_cases',
+                'type_test': 'type_tests',
+                'validated_field_user': 'validated_field_users',
+                'validated_user': 'validated_users',
+                'type_adapter_test': 'type_adapter_tests',
+            }
+            table_name = table_map.get(base_type, 'users')
+
+        # Get connection config from scenario
+        if scenario_name not in SCENARIO_MAP:
+            if SCENARIO_MAP:
+                scenario_name = next(iter(SCENARIO_MAP))
+            else:
+                raise ValueError("No scenarios registered")
+
+        config_dict = SCENARIO_MAP[scenario_name]
+
+        return {
+            'backend_module': 'rhosocial.activerecord.backend.impl.mysql',
+            'backend_class_name': backend_class_name,
+            'config_class_module': 'rhosocial.activerecord.backend.impl.mysql.config',
+            'config_class_name': 'MySQLConnectionConfig',
+            'config_kwargs': config_dict,
+            'schema_sql': self._load_mysql_schema(f'{table_name}.sql'),
+        }
+
+    def get_worker_schema_sql(self, scenario_name: str, table_name: str) -> str:
+        """
+        Return the SQL statement to create a specific table.
+
+        Args:
+            scenario_name: The test scenario name (unused for MySQL as schema is fixed)
+            table_name: Name of the table to create
+
+        Returns:
+            CREATE TABLE SQL statement
+        """
+        return self._load_mysql_schema(f'{table_name}.sql')

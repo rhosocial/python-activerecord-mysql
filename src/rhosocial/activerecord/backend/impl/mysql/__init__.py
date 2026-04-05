@@ -25,6 +25,7 @@ from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .async_transaction import AsyncMySQLTransactionManager
 from .types import MySQLEnumType, MySQLSetType
+from .explain import MySQLExplainResult, MySQLExplainRow
 
 # Import MySQL-specific functions directly for convenience
 from .functions import (
@@ -137,6 +138,10 @@ __all__ = [
     # MySQL-specific Type Helpers
     'MySQLEnumType',
     'MySQLSetType',
+
+    # MySQL EXPLAIN Result Types
+    'MySQLExplainResult',
+    'MySQLExplainRow',
 
     # MySQL-specific Functions - JSON
     'json_extract',

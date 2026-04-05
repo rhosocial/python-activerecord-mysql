@@ -30,13 +30,14 @@ from rhosocial.activerecord.backend.errors import (
 )
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
+from rhosocial.activerecord.backend.explain import AsyncExplainBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
 from .mixins import MySQLBackendMixin
 
 
-class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
+class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -189,29 +190,65 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
                 f"Connected to MySQL database: "
                 f"{self.config.host}:{self.config.port}/{self.config.database}"
             )
-        except mysql_async.Error as e:
+        except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
 
     async def disconnect(self):
         """Close async connection to MySQL database."""
         if self._connection:
+            conn = self._connection
+            self._connection = None  # Clear reference first to prevent recursion
             try:
                 # Rollback any active transaction
                 if self.transaction_manager.is_active:
-                    await self.transaction_manager.rollback()
+                    try:
+                        await self.transaction_manager.rollback()
+                    except Exception:
+                        pass  # Ignore rollback failure during disconnect
 
-                await self._connection.close()
-                self._connection = None
+                await conn.close()
                 self.log(logging.INFO, "Disconnected from MySQL database")
-            except mysql_async.Error as e:
-                self.log(logging.ERROR, f"Error during disconnection: {str(e)}")
-                raise OperationalError(f"Error during MySQL disconnection: {str(e)}") from e
+            except (MySQLError, BrokenPipeError, OSError) as e:
+                # MySQL 5.6 may raise BrokenPipeError when closing a dead connection
+                # after KILL CONNECTION. We treat disconnect as always successful
+                # since the reference is already cleared.
+                self.log(logging.WARNING, f"Error during disconnection (ignored): {str(e)}")
+            except RuntimeError as e:
+                # Python 3.8 + mysql-connector-python has a known issue where
+                # closing a connection raises RuntimeError during cursor set iteration:
+                # "Set changed size during iteration" in mysql/connector/aio/connection.py:672
+                # This happens because the cursor set is modified during close().
+                # We only catch this specific error to avoid masking other RuntimeError.
+                # See: https://bugs.mysql.com/?id=114095
+                if "Set changed size during iteration" in str(e):
+                    self.log(logging.WARNING, f"Python 3.8 mysql-connector cursor cleanup issue (ignored): {str(e)}")
+                else:
+                    # Re-raise other RuntimeError instances
+                    raise
 
     async def _get_cursor(self):
-        """Get a database cursor, ensuring connection is active."""
+        """Get a database cursor, ensuring connection is active.
+
+        This method implements automatic connection health checking (Plan A):
+        - Checks if connection object exists
+        - Checks if connection is still valid using is_connected()
+        - Automatically reconnects if connection was lost
+        """
         if not self._connection:
+            self.log(logging.DEBUG, "No connection, connecting...")
             await self.connect()
+        else:
+            # Protect is_connected() call - may raise BrokenPipeError in MySQL 5.6
+            try:
+                is_connected = await self._connection.is_connected()
+            except (BrokenPipeError, OSError):
+                is_connected = False
+
+            if not is_connected:
+                self.log(logging.DEBUG, "Connection lost, reconnecting...")
+                await self.disconnect()
+                await self.connect()
 
         return await self._connection.cursor()
 
@@ -300,7 +337,17 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
                 await cursor.close()
 
     async def ping(self, reconnect: bool = True) -> bool:
-        """Ping the MySQL server to check if the connection is alive."""
+        """
+        Ping the MySQL server to check if the connection is alive.
+
+        Args:
+            reconnect: If True, attempt to reconnect if the connection is dead.
+                      If False, just return the current connection status.
+
+        Returns:
+            True if the connection is alive (or was successfully reconnected),
+            False if the connection is dead and reconnect is False or reconnection failed.
+        """
         try:
             if not self._connection:
                 if reconnect:
@@ -309,14 +356,44 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
                 else:
                     return False
 
-            # Try to execute a simple query to check connection
-            cursor = await self._get_cursor()
-            await cursor.execute("SELECT 1")
-            await cursor.fetchone()
-            await cursor.close()
+            # Check connection status without triggering auto-reconnect
+            # Note: is_connected() may raise BrokenPipeError/OSError in MySQL 5.6 +
+            # mysql-connector-python 9.x when connection has been killed
+            try:
+                is_connected = await self._connection.is_connected()
+            except (BrokenPipeError, OSError):
+                is_connected = False
 
-            return True
-        except (mysql_async.Error) as e:
+            if not is_connected:
+                if reconnect:
+                    await self.disconnect()
+                    await self.connect()
+                    return True
+                else:
+                    return False
+
+            # When reconnect=False, don't send SELECT 1 to avoid potential
+            # BrokenPipeError in MySQL 5.6 RST race condition.
+            # Just trust the is_connected() result.
+            if not reconnect:
+                return True
+
+            # reconnect=True: verify connection with SELECT 1
+            try:
+                cursor = await self._get_cursor()
+                await cursor.execute("SELECT 1")
+                await cursor.fetchone()
+                await cursor.close()
+                return True
+            except (BrokenPipeError, OSError):
+                # May occur in MySQL 5.6 RST race condition or asyncio transport
+                if reconnect:
+                    await self.disconnect()
+                    await self.connect()
+                    return True
+                return False
+
+        except (MySQLError, OSError) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
             if reconnect:
                 try:
@@ -327,6 +404,124 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
                     self.log(logging.ERROR, f"Failed to reconnect after ping failure: {str(connect_error)}")
                     return False
             return False
+
+    # MySQL connection error codes that indicate connection loss
+    # Reference: https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
+    CONNECTION_ERROR_CODES = {
+        2003,  # CR_CONN_HOST_ERROR - Can't connect to MySQL server
+        2006,  # CR_SERVER_GONE_ERROR - MySQL server has gone away
+        2013,  # CR_SERVER_LOST - Lost connection to MySQL server during query
+        2048,  # CR_CONN_UNKNOW_PROTOCOL - Invalid connection protocol
+        2055,  # CR_SERVER_LOST_EXTENDED - Lost connection to MySQL server
+    }
+
+    def _is_connection_error(self, error: Exception) -> bool:
+        """
+        Check if an error indicates a connection loss.
+
+        This method identifies errors that result from lost or invalid connections,
+        which should trigger automatic reconnection attempts.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error indicates a connection problem, False otherwise
+        """
+        # Check for MySQL error codes
+        if hasattr(error, 'errno'):
+            if error.errno in self.CONNECTION_ERROR_CODES:
+                return True
+
+        # Fallback to string matching for error messages
+        error_str = str(error).lower()
+        connection_error_patterns = [
+            'server has gone away',
+            'lost connection',
+            "can't connect to mysql server",
+            'connection refused',
+            'broken pipe',
+            'connection reset',
+        ]
+        return any(pattern in error_str for pattern in connection_error_patterns)
+
+    async def _reconnect(self) -> bool:
+        """
+        Attempt to reconnect to the MySQL server.
+
+        This method safely disconnects and reconnects, handling any errors
+        that might occur during the process.
+
+        Returns:
+            True if reconnection was successful, False otherwise
+        """
+        try:
+            self.log(logging.INFO, "Attempting to reconnect...")
+            await self.disconnect()
+            await self.connect()
+            self.log(logging.INFO, "Reconnection successful")
+            return True
+        except Exception as e:
+            self.log(logging.ERROR, f"Reconnection failed: {str(e)}")
+            return False
+
+    async def execute(self, sql: str, params: Optional[Tuple] = None, *, options, max_retries: int = 2) -> 'QueryResult':
+        """
+        Execute a SQL statement with automatic reconnection on connection errors.
+
+        This method extends the parent execute method with retry logic for connection
+        errors. If a connection error occurs during execution, it will automatically
+        attempt to reconnect and retry the query up to max_retries times.
+
+        This implements Plan B: Error retry mechanism for handling connection loss
+        that occurs mid-query (which Plan A's pre-check cannot prevent).
+
+        Args:
+            sql: The SQL statement to execute
+            params: Optional tuple of parameter values
+            options: ExecutionOptions object
+            max_retries: Maximum number of retry attempts (default: 2)
+
+        Returns:
+            QueryResult object containing execution results
+
+        Raises:
+            DatabaseError: If execution fails after all retries
+            Other exceptions from parent execute method
+        """
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await super().execute(sql, params, options=options)
+            except (MySQLOperationalError, MySQLError) as e:
+                last_error = e
+
+                # Check if this is a connection error that warrants retry
+                if self._is_connection_error(e) and attempt < max_retries:
+                    self.log(
+                        logging.WARNING,
+                        f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}"
+                    )
+
+                    # Attempt to reconnect
+                    if await self._reconnect():
+                        # Retry the query
+                        continue
+                    else:
+                        # Reconnection failed, no point in retrying
+                        self.log(logging.ERROR, "Reconnection failed, aborting retry")
+                        break
+                else:
+                    # Not a connection error or max retries reached
+                    break
+
+        # All retries exhausted or non-connection error
+        if last_error:
+            await self._handle_error(last_error)
+
+        # This should not be reached, but for type safety
+        raise DatabaseError(f"Execution failed after {max_retries + 1} attempts")
 
     async def _handle_error(self, error: Exception) -> None:
         """Handle MySQL-specific errors asynchronously."""
@@ -353,7 +548,7 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
                 raise OperationalError(error_msg)
             self.log(logging.ERROR, f"Operational error: {error_msg}")
             raise OperationalError(error_msg)
-        elif isinstance(error, mysql_async.Error):
+        elif isinstance(error, MySQLError):
             self.log(logging.ERROR, f"MySQL error: {error_msg}")
             raise DatabaseError(error_msg)
         else:
@@ -404,7 +599,7 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
         if options is None:
             # Determine statement type based on SQL
             sql_upper = sql.strip().upper()
-            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA')):
+            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA', 'EXPLAIN')):
                 stmt_type = StatementType.DQL
             elif sql_upper.startswith(('INSERT', 'UPDATE', 'DELETE', 'REPLACE')):
                 stmt_type = StatementType.DML
@@ -476,3 +671,9 @@ class AsyncMySQLBackend(IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorag
         finally:
             if cursor:
                 await cursor.close()
+
+    def _parse_explain_result(self, raw_rows, sql, duration):
+        """Return a typed :class:`MySQLExplainResult` for MySQL's tabular EXPLAIN output."""
+        from .explain import MySQLExplainResult, MySQLExplainRow
+        rows = [MySQLExplainRow(**r) for r in raw_rows]
+        return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)
