@@ -321,6 +321,14 @@ class MySQLDialect(
         # MySQL doesn't have native MATCH clause like some other systems
         return False
 
+    def supports_for_update(self) -> bool:
+        """Whether FOR UPDATE clause is supported in SELECT statements.
+
+        MySQL supports FOR UPDATE since early versions. The clause locks
+        selected rows preventing other transactions from modifying them.
+        """
+        return True
+
     def supports_for_update_skip_locked(self) -> bool:
         """Whether FOR UPDATE SKIP LOCKED is supported."""
         return self.version >= (8, 0, 1)  # Supported since 8.0.1

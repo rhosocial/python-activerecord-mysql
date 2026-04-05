@@ -100,11 +100,12 @@ MappedPost = _select_model_class(MappedPostBase, MappedPost312, MappedPost311, M
 MappedComment = _select_model_class(MappedCommentBase, MappedComment312, MappedComment311, MappedComment310, "MappedComment")
 
 from rhosocial.activerecord.testsuite.feature.query.interfaces import IQueryProvider
+from rhosocial.activerecord.testsuite.core.protocols import WorkerTestProtocol
 # ...and the scenarios are defined specifically for this backend.
 from .scenarios import get_enabled_scenarios, get_scenario
 
 
-class QueryProvider(IQueryProvider):
+class QueryProvider(IQueryProvider, WorkerTestProtocol):
     """
     This is the MySQL backend's implementation for the query features test group.
     It connects the generic tests in the testsuite with the actual MySQL database.
@@ -420,3 +421,91 @@ class QueryProvider(IQueryProvider):
         
         # Clear the list of active backends for the next test
         self._active_backends.clear()
+
+    # --- Implementation of WorkerTestProtocol ---
+
+    def get_worker_connection_params(self, scenario_name: str, fixture_type: str = 'order') -> dict:
+        """
+        Return serializable connection parameters for Worker processes.
+
+        This method provides all information needed to recreate the database
+        connection in a Worker process, including the schema SQL for table creation.
+
+        Args:
+            scenario_name: The test scenario name
+            fixture_type: Type of fixture ('order', 'blog', 'user', 'combined',
+                         or with 'async_' prefix for async backends)
+
+        Returns:
+            Dictionary with connection parameters and schema SQL
+        """
+        from .scenarios import SCENARIO_MAP
+
+        # Determine if async backend is needed based on fixture_type
+        is_async = fixture_type and fixture_type.startswith('async_')
+        backend_class_name = 'AsyncMySQLBackend' if is_async else 'MySQLBackend'
+
+        # Get base fixture type (remove 'async_' prefix if present)
+        base_fixture_type = fixture_type.replace('async_', '') if fixture_type else 'order'
+
+        # Build schema SQL based on fixture type
+        schema_sql = self._get_schema_sql_for_fixture_type(base_fixture_type)
+
+        # Get connection config from scenario
+        if scenario_name not in SCENARIO_MAP:
+            if SCENARIO_MAP:
+                scenario_name = next(iter(SCENARIO_MAP))
+            else:
+                raise ValueError("No scenarios registered")
+
+        config_dict = SCENARIO_MAP[scenario_name]
+
+        return {
+            'backend_module': 'rhosocial.activerecord.backend.impl.mysql',
+            'backend_class_name': backend_class_name,
+            'config_class_module': 'rhosocial.activerecord.backend.impl.mysql.config',
+            'config_class_name': 'MySQLConnectionConfig',
+            'config_kwargs': config_dict,
+            'schema_sql': schema_sql,
+        }
+
+    def get_worker_schema_sql(self, scenario_name: str, table_name: str) -> str:
+        """
+        Return the SQL statement to create a specific table.
+
+        Args:
+            scenario_name: The test scenario name (unused for MySQL as schema is fixed)
+            table_name: Name of the table to create
+
+        Returns:
+            CREATE TABLE SQL statement
+        """
+        return self._load_mysql_schema(f'{table_name}.sql')
+
+    def _get_schema_sql_for_fixture_type(self, fixture_type: str) -> dict:
+        """
+        Get schema SQL for a specific fixture type.
+
+        Args:
+            fixture_type: Type of fixture ('order', 'blog', 'user', 'combined')
+
+        Returns:
+            Dictionary mapping table names to CREATE TABLE statements
+        """
+        schemas = {}
+
+        if fixture_type == 'order':
+            tables = ['users', 'orders', 'order_items']
+        elif fixture_type == 'blog':
+            tables = ['users', 'posts', 'comments']
+        elif fixture_type == 'user':
+            tables = ['users']
+        elif fixture_type == 'combined':
+            tables = ['users', 'orders', 'order_items', 'posts', 'comments']
+        else:
+            tables = ['users']
+
+        for table in tables:
+            schemas[table] = self._load_mysql_schema(f'{table}.sql')
+
+        return schemas

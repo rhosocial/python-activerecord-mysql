@@ -46,4 +46,7 @@
     *   **[性能问题](troubleshooting/performance.md)**: 性能瓶颈分析
     *   **[字符集问题](troubleshooting/charset.md)**: 编码问题处理
 
+8. **[场景实战 (Scenarios)](scenarios/README.md)**
+    *   **[并行 Worker 处理](scenarios/parallel_workers.md)**: 多进程/异步并发场景的正确用法
+
 > 📖 **核心库文档**：要了解 ActiveRecord 框架的完整功能，请参考 [rhosocial-activerecord 文档](https://github.com/Rhosocial/python-activerecord/tree/main/docs/zh_CN)。
