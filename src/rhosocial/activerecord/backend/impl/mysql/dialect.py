@@ -33,6 +33,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     SequenceSupport,
     TableSupport,
     IntrospectionSupport,
+    # Transaction Control Protocol
+    TransactionControlSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CTEMixin,
@@ -147,6 +149,8 @@ class MySQLDialect(
     SequenceSupport,
     TableSupport,
     IntrospectionSupport,
+    # Transaction Control Protocol
+    TransactionControlSupport,
     # MySQL-specific protocols
     MySQLTriggerSupport,
     MySQLTableSupport,
@@ -979,4 +983,85 @@ class MySQLDialect(
         MySQL 8.0+ supports expressions in DEFAULT column values.
         """
         return self.version >= (8, 0, 0)
+    # endregion
+
+    # region Transaction Control
+
+    def supports_transaction_mode(self) -> bool:
+        """MySQL supports READ ONLY transactions (5.6.5+)."""
+        return self.version >= (5, 6, 5)
+
+    def supports_isolation_level_in_begin(self) -> bool:
+        """MySQL does not support isolation level in START TRANSACTION.
+
+        MySQL uses SET TRANSACTION ISOLATION LEVEL before START TRANSACTION.
+        """
+        return False
+
+    def supports_read_only_transaction(self) -> bool:
+        """MySQL supports READ ONLY transactions (5.6.5+)."""
+        return self.version >= (5, 6, 5)
+
+    def supports_deferrable_transaction(self) -> bool:
+        """MySQL does not support DEFERRABLE mode."""
+        return False
+
+    def supports_savepoint(self) -> bool:
+        """MySQL supports savepoints."""
+        return True
+
+    def format_begin_transaction(
+        self, expr: "BeginTransactionExpression"
+    ) -> Tuple[str, tuple]:
+        """Format START TRANSACTION statement for MySQL.
+
+        MySQL requires:
+        1. SET TRANSACTION ISOLATION LEVEL (if needed, before START)
+        2. START TRANSACTION [READ ONLY] (MySQL 5.6.5+)
+
+        Note: Returns multiple statements separated by semicolon.
+
+        Args:
+            expr: BeginTransactionExpression with isolation level and mode.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+        """
+        from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
+
+        params = expr.get_params()
+        statements = []
+
+        # Isolation level mapping for MySQL
+        isolation_levels = {
+            IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
+            IsolationLevel.READ_COMMITTED: "READ COMMITTED",
+            IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
+            IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
+        }
+
+        # Set isolation level if specified (must be before START TRANSACTION)
+        isolation = params.get("isolation_level")
+        if isolation:
+            level_str = isolation_levels.get(isolation)
+            if level_str:
+                statements.append(f"SET TRANSACTION ISOLATION LEVEL {level_str}")
+
+        # Build START TRANSACTION
+        mode = params.get("mode")
+        if mode == TransactionMode.READ_ONLY:
+            if self.supports_read_only_transaction():
+                statements.append("START TRANSACTION READ ONLY")
+            else:
+                from rhosocial.activerecord.backend.errors import UnsupportedTransactionModeError
+                raise UnsupportedTransactionModeError(
+                    feature="READ ONLY transactions",
+                    backend="MySQL",
+                    message="READ ONLY transactions require MySQL 5.6.5 or later."
+                )
+        else:
+            statements.append("START TRANSACTION")
+
+        return "; ".join(statements), ()
+
     # endregion

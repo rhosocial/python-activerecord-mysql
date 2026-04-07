@@ -425,9 +425,6 @@ class MySQLBackendMixin:
     @property
     def transaction_manager(self):
         """Get the MySQL transaction manager."""
-        # Update the transaction manager's connection if needed
-        if self._transaction_manager:
-            self._transaction_manager._connection = self._connection
         return self._transaction_manager
 
     def requires_manual_commit(self) -> bool:
