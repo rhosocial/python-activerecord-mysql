@@ -1015,43 +1015,30 @@ class MySQLDialect(
     ) -> Tuple[str, tuple]:
         """Format START TRANSACTION statement for MySQL.
 
-        MySQL requires:
-        1. SET TRANSACTION ISOLATION LEVEL (if needed, before START)
-        2. START TRANSACTION [READ ONLY] (MySQL 5.6.5+)
-
-        Note: Returns multiple statements separated by semicolon.
+        This method returns a SINGLE SQL statement as required by the protocol.
+        For MySQL, isolation level must be set separately using SET TRANSACTION
+        before START TRANSACTION. The TransactionManager handles this sequencing.
 
         Args:
             expr: BeginTransactionExpression with isolation level and mode.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
+
+        Note:
+            Isolation level is NOT included in this statement. Use
+            format_set_transaction() for that purpose, which should be called
+            before this method by MySQLTransactionManager._do_begin().
         """
-        from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
+        from rhosocial.activerecord.backend.transaction import TransactionMode
 
         params = expr.get_params()
-        statements = []
 
-        # Isolation level mapping for MySQL
-        isolation_levels = {
-            IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
-            IsolationLevel.READ_COMMITTED: "READ COMMITTED",
-            IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
-            IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
-        }
-
-        # Set isolation level if specified (must be before START TRANSACTION)
-        isolation = params.get("isolation_level")
-        if isolation:
-            level_str = isolation_levels.get(isolation)
-            if level_str:
-                statements.append(f"SET TRANSACTION ISOLATION LEVEL {level_str}")
-
-        # Build START TRANSACTION
+        # Build START TRANSACTION (without isolation level)
         mode = params.get("mode")
         if mode == TransactionMode.READ_ONLY:
             if self.supports_read_only_transaction():
-                statements.append("START TRANSACTION READ ONLY")
+                return "START TRANSACTION READ ONLY", ()
             else:
                 from rhosocial.activerecord.backend.errors import UnsupportedTransactionModeError
                 raise UnsupportedTransactionModeError(
@@ -1060,8 +1047,6 @@ class MySQLDialect(
                     message="READ ONLY transactions require MySQL 5.6.5 or later."
                 )
         else:
-            statements.append("START TRANSACTION")
-
-        return "; ".join(statements), ()
+            return "START TRANSACTION", ()
 
     # endregion
