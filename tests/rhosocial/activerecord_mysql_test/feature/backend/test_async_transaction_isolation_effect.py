@@ -365,9 +365,14 @@ class TestAsyncTransactionCombination:
     @pytest.mark.asyncio
     async def test_default_isolation_is_repeatable_read(self, async_mysql_backend):
         """Verify MySQL default isolation level is REPEATABLE READ (async)."""
+        # MySQL 5.6 uses @@tx_isolation, MySQL 5.7+ uses @@transaction_isolation
+        # Detect version and use appropriate variable
+        version = async_mysql_backend.dialect.get_server_version()
+        isolation_var = "@@transaction_isolation" if version >= (5, 7, 0) else "@@tx_isolation"
+
         async with async_mysql_backend.transaction():
             rows = await async_mysql_backend.fetch_all(
-                "select @@transaction_isolation as isolation"
+                f"SELECT {isolation_var} as isolation"
             )
             if rows and rows[0].get("isolation"):
                 isolation = rows[0]["isolation"]

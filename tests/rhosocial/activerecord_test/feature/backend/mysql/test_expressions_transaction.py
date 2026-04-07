@@ -1,5 +1,12 @@
 # tests/rhosocial/activerecord_test/feature/backend/mysql/test_expressions_transaction.py
-"""Tests for MySQL transaction expression classes."""
+"""Tests for MySQL transaction expression classes.
+
+MySQL Transaction Behavior:
+- Isolation level must be set BEFORE START TRANSACTION using SET TRANSACTION
+- START TRANSACTION can include READ ONLY / READ WRITE modes
+- The dialect's format_begin_transaction() only returns START TRANSACTION
+- SetTransactionExpression is used for isolation level settings
+"""
 import pytest
 from rhosocial.activerecord.backend.expression.transaction import (
     BeginTransactionExpression,
@@ -13,7 +20,12 @@ from rhosocial.activerecord.backend.transaction import IsolationLevel, Transacti
 
 
 class TestMySQLBeginTransactionExpression:
-    """Tests for MySQL BeginTransactionExpression."""
+    """Tests for MySQL BeginTransactionExpression.
+
+    Note: MySQL does not support isolation level in START TRANSACTION.
+    The dialect's supports_isolation_level_in_begin() returns False.
+    Use SetTransactionExpression to set isolation level before START TRANSACTION.
+    """
 
     def test_basic_begin(self, mysql_dialect):
         """Test basic START TRANSACTION."""
@@ -22,14 +34,21 @@ class TestMySQLBeginTransactionExpression:
         assert sql == "START TRANSACTION"
         assert params == ()
 
-    def test_begin_with_isolation_level(self, mysql_dialect):
-        """Test START TRANSACTION with isolation level (requires SET TRANSACTION first)."""
+    def test_begin_with_isolation_level_returns_only_start(self, mysql_dialect):
+        """Test that isolation level is NOT included in START TRANSACTION.
+
+        MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed
+        separately before START TRANSACTION. The dialect's format_begin_transaction()
+        only returns the START TRANSACTION statement.
+        """
         expr = BeginTransactionExpression(mysql_dialect)
         expr.isolation_level(IsolationLevel.SERIALIZABLE)
         sql, params = expr.to_sql()
-        assert "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE" in sql
-        assert "START TRANSACTION" in sql
+        # MySQL dialect does NOT include isolation level in START TRANSACTION
+        assert sql == "START TRANSACTION"
         assert params == ()
+        # Verify dialect capability
+        assert mysql_dialect.supports_isolation_level_in_begin() == False
 
     def test_begin_read_only(self, mysql_dialect):
         """Test START TRANSACTION READ ONLY."""
@@ -48,12 +67,51 @@ class TestMySQLBeginTransactionExpression:
         assert params == ()
 
     def test_begin_with_isolation_and_read_only(self, mysql_dialect):
-        """Test START TRANSACTION with isolation level and READ ONLY."""
+        """Test START TRANSACTION with isolation level and READ ONLY.
+
+        The isolation level is ignored by the dialect in START TRANSACTION.
+        Use SetTransactionExpression for isolation level, then BeginTransactionExpression
+        for READ ONLY mode.
+        """
         expr = BeginTransactionExpression(mysql_dialect)
         expr.isolation_level(IsolationLevel.READ_COMMITTED).read_only()
         sql, params = expr.to_sql()
-        assert "SET TRANSACTION ISOLATION LEVEL READ COMMITTED" in sql
-        assert "START TRANSACTION READ ONLY" in sql
+        # Only READ ONLY mode is included, isolation level is NOT
+        assert sql == "START TRANSACTION READ ONLY"
+        assert params == ()
+
+    @pytest.mark.parametrize("level", [
+        IsolationLevel.READ_UNCOMMITTED,
+        IsolationLevel.READ_COMMITTED,
+        IsolationLevel.REPEATABLE_READ,
+        IsolationLevel.SERIALIZABLE,
+    ])
+    def test_begin_with_isolation_returns_start_transaction(self, mysql_dialect, level):
+        """Test that START TRANSACTION does not include isolation level.
+
+        MySQL requires separate SET TRANSACTION ISOLATION LEVEL statement.
+        """
+        expr = BeginTransactionExpression(mysql_dialect)
+        expr.isolation_level(level)
+        sql, params = expr.to_sql()
+        # MySQL dialect does NOT include isolation level
+        assert sql == "START TRANSACTION"
+        assert params == ()
+
+
+class TestMySQLSetTransactionExpression:
+    """Tests for MySQL SetTransactionExpression.
+
+    MySQL uses SET TRANSACTION ISOLATION LEVEL before START TRANSACTION
+    to set the isolation level for the next transaction.
+    """
+
+    def test_set_isolation_level(self, mysql_dialect):
+        """Test SET TRANSACTION ISOLATION LEVEL."""
+        expr = SetTransactionExpression(mysql_dialect)
+        expr.isolation_level(IsolationLevel.SERIALIZABLE)
+        sql, params = expr.to_sql()
+        assert sql == "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
         assert params == ()
 
     @pytest.mark.parametrize("level,expected_name", [
@@ -63,11 +121,27 @@ class TestMySQLBeginTransactionExpression:
         (IsolationLevel.SERIALIZABLE, "SERIALIZABLE"),
     ])
     def test_all_isolation_levels(self, mysql_dialect, level, expected_name):
-        """Test all isolation levels."""
-        expr = BeginTransactionExpression(mysql_dialect)
+        """Test all isolation levels in SET TRANSACTION."""
+        expr = SetTransactionExpression(mysql_dialect)
         expr.isolation_level(level)
         sql, params = expr.to_sql()
         assert expected_name in sql
+        assert params == ()
+
+    def test_set_read_only(self, mysql_dialect):
+        """Test SET TRANSACTION READ ONLY."""
+        expr = SetTransactionExpression(mysql_dialect)
+        expr.read_only()
+        sql, params = expr.to_sql()
+        assert sql == "SET TRANSACTION READ ONLY"
+        assert params == ()
+
+    def test_set_read_write(self, mysql_dialect):
+        """Test SET TRANSACTION READ WRITE."""
+        expr = SetTransactionExpression(mysql_dialect)
+        expr.read_write()
+        sql, params = expr.to_sql()
+        assert sql == "SET TRANSACTION READ WRITE"
         assert params == ()
 
 
