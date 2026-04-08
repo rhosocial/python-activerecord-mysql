@@ -104,19 +104,24 @@ class TestIsolationLevelEffects:
         # READ UNCOMMITTED should have detected the dirty read
         assert True in dirty_read_detected, "READ UNCOMMITTED should allow dirty reads"
 
-    def test_read_committed_prevents_dirty_reads(self, mysql_backend, test_table):
-        """Verify READ COMMITTED isolation level prevents dirty reads."""
+    def test_read_committed_prevents_dirty_reads(self, mysql_backend, mysql_control_backend, test_table):
+        """Verify READ COMMITTED isolation level prevents dirty reads.
+
+        Uses independent connections for each thread to avoid connection sharing issues.
+        """
+        backend1 = mysql_backend
+        backend2 = mysql_control_backend
         dirty_read_occurred = []
 
         def transaction1():
             """Transaction 1: Should not see uncommitted data."""
             try:
-                mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
-                with mysql_backend.transaction():
+                backend1.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
+                with backend1.transaction():
                     # Wait for transaction 2 to modify
                     time.sleep(0.15)
                     # Should NOT see the uncommitted change
-                    rows = mysql_backend.fetch_all(
+                    rows = backend1.fetch_all(
                         "SELECT balance FROM isolation_test WHERE name = %s",
                         ("user1",)
                     )
@@ -130,9 +135,9 @@ class TestIsolationLevelEffects:
         def transaction2():
             """Transaction 2: Modify and rollback."""
             try:
-                mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
-                with mysql_backend.transaction():
-                    mysql_backend.execute(
+                backend2.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
+                with backend2.transaction():
+                    backend2.execute(
                         "UPDATE isolation_test SET balance = %s WHERE name = %s",
                         (Decimal("200.00"), "user1")
                     )
@@ -152,22 +157,26 @@ class TestIsolationLevelEffects:
         # READ COMMITTED should NOT have dirty read
         assert False in dirty_read_occurred, "READ COMMITTED should prevent dirty reads"
 
-    def test_repeatable_read_consistency(self, mysql_backend, test_table):
+    def test_repeatable_read_consistency(self, mysql_backend, mysql_control_backend, test_table):
         """Verify REPEATABLE READ provides consistent reads within a transaction.
 
         REPEATABLE READ should ensure that if a row is read twice in the same
         transaction, the same value is returned even if another transaction
         committed a change.
+
+        Uses independent connections for each thread to avoid connection sharing issues.
         """
+        backend1 = mysql_backend
+        backend2 = mysql_control_backend
         read_values = []
 
         def transaction1():
             """Transaction 1: Read the same row twice."""
             try:
-                mysql_backend.transaction_manager.isolation_level = IsolationLevel.REPEATABLE_READ
-                with mysql_backend.transaction():
+                backend1.transaction_manager.isolation_level = IsolationLevel.REPEATABLE_READ
+                with backend1.transaction():
                     # First read
-                    rows1 = mysql_backend.fetch_all(
+                    rows1 = backend1.fetch_all(
                         "SELECT balance FROM isolation_test WHERE name = %s",
                         ("user1",)
                     )
@@ -177,7 +186,7 @@ class TestIsolationLevelEffects:
                     time.sleep(0.2)
 
                     # Second read (should be same as first)
-                    rows2 = mysql_backend.fetch_all(
+                    rows2 = backend1.fetch_all(
                         "SELECT balance FROM isolation_test WHERE name = %s",
                         ("user1",)
                     )
@@ -189,9 +198,9 @@ class TestIsolationLevelEffects:
             """Transaction 2: Modify and commit."""
             try:
                 time.sleep(0.1)  # Wait for transaction 1's first read
-                mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
-                with mysql_backend.transaction():
-                    mysql_backend.execute(
+                backend2.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
+                with backend2.transaction():
+                    backend2.execute(
                         "UPDATE isolation_test SET balance = %s WHERE name = %s",
                         (Decimal("200.00"), "user1")
                     )
@@ -210,13 +219,17 @@ class TestIsolationLevelEffects:
         assert len(read_values) == 2, "Should have two reads"
         assert read_values[0] == read_values[1], f"REPEATABLE READ should provide consistent reads: {read_values}"
 
-    def test_serializable_prevents_phantom_reads(self, mysql_backend, test_table):
+    def test_serializable_prevents_phantom_reads(self, mysql_backend, mysql_control_backend, test_table):
         """Verify SERIALIZABLE prevents phantom reads.
 
         Phantom reads occur when a transaction reads rows matching a condition,
         then another transaction inserts a row matching that condition.
         SERIALIZABLE should prevent this.
+
+        Uses independent connections for each thread to avoid connection sharing issues.
         """
+        backend1 = mysql_backend
+        backend2 = mysql_control_backend
         initial_count = []
         second_count = []
         insert_blocked = []
@@ -224,10 +237,10 @@ class TestIsolationLevelEffects:
         def transaction1():
             """Transaction 1: Count rows twice."""
             try:
-                mysql_backend.transaction_manager.isolation_level = IsolationLevel.SERIALIZABLE
-                with mysql_backend.transaction():
+                backend1.transaction_manager.isolation_level = IsolationLevel.SERIALIZABLE
+                with backend1.transaction():
                     # First count
-                    rows1 = mysql_backend.fetch_all(
+                    rows1 = backend1.fetch_all(
                         "SELECT COUNT(*) as cnt FROM isolation_test WHERE balance > %s",
                         (Decimal("50.00"),)
                     )
@@ -237,7 +250,7 @@ class TestIsolationLevelEffects:
                     time.sleep(0.2)
 
                     # Second count (should be same)
-                    rows2 = mysql_backend.fetch_all(
+                    rows2 = backend1.fetch_all(
                         "SELECT COUNT(*) as cnt FROM isolation_test WHERE balance > %s",
                         (Decimal("50.00"),)
                     )
@@ -249,10 +262,10 @@ class TestIsolationLevelEffects:
             """Transaction 2: Try to insert a matching row."""
             try:
                 time.sleep(0.1)  # Wait for transaction 1's first read
-                mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
-                with mysql_backend.transaction():
+                backend2.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
+                with backend2.transaction():
                     # Try to insert a row that matches the condition
-                    mysql_backend.execute(
+                    backend2.execute(
                         "INSERT INTO isolation_test (name, balance) VALUES (%s, %s)",
                         ("user2", Decimal("75.00"))
                     )
