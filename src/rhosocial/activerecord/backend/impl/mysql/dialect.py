@@ -1010,6 +1010,56 @@ class MySQLDialect(
         """MySQL supports savepoints."""
         return True
 
+    def format_set_transaction(
+        self, expr: "SetTransactionExpression"
+    ) -> Tuple[str, tuple]:
+        """Format SET TRANSACTION statement for MySQL.
+
+        MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
+        START TRANSACTION when a specific isolation level is needed. This method
+        generates the appropriate SET TRANSACTION statement.
+
+        Args:
+            expr: SetTransactionExpression with isolation level and/or mode.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Note:
+            This statement must be executed before START TRANSACTION.
+            The MySQLTransactionManager._do_begin() handles this sequencing.
+        """
+        from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
+
+        params = expr.get_params()
+        parts = []
+
+        # Handle isolation level
+        isolation_level = params.get("isolation_level")
+        if isolation_level is not None:
+            level_names = {
+                IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
+                IsolationLevel.READ_COMMITTED: "READ COMMITTED",
+                IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
+                IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
+            }
+            level_name = level_names.get(isolation_level)
+            if level_name:
+                parts.append(f"ISOLATION LEVEL {level_name}")
+
+        # Handle transaction mode (READ ONLY/READ WRITE)
+        mode = params.get("mode")
+        if mode is not None:
+            if mode == TransactionMode.READ_ONLY:
+                parts.append("READ ONLY")
+            elif mode == TransactionMode.READ_WRITE:
+                parts.append("READ WRITE")
+
+        if not parts:
+            return "SET TRANSACTION", ()
+
+        return f"SET TRANSACTION {' '.join(parts)}", ()
+
     def format_begin_transaction(
         self, expr: "BeginTransactionExpression"
     ) -> Tuple[str, tuple]:
