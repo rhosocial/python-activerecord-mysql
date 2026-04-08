@@ -5,7 +5,61 @@ This module defines protocols for features exclusive to MySQL,
 which are not part of the SQL standard and not supported by other
 mainstream databases.
 """
-from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List
+from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements import InsertExpression
+
+
+@runtime_checkable
+class MySQLDMLOperationSupport(Protocol):
+    """MySQL-specific DML operations protocol.
+
+    Feature Source: MySQL native (not SQL standard)
+
+    MySQL DML features beyond SQL standard:
+    - INSERT IGNORE: Silently ignore rows that would cause duplicate key errors
+    - REPLACE INTO: Delete and re-insert on duplicate key (changes AUTO_INCREMENT)
+    - LOAD DATA INFILE: High-performance bulk data import
+
+    Official Documentation:
+    - INSERT: https://dev.mysql.com/doc/refman/8.0/en/insert.html
+    - REPLACE: https://dev.mysql.com/doc/refman/8.0/en/replace.html
+    - LOAD DATA: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
+
+    Version Requirements:
+    - INSERT IGNORE: All MySQL versions
+    - REPLACE INTO: All MySQL versions
+    - LOAD DATA INFILE: All MySQL versions
+
+    Usage:
+        INSERT IGNORE is supported via dialect_options in InsertExpression:
+        ```python
+        # Using dialect_options
+        InsertExpression(
+            dialect,
+            into='users',
+            source=ValuesSource(...),
+            dialect_options={'ignore': True}  # Generates INSERT IGNORE
+        )
+        ```
+    """
+
+    def supports_insert_ignore(self) -> bool:
+        """Whether INSERT IGNORE is supported.
+
+        MySQL supports INSERT IGNORE to silently ignore rows that would
+        cause duplicate key errors instead of raising an error.
+        """
+        ...
+
+    def supports_replace_into(self) -> bool:
+        """Whether REPLACE INTO is supported.
+
+        MySQL supports REPLACE INTO which deletes and re-inserts on
+        duplicate key. Note: AUTO_INCREMENT value changes on replacement.
+        """
+        ...
 
 
 @runtime_checkable

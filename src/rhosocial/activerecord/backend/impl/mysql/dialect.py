@@ -69,6 +69,7 @@ from .protocols import (
     MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,
+    MySQLDMLOperationSupport,
 )
 from .mixins import (
     MySQLTriggerMixin,
@@ -85,7 +86,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
         CreateTableExpression, CreateViewExpression, DropViewExpression,
         ColumnDefinition, TableConstraint, IndexDefinition,
-        ExplainExpression,
+        ExplainExpression, InsertExpression,
     )
 
 
@@ -158,6 +159,7 @@ class MySQLDialect(
     MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
+    MySQLDMLOperationSupport,  # MySQL-specific DML operations (INSERT IGNORE, REPLACE INTO)
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -1098,5 +1100,114 @@ class MySQLDialect(
                 )
         else:
             return "START TRANSACTION", ()
+
+    # endregion
+
+    # region MySQL-specific DML Operations
+
+    def supports_insert_ignore(self) -> bool:
+        """Whether INSERT IGNORE is supported.
+
+        MySQL supports INSERT IGNORE in all versions.
+        """
+        return True
+
+    def supports_replace_into(self) -> bool:
+        """Whether REPLACE INTO is supported.
+
+        MySQL supports REPLACE INTO in all versions.
+        """
+        return True
+
+    def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
+        """Format INSERT statement with MySQL-specific options.
+
+        Extends the base implementation to support:
+        - INSERT IGNORE via dialect_options={'ignore': True}
+        - REPLACE INTO via dialect_options={'replace': True}
+
+        Args:
+            expr: InsertExpression instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+
+        Raises:
+            ValueError: If both 'ignore' and 'replace' are specified, or if
+                       'replace' is used with 'on_conflict'
+        """
+        # Perform strict parameter validation
+        if self.strict_validation:
+            expr.validate(strict=True)
+
+        # Check for conflicting options
+        is_replace = expr.dialect_options.get('replace', False)
+        is_ignore = expr.dialect_options.get('ignore', False)
+
+        if is_replace and is_ignore:
+            raise ValueError("Cannot use both 'replace' and 'ignore' options together")
+
+        if is_replace and expr.on_conflict:
+            raise ValueError("REPLACE INTO does not support ON CONFLICT clause")
+
+        all_params: List[Any] = []
+        table_sql, table_params = expr.into.to_sql()
+        all_params.extend(table_params)
+
+        # Build INSERT or REPLACE clause
+        if is_replace:
+            parts = ["REPLACE INTO"]
+        else:
+            parts = ["INSERT"]
+            if is_ignore:
+                parts.append("IGNORE")
+            parts.append("INTO")
+        parts.append(table_sql)
+
+        columns_sql = ""
+        if expr.columns:
+            columns_sql = "(" + ", ".join([self.format_identifier(c) for c in expr.columns]) + ")"
+            parts.append(columns_sql)
+
+        # Format source (VALUES, SELECT, or DEFAULT VALUES)
+        from rhosocial.activerecord.backend.expression.statements import (
+            DefaultValuesSource, ValuesSource, SelectSource
+        )
+
+        if isinstance(expr.source, DefaultValuesSource):
+            parts.append("DEFAULT VALUES")
+        elif isinstance(expr.source, ValuesSource):
+            all_rows_sql = []
+            for row in expr.source.values_list:
+                row_sql, row_params = [], []
+                for val in row:
+                    s, p = val.to_sql()
+                    row_sql.append(s)
+                    row_params.extend(p)
+                all_rows_sql.append(f"({', '.join(row_sql)})")
+                all_params.extend(row_params)
+            parts.append("VALUES " + ", ".join(all_rows_sql))
+        elif isinstance(expr.source, SelectSource):
+            s_sql, s_params = expr.source.select_query.to_sql()
+            parts.append(s_sql)
+            all_params.extend(s_params)
+
+        sql = ' '.join(parts)
+
+        # Handle ON CONFLICT (ON DUPLICATE KEY UPDATE for MySQL)
+        if expr.on_conflict:
+            conflict_sql, conflict_params = expr.on_conflict.to_sql()
+            sql += f" {conflict_sql}"
+            all_params.extend(conflict_params)
+
+        # Note: MySQL does not support RETURNING clause
+        if expr.returning:
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(
+                self.name,
+                "RETURNING clause (MySQL does not support RETURNING)"
+            )
+
+        return sql, tuple(all_params)
 
     # endregion
