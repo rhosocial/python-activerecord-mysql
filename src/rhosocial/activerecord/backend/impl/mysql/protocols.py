@@ -61,6 +61,25 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
+    def supports_load_data(self) -> bool:
+        """Whether LOAD DATA INFILE is supported.
+
+        MySQL supports LOAD DATA INFILE for high-performance bulk data
+        import from files. LOCAL variant reads files from the client.
+        """
+        ...
+
+    def format_load_data_statement(self, expr: Any) -> Tuple[str, tuple]:
+        """Format LOAD DATA INFILE statement.
+
+        Args:
+            expr: LoadDataExpression instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
 
 @runtime_checkable
 class MySQLTriggerSupport(Protocol):

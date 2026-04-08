@@ -1210,4 +1210,97 @@ class MySQLDialect(
 
         return sql, tuple(all_params)
 
+    def supports_load_data(self) -> bool:
+        """Whether LOAD DATA INFILE is supported.
+
+        MySQL supports LOAD DATA INFILE in all versions.
+        """
+        return True
+
+    def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
+        """Format LOAD DATA INFILE statement.
+
+        Args:
+            expr: LoadDataExpression instance
+
+        Returns:
+            Tuple of (SQL string, empty tuple - no parameters for LOAD DATA)
+
+        Raises:
+            ValueError: If both replace and ignore are True
+        """
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["LOAD DATA"]
+
+        if expr.options.local:
+            parts.append("LOCAL")
+
+        parts.append("INFILE")
+
+        # File path needs to be quoted as string literal
+        file_path_escaped = expr.file_path.replace("", "").replace("'", "\'")
+        parts.append(f"'{file_path_escaped}'")
+
+        if expr.options.replace:
+            parts.append("REPLACE")
+        elif expr.options.ignore:
+            parts.append("IGNORE")
+
+        parts.append("INTO TABLE")
+        parts.append(self.format_identifier(expr.table))
+
+        # Character set
+        if expr.options.character_set:
+            parts.append(f"CHARACTER SET {expr.options.character_set}")
+
+        # Fields options
+        field_parts = []
+        if expr.options.fields_terminated_by is not None:
+            term = expr.options.fields_terminated_by.replace("", "").replace("'", "\'")
+            field_parts.append(f"TERMINATED BY '{term}'")
+        if expr.options.fields_enclosed_by is not None:
+            enc = expr.options.fields_enclosed_by.replace("", "").replace("'", "\'")
+            field_parts.append(f"ENCLOSED BY '{enc}'")
+        if expr.options.fields_escaped_by is not None:
+            esc = expr.options.fields_escaped_by.replace("", "").replace("'", "\'")
+            field_parts.append(f"ESCAPED BY '{esc}'")
+
+        if field_parts:
+            parts.append("FIELDS")
+            parts.append(" ".join(field_parts))
+
+        # Lines options
+        line_parts = []
+        if expr.options.lines_starting_by is not None:
+            start = expr.options.lines_starting_by.replace("", "").replace("'", "\'")
+            line_parts.append(f"STARTING BY '{start}'")
+        if expr.options.lines_terminated_by is not None:
+            term = expr.options.lines_terminated_by.replace("", "").replace("'", "\'")
+            line_parts.append(f"TERMINATED BY '{term}'")
+
+        if line_parts:
+            parts.append("LINES")
+            parts.append(" ".join(line_parts))
+
+        # Ignore lines
+        if expr.options.ignore_lines is not None:
+            parts.append(f"IGNORE {expr.options.ignore_lines} LINES")
+
+        # Column list
+        if expr.options.column_list:
+            columns = ", ".join(
+                self.format_identifier(c) for c in expr.options.column_list
+            )
+            parts.append(f"({columns})")
+
+        # SET assignments (future enhancement)
+        if expr.options.set_assignments:
+            set_parts = []
+            for col, val in expr.options.set_assignments.items():
+                set_parts.append(f"{self.format_identifier(col)} = {val}")
+            parts.append("SET " + ", ".join(set_parts))
+
+        return " ".join(parts), ()
+
     # endregion
