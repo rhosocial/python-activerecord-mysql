@@ -94,9 +94,8 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         self._version = version
         # Initialize MySQL-specific components (lazy load dialect)
         self._dialect = None
-        # Initialize transaction manager with connection (will be set when connected)
-        # Pass None for connection initially, it will be updated later
-        self._transaction_manager = AsyncMySQLTransactionManager(None, self.logger)
+        # Initialize transaction manager (will use backend.execute())
+        self._transaction_manager = AsyncMySQLTransactionManager(self, self.logger)
 
         # Register MySQL-specific type adapters (uses self._version)
         self._register_mysql_adapters()

@@ -1,150 +1,115 @@
 # src/rhosocial/activerecord/backend/impl/mysql/transaction.py
-"""MySQL synchronous transaction manager implementation."""
-import logging
-from mysql.connector.errors import Error as MySQLError, ProgrammingError
+"""MySQL synchronous transaction manager implementation.
 
-from rhosocial.activerecord.backend.errors import TransactionError
+This module provides MySQL-specific transaction management that handles
+MySQL's requirement for SET TRANSACTION before START TRANSACTION.
+"""
+import logging
+from typing import TYPE_CHECKING, Optional, Tuple
+
 from rhosocial.activerecord.backend.transaction import (
     IsolationLevel,
+    IsolationLevelError,
     TransactionManager,
-    TransactionState,
 )
-from .mixins import MySQLTransactionMixin
+
+if TYPE_CHECKING:
+    from .backend import MySQLBackend
 
 
-class MySQLTransactionManager(MySQLTransactionMixin, TransactionManager):
-    """MySQL synchronous transaction manager implementation."""
+class MySQLTransactionManager(TransactionManager):
+    """MySQL synchronous transaction manager implementation.
 
-    _ISOLATION_LEVELS = MySQLTransactionMixin._ISOLATION_LEVELS
+    MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
+    START TRANSACTION when a specific isolation level is needed. This class
+    overrides _do_begin() to handle this sequencing.
 
-    def __init__(self, connection, logger=None):
-        """Initialize MySQL transaction manager."""
-        super().__init__(connection, logger)
-        self._isolation_level = IsolationLevel.REPEATABLE_READ
-        self._state = TransactionState.INACTIVE
+    The format_begin_transaction() in MySQLDialect returns only "START TRANSACTION",
+    while this class handles the SET TRANSACTION step separately.
+    """
 
-    def _ensure_connection_ready(self):
-        """Ensure connection is ready for transaction operations."""
-        # For MySQL, we need to check if the connection exists and is valid
-        # The base TransactionManager class has a _backend reference that we can use
-        if not self._connection:
-            error_msg = "No valid connection for transaction"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg)
+    # Isolation level mapping for MySQL
+    _ISOLATION_LEVELS = {
+        IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
+        IsolationLevel.READ_COMMITTED: "READ COMMITTED",
+        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
+        IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
+    }
 
-        # Check if the connection is still alive
-        try:
-            # Use ping to check connection health
-            self._connection.ping(reconnect=False)
-        except MySQLError:
-            error_msg = "Connection is not active"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from None
+    def __init__(self, backend: "MySQLBackend", logger=None):
+        """Initialize MySQL transaction manager.
+
+        Args:
+            backend: MySQLBackend instance.
+            logger: Optional logger instance.
+        """
+        super().__init__(backend, logger)
+        # Note: _isolation_level defaults to None (use database default).
+        # MySQL's default isolation level is REPEATABLE READ, but we only
+        # send SET TRANSACTION when user explicitly specifies a level.
+
+    @property
+    def isolation_level(self) -> Optional[IsolationLevel]:
+        """Get the current transaction isolation level."""
+        return self._isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, level: Optional[IsolationLevel]):
+        """Set the transaction isolation level.
+
+        Note: In MySQL, isolation level can only be set before transaction starts.
+        This setter only updates the internal state. The actual SET TRANSACTION
+        statement is executed in _do_begin().
+
+        Args:
+            level: The isolation level to be set
+
+        Raises:
+            IsolationLevelError: If attempting to change isolation level while
+                                 transaction is active
+        """
+        self.log(logging.DEBUG, f"Setting isolation level to {level}")
+
+        if self.is_active:
+            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
+            raise IsolationLevelError("Cannot change isolation level during active transaction")
+
+        self._isolation_level = level
+        self.log(logging.INFO, f"Isolation level set to {level}")
+
+    def _build_set_isolation_sql(self, level: IsolationLevel) -> Tuple[str, tuple]:
+        """Build SET TRANSACTION ISOLATION LEVEL SQL statement.
+
+        Args:
+            level: The isolation level to set.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Raises:
+            IsolationLevelError: If the isolation level is not supported.
+        """
+        level_str = self._ISOLATION_LEVELS.get(level)
+        if not level_str:
+            raise IsolationLevelError(f"Unsupported isolation level: {level}")
+        return f"SET TRANSACTION ISOLATION LEVEL {level_str}", ()
 
     def _do_begin(self) -> None:
-        """Begin MySQL transaction."""
-        self._ensure_connection_ready()
+        """Begin a new transaction with MySQL-specific sequencing.
 
-        try:
-            isolation_string = self._ISOLATION_LEVELS.get(self._isolation_level)
+        MySQL requires:
+        1. SET TRANSACTION ISOLATION LEVEL (if needed, before START)
+        2. START TRANSACTION [READ ONLY]
 
-            cursor = self._connection.cursor()
-            cursor.execute("SELECT @@autocommit")
-            auto_commit = cursor.fetchone()[0]
-            cursor.close()
+        Each statement is executed separately via backend.execute().
+        """
+        # Step 1: Set isolation level if needed
+        if self._isolation_level is not None:
+            sql, params = self._build_set_isolation_sql(self._isolation_level)
+            self.log(logging.DEBUG, f"Executing: {sql}")
+            self._backend.execute(sql, params)
 
-            if auto_commit == 0 and self._transaction_level == 0:
-                self.log(logging.WARNING, "Found existing transaction, attempting to rollback")
-                try:
-                    self._connection.rollback()
-                except MySQLError:
-                    pass
-
-            self._connection.start_transaction(isolation_level=isolation_string)
-            self._state = TransactionState.ACTIVE
-
-            self.log(logging.DEBUG, f"Started MySQL transaction with isolation level {isolation_string}")
-        except ProgrammingError as e:
-            if "Transaction already in progress" in str(e) and self._transaction_level == 0:
-                self.log(logging.WARNING, "Transaction already in progress at server level")
-                self._state = TransactionState.ACTIVE
-            else:
-                error_msg = f"Failed to begin transaction: {str(e)}"
-                self.log(logging.ERROR, error_msg)
-                raise TransactionError(error_msg) from e
-        except MySQLError as e:
-            error_msg = f"Failed to begin transaction: {str(e)}"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from e
-
-    def _do_commit(self) -> None:
-        """Commit MySQL transaction."""
-        self._ensure_connection_ready()
-
-        try:
-            self._connection.commit()
-            self._state = TransactionState.COMMITTED
-            self.log(logging.DEBUG, "Committed MySQL transaction")
-        except MySQLError as e:
-            error_msg = f"Failed to commit transaction: {str(e)}"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from e
-
-    def _do_rollback(self) -> None:
-        """Rollback MySQL transaction."""
-        self._ensure_connection_ready()
-
-        try:
-            self._connection.rollback()
-            self._state = TransactionState.ROLLED_BACK
-            self.log(logging.DEBUG, "Rolled back MySQL transaction")
-        except MySQLError as e:
-            error_msg = f"Failed to rollback transaction: {str(e)}"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from e
-
-    def _do_create_savepoint(self, name: str) -> None:
-        """Create MySQL savepoint."""
-        self._ensure_connection_ready()
-
-        try:
-            cursor = self._connection.cursor()
-            cursor.execute(f"SAVEPOINT {name}")
-            cursor.close()
-            self.log(logging.DEBUG, f"Created savepoint: {name}")
-        except MySQLError as e:
-            error_msg = f"Failed to create savepoint {name}: {str(e)}"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from e
-
-    def _do_release_savepoint(self, name: str) -> None:
-        """Release MySQL savepoint."""
-        self._ensure_connection_ready()
-
-        try:
-            cursor = self._connection.cursor()
-            cursor.execute(f"RELEASE SAVEPOINT {name}")
-            cursor.close()
-            self.log(logging.DEBUG, f"Released savepoint: {name}")
-        except MySQLError as e:
-            error_msg = f"Failed to release savepoint {name}: {str(e)}"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from e
-
-    def _do_rollback_savepoint(self, name: str) -> None:
-        """Rollback to MySQL savepoint."""
-        self._ensure_connection_ready()
-
-        try:
-            cursor = self._connection.cursor()
-            cursor.execute(f"ROLLBACK TO SAVEPOINT {name}")
-            cursor.close()
-            self.log(logging.DEBUG, f"Rolled back to savepoint: {name}")
-        except MySQLError as e:
-            error_msg = f"Failed to rollback to savepoint {name}: {str(e)}"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from e
-
-    def supports_savepoint(self) -> bool:
-        """Check if savepoints are supported."""
-        return True
+        # Step 2: Execute START TRANSACTION
+        sql, params = self._build_begin_sql()
+        self.log(logging.DEBUG, f"Executing: {sql}")
+        self._backend.execute(sql, params)
