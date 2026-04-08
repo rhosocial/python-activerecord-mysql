@@ -379,6 +379,104 @@ class TestAsyncTransactionCombination:
                 assert "REPEATABLE READ" in isolation.upper() or "REPEATABLE-READ" in isolation.upper()
 
     @pytest.mark.asyncio
+    async def test_no_isolation_level_set_uses_database_default(self, async_mysql_backend):
+        """Verify that when no isolation level is set, no SET TRANSACTION is sent (async).
+
+        This tests that:
+        1. The initial isolation_level is None (not REPEATABLE_READ)
+        2. No SET TRANSACTION statement is sent when user doesn't specify isolation
+        3. MySQL uses its default isolation level (REPEATABLE READ)
+        """
+        from unittest.mock import patch
+
+        # Verify initial state is None
+        assert async_mysql_backend.transaction_manager._isolation_level is None, \
+            "Initial isolation level should be None (use database default)"
+
+        # Track SQL statements executed
+        executed_statements = []
+        original_execute = async_mysql_backend.execute
+
+        async def track_execute(sql, params=None, **kwargs):
+            executed_statements.append(sql)
+            return await original_execute(sql, params, **kwargs)
+
+        # Patch execute to track statements
+        with patch.object(async_mysql_backend, 'execute', side_effect=track_execute):
+            async with async_mysql_backend.transaction():
+                # Execute a simple query inside the transaction
+                await async_mysql_backend.fetch_all("SELECT 1 as test")
+
+        # Verify no SET TRANSACTION was sent
+        set_transaction_found = any(
+            'SET TRANSACTION' in stmt.upper() for stmt in executed_statements
+        )
+        assert not set_transaction_found, \
+            f"SET TRANSACTION should NOT be sent when isolation level not specified. Executed: {executed_statements}"
+
+        # Verify START TRANSACTION was sent
+        start_transaction_found = any(
+            'START TRANSACTION' in stmt.upper() for stmt in executed_statements
+        )
+        assert start_transaction_found, \
+            f"START TRANSACTION should be sent. Executed: {executed_statements}"
+
+    @pytest.mark.asyncio
+    async def test_explicit_isolation_level_sends_set_transaction(self, async_mysql_backend):
+        """Verify that when isolation level is explicitly set, SET TRANSACTION is sent (async).
+
+        This tests that:
+        1. Setting isolation_level property changes the internal state
+        2. SET TRANSACTION statement is sent before START TRANSACTION
+        3. The correct isolation level is used
+        """
+        from unittest.mock import patch
+
+        # Set isolation level explicitly
+        async_mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
+
+        # Verify internal state changed
+        assert async_mysql_backend.transaction_manager._isolation_level == IsolationLevel.READ_COMMITTED, \
+            "Isolation level should be READ_COMMITTED after explicit setting"
+
+        # Track SQL statements executed
+        executed_statements = []
+        original_execute = async_mysql_backend.execute
+
+        async def track_execute(sql, params=None, **kwargs):
+            executed_statements.append(sql)
+            return await original_execute(sql, params, **kwargs)
+
+        # Patch execute to track statements
+        with patch.object(async_mysql_backend, 'execute', side_effect=track_execute):
+            async with async_mysql_backend.transaction():
+                await async_mysql_backend.fetch_all("SELECT 1 as test")
+
+        # Verify SET TRANSACTION was sent with correct level
+        set_transaction_found = any(
+            'SET TRANSACTION' in stmt.upper() and 'READ COMMITTED' in stmt.upper()
+            for stmt in executed_statements
+        )
+        assert set_transaction_found, \
+            f"SET TRANSACTION READ COMMITTED should be sent. Executed: {executed_statements}"
+
+        # Verify SET TRANSACTION comes before START TRANSACTION
+        set_transaction_idx = next(
+            (i for i, stmt in enumerate(executed_statements)
+             if 'SET TRANSACTION' in stmt.upper()),
+            None
+        )
+        start_transaction_idx = next(
+            (i for i, stmt in enumerate(executed_statements)
+             if 'START TRANSACTION' in stmt.upper()),
+            None
+        )
+        assert set_transaction_idx is not None and start_transaction_idx is not None, \
+            "Both SET TRANSACTION and START TRANSACTION should be executed"
+        assert set_transaction_idx < start_transaction_idx, \
+            f"SET TRANSACTION should come before START TRANSACTION. Order: {executed_statements}"
+
+    @pytest.mark.asyncio
     async def test_isolation_level_cannot_change_during_transaction(self, async_mysql_backend, async_isolation_test_table):
         """Verify isolation level cannot be changed during active transaction (async)."""
         async with async_mysql_backend.transaction():

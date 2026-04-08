@@ -44,8 +44,9 @@ class MySQLTransactionManager(TransactionManager):
             logger: Optional logger instance.
         """
         super().__init__(backend, logger)
-        # MySQL default isolation level is REPEATABLE READ
-        self._isolation_level = IsolationLevel.REPEATABLE_READ
+        # Note: _isolation_level defaults to None (use database default).
+        # MySQL's default isolation level is REPEATABLE READ, but we only
+        # send SET TRANSACTION when user explicitly specifies a level.
 
     @property
     def isolation_level(self) -> Optional[IsolationLevel]:
