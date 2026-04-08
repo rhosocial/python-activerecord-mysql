@@ -2,119 +2,117 @@
 """
 Asynchronous transaction management for MySQL backend.
 
-This module provides async transaction management capabilities for MySQL,
-including savepoints and proper isolation level handling.
+This module provides async transaction management capabilities for MySQL.
+MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
+START TRANSACTION as separate statements. This class overrides _do_begin()
+to handle this sequencing properly.
 """
 import logging
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from rhosocial.activerecord.backend.transaction import (
     AsyncTransactionManager,
     IsolationLevel,
-    TransactionState,
-    TransactionError,
+    IsolationLevelError,
 )
-from .mixins import MySQLTransactionMixin
+
+if TYPE_CHECKING:
+    from .backend import AsyncMySQLBackend
 
 
-class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManager):
-    """Asynchronous transaction manager for MySQL backend."""
+class AsyncMySQLTransactionManager(AsyncTransactionManager):
+    """Asynchronous transaction manager for MySQL backend.
 
-    _ISOLATION_LEVELS = MySQLTransactionMixin._ISOLATION_LEVELS
+    MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
+    START TRANSACTION when a specific isolation level is needed. This class
+    overrides _do_begin() to handle this sequencing.
 
-    def __init__(self, connection, logger=None):
-        """Initialize async MySQL transaction manager."""
-        super().__init__(connection, logger)
-        self._savepoint_counter = 0
-        self._isolation_level = IsolationLevel.REPEATABLE_READ
-        self._state = TransactionState.INACTIVE
+    The format_begin_transaction() in MySQLDialect returns only "START TRANSACTION",
+    while this class handles the SET TRANSACTION step separately.
+    """
 
-    async def _ensure_connection_ready(self):
-        """Ensure connection is ready for transaction operations asynchronously."""
-        # For MySQL, we need to check if the connection exists and is valid
-        if not self._connection:
-            error_msg = "No valid connection for transaction"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg)
+    # Isolation level mapping for MySQL
+    _ISOLATION_LEVELS = {
+        IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
+        IsolationLevel.READ_COMMITTED: "READ COMMITTED",
+        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
+        IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
+    }
 
-        # Check if the connection is still alive
-        try:
-            # Use ping to check connection health
-            await self._connection.ping(reconnect=False)
-        except Exception:
-            error_msg = "Connection is not active"
-            self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg) from None
+    def __init__(self, backend: "AsyncMySQLBackend", logger=None):
+        """Initialize async MySQL transaction manager.
+
+        Args:
+            backend: AsyncMySQLBackend instance.
+            logger: Optional logger instance.
+        """
+        super().__init__(backend, logger)
+        # Note: _isolation_level defaults to None (use database default).
+        # MySQL's default isolation level is REPEATABLE READ, but we only
+        # send SET TRANSACTION when user explicitly specifies a level.
+
+    @property
+    def isolation_level(self) -> Optional[IsolationLevel]:
+        """Get the current transaction isolation level."""
+        return self._isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, level: Optional[IsolationLevel]):
+        """Set the transaction isolation level.
+
+        Note: In MySQL, isolation level can only be set before transaction starts.
+        This setter only updates the internal state. The actual SET TRANSACTION
+        statement is executed in _do_begin().
+
+        Args:
+            level: The isolation level to be set
+
+        Raises:
+            IsolationLevelError: If attempting to change isolation level while
+                                 transaction is active
+        """
+        self.log(logging.DEBUG, f"Setting isolation level to {level}")
+
+        if self.is_active:
+            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
+            raise IsolationLevelError("Cannot change isolation level during active transaction")
+
+        self._isolation_level = level
+        self.log(logging.INFO, f"Isolation level set to {level}")
+
+    def _build_set_isolation_sql(self, level: IsolationLevel) -> Tuple[str, tuple]:
+        """Build SET TRANSACTION ISOLATION LEVEL SQL statement.
+
+        Args:
+            level: The isolation level to set.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Raises:
+            IsolationLevelError: If the isolation level is not supported.
+        """
+        level_str = self._ISOLATION_LEVELS.get(level)
+        if not level_str:
+            raise IsolationLevelError(f"Unsupported isolation level: {level}")
+        return f"SET TRANSACTION ISOLATION LEVEL {level_str}", ()
 
     async def _do_begin(self) -> None:
-        """Begin a new transaction"""
-        # Set isolation level if specified
-        if self._isolation_level:
-            isolation_map = {
-                IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
-                IsolationLevel.READ_COMMITTED: "READ COMMITTED",
-                IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
-                IsolationLevel.SERIALIZABLE: "SERIALIZABLE"
-            }
-            isolation_str = isolation_map.get(self._isolation_level)
-            if isolation_str:
-                await self._execute_sql(f"SET TRANSACTION ISOLATION LEVEL {isolation_str}")
+        """Begin a new transaction with MySQL-specific sequencing.
 
-        # Start transaction
-        await self._execute_sql("START TRANSACTION")
-        self.log(logging.INFO, f"Started transaction with isolation level: {self._isolation_level or 'DEFAULT'}")
+        MySQL requires:
+        1. SET TRANSACTION ISOLATION LEVEL (if needed, before START)
+        2. START TRANSACTION [READ ONLY]
 
-    async def _do_commit(self) -> None:
-        """Commit the current transaction"""
-        await self._execute_sql("COMMIT")
-        self.log(logging.INFO, "Transaction committed successfully")
+        Each statement is executed separately via backend.execute().
+        """
+        # Step 1: Set isolation level if needed
+        if self._isolation_level is not None:
+            sql, params = self._build_set_isolation_sql(self._isolation_level)
+            self.log(logging.DEBUG, f"Executing: {sql}")
+            await self._backend.execute(sql, params)
 
-    async def _do_rollback(self) -> None:
-        """Rollback the current transaction"""
-        await self._execute_sql("ROLLBACK")
-        self.log(logging.INFO, "Transaction rolled back successfully")
-
-    async def _do_create_savepoint(self, name: str) -> None:
-        """Create a savepoint"""
-        await self._execute_sql(f"SAVEPOINT {name}")
-        self.log(logging.INFO, f"Created savepoint: {name}")
-
-    async def _do_release_savepoint(self, name: str) -> None:
-        """Release a savepoint"""
-        await self._execute_sql(f"RELEASE SAVEPOINT {name}")
-        self.log(logging.INFO, f"Released savepoint: {name}")
-
-    async def _do_rollback_savepoint(self, name: str) -> None:
-        """Rollback to a specified savepoint"""
-        await self._execute_sql(f"ROLLBACK TO SAVEPOINT {name}")
-        self.log(logging.INFO, f"Rolled back to savepoint: {name}")
-
-    async def supports_savepoint(self) -> bool:
-        """Check if savepoints are supported"""
-        # MySQL supports savepoints since version 4.0.14
-        try:
-            version = await self.backend.get_server_version()
-            # Savepoints are supported in MySQL 4.0.14 and later
-            return version >= (4, 0, 14)
-        except Exception:
-            # If we can't determine the version, assume savepoints are supported
-            return True
-
-    # The base class AsyncTransactionManager provides the public interface methods
-    # (begin, commit, rollback, create_savepoint, etc.) which delegate to the
-    # abstract methods (_do_begin, _do_commit, etc.) that we've implemented above.
-    # So we don't need to reimplement these methods here.
-
-    async def _execute_sql(self, sql: str) -> None:
-        """Execute a raw SQL statement using the connection."""
-        # Use the connection directly
-        cursor = await self._connection.cursor()
-        await cursor.execute(sql)
-        await cursor.close()
-
-    def log(self, level: int, message: str):
-        """Log a message with the specified level."""
-        if hasattr(self, '_logger') and self._logger:
-            self._logger.log(level, message)
-        else:
-            # Fallback logging
-            print(f"[TRANSACTION] {message}")
+        # Step 2: Execute START TRANSACTION
+        sql, params = self._build_begin_sql()
+        self.log(logging.DEBUG, f"Executing: {sql}")
+        await self._backend.execute(sql, params)

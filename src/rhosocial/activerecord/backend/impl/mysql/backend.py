@@ -95,9 +95,8 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
         self._version = version or (8, 0, 0)
         # Initialize MySQL-specific components (lazy load dialect)
         self._dialect = None
-        # Initialize transaction manager with connection (will be set when connected)
-        # Pass None for connection initially, it will be updated later
-        self._transaction_manager = MySQLTransactionManager(None, self.logger)
+        # Initialize transaction manager (will use backend.execute())
+        self._transaction_manager = MySQLTransactionManager(self, self.logger)
 
         # Register MySQL-specific type adapters (uses self._version)
         self._register_mysql_adapters()
