@@ -1,3 +1,12 @@
+## [v1.0.0.dev12] - 2026-04-08
+
+### Added
+
+- Added connection pool context awareness support for session-based ActiveRecord usage. ([#23](https://github.com/rhosocial/python-activerecord-mysql/issues/23))
+- Added transaction control support for MySQL dialect with TransactionControlSupport protocol implementation, including isolation level and access mode (READ ONLY/READ WRITE) control via SET TRANSACTION and START TRANSACTION statements. ([#24](https://github.com/rhosocial/python-activerecord-mysql/issues/24))
+- Added MySQL server status introspector with configuration, performance metrics, connection info, storage details, and CLI status subcommand support. ([#25](https://github.com/rhosocial/python-activerecord-mysql/issues/25))
+
+
 ## [v1.0.0.dev11] - 2026-04-06
 
 ### Added
