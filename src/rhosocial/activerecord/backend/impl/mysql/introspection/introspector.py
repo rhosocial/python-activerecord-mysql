@@ -364,6 +364,7 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
     def __init__(self, backend: Any, executor: AsyncIntrospectorExecutor) -> None:
         super().__init__(backend, executor)
         self._show_instance: Optional[AsyncShowIntrospector] = None
+        self._status_instance: Optional[AsyncMySQLStatusIntrospector] = None
 
     @property
     def show(self) -> AsyncShowIntrospector:
@@ -371,6 +372,13 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
         if self._show_instance is None:
             self._show_instance = AsyncShowIntrospector(self._backend, self._executor)
         return self._show_instance
+
+    @property
+    def status(self) -> AsyncMySQLStatusIntrospector:
+        """MySQL status introspector (lazily created)."""
+        if self._status_instance is None:
+            self._status_instance = AsyncMySQLStatusIntrospector(self._backend)
+        return self._status_instance
 
     # ------------------------------------------------------------------ #
     # get_table_info override

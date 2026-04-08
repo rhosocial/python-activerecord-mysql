@@ -1042,3 +1042,232 @@ class AsyncMySQLStatusIntrospector(
         session.password_used = bool(self._backend.config.password)
 
         return session
+
+    async def get_innodb_info(self) -> InnoDBInfo:
+        """Get InnoDB storage engine information."""
+        innodb = InnoDBInfo()
+        # Get buffer pool info
+        try:
+            result = await self._backend.execute(
+                "SHOW STATUS LIKE 'Innodb_buffer_pool%'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    key = row.get("Variable_name")
+                    value = row.get("Value")
+                    if key == "Innodb_buffer_pool_pages_total":
+                        innodb.buffer_pool_pages_total = self._parse_variable_value(value)
+                    elif key == "Innodb_buffer_pool_pages_data":
+                        innodb.buffer_pool_pages_data = self._parse_variable_value(value)
+                    elif key == "Innodb_buffer_pool_pages_dirty":
+                        innodb.buffer_pool_pages_dirty = self._parse_variable_value(value)
+                    elif key == "Innodb_buffer_pool_pages_free":
+                        innodb.buffer_pool_pages_free = self._parse_variable_value(value)
+                    elif key == "Innodb_buffer_pool_read_requests":
+                        innodb.buffer_pool_read_requests = self._parse_variable_value(value)
+                    elif key == "Innodb_buffer_pool_reads":
+                        innodb.buffer_pool_reads = self._parse_variable_value(value)
+                    elif key == "Innodb_buffer_pool_wait_free":
+                        innodb.buffer_pool_wait_free = self._parse_variable_value(value)
+        except Exception:
+            pass
+        # Get InnoDB variables
+        try:
+            result = await self._backend.execute(
+                "SHOW VARIABLES LIKE 'innodb%'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    key = row.get("Variable_name")
+                    value = row.get("Value")
+                    if key == "innodb_buffer_pool_size":
+                        innodb.buffer_pool_size = self._parse_variable_value(value)
+                    elif key == "innodb_buffer_pool_instances":
+                        innodb.buffer_pool_instances = self._parse_variable_value(value)
+                    elif key == "innodb_log_file_size":
+                        innodb.log_file_size = self._parse_variable_value(value)
+                    elif key == "innodb_log_buffer_size":
+                        innodb.log_buffer_size = self._parse_variable_value(value)
+                    elif key == "innodb_lock_wait_timeout":
+                        innodb.lock_wait_timeout = self._parse_variable_value(value)
+        except Exception:
+            pass
+        # Get InnoDB row lock status
+        try:
+            result = await self._backend.execute(
+                "SHOW STATUS LIKE 'Innodb_row_lock%'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    key = row.get("Variable_name")
+                    value = row.get("Value")
+                    if key == "Innodb_row_lock_time":
+                        innodb.row_lock_time = self._parse_variable_value(value)
+                    elif key == "Innodb_row_lock_waits":
+                        innodb.row_lock_waits = self._parse_variable_value(value)
+                    elif key == "Innodb_row_lock_time_avg":
+                        total_lock_time = innodb.row_lock_time or 0
+                        lock_waits = innodb.row_lock_waits or 1
+                        avg_time = total_lock_time / lock_waits if lock_waits > 0 else 0
+                        innodb.row_lock_time_avg = round(avg_time, 2)
+                    elif key == "Innodb_rows_read":
+                        innodb.rows_read = self._parse_variable_value(value)
+                    elif key == "Innodb_rows_inserted":
+                        innodb.rows_inserted = self._parse_variable_value(value)
+                    elif key == "Innodb_rows_updated":
+                        innodb.rows_updated = self._parse_variable_value(value)
+                    elif key == "Innodb_rows_deleted":
+                        innodb.rows_deleted = self._parse_variable_value(value)
+                    elif key == "Innodb_data_reads":
+                        innodb.data_reads = self._parse_variable_value(value)
+                    elif key == "Innodb_data_writes":
+                        innodb.data_writes = self._parse_variable_value(value)
+                    elif key == "Innodb_os_log_fsyncs":
+                        innodb.os_fsyncs = self._parse_variable_value(value)
+                    elif key == "Innodb_os_file_reads":
+                        innodb.os_file_reads = self._parse_variable_value(value)
+                    elif key == "Innodb_os_file_writes":
+                        innodb.os_file_writes = self._parse_variable_value(value)
+        except Exception:
+            pass
+        return innodb
+
+    async def get_binary_log_info(self) -> BinaryLogInfo:
+        """Get binary log information."""
+        binary_log = BinaryLogInfo()
+        # Check if binary logging is enabled
+        try:
+            result = await self._backend.execute(
+                "SHOW VARIABLES LIKE 'log_bin'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    key = row.get("Variable_name")
+                    value = row.get("Value")
+                    if key == "log_bin":
+                        binary_log.log_enabled = str(value).lower() in ("on", "1")
+                    elif key == "binlog_format":
+                        binary_log.log_format = value
+        except Exception:
+            pass
+        # Get binary log files
+        try:
+            result = await self._backend.execute("SHOW BINARY LOGS", ())
+            if result and result.data:
+                log_files = []
+                total_size = 0
+                for row in result.data:
+                    log_file = row.get("Log_name")
+                    if log_file:
+                        log_files.append(log_file)
+                        file_size = row.get("File_size")
+                        if file_size:
+                            total_size += self._parse_variable_value(file_size)
+                binary_log.log_files = log_files
+                binary_log.log_size_bytes = total_size
+        except Exception:
+            pass
+        # Get current binary log file and position
+        try:
+            result = await self._backend.execute("SHOW MASTER STATUS", ())
+            if result and result.data:
+                row = result.data[0]
+                binary_log.current_log_file = row.get("File")
+                binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+        except Exception:
+            pass
+        # Get GTID info
+        try:
+            result = await self._backend.execute(
+                "SHOW VARIABLES LIKE 'gtid_mode'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    key = row.get("Variable_name")
+                    if key == "gtid_mode":
+                        binary_log.gtid_mode = row.get("Value")
+        except Exception:
+            pass
+        return binary_log
+
+    async def get_slow_query_info(self) -> SlowQueryInfo:
+        """Get slow query log information."""
+        slow_query = SlowQueryInfo()
+        # Get slow query log settings
+        try:
+            result = await self._backend.execute(
+                "SHOW VARIABLES LIKE 'slow_query_log%'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    key = row.get("Variable_name")
+                    value = row.get("Value")
+                    if key == "slow_query_log":
+                        slow_query.slow_query_log_enabled = str(value).lower() in ("on", "1")
+                    elif key == "slow_query_log_file":
+                        slow_query.slow_query_log_file = value
+        except Exception:
+            pass
+        # Get long_query_time
+        try:
+            result = await self._backend.execute(
+                "SHOW VARIABLES LIKE 'long_query_time'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    value = row.get("Value")
+                    if value:
+                        slow_query.long_query_time = float(value)
+        except Exception:
+            pass
+        # Get slow query count
+        try:
+            result = await self._backend.execute(
+                "SHOW STATUS LIKE 'Slow_queries'",
+                ()
+            )
+            if result and result.data:
+                for row in result.data:
+                    value = row.get("Value")
+                    if value:
+                        slow_query.slow_queries_count = self._parse_variable_value(value)
+        except Exception:
+            pass
+        return slow_query
+
+    async def get_mysql_replication_info(self) -> MySQLReplicationInfo:
+        """Get MySQL replication information."""
+        repl = MySQLReplicationInfo()
+        # Check if server is configured as master
+        try:
+            result = await self._backend.execute("SHOW MASTER STATUS", ())
+            if result and result.data:
+                repl.is_master = True
+                row = result.data[0]
+                repl.master_log_file = row.get("File")
+                repl.master_log_position = self._parse_variable_value(row.get("Position"))
+        except Exception:
+            pass
+        # Check if server is configured as slave
+        try:
+            result = await self._backend.execute("SHOW SLAVE STATUS", ())
+            if result and result.data:
+                repl.is_slave = True
+                row = result.data[0]
+                repl.slave_io_running = row.get("Slave_IO_Running") == "Yes"
+                repl.slave_sql_running = row.get("Slave_SQL_Running") == "Yes"
+                repl.slave_master_host = row.get("Master_Host")
+                repl.slave_master_port = row.get("Master_Port")
+                repl.slave_relay_log_file = row.get("Relay_Log_File")
+                repl.slave_relay_log_pos = self._parse_variable_value(row.get("Relay_Log_Pos"))
+                repl.slave_last_error = row.get("Last_Error")
+        except Exception:
+            pass
+        return repl
