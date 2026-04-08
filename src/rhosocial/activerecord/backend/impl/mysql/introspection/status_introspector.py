@@ -714,6 +714,10 @@ class SyncMySQLStatusIntrospector(
                         binary_log.gtid_executed = row.get("Value")
         except Exception:
             pass
+        # Add note if binary logging is disabled
+        if binary_log.log_enabled is False:
+            binary_log.extra["note"] = "Binary logging is not enabled on this server."
+            binary_log.extra["hint"] = "Set log_bin=ON to enable binary logging for replication and point-in-time recovery."
         return binary_log
     def list_processes(self) -> List[ProcessInfo]:
         """List current running processes/queries."""
@@ -1355,6 +1359,10 @@ class AsyncMySQLStatusIntrospector(
                         binary_log.gtid_mode = row.get("Value")
         except Exception:
             pass
+        # Add note if binary logging is disabled
+        if binary_log.log_enabled is False:
+            binary_log.extra["note"] = "Binary logging is not enabled on this server."
+            binary_log.extra["hint"] = "Set log_bin=ON to enable binary logging for replication and point-in-time recovery."
         return binary_log
 
     async def list_processes(self) -> List[ProcessInfo]:
