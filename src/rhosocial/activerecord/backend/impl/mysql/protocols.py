@@ -80,6 +80,25 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
+    def supports_json_table(self) -> bool:
+        """Whether JSON_TABLE is supported.
+
+        JSON_TABLE is supported in MySQL 8.0.4+ for converting
+        JSON data to relational format.
+        """
+        ...
+
+    def format_json_table_expression(self, expr: Any) -> Tuple[str, tuple]:
+        """Format JSON_TABLE expression.
+
+        Args:
+            expr: JSONTableExpression instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
 
 @runtime_checkable
 class MySQLTriggerSupport(Protocol):

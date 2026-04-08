@@ -231,10 +231,6 @@ class MySQLDialect(
         """MySQL uses '->' for JSON access (shorthand for JSON_EXTRACT)."""
         return "->"
 
-    def supports_json_table(self) -> bool:
-        """MySQL does not have a direct JSON_TABLE equivalent, but has JSON functions."""
-        return False  # MySQL doesn't have JSON_TABLE function
-
     def supports_rollup(self) -> bool:
         """ROLLUP is supported using WITH ROLLUP syntax since early MySQL versions."""
         return True  # Supported since MySQL 4.0.0
@@ -1302,5 +1298,69 @@ class MySQLDialect(
             parts.append("SET " + ", ".join(set_parts))
 
         return " ".join(parts), ()
+
+    def supports_json_table(self) -> bool:
+        """Whether JSON_TABLE is supported.
+
+        JSON_TABLE is supported in MySQL 8.0.4+.
+        """
+        return self.version >= (8, 0, 4)
+
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Format JSON_TABLE expression.
+
+        Args:
+            expr: JSONTableExpression instance
+
+        Returns:
+            Tuple of (SQL string, empty tuple)
+        """
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["JSON_TABLE("]
+        parts.append(expr.json_doc)
+        parts.append(",")
+        parts.append(expr.path)
+        parts.append(" COLUMNS (")
+
+        # Format columns
+        column_parts = []
+        for col in expr.columns:
+            if col.ordinality:
+                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
+            elif col.exists:
+                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'")
+            else:
+                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                if col.path:
+                    col_def += f" PATH '{col.path}'"
+                if col.error_handling:
+                    if col.error_handling.upper() == 'DEFAULT':
+                        col_def += f" DEFAULT {col.default_value} ON ERROR"
+                    else:
+                        col_def += f" {col.error_handling.upper()} ON ERROR"
+                column_parts.append(col_def)
+
+        # Format nested paths
+        for nested in expr.nested_paths:
+            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            nested_cols = []
+            for col in nested.columns:
+                if col.ordinality:
+                    nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
+                else:
+                    nested_cols.append(f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'")
+            nested_def += ", ".join(nested_cols) + ")"
+            if nested.alias:
+                nested_def = f"{nested.alias} AS " + nested_def
+            column_parts.append(nested_def)
+
+        parts.append(", ".join(column_parts))
+        parts.append("))")
+
+        if expr.alias:
+            parts.append(f" AS {expr.alias}")
+
+        return "".join(parts), ()
 
     # endregion
