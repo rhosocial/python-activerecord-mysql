@@ -178,7 +178,7 @@ class TestMySQLReplaceInto:
                 ),
                 columns=["email", "name"],
                 dialect_options={"replace": True},
-                on_conflict=OnConflictClause(dialect)  # Invalid combination
+                on_conflict=OnConflictClause(dialect, ["email"], do_nothing=True)  # Invalid combination
             )
             expr.to_sql()
 
