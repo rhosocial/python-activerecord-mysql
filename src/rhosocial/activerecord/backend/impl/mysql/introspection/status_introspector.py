@@ -237,6 +237,11 @@ class SyncMySQLStatusIntrospector(
         databases = self.list_databases()
         users = self.list_users()
         session = self.get_session_info()
+        innodb = self.get_innodb_info()
+        binary_log = self.get_binary_log_info()
+        processes = self.list_processes()
+        slow_query = self.get_slow_query_info()
+        mysql_replication = self.get_mysql_replication_info()
 
         version = self._get_version_string()
 
@@ -249,6 +254,11 @@ class SyncMySQLStatusIntrospector(
             users=users,
             version=version,
             session=session,
+            innodb=innodb,
+            binary_log=binary_log,
+            processes=processes,
+            slow_query=slow_query,
+            mysql_replication=mysql_replication,
         )
 
     def _get_version_string(self) -> str:
@@ -1195,8 +1205,29 @@ class AsyncMySQLStatusIntrospector(
             pass
         return binary_log
 
+    async def list_processes(self) -> List[ProcessInfo]:
+        """List current running processes/queries."""
+        processes = []
+        try:
+            result = await self._backend.execute("SHOW FULL PROCESSLIST", ())
+            if result and result.data:
+                for row in result.data:
+                    proc = ProcessInfo(
+                        id=row.get("Id", 0) or row.get("ID"),
+                        user=row.get("User"),
+                        host=row.get("Host"),
+                        database=row.get("db"),
+                        command=row.get("Command"),
+                        time=row.get("Time"),
+                        state=row.get("State"),
+                        info=row.get("Info"),
+                    )
+                    processes.append(proc)
+        except Exception:
+            pass
+        return processes
+
     async def get_slow_query_info(self) -> SlowQueryInfo:
-        """Get slow query log information."""
         slow_query = SlowQueryInfo()
         # Get slow query log settings
         try:
