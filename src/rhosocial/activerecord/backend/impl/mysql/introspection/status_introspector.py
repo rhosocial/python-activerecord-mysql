@@ -638,54 +638,57 @@ class SyncMySQLStatusIntrospector(
                         binary_log.log_format = value
         except Exception:
             pass
-        # Get binary log files
-        try:
-            result = self._backend.execute("SHOW BINARY LOGS", ())
-            if result and result.data:
-                log_files = []
-                total_size = 0
-                for row in result.data:
-                    log_file = row.get("Log_name")
-                    if log_file:
-                        log_files.append(log_file)
-                        # Get file size from the File_size column if available
-                        file_size = row.get("File_size")
-                        if file_size:
-                            total_size += self._parse_variable_value(file_size)
-                binary_log.log_files = log_files
-                binary_log.log_size_bytes = total_size
-        except Exception:
-            pass
+        # Get binary log files (only if binary logging is enabled)
+        if binary_log.log_enabled:
+            try:
+                result = self._backend.execute("SHOW BINARY LOGS", ())
+                if result and result.data:
+                    log_files = []
+                    total_size = 0
+                    for row in result.data:
+                        log_file = row.get("Log_name")
+                        if log_file:
+                            log_files.append(log_file)
+                            # Get file size from the File_size column if available
+                            file_size = row.get("File_size")
+                            if file_size:
+                                total_size += self._parse_variable_value(file_size)
+                    binary_log.log_files = log_files
+                    binary_log.log_size_bytes = total_size
+            except Exception:
+                pass
         # Get current binary log file and position
-        # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
-        try:
-            # Get server version first
-            version_result = self._backend.execute("SELECT VERSION()", ())
-            version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+        # Only query if binary logging is enabled
+        if binary_log.log_enabled:
+            # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
+            try:
+                # Get server version first
+                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
 
-            if self._is_mysql_version_at_least(version_str, 8, 4):
-                # MySQL 9.0+: use performance_schema.log_status
-                result = self._backend.execute(
-                    "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                    "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
-                    "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
-                    "FROM performance_schema.log_status",
-                    ()
-                )
-                if result and result.data:
-                    row = result.data[0]
-                    binary_log.current_log_file = row.get("File")
-                    binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
-                    binary_log.gtid_executed = row.get("Gtid")
-            else:
-                # MySQL < 9.0: use SHOW MASTER STATUS
-                result = self._backend.execute("SHOW MASTER STATUS", ())
-                if result and result.data:
-                    row = result.data[0]
-                    binary_log.current_log_file = row.get("File")
-                    binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
-        except Exception:
-            pass
+                if self._is_mysql_version_at_least(version_str, 8, 4):
+                    # MySQL 8.4+: use performance_schema.log_status
+                    result = self._backend.execute(
+                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
+                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
+                        "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
+                        "FROM performance_schema.log_status",
+                        ()
+                    )
+                    if result and result.data:
+                        row = result.data[0]
+                        binary_log.current_log_file = row.get("File")
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.gtid_executed = row.get("Gtid")
+                else:
+                    # MySQL < 8.4: use SHOW MASTER STATUS
+                    result = self._backend.execute("SHOW MASTER STATUS", ())
+                    if result and result.data:
+                        row = result.data[0]
+                        binary_log.current_log_file = row.get("File")
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+            except Exception:
+                pass
         # Get GTID info
         try:
             result = self._backend.execute(
@@ -792,48 +795,62 @@ class SyncMySQLStatusIntrospector(
         except Exception:
             pass
         # Check if this is a master
-        # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
+        # First check if binary logging is enabled
+        log_bin_enabled = False
         try:
-            # Get server version first
-            version_result = self._backend.execute("SELECT VERSION()", ())
-            version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
-
-            if self._is_mysql_version_at_least(version_str, 8, 4):
-                # MySQL 9.0+: use performance_schema.log_status
-                result = self._backend.execute(
-                    "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                    "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
-                    "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
-                    "FROM performance_schema.log_status",
-                    ()
-                )
-                if result and result.data:
-                    repl_info.is_master = True
-                    master_info = ReplicationMasterInfo()
-                    row = result.data[0]
-                    master_info.binary_log_file = row.get("File")
-                    master_info.binary_log_position = self._parse_variable_value(row.get("Position"))
-                    repl_info.master_info = master_info
-            else:
-                # MySQL < 9.0: use SHOW MASTER STATUS
-                result = self._backend.execute("SHOW MASTER STATUS", ())
-                if result and result.data:
-                    repl_info.is_master = True
-                    master_info = ReplicationMasterInfo()
-                    row = result.data[0]
-                    master_info.binary_log_file = row.get("File")
-                    master_info.binary_log_position = self._parse_variable_value(row.get("Position"))
-                    # Parse comma-separated list
-                    do_db = row.get("Binlog_Do_DB", "")
-                    if do_db:
-                        master_info.binlog_do_db = [db.strip() for db in do_db.split(",") if db.strip()]
-                    ignore_db = row.get("Binlog_Ignore_DB", "")
-                    if ignore_db:
-                        master_info.binlog_ignore_db = [db.strip() for db in ignore_db.split(",") if db.strip()]
-                    master_info.gtid_executed = row.get("Executed_Gtid_Set")
-                    repl_info.master_info = master_info
+            result = self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
+            if result and result.data:
+                for row in result.data:
+                    if row.get("Variable_name") == "log_bin":
+                        log_bin_enabled = str(row.get("Value")).lower() in ("on", "1")
+                        break
         except Exception:
             pass
+
+        # Only query master status if binary logging is enabled
+        if log_bin_enabled:
+            # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
+            try:
+                # Get server version first
+                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+
+                if self._is_mysql_version_at_least(version_str, 8, 4):
+                    # MySQL 9.0+: use performance_schema.log_status
+                    result = self._backend.execute(
+                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
+                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
+                        "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
+                        "FROM performance_schema.log_status",
+                        ()
+                    )
+                    if result and result.data:
+                        repl_info.is_master = True
+                        master_info = ReplicationMasterInfo()
+                        row = result.data[0]
+                        master_info.binary_log_file = row.get("File")
+                        master_info.binary_log_position = self._parse_variable_value(row.get("Position"))
+                        repl_info.master_info = master_info
+                else:
+                    # MySQL < 9.0: use SHOW MASTER STATUS
+                    result = self._backend.execute("SHOW MASTER STATUS", ())
+                    if result and result.data:
+                        repl_info.is_master = True
+                        master_info = ReplicationMasterInfo()
+                        row = result.data[0]
+                        master_info.binary_log_file = row.get("File")
+                        master_info.binary_log_position = self._parse_variable_value(row.get("Position"))
+                        # Parse comma-separated list
+                        do_db = row.get("Binlog_Do_DB", "")
+                        if do_db:
+                            master_info.binlog_do_db = [db.strip() for db in do_db.split(",") if db.strip()]
+                        ignore_db = row.get("Binlog_Ignore_DB", "")
+                        if ignore_db:
+                            master_info.binlog_ignore_db = [db.strip() for db in ignore_db.split(",") if db.strip()]
+                        master_info.gtid_executed = row.get("Executed_Gtid_Set")
+                        repl_info.master_info = master_info
+            except Exception:
+                pass
         # Check if this is a slave
         # MySQL 9.0+ removed SHOW SLAVE STATUS, use performance_schema tables instead
         try:
@@ -1275,53 +1292,56 @@ class AsyncMySQLStatusIntrospector(
                         binary_log.log_format = value
         except Exception:
             pass
-        # Get binary log files
-        try:
-            result = await self._backend.execute("SHOW BINARY LOGS", ())
-            if result and result.data:
-                log_files = []
-                total_size = 0
-                for row in result.data:
-                    log_file = row.get("Log_name")
-                    if log_file:
-                        log_files.append(log_file)
-                        file_size = row.get("File_size")
-                        if file_size:
-                            total_size += self._parse_variable_value(file_size)
-                binary_log.log_files = log_files
-                binary_log.log_size_bytes = total_size
-        except Exception:
-            pass
+        # Get binary log files (only if binary logging is enabled)
+        if binary_log.log_enabled:
+            try:
+                result = await self._backend.execute("SHOW BINARY LOGS", ())
+                if result and result.data:
+                    log_files = []
+                    total_size = 0
+                    for row in result.data:
+                        log_file = row.get("Log_name")
+                        if log_file:
+                            log_files.append(log_file)
+                            file_size = row.get("File_size")
+                            if file_size:
+                                total_size += self._parse_variable_value(file_size)
+                    binary_log.log_files = log_files
+                    binary_log.log_size_bytes = total_size
+            except Exception:
+                pass
         # Get current binary log file and position
-        # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
-        try:
-            # Get server version first
-            version_result = await self._backend.execute("SELECT VERSION()", ())
-            version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+        # Only query if binary logging is enabled
+        if binary_log.log_enabled:
+            # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
+            try:
+                # Get server version first
+                version_result = await self._backend.execute("SELECT VERSION()", ())
+                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
 
-            if self._is_mysql_version_at_least(version_str, 8, 4):
-                # MySQL 9.0+: use performance_schema.log_status
-                result = await self._backend.execute(
-                    "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                    "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
-                    "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
-                    "FROM performance_schema.log_status",
-                    ()
-                )
-                if result and result.data:
-                    row = result.data[0]
-                    binary_log.current_log_file = row.get("File")
-                    binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
-                    binary_log.gtid_executed = row.get("Gtid")
-            else:
-                # MySQL < 9.0: use SHOW MASTER STATUS
-                result = await self._backend.execute("SHOW MASTER STATUS", ())
-                if result and result.data:
-                    row = result.data[0]
-                    binary_log.current_log_file = row.get("File")
-                    binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
-        except Exception:
-            pass
+                if self._is_mysql_version_at_least(version_str, 8, 4):
+                    # MySQL 8.4+: use performance_schema.log_status
+                    result = await self._backend.execute(
+                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
+                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
+                        "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
+                        "FROM performance_schema.log_status",
+                        ()
+                    )
+                    if result and result.data:
+                        row = result.data[0]
+                        binary_log.current_log_file = row.get("File")
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.gtid_executed = row.get("Gtid")
+                else:
+                    # MySQL < 8.4: use SHOW MASTER STATUS
+                    result = await self._backend.execute("SHOW MASTER STATUS", ())
+                    if result and result.data:
+                        row = result.data[0]
+                        binary_log.current_log_file = row.get("File")
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+            except Exception:
+                pass
         # Get GTID info
         try:
             result = await self._backend.execute(
@@ -1415,31 +1435,44 @@ class AsyncMySQLStatusIntrospector(
         except Exception:
             version_str = ""
 
-        # Check if server is configured as master
+        # Check if binary logging is enabled first
+        log_bin_enabled = False
         try:
-            if self._is_mysql_version_at_least(version_str, 8, 4):
-                # MySQL 9.0+: use performance_schema.log_status
-                result = await self._backend.execute(
-                    "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                    "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position "
-                    "FROM performance_schema.log_status",
-                    ()
-                )
-                if result and result.data:
-                    repl.is_master = True
-                    row = result.data[0]
-                    repl.master_log_file = row.get("File")
-                    repl.master_log_position = self._parse_variable_value(row.get("Position"))
-            else:
-                # MySQL < 9.0: use SHOW MASTER STATUS
-                result = await self._backend.execute("SHOW MASTER STATUS", ())
-                if result and result.data:
-                    repl.is_master = True
-                    row = result.data[0]
-                    repl.master_log_file = row.get("File")
-                    repl.master_log_position = self._parse_variable_value(row.get("Position"))
+            result = await self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
+            if result and result.data:
+                for row in result.data:
+                    if row.get("Variable_name") == "log_bin":
+                        log_bin_enabled = str(row.get("Value")).lower() in ("on", "1")
+                        break
         except Exception:
             pass
+
+        # Check if server is configured as master (only if binary logging is enabled)
+        if log_bin_enabled:
+            try:
+                if self._is_mysql_version_at_least(version_str, 8, 4):
+                    # MySQL 8.4+: use performance_schema.log_status
+                    result = await self._backend.execute(
+                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
+                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position "
+                        "FROM performance_schema.log_status",
+                        ()
+                    )
+                    if result and result.data:
+                        repl.is_master = True
+                        row = result.data[0]
+                        repl.master_log_file = row.get("File")
+                        repl.master_log_position = self._parse_variable_value(row.get("Position"))
+                else:
+                    # MySQL < 8.4: use SHOW MASTER STATUS
+                    result = await self._backend.execute("SHOW MASTER STATUS", ())
+                    if result and result.data:
+                        repl.is_master = True
+                        row = result.data[0]
+                        repl.master_log_file = row.get("File")
+                        repl.master_log_position = self._parse_variable_value(row.get("Position"))
+            except Exception:
+                pass
         # Check if server is configured as slave
         try:
             if self._is_mysql_version_at_least(version_str, 8, 4):
