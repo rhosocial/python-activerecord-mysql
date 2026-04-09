@@ -205,3 +205,7 @@ local_config.yml
 # MySQL scenario config files
 tests/config/mysql_scenarios.yaml
 tests/config/mysql_scenarios.yml
+
+# Claude Code temporary files (local only)
+.claude/tmp/
+.claude/plans/

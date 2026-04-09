@@ -280,3 +280,10 @@ def check_protocol_requirements(request):
                                         )
             except Exception:
                 pass
+
+
+@pytest.fixture(scope="function")
+def mysql_dialect():
+    """Fixture providing MySQLDialect instance for testing transaction expressions."""
+    from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+    return MySQLDialect()
