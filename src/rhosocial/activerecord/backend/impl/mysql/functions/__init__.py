@@ -80,6 +80,16 @@ from .enum_set import (
     field,
 )
 
+from .bitwise import (
+    bit_and,
+    bit_or,
+    bit_xor,
+    bit_count,
+    bit_get_bit,
+    bit_shift_left,
+    bit_shift_right,
+)
+
 __all__ = [
     # JSON functions
     "json_extract",
@@ -120,4 +130,12 @@ __all__ = [
     "max_",
     "min_",
     "avg",
+    # Bitwise functions
+    "bit_and",
+    "bit_or",
+    "bit_xor",
+    "bit_count",
+    "bit_get_bit",
+    "bit_shift_left",
+    "bit_shift_right",
 ]
