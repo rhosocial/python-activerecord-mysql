@@ -32,6 +32,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     IndexSupport,
     SequenceSupport,
     TableSupport,
+    ConstraintSupport,
     IntrospectionSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
@@ -59,6 +60,7 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     IndexMixin,
     SequenceMixin,
     TableMixin,
+    ConstraintMixin,
     IntrospectionMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
@@ -115,6 +117,7 @@ class MySQLDialect(
     IndexMixin,
     SequenceMixin,
     TableMixin,
+    ConstraintMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTriggerMixin,
     MySQLTableMixin,
@@ -149,6 +152,7 @@ class MySQLDialect(
     IndexSupport,
     SequenceSupport,
     TableSupport,
+    ConstraintSupport,
     IntrospectionSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
@@ -741,6 +745,10 @@ class MySQLDialect(
         TableConstraintType
     ) -> Tuple[str, List[Any]]:
         """Format a table-level constraint."""
+        from rhosocial.activerecord.backend.expression.statements import (
+            ForeignKeyConstraint, ReferentialAction,
+        )
+
         parts = []
         params: List[Any] = []
 
@@ -765,6 +773,22 @@ class MySQLDialect(
                 parts.append(
                     f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})"
                 )
+
+            # ON DELETE / ON UPDATE
+            if isinstance(t_const, ForeignKeyConstraint):
+                if t_const.on_delete != ReferentialAction.NO_ACTION:
+                    parts.append(f"ON DELETE {t_const.on_delete.value}")
+                if t_const.on_update != ReferentialAction.NO_ACTION:
+                    parts.append(f"ON UPDATE {t_const.on_update.value}")
+
+        elif t_const.constraint_type == TableConstraintType.CHECK and t_const.check_condition:
+            check_sql, check_params = t_const.check_condition.to_sql()
+            parts.append(f"CHECK ({check_sql})")
+            params.extend(check_params)
+
+            # ENFORCED / NOT ENFORCED (MySQL 8.0.16+)
+            if t_const.dialect_options and t_const.dialect_options.get('enforced') is False:
+                parts.append("NOT ENFORCED")
 
         return ' '.join(parts), params
 
@@ -967,6 +991,28 @@ class MySQLDialect(
         MySQL 8.0.16+ enforces CHECK constraints (before that, they were parsed but ignored).
         """
         return self.version >= (8, 0, 16)
+
+    # ConstraintSupport protocol implementation
+    def supports_constraint_enforced(self) -> bool:
+        """Whether ENFORCED/NOT ENFORCED constraint control is supported.
+
+        MySQL 8.0.16+ supports ENFORCED/NOT ENFORCED (SQL:2016).
+        """
+        return self.version >= (8, 0, 16)
+
+    def supports_fk_match(self) -> bool:
+        """Whether MATCH {SIMPLE|PARTIAL|FULL} is supported.
+
+        MySQL does not support MATCH clause in FOREIGN KEY.
+        """
+        return False
+
+    def supports_deferrable_constraint(self) -> bool:
+        """Whether DEFERRABLE constraints are supported.
+
+        MySQL does not support DEFERRABLE (SQL:1999).
+        """
+        return False
 
     def supports_generated_column(self) -> bool:
         """Whether generated (computed) columns are supported.

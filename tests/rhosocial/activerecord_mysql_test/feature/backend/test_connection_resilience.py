@@ -938,8 +938,9 @@ class TestTransactionInterruption:
         print_separator("Test: Transaction Lost After Connection Killed")
 
         # Create a test table for transaction verification
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_transaction_integrity")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_transaction_integrity (
+            CREATE TABLE test_transaction_integrity (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 value VARCHAR(100)
             )
@@ -1067,8 +1068,9 @@ class TestAsyncTransactionInterruption:
         print_separator("Test: Async Transaction Lost After Connection Killed")
 
         # Create a test table
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_transaction_integrity")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_transaction_integrity (
+            CREATE TABLE test_async_transaction_integrity (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 value VARCHAR(100)
             )
@@ -1393,8 +1395,9 @@ class TestConcurrentAccess:
         print_separator("Test: Transaction Isolation on Shared Backend")
 
         # Create test table
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_concurrent_transaction")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_concurrent_transaction (
+            CREATE TABLE test_concurrent_transaction (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 thread_id INT,
                 value VARCHAR(100)
@@ -1610,8 +1613,9 @@ class TestAsyncConcurrentAccess:
         print_separator("Test: Async Transaction Isolation on Shared Backend")
 
         # Create test table
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_concurrent_transaction")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_concurrent_transaction (
+            CREATE TABLE test_async_concurrent_transaction (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 task_id INT,
                 value VARCHAR(100)
@@ -1739,8 +1743,9 @@ class TestNetworkInterruptionSimulation:
         print_separator("Test: Lock Wait Timeout")
 
         # Create test table
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_lock_timeout")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_lock_timeout (
+            CREATE TABLE test_lock_timeout (
                 id INT PRIMARY KEY,
                 value VARCHAR(100)
             )
@@ -1824,8 +1829,9 @@ class TestAsyncNetworkInterruptionSimulation:
         """Test lock wait timeout in async context."""
         print_separator("Test: Async Lock Wait Timeout")
 
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_lock_timeout")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_lock_timeout (
+            CREATE TABLE test_async_lock_timeout (
                 id INT PRIMARY KEY,
                 value VARCHAR(100)
             )
@@ -2031,15 +2037,17 @@ class TestMultiModelSharedBackend:
         print_separator("Test: Multi-Model Shared Backend Same Connection")
 
         # Create test tables for different "models"
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_users")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_users (
+            CREATE TABLE test_users (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100),
                 balance DECIMAL(10, 2) DEFAULT 0
             )
         """)
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_orders")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_orders (
+            CREATE TABLE test_orders (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT,
                 amount DECIMAL(10, 2)
@@ -2090,15 +2098,17 @@ class TestMultiModelSharedBackend:
         print_separator("Test: Cross-Model Transaction Atomicity")
 
         # Create test tables
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_accounts")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_accounts (
+            CREATE TABLE test_accounts (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100),
                 balance DECIMAL(10, 2) DEFAULT 0
             )
         """)
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_transactions")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_transactions (
+            CREATE TABLE test_transactions (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 from_account INT,
                 to_account INT,
@@ -2170,14 +2180,16 @@ class TestMultiModelSharedBackend:
         """
         print_separator("Test: Cross-Model Transaction Rollback")
 
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_items")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_items (
+            CREATE TABLE test_items (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100)
             )
         """)
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_inventory")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_inventory (
+            CREATE TABLE test_inventory (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 item_id INT,
                 quantity INT
@@ -2233,14 +2245,16 @@ class TestAsyncMultiModelSharedBackend:
         """Test that async models sharing a backend use the same connection."""
         print_separator("Test: Async Multi-Model Shared Backend Same Connection")
 
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_users")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_users (
+            CREATE TABLE test_async_users (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100)
             )
         """)
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_posts")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_posts (
+            CREATE TABLE test_async_posts (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT,
                 title VARCHAR(100)
@@ -2278,8 +2292,9 @@ class TestAsyncMultiModelSharedBackend:
         """Test async cross-model transaction atomicity."""
         print_separator("Test: Async Cross-Model Transaction Atomicity")
 
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_accounts")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_accounts (
+            CREATE TABLE test_async_accounts (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100),
                 balance DECIMAL(10, 2) DEFAULT 0
@@ -2348,8 +2363,9 @@ class TestBulkOperationInterruption:
         """
         print_separator("Test: Bulk Insert Partial Completion")
 
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_bulk_items")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_bulk_items (
+            CREATE TABLE test_bulk_items (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -2421,8 +2437,9 @@ class TestBulkOperationInterruption:
         """
         print_separator("Test: Bulk Update Interruption")
 
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_bulk_updates")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_bulk_updates (
+            CREATE TABLE test_bulk_updates (
                 id INT PRIMARY KEY,
                 value INT DEFAULT 0
             )
@@ -2501,8 +2518,9 @@ class TestAsyncBulkOperationInterruption:
         """Test async bulk insert partial completion."""
         print_separator("Test: Async Bulk Insert Partial Completion")
 
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_bulk_items")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_bulk_items (
+            CREATE TABLE test_async_bulk_items (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100)
             )
@@ -2765,8 +2783,9 @@ class TestNestedTransactionInterruption:
         """
         print_separator("Test: Savepoint Lost on Reconnect")
 
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_savepoint_items")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_savepoint_items (
+            CREATE TABLE test_savepoint_items (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100)
             )
@@ -2836,8 +2855,9 @@ class TestAsyncNestedTransactionInterruption:
         """Test async savepoint lost on reconnect."""
         print_separator("Test: Async Savepoint Lost on Reconnect")
 
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_savepoint_items")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_savepoint_items (
+            CREATE TABLE test_async_savepoint_items (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 name VARCHAR(100)
             )
@@ -2913,8 +2933,9 @@ class TestLargeResultSetInterruption:
         """
         print_separator("Test: Interrupt During Fetch")
 
+        mysql_backend_single.execute("DROP TABLE IF EXISTS test_large_result")
         mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_large_result (
+            CREATE TABLE test_large_result (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 data VARCHAR(100)
             )
@@ -2963,8 +2984,9 @@ class TestAsyncLargeResultSetInterruption:
         """Test async interrupt during fetch."""
         print_separator("Test: Async Interrupt During Fetch")
 
+        await async_mysql_backend_single.execute("DROP TABLE IF EXISTS test_async_large_result")
         await async_mysql_backend_single.execute("""
-            CREATE TABLE IF NOT EXISTS test_async_large_result (
+            CREATE TABLE test_async_large_result (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 data VARCHAR(100)
             )
