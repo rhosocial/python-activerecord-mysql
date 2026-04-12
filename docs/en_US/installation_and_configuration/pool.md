@@ -182,4 +182,4 @@ These fields are parsed by `MySQLConnectionConfig` (via `ConnectionPoolMixin`) a
 
 - [Connection Configuration](configuration.md) — full list of `MySQLConnectionConfig` options
 - [Troubleshooting: Connection Issues](../troubleshooting/connection.md) — diagnosing connection errors
-- [Async Connection Pool Patterns](../../../examples/async_connection_pool.py) — runnable demonstration script
+- [Async Connection Pool Patterns](../../../examples/chapter_02_connection_pool/async_connection_pool.py) — runnable demonstration script
