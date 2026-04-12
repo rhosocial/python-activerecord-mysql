@@ -778,9 +778,180 @@ def worker_async(post_ids: list) -> int:
 
 No special configuration needed; default event loop works correctly.
 
-### 9.4 Conclusions
+### 9.4 BackendGroup + backend.context() Thread Safety Verification (exp6)
+
+#### Experiment Purpose
+
+Verify if BackendGroup + backend.context() provides thread-safe connection management.
+
+#### Experiment Results
+
+| Scenario | Success | Errors | Conclusion |
+|----------|---------|--------|------------|
+| Scenario 1: backend.context() | 5 | 3 (75% failed) | ❌ Race conditions with multithreading |
+| Scenario 2: Manual connect | 0 | 4 (100% failed) | ❌ Unsafe |
+
+#### Key Findings
+
+**BackendGroup + backend.context() does NOT provide thread isolation**:
+
+1. **Design Intent**: BackendGroup is designed for multi-model shared backend, not thread isolation
+2. **Actual Behavior**: All threads share the same backend instance, context() only manages connection lifecycle
+3. **Race Conditions**: Multiple threads calling context() simultaneously creates races (connect/disconnect conflicts)
+
+#### Correct Usage of BackendGroup
+
+```python
+# ✅ Correct: Multi-model shared connection (single-thread scenario)
+group = BackendGroup(
+    name="main",
+    models=[User, Post, Comment],
+    config=config,
+    backend_class=MySQLBackend
+)
+group.configure()
+
+with group.get_backend().context():
+    user = User.find_one(1)
+    posts = user.posts  # Related query, shared transaction
+    posts[0].title = "New Title"
+    posts[0].save()
+    user.save()  # Same transaction, atomic commit
+
+# ❌ Wrong: Multiple threads sharing same BackendGroup
+group = BackendGroup(...)
+group.configure()
+
+# Multiple threads using same group has race conditions
+thread1: with group.get_backend().context(): ...  # Unsafe!
+thread2: with group.get_backend().context(): ...  # Unsafe!
+```
+
+#### MySQL Thread Safety Solutions
+
+| Solution | threadsafety | Recommendation | Notes |
+|----------|--------------|----------------|-------|
+| **Multiprocessing** | 1 | ⭐⭐⭐ Recommended | MySQL connections don't support cross-thread, must use multiprocessing |
+| Multithreading + BackendGroup | 1 | ❌ Not recommended | Race conditions, unsafe |
+| BackendPool | 1 | ❌ Not supported | MySQL not suitable for connection pool (threadsafety<2) |
+
+#### Conclusion
+
+- **BackendGroup documentation matches actual functionality**: Designed for multi-model shared connections, no promise of thread isolation
+- **MySQL multithreading must use multiprocessing**: This is the essential limitation of threadsafety=1
+- **"Connect on demand, disconnect after use" is connection lifecycle management principle**: Not thread isolation mechanism
+
+### 9.5 FastAPI Async Application Best Practices
+
+#### Problem Scenario
+
+In FastAPI + MySQL + async backend scenario:
+- Each HTTP request is handled in a separate coroutine
+- Multiple coroutines may execute concurrently (but only one runs at a time)
+- MySQL's `threadsafety=1`, connection pool not supported
+- Need to ensure each request has independent database connection
+
+#### Recommended Solution: Request-level BackendGroup + backend.context()
+
+**Core Principles**:
+1. Create independent `AsyncBackendGroup` instance for each request
+2. Use `backend.context()` to manage connection lifecycle
+3. Automatically disconnect when request ends ("connect on demand, disconnect after use")
+
+**Complete Example**:
+
+```python
+# database.py - Request-level connection manager
+from contextlib import asynccontextmanager
+from rhosocial.activerecord.connection import AsyncBackendGroup
+from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+
+@asynccontextmanager
+async def get_request_db():
+    """Request-level database connection manager"""
+    config = load_config()
+    
+    # Create request-level BackendGroup (request isolation)
+    group = AsyncBackendGroup(
+        name="request",
+        models=[AsyncUser, AsyncPost, AsyncComment],
+        config=config,
+        backend_class=AsyncMySQLBackend
+    )
+    
+    try:
+        await group.configure()
+        backend = group.get_backend()
+        
+        # Use context() to manage connection lifecycle
+        # "Connect on demand, disconnect after use"
+        async with backend.context():
+            yield backend
+    
+    finally:
+        await group.disconnect()
+
+
+# app.py - FastAPI application
+from fastapi import FastAPI, Depends
+
+app = FastAPI()
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: int, db=Depends(get_request_db)):
+    user = await AsyncUser.find_one(user_id)
+    return {"user": user.to_dict()}
+```
+
+#### Solution Analysis
+
+| Feature | Description |
+|---------|-------------|
+| **Connection Isolation** | Each request has independent BackendGroup, fully isolated |
+| **Concurrency Safety** | Different request coroutines use different connections |
+| **Resource Management** | Auto-disconnect on request completion, no leaks |
+| **Transaction Support** | Operations within same request share transaction |
+| **Performance Impact** | Each request creates/disconnects connection, acceptable overhead |
+
+#### Key Design Points
+
+1. **Request-level BackendGroup** (not global shared)
+   - Each HTTP request creates independent BackendGroup
+   - Ensures complete isolation between requests
+
+2. **Use `async with backend.context()`**
+   - Automatically manages connection lifecycle
+   - Properly disconnects even on exceptions
+
+3. **Via FastAPI dependency injection**
+   - Automatically manages connection acquisition and release
+   - Clean code, less error-prone
+
+4. **Avoid globally shared backend instance**
+   - ❌ Don't create global BackendGroup at application startup
+   - ✅ Create independent BackendGroup for each request
+
+#### Suitable Scenarios
+
+| Scenario | Recommendation | Notes |
+|----------|----------------|-------|
+| Web API (lightweight queries) | ⭐⭐⭐ Recommended | Request-level connection management, fully isolated |
+| CRUD operations | ⭐⭐⭐ Recommended | Simple create/read/update/delete operations |
+| WebSocket long connections | ❌ Not recommended | Consider alternatives (e.g., per-message connection) |
+| Batch processing | ❌ Not recommended | Use multiprocessing |
+| Heavy computation | ❌ Not recommended | Use multiprocessing |
+
+#### Complete Example Code
+
+See `docs/examples/chapter_10_fastapi/` directory.
+
+### 9.6 Conclusions
 
 1. **Multiprocessing is the correct approach for parallel workers**: Verified on all platforms
 2. **Sync backend is more stable**: Async backend requires extra configuration on Windows
+3. **Deadlock retry recommended for production**: Doesn't rely on data partitionability, automatically handles deadlocks
+4. **Data partitioning is most efficient**: No lock contention, suitable for partitionable scenarios
+5. **BackendGroup is for multi-model shared connections**: Not a thread isolation mechanism, use multiprocessing for multithreading
+6. **FastAPI recommends request-level BackendGroup**: Each request gets independent connection, ensuring isolation and safety
 3. **Deadlock retry recommended for production**: Doesn't rely on data partitionability, automatically handles deadlocks
 4. **Data partitioning is most efficient**: No lock contention, suitable for partitionable scenarios
