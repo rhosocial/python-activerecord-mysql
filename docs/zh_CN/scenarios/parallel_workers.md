@@ -523,6 +523,7 @@ async with User.transaction():
 | [`exp3_deadlock_wrong.py`](../../examples/chapter_12_scenarios/parallel_workers/exp3_deadlock_wrong.py) | 行锁顺序冲突导致 MySQL 死锁（反面教材） | §4.1 |
 | [`exp4_partition_correct.py`](../../examples/chapter_12_scenarios/parallel_workers/exp4_partition_correct.py) | 数据分区 + 原子领取 + 死锁重试（同步/异步各方案） | §4.2–4.4 |
 | [`exp5_multithread_warning.py`](../../examples/chapter_12_scenarios/parallel_workers/exp5_multithread_warning.py) | 多线程共享连接的问题（反面教材） | §1.2 |
+| [`exp6_backend_group_context.py`](../../examples/chapter_12_scenarios/parallel_workers/exp6_backend_group_context.py) | BackendGroup + backend.context() 线程安全性验证 | §8.5 |
 
 > **说明**：所有示例文件均直接使用 `rhosocial-activerecord` ORM，模型体系为 `User → Post → Comment`，并体现 `HasMany` / `BelongsTo` 关联关系的同步与异步对等用法。
 
@@ -775,9 +776,178 @@ def worker_async(post_ids: list) -> int:
 
 无需特殊配置，默认 event loop 即可正常工作。
 
-### 9.4 结论
+### 9.4 BackendGroup + backend.context() 线程安全验证 (exp6)
+
+#### 实验目的
+
+验证 BackendGroup + backend.context() 是否能提供线程安全的连接管理。
+
+#### 实验结果
+
+| 场景 | 成功数 | 错误数 | 结论 |
+|-----|--------|--------|------|
+| Scenario 1: backend.context() | 5 | 3 (75% 失败) | ❌ 多线程共享时有竞争条件 |
+| Scenario 2: 手动连接 | 0 | 4 (100% 失败) | ❌ 不安全 |
+
+#### 关键发现
+
+**BackendGroup + backend.context() 不提供线程隔离**：
+
+1. **设计意图**：BackendGroup 是为多模型共享后端设计的，不是线程隔离机制
+2. **实际行为**：所有线程共享同一个后端实例，context() 只是管理连接生命周期
+3. **竞争条件**：多个线程同时调用 context() 会产生竞争（connect/disconnect 冲突）
+
+#### BackendGroup 的正确用途
+
+```python
+# ✅ 正确：多模型共享连接（单线程场景）
+group = BackendGroup(
+    name="main",
+    models=[User, Post, Comment],
+    config=config,
+    backend_class=MySQLBackend
+)
+group.configure()
+
+with group.get_backend().context():
+    user = User.find_one(1)
+    posts = user.posts  # 关联查询，共享事务
+    posts[0].title = "New Title"
+    posts[0].save()
+    user.save()  # 同一事务，原子提交
+
+# ❌ 错误：多线程共享同一个 BackendGroup
+group = BackendGroup(...)
+group.configure()
+
+# 多个线程使用同一个 group 会有竞争条件
+thread1: with group.get_backend().context(): ...  # 不安全！
+thread2: with group.get_backend().context(): ...  # 不安全！
+```
+
+#### MySQL 的线程安全方案
+
+| 方案 | threadsafety | 推荐度 | 说明 |
+|-----|-------------|--------|------|
+| **多进程** | 1 | ⭐⭐⭐ 推荐 | MySQL 连接不支持跨线程，必须用多进程 |
+| 多线程 + BackendGroup | 1 | ❌ 不推荐 | 有竞争条件，不安全 |
+| BackendPool | 1 | ❌ 不支持 | MySQL 不适合连接池（threadsafety<2） |
+
+#### 结论
+
+- **BackendGroup 的文档表述与实际功能一致**：用于多模型共享连接，不承诺线程隔离
+- **MySQL 多线程场景必须使用多进程**：这是 threadsafety=1 的本质限制
+- **"随用随连、用完即断"是连接生命周期管理原则**：不是线程隔离机制
+
+### 9.5 FastAPI 异步应用的最佳实践
+
+#### 问题场景
+
+在 FastAPI + MySQL + 异步后端场景下：
+- 每个 HTTP 请求在独立的协程中处理
+- 多个协程可能并发执行（但同一时刻只有一个在运行）
+- MySQL 的 `threadsafety=1`，不支持连接池
+- 需要确保每个请求有独立的数据库连接
+
+#### 推荐方案：请求级 BackendGroup + backend.context()
+
+**核心原则**：
+1. 每个请求创建独立的 `AsyncBackendGroup` 实例
+2. 使用 `backend.context()` 管理连接生命周期
+3. 请求结束时自动断开连接（"随用随连、用完即断"）
+
+**完整示例**：
+
+```python
+# database.py - 请求级连接管理器
+from contextlib import asynccontextmanager
+from rhosocial.activerecord.connection import AsyncBackendGroup
+from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+
+@asynccontextmanager
+async def get_request_db():
+    """请求级数据库连接管理器"""
+    config = load_config()
+    
+    # 创建请求级的 BackendGroup（请求隔离）
+    group = AsyncBackendGroup(
+        name="request",
+        models=[AsyncUser, AsyncPost, AsyncComment],
+        config=config,
+        backend_class=AsyncMySQLBackend
+    )
+    
+    try:
+        await group.configure()
+        backend = group.get_backend()
+        
+        # 使用 context() 管理连接生命周期
+        # "随用随连、用完即断"
+        async with backend.context():
+            yield backend
+    
+    finally:
+        await group.disconnect()
+
+
+# app.py - FastAPI 应用
+from fastapi import FastAPI, Depends
+
+app = FastAPI()
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: int, db=Depends(get_request_db)):
+    user = await AsyncUser.find_one(user_id)
+    return {"user": user.to_dict()}
+```
+
+#### 方案分析
+
+| 特性 | 说明 |
+|-----|------|
+| **连接隔离** | 每个请求独立的 BackendGroup，完全隔离 |
+| **并发安全** | 不同请求的协程使用不同连接 |
+| **资源管理** | 请求结束自动断开，无连接泄漏 |
+| **事务支持** | 同一请求内的操作共享事务 |
+| **效率影响** | 每请求创建/断开连接，有额外开销（可接受） |
+
+#### 关键设计要点
+
+1. **请求级 BackendGroup**（而非全局共享）
+   - 每个 HTTP 请求创建独立的 BackendGroup
+   - 确保请求间完全隔离
+
+2. **使用 `async with backend.context()`**
+   - 自动管理连接生命周期
+   - 异常时也能正确断开
+
+3. **通过 FastAPI 依赖注入**
+   - 自动管理连接获取和释放
+   - 代码简洁，不易出错
+
+4. **避免全局共享后端实例**
+   - ❌ 不要在应用启动时创建全局 BackendGroup
+   - ✅ 每个请求创建独立的 BackendGroup
+
+#### 适用场景
+
+| 场景 | 推荐度 | 说明 |
+|-----|--------|------|
+| Web API（轻量查询） | ⭐⭐⭐ 推荐 | 请求级连接管理，完全隔离 |
+| CRUD 操作 | ⭐⭐⭐ 推荐 | 简单的增删改查操作 |
+| WebSocket 长连接 | ❌ 不推荐 | 考虑其他方案（如每消息创建连接） |
+| 批处理任务 | ❌ 不推荐 | 使用多进程 |
+| 重计算任务 | ❌ 不推荐 | 使用多进程 |
+
+#### 完整示例代码
+
+参见 `docs/examples/chapter_10_fastapi/` 目录。
+
+### 9.6 结论
 
 1. **多进程是并行 Worker 的正确方案**: 所有平台均验证通过
 2. **同步后端更稳定**: 异步后端在 Windows 上需要额外配置
 3. **死锁重试方案推荐用于生产**: 不依赖数据可分区性，自动处理死锁
 4. **数据分区效率最高**: 无锁竞争，适合可分区场景
+5. **BackendGroup 用于多模型共享连接**: 不是线程隔离机制，多线程场景应使用多进程
+6. **FastAPI 推荐请求级 BackendGroup**: 每请求独立连接，确保隔离和安全
