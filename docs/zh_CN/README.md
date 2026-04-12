@@ -26,27 +26,34 @@
     *   **[存储引擎](mysql_specific_features/storage_engine.md)**: InnoDB, MyISAM 选择
     *   **[索引与性能优化](mysql_specific_features/indexing.md)**: 索引设计原则
 
-4. **[事务支持 (Transaction Support)](transaction_support/README.md)**
+4. **[DDL 操作 (DDL Operations)](ddl/README.md)**
+    *   **[MySQL DDL 概览](ddl/README.md)**: CREATE TABLE, ALTER TABLE, DROP TABLE
+    *   **[示例代码](../examples/chapter_04_ddl/ddl.py)**: DDL 示例
+
+5. **[事务支持 (Transaction Support)](transaction_support/README.md)**
     *   **[事务隔离级别](transaction_support/isolation_level.md)**: READ COMMITTED, REPEATABLE READ 等
     *   **[Savepoint 支持](transaction_support/savepoint.md)**: 嵌套事务
     *   **[自动重试与死锁处理](transaction_support/deadlock.md)**: 失败重试机制
 
-5. **[类型适配器 (Type Adapters)](type_adapters/README.md)**
+6. **[类型适配器 (Type Adapters)](type_adapters/README.md)**
     *   **[MySQL 到 Python 类型映射](type_adapters/mapping.md)**: 类型转换规则
     *   **[自定义类型适配器](type_adapters/custom.md)**: 扩展类型支持
     *   **[时区处理](type_adapters/timezone.md)**: UTC 与本地时区
 
-6. **[测试 (Testing)](testing/README.md)**
+7. **[测试 (Testing)](testing/README.md)**
     *   **[测试配置](testing/configuration.md)**: 测试环境设置
     *   **[使用 testsuite 进行测试](testing/testsuite.md)**: 测试套件使用
     *   **[本地 MySQL 测试](testing/local.md)**: 本地数据库测试
 
-7. **[故障排除 (Troubleshooting)](troubleshooting/README.md)**
+8. **[故障排除 (Troubleshooting)](troubleshooting/README.md)**
     *   **[常见连接错误](troubleshooting/connection.md)**: 连接问题诊断
     *   **[性能问题](troubleshooting/performance.md)**: 性能瓶颈分析
     *   **[字符集问题](troubleshooting/charset.md)**: 编码问题处理
 
-8. **[场景实战 (Scenarios)](scenarios/README.md)**
+9. **[场景实战 (Scenarios)](scenarios/README.md)**
     *   **[并行 Worker 处理](scenarios/parallel_workers.md)**: 多进程/异步并发场景的正确用法
+
+10. **[Worker 隔离实验](examples/chapter_05_worker_isolation/README.md)**
+    *   **[Worker 连接隔离实验](examples/chapter_05_worker_isolation/README.md)**: Worker 进程隔离实验
 
 > 📖 **核心库文档**：要了解 ActiveRecord 框架的完整功能，请参考 [rhosocial-activerecord 文档](https://github.com/Rhosocial/python-activerecord/tree/main/docs/zh_CN)。

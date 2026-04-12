@@ -26,27 +26,34 @@
     *   **[Storage Engines](mysql_specific_features/storage_engine.md)**: InnoDB, MyISAM selection
     *   **[Indexing and Performance Optimization](mysql_specific_features/indexing.md)**: index design principles
 
-4. **[Transaction Support](transaction_support/README.md)**
+4. **[DDL Operations](ddl/README.md)**
+    *   **[MySQL DDL Overview](ddl/README.md)**: CREATE TABLE, ALTER TABLE, DROP TABLE
+    *   **[Example Code](../examples/chapter_04_ddl/ddl.py)**: DDL example
+
+5. **[Transaction Support](transaction_support/README.md)**
     *   **[Transaction Isolation Levels](transaction_support/isolation_level.md)**: READ COMMITTED, REPEATABLE READ, etc.
     *   **[Savepoint Support](transaction_support/savepoint.md)**: nested transactions
     *   **[Auto-Retry and Deadlock Handling](transaction_support/deadlock.md)**: failure retry mechanism
 
-5. **[Type Adapters](type_adapters/README.md)**
+6. **[Type Adapters](type_adapters/README.md)**
     *   **[MySQL to Python Type Mapping](type_adapters/mapping.md)**: type conversion rules
     *   **[Custom Type Adapters](type_adapters/custom.md)**: extending type support
     *   **[Timezone Handling](type_adapters/timezone.md)**: UTC and local timezone
 
-6. **[Testing](testing/README.md)**
+7. **[Testing](testing/README.md)**
     *   **[Test Configuration](testing/configuration.md)**: test environment setup
     *   **[Using testsuite for Testing](testing/testsuite.md)**: test suite usage
     *   **[Local MySQL Testing](testing/local.md)**: local database testing
 
-7. **[Troubleshooting](troubleshooting/README.md)**
+8. **[Troubleshooting](troubleshooting/README.md)**
     *   **[Common Connection Errors](troubleshooting/connection.md)**: connection issue diagnosis
     *   **[Performance Issues](troubleshooting/performance.md)**: performance bottleneck analysis
     *   **[Character Set Issues](troubleshooting/charset.md)**: encoding problem handling
 
-8. **[Scenarios](scenarios/README.md)**
+9. **[Scenarios](scenarios/README.md)**
     *   **[Parallel Worker Processing](scenarios/parallel_workers.md)**: correct usage in multi-process/async concurrent scenarios
+
+10. **[Worker Isolation Experiment](examples/chapter_05_worker_isolation/README.md)**
+    *   **[Worker Connection Isolation](examples/chapter_05_worker_isolation/README.md)**: worker process isolation experiment
 
 > 📖 **Core Library Documentation**: To learn about the complete functionality of the ActiveRecord framework, please refer to [rhosocial-activerecord documentation](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US).

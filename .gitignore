@@ -175,7 +175,9 @@ cython_debug/
 # macOS
 **.DS_Store
 
+# Examples - but allow specific docs examples to be tracked
 examples/
+!docs/examples/
 
 # Configuration files - to prevent accidental commit of sensitive information
 mysql_config.yaml

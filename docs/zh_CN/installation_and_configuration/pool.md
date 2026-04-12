@@ -182,4 +182,4 @@ config = MySQLConnectionConfig(
 
 - [连接配置](configuration.md) — `MySQLConnectionConfig` 完整选项列表
 - [故障排查：连接问题](../troubleshooting/connection.md) — 诊断连接错误
-- [异步连接池模式验证脚本](../../../examples/async_connection_pool.py) — 可运行的演示脚本
+- [异步连接池模式验证脚本](../../../examples/chapter_02_connection_pool/async_connection_pool.py) — 可运行的演示脚本
