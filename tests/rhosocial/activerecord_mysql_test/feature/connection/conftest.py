@@ -28,7 +28,8 @@ def ensure_compatible_event_loop():
     if sys.platform == "win32":
         policy = asyncio.get_event_loop_policy()
         if not isinstance(policy, asyncio.WindowsSelectorEventLoopPolicy):
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy)
+            new_policy = asyncio.WindowsSelectorEventLoopPolicy()
+            asyncio.set_event_loop_policy(new_policy)
 
 
 ensure_compatible_event_loop()
