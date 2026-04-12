@@ -1,3 +1,19 @@
+## [v1.0.0.dev13] - 2026-04-13
+
+### Added
+
+- Added MySQL-specific features: INSERT IGNORE, REPLACE INTO, LOAD DATA INFILE, and JSON_TABLE expression support. Also includes introspection fixes for MySQL 8.4+ compatibility and binary log handling. ([#27](https://github.com/rhosocial/python-activerecord-mysql/issues/27))
+- Added MySQL math enhanced functions including round_, pow, power, sqrt, mod, ceil, floor, trunc, max_, min_, and avg with proper Python-safe naming. ([#29](https://github.com/rhosocial/python-activerecord-mysql/issues/29))
+- Added MySQL bitwise functions with native operator implementation (bit_count, bit_and, bit_or, bit_xor, bit_get_bit, bit_shift_left, bit_shift_right) ([#30](https://github.com/rhosocial/python-activerecord-mysql/issues/30))
+- Add support for MySQL constraint expressions including foreign key ON DELETE/UPDATE clauses, CHECK constraints, and constraint detection protocol methods. ([#31](https://github.com/rhosocial/python-activerecord-mysql/issues/31))
+
+
+
+### Fixed
+
+- Internal code refactoring to improve maintainability by restructuring MySQL backend functions into category-based submodules. ([#28](https://github.com/rhosocial/python-activerecord-mysql/issues/28))
+
+
 ## [v1.0.0.dev12] - 2026-04-08
 
 ### Added
