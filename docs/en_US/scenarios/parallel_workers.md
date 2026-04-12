@@ -708,7 +708,7 @@ Tests verified across multiple environments:
 
 | Platform | Operating System | Python Version | pytest Version | MySQL Version |
 |----------|------------------|----------------|----------------|---------------|
-| macOS | macOS Tahoe 26 | 3.8-3.14 | 8.3+ | 8.0+ |
+| macOS | macOS Tahoe 26.4.1 (Build 25E253) arm64 | 3.8.10 | 8.3.5 | 9.6.0 |
 | Windows | Windows 11 Pro 25H2 (Build 26200) | 3.8.10 / 3.14.3 | 8.3.5 / 8.4.2 | 8.0.45 |
 
 ### 9.2 Test Results Summary
@@ -717,17 +717,19 @@ Tests verified across multiple environments:
 
 | Platform | Serial Time | Sync Multiprocess | Async Multiprocess | Speedup |
 |----------|-------------|-------------------|--------------------|---------|
-| macOS | ~0.3s | ~0.9s | ~0.9s | ~0.3x |
-| Windows | 0.364s | 1.116s | 1.096s | 0.3x |
+| macOS (Python 3.8.10) | 0.871s | 0.799s (1.1x) | 0.589s (1.5x) | 1.5x |
+| Windows | 0.364s | 1.116s (0.3x) | 1.096s (0.3x) | 0.3x |
 
-> **Note**: Process startup overhead may exceed parallel benefits for small datasets. Larger datasets show better speedup.
+> **Note**: Process startup overhead may exceed parallel benefits for small datasets. Larger datasets show better speedup. macOS arm64 shows significant async multiprocess improvement.
 
 #### Async Feature Testing (exp2)
 
 | Platform | Same-process Sync Serial | Same-process Async Sequential | Multiprocess Sync | Multiprocess Async |
 |----------|--------------------------|-------------------------------|-------------------|--------------------|
-| macOS | ~0.2s | ~0.2s | ~1.0s | ~1.0s |
+| macOS (Python 3.8.10) | 0.713s | 0.481s (1.48x) | 0.669s | 0.536s |
 | Windows | 0.210s | 0.212s | 1.025s | 1.096s |
+
+> **Note**: macOS shows 1.48x improvement for async sequential vs sync serial, demonstrating mysql-connector-python native async advantages.
 
 #### Deadlock Detection Testing (exp3)
 
@@ -735,16 +737,18 @@ All platforms successfully triggered MySQL deadlock detection:
 - Deadlock automatically detected (errno 1213)
 - Lower-cost transaction rolled back
 - Uncaught exceptions result in lost work from rolled-back transactions
+- macOS: 2 Workers succeeded, 2 Workers deadlocked and rolled back, total time 0.915s
+- Windows: 2 Workers succeeded, 2 Workers deadlocked and rolled back
 
 #### Correct Solution Testing (exp4)
 
 | Solution | macOS Time | Windows Time | Verification |
 |----------|------------|--------------|--------------|
-| A: Data Partitioning (Sync) | ~1.0s | 1.006s | ✓ No duplicates |
-| A: Data Partitioning (Async) | ~1.1s | 1.108s | ✓ No duplicates |
-| B: Atomic Claiming (Sync) | ~1.4s | 1.428s | ✓ No duplicates |
-| B: Atomic Claiming (Async) | ~1.2s | 1.199s | ✓ No duplicates |
-| C: Atomic + Retry (Sync) | ~1.6s | 1.629s | ✓ No duplicates |
+| A: Data Partitioning (Sync) | 0.831s | 1.006s | ✓ No duplicates |
+| A: Data Partitioning (Async) | 0.675s | 1.108s | ✓ No duplicates |
+| B: Atomic Claiming (Sync) | 2.837s | 1.428s | ✓ No duplicates |
+| B: Atomic Claiming (Async) | 2.052s | 1.199s | ✓ No duplicates |
+| C: Atomic + Retry (Sync) | 2.750s | 1.629s | ✓ No duplicates |
 
 #### Multithread Warning Testing (exp5)
 
