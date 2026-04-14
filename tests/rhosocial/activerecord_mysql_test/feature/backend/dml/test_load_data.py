@@ -11,7 +11,7 @@ Official Documentation:
 import pytest
 import pytest_asyncio
 
-from rhosocial.activerecord.backend.impl.mysql.expressions import (
+from rhosocial.activerecord.backend.impl.mysql.expression import (
     LoadDataExpression, LoadDataOptions
 )
 
