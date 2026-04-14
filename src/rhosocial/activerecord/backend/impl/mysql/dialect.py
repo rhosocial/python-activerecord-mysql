@@ -1111,7 +1111,7 @@ class MySQLDialect(
 
         result = {}
         for func_name in core_functions:
-            result[func_name] = True
+            result[func_name] = self._is_mysql_function_supported(func_name)
 
         mysql_funcs = getattr(mysql_functions, "__all__", [])
         for func_name in mysql_funcs:

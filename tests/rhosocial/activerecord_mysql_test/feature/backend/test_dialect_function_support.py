@@ -30,7 +30,7 @@ class TestMySQLFunctionSupportBasic:
         """Test that core functions are marked as supported."""
         dialect = MySQLDialect()
         result = dialect.supports_functions()
-        core_functions = ["count", "sum", "avg", "min", "max", "coalesce", "nullif"]
+        core_functions = ["count", "sum_", "avg", "min_", "max_", "coalesce", "nullif"]
         for func in core_functions:
             assert func in result, f"Core function {func} not in result"
             assert result[func] is True, f"Core function {func} should be supported"
@@ -146,7 +146,7 @@ class TestMySQLFunctionSupportIntegration:
         dialect = MySQLDialect()
         result = dialect.supports_functions()
 
-        assert any(func in result for func in ["count", "sum", "avg"])
+        assert any(func in result for func in ["count", "sum_", "avg"])
         assert any(func in result for func in ["json_extract", "st_distance", "find_in_set"])
 
     def test_function_support_changes_with_version(self):
