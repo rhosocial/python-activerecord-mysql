@@ -1035,59 +1035,59 @@ class MySQLDialect(
 
     # region Transaction Control
 
-# MySQL function version support: function_name -> (min_version, max_version)
-# min_version: minimum supported version (inclusive), None = all versions
-# max_version: maximum supported version (inclusive), None = no upper limit
-# Reference: https://dev.mysql.com/doc/refman/en/inline-functions.html
-_MYSQL_FUNCTION_VERSIONS = {
-    # JSON functions: MySQL 5.7.8+
-    "json_extract": ((5, 7, 8), None),
-    "json_unquote": ((5, 7, 8), None),
-    "json_object": ((5, 7, 8), None),
-    "json_array": ((5, 7, 8), None),
-    "json_contains": ((5, 7, 8), None),
-    "json_set": ((5, 7, 8), None),
-    "json_remove": ((5, 7, 8), None),
-    "json_type": ((5, 7, 8), None),
-    "json_valid": ((5, 7, 8), None),
-    "json_search": ((5, 7, 8), None),
-    # Spatial functions: MySQL 5.7+ (renamed from ST_* to lowercase)
-    "st_geom_from_text": ((5, 7, 0), None),
-    "st_geom_from_wkb": ((5, 7, 0), None),
-    "st_as_text": ((5, 7, 0), None),
-    "st_as_geojson": ((5, 7, 5), None),
-    "st_distance": ((5, 7, 0), None),
-    "st_within": ((5, 7, 0), None),
-    "st_contains": ((5, 7, 0), None),
-    "st_intersects": ((5, 7, 0), None),
-    # Full-text search: MySQL 5.6+ (with some features requiring 5.7+)
-    "match_against": (None, None),  # Available since early versions
-    # SET type functions: All MySQL versions
-    "find_in_set": (None, None),
-    # Enum type functions: All MySQL versions
-    "elt": (None, None),
-    "field": (None, None),
-    # Math enhanced functions: All MySQL versions
-    "round_": (None, None),
-    "pow": (None, None),
-    "power": (None, None),
-    "sqrt": (None, None),
-    "mod": (None, None),
-    "ceil": (None, None),
-    "floor": (None, None),
-    "trunc": (None, None),
-    "max_": (None, None),
-    "min_": (None, None),
-    "avg": (None, None),
-    # Bitwise functions: All MySQL versions
-    "bit_and": (None, None),
-    "bit_or": (None, None),
-    "bit_xor": (None, None),
-    "bit_count": (None, None),
-    "bit_get_bit": ((8, 0, 0), None),  # BIT() function added in 8.0
-    "bit_shift_left": ((8, 0, 0), None),  # Added in 8.0
-    "bit_shift_right": ((8, 0, 0), None),  # Added in 8.0
-}
+    # MySQL function version support: function_name -> (min_version, max_version)
+    # min_version: minimum supported version (inclusive), None = all versions
+    # max_version: maximum supported version (inclusive), None = no upper limit
+    # Reference: https://dev.mysql.com/doc/refman/en/inline-functions.html
+    _MYSQL_FUNCTION_VERSIONS = {
+        # JSON functions: MySQL 5.7.8+
+        "json_extract": ((5, 7, 8), None),
+        "json_unquote": ((5, 7, 8), None),
+        "json_object": ((5, 7, 8), None),
+        "json_array": ((5, 7, 8), None),
+        "json_contains": ((5, 7, 8), None),
+        "json_set": ((5, 7, 8), None),
+        "json_remove": ((5, 7, 8), None),
+        "json_type": ((5, 7, 8), None),
+        "json_valid": ((5, 7, 8), None),
+        "json_search": ((5, 7, 8), None),
+        # Spatial functions: MySQL 5.7+ (renamed from ST_* to lowercase)
+        "st_geom_from_text": ((5, 7, 0), None),
+        "st_geom_from_wkb": ((5, 7, 0), None),
+        "st_as_text": ((5, 7, 0), None),
+        "st_as_geojson": ((5, 7, 5), None),
+        "st_distance": ((5, 7, 0), None),
+        "st_within": ((5, 7, 0), None),
+        "st_contains": ((5, 7, 0), None),
+        "st_intersects": ((5, 7, 0), None),
+        # Full-text search: MySQL 5.6+ (with some features requiring 5.7+)
+        "match_against": (None, None),  # Available since early versions
+        # SET type functions: All MySQL versions
+        "find_in_set": (None, None),
+        # Enum type functions: All MySQL versions
+        "elt": (None, None),
+        "field": (None, None),
+        # Math enhanced functions: All MySQL versions
+        "round_": (None, None),
+        "pow": (None, None),
+        "power": (None, None),
+        "sqrt": (None, None),
+        "mod": (None, None),
+        "ceil": (None, None),
+        "floor": (None, None),
+        "trunc": (None, None),
+        "max_": (None, None),
+        "min_": (None, None),
+        "avg": (None, None),
+        # Bitwise functions: All MySQL versions
+        "bit_and": (None, None),
+        "bit_or": (None, None),
+        "bit_xor": (None, None),
+        "bit_count": (None, None),
+        "bit_get_bit": ((8, 0, 0), None),  # BIT() function added in 8.0
+        "bit_shift_left": ((8, 0, 0), None),  # Added in 8.0
+        "bit_shift_right": ((8, 0, 0), None),  # Added in 8.0
+    }
 
     def supports_functions(self) -> Dict[str, bool]:
         """Return supported SQL functions as function_name -> bool mapping.
