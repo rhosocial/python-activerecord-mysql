@@ -4,6 +4,18 @@ Example metadata configuration.
 
 This file defines metadata for all examples in this directory.
 The inspector reads this file to get title, dialect_protocols, and priority.
+
+MySQL Version Support:
+- Minimum: 5.6
+- Maximum: 9.6
+
+Version-specific features:
+- Window Functions: MySQL 8.0+
+- Full-Text Search: MySQL 5.6+ (with FULLTEXT index) / 5.7+ (with ngram parser)
+- JSON_TABLE: MySQL 8.0+
+- JSON data type: MySQL 5.7+
+- Auto increment with negative values: MySQL 8.0+
+- CTE (WITH clause): MySQL 8.0+
 """
 
 EXAMPLES_META = {
@@ -11,55 +23,87 @@ EXAMPLES_META = {
         'title': 'Create Index',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'ddl/alter_table.py': {
         'title': 'Alter Table',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'insert/batch.py': {
         'title': 'Batch Insert',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'query/basic.py': {
         'title': 'Basic SELECT Query',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'query/join.py': {
         'title': 'JOIN Query',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'query/aggregate.py': {
         'title': 'Aggregate Query',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'query/subquery.py': {
         'title': 'Subquery',
         'dialect_protocols': [],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'query/window.py': {
-        'title': 'Window Functions',
+        'title': 'Window Functions (MySQL 8.0+)',
         'dialect_protocols': ['WindowFunctionSupport'],
         'priority': 10,
+        'min_version': '8.0',
+        'max_version': '9.6',
+        'note': 'Use window_mysql57.py for MySQL 5.6/5.7 equivalent',
+    },
+    'query/window_mysql57.py': {
+        'title': 'Window Functions (MySQL 5.6/5.7)',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '5.7',
+        'note': 'Use window.py for MySQL 8.0+ native window functions',
     },
     'query/fulltext.py': {
         'title': 'Full-Text Search',
         'dialect_protocols': ['FullTextSearchSupport'],
         'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
     },
     'query/json_table.py': {
         'title': 'JSON_TABLE',
         'dialect_protocols': ['JSONTableSupport'],
         'priority': 10,
+        'min_version': '8.0',
+        'max_version': '9.6',
+        'note': 'Requires MySQL 8.0+. For older versions, see types/json_basic.py for JSON extraction alternatives',
     },
     'types/json_basic.py': {
         'title': 'JSON Operations',
         'dialect_protocols': ['JSONSupport'],
         'priority': 10,
+        'min_version': '5.7',
+        'max_version': '9.6',
     },
 }
