@@ -1,5 +1,5 @@
 """
-Alter table statements - ADD COLUMN, MODIFY COLUMN.
+Alter table statements - ADD_COLUMN, MODIFY_COLUMN.
 
 Note: MySQL supports multiple actions in a single ALTER TABLE statement,
 but for simplicity we demonstrate individual operations.
@@ -11,6 +11,13 @@ but for simplicity we demonstrate individual operations.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
+from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
@@ -26,19 +33,21 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    ColumnDefinition,
-    InsertExpression,
-)
-from rhosocial.activerecord.backend.expression.core import Literal
+backend.execute("DROP TABLE IF EXISTS users")
 
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='users',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'name', 'VARCHAR(100)'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('name', 'VARCHAR(100)'),
     ],
     if_not_exists=True,
 )
@@ -47,9 +56,24 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    table_name='users',
+    into='users',
     columns=['name'],
-    values=[[Literal(dialect, 'Alice')]],
+    source=ValuesSource(
+        dialect,
+        [[Literal(dialect, 'Alice')]],
+    ),
+)
+sql, params = insert.to_sql()
+backend.execute(sql, params)
+
+insert = InsertExpression(
+    dialect=dialect,
+    into='users',
+    columns=['name'],
+    source=ValuesSource(
+        dialect,
+        [[Literal(dialect, 'Alice')]],
+    ),
 )
 sql, params = insert.to_sql()
 backend.execute(sql, params)
@@ -57,10 +81,7 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import (
-    AlterTableExpression,
-    RawExpression,
-)
+from rhosocial.activerecord.backend.expression import AlterTableExpression
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import AddColumn
 
 add_col_action = AddColumn(
@@ -85,9 +106,14 @@ print("Column email added successfully")
 
 add_age_action = AddColumn(
     column=ColumnDefinition(
-        name='age',
-        data_type='INT',
-        default=Literal(dialect, 0),
+        'age',
+        'INT',
+        constraints=[
+            ColumnConstraint(
+                ColumnConstraintType.DEFAULT,
+                default_value=Literal(dialect, 0),
+            ),
+        ],
     ),
 )
 
@@ -104,14 +130,13 @@ print(f"Params: {params}")
 backend.execute(sql, params)
 print("Column age added successfully")
 
-modify_expr = RawExpression("ALTER TABLE users MODIFY COLUMN name VARCHAR(200) NOT NULL")
-sql, params = modify_expr.to_sql()
+sql = "ALTER TABLE users MODIFY COLUMN name VARCHAR(200) NOT NULL"
 print(f"SQL (Modify Column name): {sql}")
 
 # ============================================================
 # SECTION: Execution (run the expression)
 # ============================================================
-backend.execute(sql, params)
+backend.execute(sql)
 print("Column name modified successfully")
 
 options = ExecutionOptions(stmt_type=StatementType.DQL)

@@ -23,19 +23,29 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    ColumnDefinition,
-    InsertExpression,
-)
+backend.execute("DROP TABLE IF EXISTS documents")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='documents',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'data', 'JSON'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('data', 'JSON'),
     ],
     if_not_exists=True,
 )
@@ -44,12 +54,15 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    table_name='documents',
+    into='documents',
     columns=['data'],
-    values=[
-        [Literal(dialect, '{"name": "Alice", "age": 30, "tags": ["a", "b"]}')],
-        [Literal(dialect, '{"name": "Bob", "age": 25, "tags": ["c"]}')],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, '{"name": "Alice", "age": 30, "tags": ["a", "b"]}')],
+            [Literal(dialect, '{"name": "Bob", "age": 25, "tags": ["c"]}')],
+        ],
+    ),
 )
 sql, params = insert.to_sql()
 backend.execute(sql, params)

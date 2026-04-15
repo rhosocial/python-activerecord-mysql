@@ -23,33 +23,54 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition
+backend.execute("DROP TABLE IF EXISTS users")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='users',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'name', 'VARCHAR(100)', nullable=False),
-        ColumnDefinition(dialect, 'age', 'INT'),
-        ColumnDefinition(dialect, 'status', 'VARCHAR(20)', default=Literal(dialect, 'active')),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition(
+            'name',
+            'VARCHAR(100)',
+            constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
+        ),
+        ColumnDefinition('age', 'INT'),
+        ColumnDefinition('status', 'VARCHAR(20)'),
     ],
     if_not_exists=True,
 )
 sql, params = create_table.to_sql()
+print(f"Create table SQL: {sql}, params: {params}")
 backend.execute(sql, params)
 
-from rhosocial.activerecord.backend.expression import InsertExpression
 insert = InsertExpression(
     dialect=dialect,
-    table_name='users',
+    into='users',
     columns=['name', 'age', 'status'],
-    values=[
-        [Literal(dialect, 'Alice'), Literal(dialect, 30), Literal(dialect, 'active')],
-        [Literal(dialect, 'Bob'), Literal(dialect, 25), Literal(dialect, 'active')],
-        [Literal(dialect, 'Charlie'), Literal(dialect, 35), Literal(dialect, 'inactive')],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 'Alice'), Literal(dialect, 30), Literal(dialect, 'active')],
+            [Literal(dialect, 'Bob'), Literal(dialect, 25), Literal(dialect, 'active')],
+            [Literal(dialect, 'Charlie'), Literal(dialect, 35), Literal(dialect, 'inactive')],
+        ],
+    ),
 )
 sql, params = insert.to_sql()
 backend.execute(sql, params)

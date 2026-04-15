@@ -8,6 +8,12 @@ Batch insert with multiple rows.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
+from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
@@ -23,19 +29,30 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    ColumnDefinition,
-)
-
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='logs',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'level', 'VARCHAR(20)'),
-        ColumnDefinition(dialect, 'message', 'TEXT'),
-        ColumnDefinition(dialect, 'created_at', 'TIMESTAMP', default='CURRENT_TIMESTAMP'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('level', 'VARCHAR(20)'),
+        ColumnDefinition('message', 'TEXT'),
+        ColumnDefinition(
+            'created_at',
+            'TIMESTAMP',
+            constraints=[
+                ColumnConstraint(
+                    ColumnConstraintType.DEFAULT,
+                    default_value='CURRENT_TIMESTAMP',
+                ),
+            ],
+        ),
     ],
     if_not_exists=True,
 )

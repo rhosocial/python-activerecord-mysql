@@ -23,16 +23,35 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition
+backend.execute("DROP TABLE IF EXISTS customers")
+backend.execute("DROP TABLE IF EXISTS orders")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_customers = CreateTableExpression(
     dialect=dialect,
     table_name='customers',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'name', 'VARCHAR(100)', nullable=False),
-        ColumnDefinition(dialect, 'email', 'VARCHAR(100)'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition(
+            'name',
+            'VARCHAR(100)',
+            constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
+        ),
+        ColumnDefinition('email', 'VARCHAR(100)'),
     ],
     if_not_exists=True,
 )
@@ -43,38 +62,51 @@ create_orders = CreateTableExpression(
     dialect=dialect,
     table_name='orders',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'customer_id', 'INT'),
-        ColumnDefinition(dialect, 'total', 'DECIMAL(10,2)'),
-        ColumnDefinition(dialect, 'status', 'VARCHAR(20)'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('customer_id', 'INT'),
+        ColumnDefinition('total', 'DECIMAL(10,2)'),
+        ColumnDefinition('status', 'VARCHAR(20)'),
     ],
     if_not_exists=True,
 )
 sql, params = create_orders.to_sql()
 backend.execute(sql, params)
 
-from rhosocial.activerecord.backend.expression import InsertExpression
+from rhosocial.activerecord.backend.expression import InsertExpression, ValuesSource
 insert_customers = InsertExpression(
     dialect=dialect,
-    table_name='customers',
+    into='customers',
     columns=['name', 'email'],
-    values=[
-        [Literal(dialect, 'Alice'), Literal(dialect, 'alice@example.com')],
-        [Literal(dialect, 'Bob'), Literal(dialect, 'bob@example.com')],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 'Alice'), Literal(dialect, 'alice@example.com')],
+            [Literal(dialect, 'Bob'), Literal(dialect, 'bob@example.com')],
+        ],
+    ),
 )
 sql, params = insert_customers.to_sql()
 backend.execute(sql, params)
 
 insert_orders = InsertExpression(
     dialect=dialect,
-    table_name='orders',
+    into='orders',
     columns=['customer_id', 'total', 'status'],
-    values=[
-        [Literal(dialect, 1), Literal(dialect, 100.00), Literal(dialect, 'completed')],
-        [Literal(dialect, 1), Literal(dialect, 50.00), Literal(dialect, 'pending')],
-        [Literal(dialect, 2), Literal(dialect, 75.00), Literal(dialect, 'completed')],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 1), Literal(dialect, 100.00), Literal(dialect, 'completed')],
+            [Literal(dialect, 1), Literal(dialect, 50.00), Literal(dialect, 'pending')],
+            [Literal(dialect, 2), Literal(dialect, 75.00), Literal(dialect, 'completed')],
+        ],
+    ),
 )
 sql, params = insert_orders.to_sql()
 backend.execute(sql, params)
@@ -86,39 +118,41 @@ from rhosocial.activerecord.backend.expression import (
     QueryExpression,
     TableExpression,
     Column,
-    JoinClause,
     WhereClause,
 )
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 
+customers = TableExpression(dialect, 'customers', alias='c')
+orders = TableExpression(dialect, 'orders', alias='o')
+
 query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'customers', 'name'),
-        Column(dialect, 'orders', 'total'),
-        Column(dialect, 'orders', 'status'),
+        Column(dialect, 'name', table='c'),
+        Column(dialect, 'total', table='o'),
+        Column(dialect, 'status', table='o'),
     ],
-    from_=TableExpression(dialect, 'customers'),
-    join=[
-        JoinClause(
-            dialect,
-            join_type='INNER',
-            target=TableExpression(dialect, 'orders'),
-            condition=ComparisonPredicate(
-                dialect,
-                '=',
-                Column(dialect, 'customers', 'id'),
-                Column(dialect, 'orders', 'customer_id'),
-            ),
-        ),
+    from_=[
+        customers,
+        orders,
     ],
     where=WhereClause(
         dialect,
         condition=ComparisonPredicate(
             dialect,
-            '=',
-            Column(dialect, 'orders', 'status'),
-            Literal(dialect, 'completed'),
+            'AND',
+            ComparisonPredicate(
+                dialect,
+                '=',
+                Column(dialect, 'id', table='c'),
+                Column(dialect, 'customer_id', table='o'),
+            ),
+            ComparisonPredicate(
+                dialect,
+                '=',
+                Column(dialect, 'status', table='o'),
+                Literal(dialect, 'completed'),
+            ),
         ),
     ),
 )

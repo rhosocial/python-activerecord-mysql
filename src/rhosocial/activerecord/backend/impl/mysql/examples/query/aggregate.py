@@ -23,18 +23,32 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition, InsertExpression
+backend.execute("DROP TABLE IF EXISTS sales")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='sales',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'product', 'VARCHAR(100)'),
-        ColumnDefinition(dialect, 'quantity', 'INT'),
-        ColumnDefinition(dialect, 'price', 'DECIMAL(10,2)'),
-        ColumnDefinition(dialect, 'region', 'VARCHAR(50)'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('product', 'VARCHAR(100)'),
+        ColumnDefinition('quantity', 'INT'),
+        ColumnDefinition('price', 'DECIMAL(10,2)'),
+        ColumnDefinition('region', 'VARCHAR(50)'),
     ],
     if_not_exists=True,
 )
@@ -43,15 +57,18 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    table_name='sales',
+    into='sales',
     columns=['product', 'quantity', 'price', 'region'],
-    values=[
-        [Literal(dialect, 'Widget'), Literal(dialect, 10), Literal(dialect, 5.00), Literal(dialect, 'North')],
-        [Literal(dialect, 'Widget'), Literal(dialect, 5), Literal(dialect, 5.00), Literal(dialect, 'South')],
-        [Literal(dialect, 'Gadget'), Literal(dialect, 8), Literal(dialect, 10.00), Literal(dialect, 'North')],
-        [Literal(dialect, 'Gadget'), Literal(dialect, 3), Literal(dialect, 10.00), Literal(dialect, 'South')],
-        [Literal(dialect, 'Widget'), Literal(dialect, 7), Literal(dialect, 5.00), Literal(dialect, 'East')],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 'Widget'), Literal(dialect, 10), Literal(dialect, 5.00), Literal(dialect, 'North')],
+            [Literal(dialect, 'Widget'), Literal(dialect, 5), Literal(dialect, 5.00), Literal(dialect, 'South')],
+            [Literal(dialect, 'Gadget'), Literal(dialect, 8), Literal(dialect, 10.00), Literal(dialect, 'North')],
+            [Literal(dialect, 'Gadget'), Literal(dialect, 3), Literal(dialect, 10.00), Literal(dialect, 'South')],
+            [Literal(dialect, 'Widget'), Literal(dialect, 7), Literal(dialect, 5.00), Literal(dialect, 'East')],
+        ],
+    ),
 )
 sql, params = insert.to_sql()
 backend.execute(sql, params)
@@ -63,8 +80,7 @@ from rhosocial.activerecord.backend.expression import (
     QueryExpression,
     TableExpression,
     Column,
-    GroupByClause,
-    HavingClause,
+    GroupByHavingClause,
 )
 from rhosocial.activerecord.backend.expression.core import FunctionCall
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
@@ -77,13 +93,10 @@ query = QueryExpression(
         FunctionCall(dialect, 'AVG', Column(dialect, 'price')).as_('avg_price'),
     ],
     from_=TableExpression(dialect, 'sales'),
-    group_by=GroupByClause(
+    group_by_having=GroupByHavingClause(
         dialect,
-        expressions=[Column(dialect, 'product')],
-    ),
-    having=HavingClause(
-        dialect,
-        condition=ComparisonPredicate(
+        group_by=[Column(dialect, 'product')],
+        having=ComparisonPredicate(
             dialect,
             '>',
             FunctionCall(dialect, 'SUM', Column(dialect, 'quantity')),

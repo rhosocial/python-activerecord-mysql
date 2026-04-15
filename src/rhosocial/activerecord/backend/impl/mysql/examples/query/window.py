@@ -23,17 +23,31 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition, InsertExpression
+backend.execute("DROP TABLE IF EXISTS sales_data")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='sales_data',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'salesperson', 'VARCHAR(100)'),
-        ColumnDefinition(dialect, 'region', 'VARCHAR(50)'),
-        ColumnDefinition(dialect, 'amount', 'DECIMAL(10,2)'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('salesperson', 'VARCHAR(100)'),
+        ColumnDefinition('region', 'VARCHAR(50)'),
+        ColumnDefinition('amount', 'DECIMAL(10,2)'),
     ],
     if_not_exists=True,
 )
@@ -42,15 +56,18 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    table_name='sales_data',
+    into='sales_data',
     columns=['salesperson', 'region', 'amount'],
-    values=[
-        [Literal(dialect, 'Alice'), Literal(dialect, 'North'), Literal(dialect, 1000)],
-        [Literal(dialect, 'Alice'), Literal(dialect, 'North'), Literal(dialect, 1500)],
-        [Literal(dialect, 'Bob'), Literal(dialect, 'North'), Literal(dialect, 1200)],
-        [Literal(dialect, 'Bob'), Literal(dialect, 'South'), Literal(dialect, 1800)],
-        [Literal(dialect, 'Charlie'), Literal(dialect, 'South'), Literal(dialect, 2000)],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 'Alice'), Literal(dialect, 'North'), Literal(dialect, 1000)],
+            [Literal(dialect, 'Alice'), Literal(dialect, 'North'), Literal(dialect, 1500)],
+            [Literal(dialect, 'Bob'), Literal(dialect, 'North'), Literal(dialect, 1200)],
+            [Literal(dialect, 'Bob'), Literal(dialect, 'South'), Literal(dialect, 1800)],
+            [Literal(dialect, 'Charlie'), Literal(dialect, 'South'), Literal(dialect, 2000)],
+        ],
+    ),
 )
 sql, params = insert.to_sql()
 backend.execute(sql, params)
@@ -65,7 +82,7 @@ from rhosocial.activerecord.backend.expression import (
     WindowSpecification,
     OrderByClause,
 )
-from rhosocial.activerecord.backend.expression.core import FunctionCall
+from rhosocial.activerecord.backend.expression.advanced_functions import WindowFunctionCall
 
 query = QueryExpression(
     dialect=dialect,
@@ -73,19 +90,26 @@ query = QueryExpression(
         Column(dialect, 'salesperson'),
         Column(dialect, 'region'),
         Column(dialect, 'amount'),
-        FunctionCall(dialect, 'ROW_NUMBER').over(
-            WindowSpecification(
+        WindowFunctionCall(
+            dialect,
+            'ROW_NUMBER',
+            window_spec=WindowSpecification(
                 dialect,
                 partition_by=[Column(dialect, 'region')],
                 order_by=OrderByClause(dialect, expressions=[(Column(dialect, 'amount'), 'DESC')]),
-            )
-        ).as_('row_num'),
-        FunctionCall(dialect, 'SUM', Column(dialect, 'amount')).over(
-            WindowSpecification(
+            ),
+            alias='row_num',
+        ),
+        WindowFunctionCall(
+            dialect,
+            'SUM',
+            args=[Column(dialect, 'amount')],
+            window_spec=WindowSpecification(
                 dialect,
                 partition_by=[Column(dialect, 'region')],
-            )
-        ).as_('region_total'),
+            ),
+            alias='region_total',
+        ),
     ],
     from_=TableExpression(dialect, 'sales_data'),
 )

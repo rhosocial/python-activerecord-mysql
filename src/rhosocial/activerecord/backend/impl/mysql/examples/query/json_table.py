@@ -26,20 +26,29 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    ColumnDefinition,
-    InsertExpression,
-    RawExpression,
-)
+backend.execute("DROP TABLE IF EXISTS orders")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='orders',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'order_data', 'JSON'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('order_data', 'JSON'),
     ],
     if_not_exists=True,
 )
@@ -48,12 +57,15 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    table_name='orders',
+    into='orders',
     columns=['order_data'],
-    values=[
-        [Literal(dialect, '{"customer": "Alice", "items": [{"product": "Widget", "qty": 5, "price": 10.00}, {"product": "Gadget", "qty": 3, "price": 15.00}]}')],
-        [Literal(dialect, '{"customer": "Bob", "items": [{"product": "Widget", "qty": 2, "price": 10.00}]}')],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, '{"customer": "Alice", "items": [{"product": "Widget", "qty": 5, "price": 10.00}, {"product": "Gadget", "qty": 3, "price": 15.00}]}')],
+            [Literal(dialect, '{"customer": "Bob", "items": [{"product": "Widget", "qty": 2, "price": 10.00}]}')],
+        ],
+    ),
 )
 sql, params = insert.to_sql()
 backend.execute(sql, params)
@@ -84,10 +96,23 @@ print(f"JSON_TABLE SQL: {json_table_sql}")
 raw_sql = f"SELECT o.id, items.product, items.qty, items.price FROM orders o, {json_table_sql}"
 
 # ============================================================
+# SECTION: Business Logic (the pattern to learn)
+# ============================================================
+# MySQL JSON_TABLE expression converted to raw SQL
+# Note: JSONTableExpression cannot handle complex nested arrays properly, so use raw SQL
+json_table_sql = """JSON_TABLE(order_data, '$.items[*]' COLUMNS (
+    product VARCHAR(100) PATH '$.product',
+    qty INT PATH '$.qty',
+    price DECIMAL(10,2) PATH '$.price'
+)) AS items"""
+
+raw_sql = f"SELECT o.id, items.product, items.qty, items.price FROM orders o, {json_table_sql}"
+print(f"JSON_TABLE SQL: {json_table_sql}")
+
+# ============================================================
 # SECTION: Execution (run the expression)
 # ============================================================
-options = ExecutionOptions(stmt_type=StatementType.DQL)
-result = backend.execute(raw_sql, json_table_params, options=options)
+result = backend.execute(raw_sql)
 print(f"Rows returned: {len(result.data) if result.data else 0}")
 for row in result.data or []:
     print(f" {row}")

@@ -23,16 +23,31 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition, InsertExpression
+backend.execute("DROP TABLE IF EXISTS departments")
+backend.execute("DROP TABLE IF EXISTS employees")
+
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
 create_departments = CreateTableExpression(
     dialect=dialect,
     table_name='departments',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'name', 'VARCHAR(100)'),
-        ColumnDefinition(dialect, 'budget', 'DECIMAL(15,2)'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('name', 'VARCHAR(100)'),
+        ColumnDefinition('budget', 'DECIMAL(15,2)'),
     ],
     if_not_exists=True,
 )
@@ -43,10 +58,17 @@ create_employees = CreateTableExpression(
     dialect=dialect,
     table_name='employees',
     columns=[
-        ColumnDefinition(dialect, 'id', 'INT', primary_key=True, auto_increment=True),
-        ColumnDefinition(dialect, 'name', 'VARCHAR(100)'),
-        ColumnDefinition(dialect, 'salary', 'DECIMAL(10,2)'),
-        ColumnDefinition(dialect, 'department_id', 'INT'),
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('name', 'VARCHAR(100)'),
+        ColumnDefinition('salary', 'DECIMAL(10,2)'),
+        ColumnDefinition('department_id', 'INT'),
     ],
     if_not_exists=True,
 )
@@ -55,26 +77,32 @@ backend.execute(sql, params)
 
 insert_departments = InsertExpression(
     dialect=dialect,
-    table_name='departments',
+    into='departments',
     columns=['name', 'budget'],
-    values=[
-        [Literal(dialect, 'Engineering'), Literal(dialect, 1000000)],
-        [Literal(dialect, 'Sales'), Literal(dialect, 500000)],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 'Engineering'), Literal(dialect, 1000000)],
+            [Literal(dialect, 'Sales'), Literal(dialect, 500000)],
+        ],
+    ),
 )
 sql, params = insert_departments.to_sql()
 backend.execute(sql, params)
 
 insert_employees = InsertExpression(
     dialect=dialect,
-    table_name='employees',
+    into='employees',
     columns=['name', 'salary', 'department_id'],
-    values=[
-        [Literal(dialect, 'Alice'), Literal(dialect, 80000), Literal(dialect, 1)],
-        [Literal(dialect, 'Bob'), Literal(dialect, 90000), Literal(dialect, 1)],
-        [Literal(dialect, 'Charlie'), Literal(dialect, 60000), Literal(dialect, 2)],
-        [Literal(dialect, 'David'), Literal(dialect, 70000), Literal(dialect, 2)],
-    ],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 'Alice'), Literal(dialect, 80000), Literal(dialect, 1)],
+            [Literal(dialect, 'Bob'), Literal(dialect, 90000), Literal(dialect, 1)],
+            [Literal(dialect, 'Charlie'), Literal(dialect, 60000), Literal(dialect, 2)],
+            [Literal(dialect, 'David'), Literal(dialect, 70000), Literal(dialect, 2)],
+        ],
+    ),
 )
 sql, params = insert_employees.to_sql()
 backend.execute(sql, params)
@@ -87,16 +115,18 @@ from rhosocial.activerecord.backend.expression import (
     TableExpression,
     Column,
     WhereClause,
-    SubqueryExpression,
+    Subquery,
 )
 from rhosocial.activerecord.backend.expression.core import FunctionCall
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 
-subquery = QueryExpression(
+subquery_query = QueryExpression(
     dialect=dialect,
     select=[FunctionCall(dialect, 'AVG', Column(dialect, 'salary'))],
     from_=TableExpression(dialect, 'employees'),
 )
+sql, params = subquery_query.to_sql()
+subquery = Subquery(dialect, sql, params)
 
 query = QueryExpression(
     dialect=dialect,
@@ -111,7 +141,7 @@ query = QueryExpression(
             dialect,
             '>',
             Column(dialect, 'salary'),
-            SubqueryExpression(dialect, subquery),
+            subquery,
         ),
     ),
 )
