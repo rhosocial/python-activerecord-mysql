@@ -1,12 +1,8 @@
 """
 MySQL JSON functions - JSON_EXTRACT, JSON_UNQUOTE.
 
-This example demonstrates:
-1. MySQL 5.7+ with native JSON data type (JSON_EXTRACT, etc.)
-2. MySQL 5.6 - falls back to TEXT storage with string functions
-
-Supported versions: MySQL 5.7+ (native JSON)
-Unsupported versions: MySQL 5.6 (will produce database error - handled gracefully)
+Supported versions: MySQL 5.7+
+Unsupported versions: MySQL 5.6 (use json_mysql56.py instead)
 """
 
 # ============================================================
@@ -38,58 +34,25 @@ from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraintType,
 )
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-# MySQL 5.7+: Use JSON data type
-# MySQL 5.6: Falls back to TEXT column
-print("=== MySQL 5.7+ JSON example ===")
-print("Attempting to create table with JSON column...")
-
-try:
-    create_table = CreateTableExpression(
-        dialect=dialect,
-        table_name='documents',
-        columns=[
-            ColumnDefinition(
-                'id',
-                'INT',
-                constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
-                ],
-            ),
-            ColumnDefinition('data', 'JSON'),
-        ],
-        if_not_exists=True,
-    )
-    sql, params = create_table.to_sql()
-    backend.execute(sql, params)
-    use_json = True
-    print("SUCCESS: Created table with JSON column")
-except Exception as e:
-    use_json = False
-    print(f"ERROR (MySQL 5.6): {e}")
-    print("Falling back to TEXT column...")
-    create_table = CreateTableExpression(
-        dialect=dialect,
-        table_name='documents',
-        columns=[
-            ColumnDefinition(
-                'id',
-                'INT',
-                constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
-                ],
-            ),
-            ColumnDefinition('data', 'TEXT'),
-        ],
-        if_not_exists=True,
-    )
-    sql, params = create_table.to_sql()
-    backend.execute(sql, params)
-    print("SUCCESS: Created table with TEXT column (fallback)")
+# Create table with JSON column (MySQL 5.7+)
+create_table = CreateTableExpression(
+    dialect=dialect,
+    table_name='documents',
+    columns=[
+        ColumnDefinition(
+            'id',
+            'INT',
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition('data', 'JSON'),
+    ],
+    if_not_exists=True,
+)
+sql, params = create_table.to_sql()
+backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
@@ -106,33 +69,27 @@ insert = InsertExpression(
 sql, params = insert.to_sql()
 backend.execute(sql, params)
 
-# Query based on MySQL version
-if use_json:
-    from rhosocial.activerecord.backend.expression import (
-        QueryExpression,
-        TableExpression,
-        Column,
-    )
-    from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote
+# ============================================================
+# SECTION: Business Logic (the pattern to learn)
+# ============================================================
+from rhosocial.activerecord.backend.expression import (
+    QueryExpression,
+    TableExpression,
+    Column,
+)
+from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote
 
-    query = QueryExpression(
-        dialect=dialect,
-        select=[
-            Column(dialect, 'id'),
-            json_unquote(dialect, json_extract(dialect, Column(dialect, 'data'), '$.name')).as_('name'),
-            json_extract(dialect, Column(dialect, 'data'), '$.age').as_('age'),
-        ],
-        from_=TableExpression(dialect, 'documents'),
-    )
-    sql, params = query.to_sql()
-    print("Using JSON_EXTRACT functions")
-else:
-    # MySQL 5.6 fallback - just select the TEXT column
-    # String parsing is error-prone, so we just demonstrate the column
-    sql = "SELECT id, data FROM documents"
-    params = ()
-    print("Using direct TEXT column (MySQL 5.6 fallback - no JSON parsing)")
+query = QueryExpression(
+    dialect=dialect,
+    select=[
+        Column(dialect, 'id'),
+        json_unquote(dialect, json_extract(dialect, Column(dialect, 'data'), '$.name')).as_('name'),
+        json_extract(dialect, Column(dialect, 'data'), '$.age').as_('age'),
+    ],
+    from_=TableExpression(dialect, 'documents'),
+)
 
+sql, params = query.to_sql()
 print(f"SQL: {sql}")
 print(f"Params: {params}")
 

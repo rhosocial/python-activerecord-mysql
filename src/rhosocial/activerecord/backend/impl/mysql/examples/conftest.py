@@ -105,6 +105,12 @@ EXAMPLES_META = {
         'priority': 10,
         'min_version': '5.7',
         'max_version': '9.6',
-        'note': 'MySQL 5.6 does not support JSON data type. Running on 5.6 will produce error.',
+    },
+    'types/json_mysql56.py': {
+        'title': 'JSON Operations (MySQL 5.6)',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '5.6',
     },
 }
