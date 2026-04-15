@@ -79,6 +79,7 @@ from .protocols import (
 from .mixins import (
     MySQLTransactionMixin,
     MySQLDMLOperationMixin,
+    MySQLFullTextSearchMixin,
     MySQLTriggerMixin,
     MySQLTableMixin,
     MySQLSetTypeMixin,
@@ -130,6 +131,7 @@ class MySQLDialect(
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
     MySQLDMLOperationMixin,  # MySQL DML operations
+    MySQLFullTextSearchMixin,  # MySQL full-text search
     MySQLTriggerMixin,
     MySQLTableMixin,
     MySQLSetTypeMixin,
