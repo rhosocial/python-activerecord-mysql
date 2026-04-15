@@ -1378,3 +1378,140 @@ class MySQLVectorMixin:
             f"({self.format_identifier(column)})",
             ()
         )
+
+
+class MySQLDMLOperationMixin:
+    """MySQL DML operations mixin.
+
+    MySQL-specific DML operations:
+    - INSERT IGNORE
+    - REPLACE INTO
+    - LOAD DATA INFILE
+    - JSON_TABLE (8.0.4+)
+    """
+
+    def supports_insert_ignore(self) -> bool:
+        """Whether INSERT IGNORE is supported."""
+        return True
+
+    def supports_replace_into(self) -> bool:
+        """Whether REPLACE INTO is supported."""
+        return True
+
+    def supports_load_data(self) -> bool:
+        """Whether LOAD DATA INFILE is supported."""
+        return True
+
+    def supports_json_table(self) -> bool:
+        """Whether JSON_TABLE is supported (MySQL 8.0.4+)."""
+        return self.version >= (8, 0, 4)
+
+    def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
+        """Format LOAD DATA INFILE statement."""
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["LOAD DATA"]
+
+        if expr.options.local:
+            parts.append("LOCAL")
+
+        parts.append("INFILE")
+
+        file_path_escaped = expr.file_path.replace("\\", "\\\\").replace("'", "\\'")
+        parts.append(f"'{file_path_escaped}'")
+
+        if expr.options.replace:
+            parts.append("REPLACE")
+        elif expr.options.ignore:
+            parts.append("IGNORE")
+
+        parts.append("INTO TABLE")
+        parts.append(self.format_identifier(expr.table))
+
+        if expr.options.character_set:
+            parts.append(f"CHARACTER SET {expr.options.character_set}")
+
+        field_parts = []
+        if expr.options.fields_terminated_by is not None:
+            field_parts.append(
+                f"TERMINATED BY '{expr.options.fields_terminated_by}'"
+            )
+        if expr.options.fields_enclosed_by is not None:
+            field_parts.append(f"ENCLOSED BY '{expr.options.fields_enclosed_by}'")
+        if expr.options.fields_escaped_by is not None:
+            field_parts.append(f"ESCAPED BY '{expr.options.fields_escaped_by}'")
+        if field_parts:
+            parts.append("FIELDS " + " ".join(field_parts))
+
+        line_parts = []
+        if expr.options_lines_terminated_by is not None:
+            line_parts.append(f"TERMINATED BY '{expr.options_lines_terminated_by}'")
+        if expr.options_lines_starting_by is not None:
+            line_parts.append(f"STARTING BY '{expr.options_lines_starting_by}'")
+        if line_parts:
+            parts.append("LINES " + " ".join(line_parts))
+
+        if expr.options.skip:
+            parts.append(f"IGNORE {expr.options.skip} LINES")
+
+        if expr.options.set_assignments:
+            set_parts = []
+            for col, val in expr.options.set_assignments.items():
+                set_parts.append(f"{self.format_identifier(col)} = {val}")
+            parts.append("SET " + ", ".join(set_parts))
+
+        return " ".join(parts), ()
+
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Format JSON_TABLE expression."""
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["JSON_TABLE("]
+        parts.append(expr.json_doc)
+        parts.append(",")
+        parts.append(expr.path)
+        parts.append(" COLUMNS (")
+
+        column_parts = []
+        for col in expr.columns:
+            if col.ordinality:
+                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
+            elif col.exists:
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
+                )
+            else:
+                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                if col.path:
+                    col_def += f" PATH '{col.path}'"
+                if col.error_handling:
+                    if col.error_handling.upper() == 'DEFAULT':
+                        col_def += f" DEFAULT {col.default_value} ON ERROR"
+                    else:
+                        col_def += f" {col.error_handling.upper()} ON ERROR"
+                column_parts.append(col_def)
+
+        for nested in expr.nested_paths:
+            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            nested_cols = []
+            for col in nested.columns:
+                if col.ordinality:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
+                    )
+                else:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
+                    )
+            nested_def += ", ".join(nested_cols) + ")"
+            if nested.alias:
+                nested_def = f"{nested.alias} AS " + nested_def
+            column_parts.append(nested_def)
+
+        parts.append(", ".join(column_parts))
+        parts.append("))")
+
+        if expr.alias:
+            parts.append(f" AS {expr.alias}")
+
+        return "".join(parts), ()
