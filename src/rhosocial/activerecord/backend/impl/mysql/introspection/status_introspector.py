@@ -1318,10 +1318,14 @@ class AsyncMySQLStatusIntrospector(
         # Only query if binary logging is enabled
         if binary_log.log_enabled:
             # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
-            try:
+try:
                 # Get server version first
-                version_result = await self._backend.execute("SELECT VERSION()", ())
-                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_str = (
+                    version_result.data[0].get("VERSION()", "")
+                    if version_result and version_result.data
+                    else ""
+                )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 8.4+: use performance_schema.log_status
