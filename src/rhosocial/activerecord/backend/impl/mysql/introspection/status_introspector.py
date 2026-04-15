@@ -664,7 +664,11 @@ class SyncMySQLStatusIntrospector(
             try:
                 # Get server version first
                 version_result = self._backend.execute("SELECT VERSION()", ())
-                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+                version_str = (
+                    version_result.data[0].get("VERSION()", "")
+                    if version_result and version_result.data
+                    else ""
+                )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 8.4+: use performance_schema.log_status
@@ -673,12 +677,14 @@ class SyncMySQLStatusIntrospector(
                         "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
                         "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
                         "FROM performance_schema.log_status",
-                        ()
+                        (),
                     )
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self._parse_variable_value(
+                            row.get("Position")
+                        )
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
@@ -686,7 +692,9 @@ class SyncMySQLStatusIntrospector(
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self._parse_variable_value(
+                            row.get("Position")
+                        )
             except Exception:
                 pass
         # Get GTID info
@@ -1318,7 +1326,7 @@ class AsyncMySQLStatusIntrospector(
         # Only query if binary logging is enabled
         if binary_log.log_enabled:
             # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
-try:
+            try:
                 # Get server version first
                 version_result = self._backend.execute("SELECT VERSION()", ())
                 version_str = (
@@ -1334,12 +1342,14 @@ try:
                         "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
                         "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
                         "FROM performance_schema.log_status",
-                        ()
+                        (),
                     )
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self._parse_variable_value(
+                            row.get("Position")
+                        )
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
@@ -1347,7 +1357,9 @@ try:
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self._parse_variable_value(
+                            row.get("Position")
+                        )
             except Exception:
                 pass
         # Get GTID info
