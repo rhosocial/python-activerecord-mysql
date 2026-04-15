@@ -865,7 +865,7 @@ class MySQLVectorSupport(Protocol):
 
 
 @runtime_checkable
-class FullTextSearchSupport(Protocol):
+class MySQLFullTextSearchSupport(Protocol):
     """MySQL full-text search protocol."""
 
     def supports_fulltext_index(self) -> bool:

@@ -74,6 +74,7 @@ from .protocols import (
     MySQLSpatialSupport,
     MySQLVectorSupport,
     MySQLDMLOperationSupport,
+    MySQLFullTextSearchSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -172,6 +173,7 @@ class MySQLDialect(
     MySQLSpatialSupport,
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
     MySQLDMLOperationSupport,  # MySQL-specific DML operations (INSERT IGNORE, REPLACE INTO)
+    MySQLFullTextSearchSupport,  # MySQL full-text search
     # Function Support Protocol
     SQLFunctionSupport,
 ):

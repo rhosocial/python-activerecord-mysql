@@ -86,7 +86,7 @@ EXAMPLES_META = {
     },
     'query/fulltext.py': {
         'title': 'Full-Text Search',
-        'dialect_protocols': ['FullTextSearchSupport'],
+        'dialect_protocols': ['MySQLFullTextSearchSupport'],
         'priority': 10,
         'min_version': '5.6',
         'max_version': '9.6',
