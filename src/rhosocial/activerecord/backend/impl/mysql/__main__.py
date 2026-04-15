@@ -217,7 +217,7 @@ def parse_args():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # info subcommand
-    info_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "info",
         help="Display MySQL environment information",
         parents=[parent_parser],
