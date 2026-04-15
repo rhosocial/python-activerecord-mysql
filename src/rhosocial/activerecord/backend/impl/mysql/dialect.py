@@ -74,7 +74,6 @@ from .protocols import (
     MySQLSpatialSupport,
     MySQLVectorSupport,
     MySQLDMLOperationSupport,
-    FullTextSearchSupport,
 )
 from .mixins import (
     MySQLTriggerMixin,
@@ -92,6 +91,10 @@ if TYPE_CHECKING:
         CreateTableExpression, CreateViewExpression, DropViewExpression,
         ColumnDefinition, TableConstraint, IndexDefinition,
         ExplainExpression, InsertExpression,
+    )
+    from rhosocial.activerecord.backend.expression.transaction import (
+        SetTransactionExpression,
+        BeginTransactionExpression,
     )
 
 

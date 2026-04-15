@@ -5,9 +5,9 @@ MySQL-specific MATCH...AGAINST expression.
 This module provides MatchAgainstExpression for MySQL's full-text search functionality.
 """
 
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLQueryAndParams, SQLValueExpression
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,

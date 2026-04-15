@@ -13,7 +13,7 @@ import os
 import sys
 from dataclasses import asdict, is_dataclass
 from enum import Enum
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Tuple
 
 from . import MySQLBackend, AsyncMySQLBackend
 from .config import MySQLConnectionConfig

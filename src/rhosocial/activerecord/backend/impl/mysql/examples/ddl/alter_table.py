@@ -141,7 +141,7 @@ print("Column name modified successfully")
 
 options = ExecutionOptions(stmt_type=StatementType.DQL)
 result = backend.execute("DESCRIBE users", options=options)
-print(f"Table structure after alterations:")
+print("Table structure after alterations:")
 for row in result.data or []:
     print(f" {row}")
 

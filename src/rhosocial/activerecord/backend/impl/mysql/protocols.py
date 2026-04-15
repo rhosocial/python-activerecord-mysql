@@ -8,7 +8,7 @@ mainstream databases.
 from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.statements import InsertExpression
+    pass
 
 
 @runtime_checkable

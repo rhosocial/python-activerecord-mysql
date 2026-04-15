@@ -79,7 +79,6 @@ create_orders = CreateTableExpression(
 sql, params = create_orders.to_sql()
 backend.execute(sql, params)
 
-from rhosocial.activerecord.backend.expression import InsertExpression, ValuesSource
 insert_customers = InsertExpression(
     dialect=dialect,
     into='customers',

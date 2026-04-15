@@ -8,8 +8,6 @@ MySQL-specific full-text search using MATCH...AGAINST.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.options import ExecutionOptions
-from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
     host=os.getenv('MYSQL_HOST', 'localhost'),
