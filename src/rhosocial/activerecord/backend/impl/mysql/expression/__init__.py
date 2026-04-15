@@ -3,15 +3,17 @@
 MySQL-specific expression classes.
 
 This module provides expression classes that are specific to MySQL,
-such as LOAD DATA INFILE and JSON_TABLE expressions.
+such as LOAD DATA INFILE, JSON_TABLE, and MATCH...AGAINST expressions.
 
 Directory structure:
-- load_data.py    - LOAD DATA INFILE expression
-- json_table.py   - JSON_TABLE expression
+- load_data.py      - LOAD DATA INFILE expression
+- json_table.py    - JSON_TABLE expression
+- match_against.py - MATCH...AGAINST expression
 """
 
 from .load_data import LoadDataExpression, LoadDataOptions
 from .json_table import JSONTableExpression, JSONTableColumn, NestedPath
+from .match_against import MatchAgainstExpression, MatchAgainstMode
 
 __all__ = [
     "LoadDataExpression",
@@ -19,4 +21,6 @@ __all__ = [
     "JSONTableExpression",
     "JSONTableColumn",
     "NestedPath",
+    "MatchAgainstExpression",
+    "MatchAgainstMode",
 ]

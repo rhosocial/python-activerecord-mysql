@@ -77,21 +77,46 @@ backend.execute(sql)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import QueryExpression
-from rhosocial.activerecord.backend.impl.mysql.functions.fulltext import match_against
+from rhosocial.activerecord.backend.expression import QueryExpression, Column, TableExpression
+from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression
 
-match_expr = match_against(
-    dialect,
+# Use MatchAgainstExpression for full-text search
+match_expr = MatchAgainstExpression(
+    dialect=dialect,
     columns=['title', 'content'],
     search_string='MySQL',
     mode='NATURAL_LANGUAGE',
 )
 
-# Note: match_against returns a RawSQLExpression which cannot be used directly
-# in QueryExpression select list. For production, use raw SQL with backend.execute()
-# or implement a proper AS alias support. This example demonstrates the workaround:
-sql = "SELECT id, title, MATCH(title, content) AGAINST('MySQL' IN NATURAL LANGUAGE MODE) AS relevance FROM articles WHERE MATCH(title, content) AGAINST('MySQL' IN NATURAL LANGUAGE MODE) > 0"
-params = ()
+# Create separate instances - one for SELECT with alias, one for WHERE without alias
+match_with_alias = MatchAgainstExpression(
+    dialect=dialect,
+    columns=['title', 'content'],
+    search_string='MySQL',
+    mode='NATURAL_LANGUAGE',
+)
+match_with_alias = match_with_alias.as_('relevance')
+
+match_for_where = MatchAgainstExpression(
+    dialect=dialect,
+    columns=['title', 'content'],
+    search_string='MySQL',
+    mode='NATURAL_LANGUAGE',
+)
+
+# Build query using expression (supports alias via as_)
+query = QueryExpression(
+    dialect=dialect,
+    select=[
+        Column(dialect, 'id'),
+        Column(dialect, 'title'),
+        match_with_alias,
+    ],
+    from_=TableExpression(dialect, 'articles'),
+    where=(match_for_where > 0),
+)
+
+sql, params = query.to_sql()
 print(f"SQL: {sql}")
 print(f"Params: {params}")
 

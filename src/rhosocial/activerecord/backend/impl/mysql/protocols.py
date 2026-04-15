@@ -862,3 +862,29 @@ class MySQLVectorSupport(Protocol):
             Tuple of (SQL string, parameters tuple)
         """
         ...
+
+
+@runtime_checkable
+class FullTextSearchSupport(Protocol):
+    """MySQL full-text search protocol."""
+
+    def supports_fulltext_index(self) -> bool:
+        """Whether FULLTEXT indexes are supported (MySQL 5.6+)."""
+        ...
+
+    def supports_fulltext_parser(self) -> bool:
+        """Whether FULLTEXT parser plugins are supported (MySQL 5.1+)."""
+        ...
+
+    def supports_fulltext_query_expansion(self) -> bool:
+        """Whether query expansion mode is supported."""
+        ...
+
+    def format_match_against(
+        self,
+        columns: List[str],
+        search_string: str,
+        mode: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format MATCH ... AGAINST expression."""
+        ...

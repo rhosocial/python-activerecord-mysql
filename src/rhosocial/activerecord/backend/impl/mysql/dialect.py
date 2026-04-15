@@ -74,6 +74,7 @@ from .protocols import (
     MySQLSpatialSupport,
     MySQLVectorSupport,
     MySQLDMLOperationSupport,
+    FullTextSearchSupport,
 )
 from .mixins import (
     MySQLTriggerMixin,
@@ -964,6 +965,44 @@ class MySQLDialect(
     def supports_fulltext_query_expansion(self) -> bool:
         """MySQL supports QUERY EXPANSION."""
         return True  # All versions with FULLTEXT support this
+
+    def format_match_against(
+        self,
+        columns: List[str],
+        search_string: str,
+        mode: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format MATCH ... AGAINST expression.
+
+        Args:
+            columns: Column names to search
+            search_string: Search term
+            mode: Search mode - NATURAL_LANGUAGE, BOOLEAN, or QUERY_EXPANSION
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        cols_sql = ", ".join(self.format_identifier(c) for c in columns)
+
+        placeholder = self.get_parameter_placeholder()
+        search_sql = placeholder
+        search_params = (search_string,)
+
+        if mode:
+            mode_upper = mode.upper()
+            if mode_upper == "NATURAL_LANGUAGE":
+                mode_str = "IN NATURAL LANGUAGE MODE"
+            elif mode_upper == "BOOLEAN":
+                mode_str = "IN BOOLEAN MODE"
+            elif mode_upper == "QUERY_EXPANSION":
+                mode_str = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
+            else:
+                mode_str = ""
+        else:
+            mode_str = "IN NATURAL LANGUAGE MODE"
+
+        sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
+        return sql, search_params
 
     # endregion
 

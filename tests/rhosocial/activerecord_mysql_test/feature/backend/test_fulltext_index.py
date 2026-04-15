@@ -13,6 +13,7 @@ from rhosocial.activerecord.backend.expression.statements import (
     CreateFulltextIndexExpression,
     DropFulltextIndexExpression
 )
+from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression
 
 
 class TestFullTextProtocol:
@@ -31,6 +32,56 @@ class TestFullTextProtocol:
         # MySQL 8.0 - supported
         dialect_80 = MySQLDialect(version=(8, 0, 0))
         assert dialect_80.supports_fulltext_index()
+
+    def test_format_match_against(self):
+        """Test format_match_against method."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+        
+        sql, params = dialect.format_match_against(
+            ['title', 'content'],
+            'MySQL',
+            mode='NATURAL_LANGUAGE'
+        )
+        
+        assert 'MATCH(`title`, `content`)' in sql
+        assert 'AGAINST' in sql
+        assert 'IN NATURAL LANGUAGE MODE' in sql
+        assert params == ('MySQL',)
+
+    def test_match_against_expression(self):
+        """Test MatchAgainstExpression class."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+        
+        expr = MatchAgainstExpression(
+            dialect,
+            columns=['title', 'content'],
+            search_string='database',
+            mode='BOOLEAN'
+        )
+        
+        sql, params = expr.to_sql()
+        
+        assert 'MATCH(`title`, `content`)' in sql
+        assert 'AGAINST' in sql
+        assert 'IN BOOLEAN MODE' in sql
+        assert params == ('database',)
+
+    def test_match_against_with_alias(self):
+        """Test MatchAgainstExpression with alias."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+        
+        expr = MatchAgainstExpression(
+            dialect,
+            columns=['title', 'content'],
+            search_string='test'
+        )
+        
+        aliased = expr.as_('relevance')
+        sql, params = aliased.to_sql()
+        
+        assert 'MATCH(`title`, `content`)' in sql
+        assert 'AGAINST' in sql
+        assert params == ('test',)
     
     def test_supports_fulltext_parser(self):
         """Test parser plugin support."""
