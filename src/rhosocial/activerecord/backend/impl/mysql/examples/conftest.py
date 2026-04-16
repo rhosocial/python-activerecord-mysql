@@ -19,6 +19,21 @@ Version-specific features:
 """
 
 EXAMPLES_META = {
+    'transaction/basic.py': {
+        'title': 'Transaction Control',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'query/cte.py': {
+        'title': 'CTE (Common Table Expressions)',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '8.0',
+        'max_version': '9.6',
+        'note': 'Requires MySQL 8.0+. CTE is not available in earlier versions.',
+    },
     'connection/quickstart.py': {
         'title': 'Connect to MySQL and Execute Queries',
         'dialect_protocols': [],
@@ -42,6 +57,13 @@ EXAMPLES_META = {
     },
     'insert/batch.py': {
         'title': 'Batch Insert',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'insert/upsert.py': {
+        'title': 'UPSERT (INSERT ON DUPLICATE KEY UPDATE)',
         'dialect_protocols': [],
         'priority': 10,
         'min_version': '5.6',
