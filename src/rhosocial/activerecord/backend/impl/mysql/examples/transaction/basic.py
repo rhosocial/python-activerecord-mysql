@@ -54,7 +54,7 @@ create_table = CreateTableExpression(
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),
         ColumnDefinition('balance', 'DECIMAL(10,2)', constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='0'),
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
         ]),
     ],
     if_not_exists=True,

@@ -19,6 +19,7 @@ from rhosocial.activerecord.backend.expression import (
     DropTableExpression,
     CreateTableExpression,
 )
+from rhosocial.activerecord.backend.expression.core import FunctionCall
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
@@ -79,14 +80,14 @@ columns = [
         name='is_active',
         data_type='TINYINT(1)',
         constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='1'),
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
         ],
     ),
     ColumnDefinition(
         name='created_at',
         data_type='TIMESTAMP',
         constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP'),
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=FunctionCall(dialect, 'CURRENT_TIMESTAMP')),
         ],
     ),
 ]
@@ -142,5 +143,5 @@ backend.disconnect()
 # 1. Use ColumnConstraint with is_auto_increment=True for AUTO_INCREMENT
 # 2. MySQL dialect_options supports 'engine' and 'charset' keys
 # 3. IndexDefinition creates inline indexes within CREATE TABLE
-# 4. default_value sets column defaults (e.g., CURRENT_TIMESTAMP)
+# 4. Use FunctionCall for SQL statement-level constants (e.g., CURRENT_TIMESTAMP)
 # 5. Use introspector.get_columns() to verify table structure

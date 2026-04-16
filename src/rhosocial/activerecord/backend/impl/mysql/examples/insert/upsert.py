@@ -62,7 +62,7 @@ create_table = CreateTableExpression(
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),
         ColumnDefinition('login_count', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='0'),
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
         ]),
     ],
     if_not_exists=True,
