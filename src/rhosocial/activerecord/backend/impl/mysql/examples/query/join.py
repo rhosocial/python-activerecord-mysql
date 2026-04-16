@@ -23,16 +23,21 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-backend.execute("DROP TABLE IF EXISTS customers")
-backend.execute("DROP TABLE IF EXISTS orders")
-
-from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+
+drop_customers = DropTableExpression(dialect=dialect, table_name='customers', if_exists=True)
+sql, params = drop_customers.to_sql()
+backend.execute(sql, params)
+
+drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+sql, params = drop_orders.to_sql()
+backend.execute(sql, params)
 
 create_customers = CreateTableExpression(
     dialect=dialect,

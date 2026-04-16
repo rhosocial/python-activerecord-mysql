@@ -11,7 +11,7 @@ but for simplicity we demonstrate individual operations.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
@@ -33,7 +33,9 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-backend.execute("DROP TABLE IF EXISTS users")
+drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,

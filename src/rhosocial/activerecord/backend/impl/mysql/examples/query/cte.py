@@ -23,24 +23,53 @@ config = MySQLConnectionConfig(
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
+dialect = backend.dialect
 
-# Create tables for testing
-backend.execute("""
-    CREATE TABLE IF NOT EXISTS employees (
-        id INT PRIMARY KEY,
-        name VARCHAR(100),
-        manager_id INT NULL
-    )
-""")
-backend.execute("DELETE FROM employees")
-backend.execute("""
-    INSERT INTO employees (id, name, manager_id) VALUES
-    (1, 'CEO', NULL),
-    (2, 'VP Sales', 1),
-    (3, 'VP Engineering', 1),
-    (4, 'Sales Manager', 2),
-    (5, 'Engineer', 3)
-""")
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression,
+    InsertExpression,
+    ValuesSource,
+    DropTableExpression,
+)
+from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
+
+create_table = CreateTableExpression(
+    dialect=dialect,
+    table_name='employees',
+    columns=[
+        ColumnDefinition('id', 'INT', constraints=[
+            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+        ]),
+        ColumnDefinition('name', 'VARCHAR(100)'),
+        ColumnDefinition('manager_id', 'INT', nullable=True),
+    ],
+    if_not_exists=True,
+)
+sql, params = create_table.to_sql()
+backend.execute(sql, params)
+
+delete_sql = "DELETE FROM employees"
+backend.execute(delete_sql)
+
+insert_expr = InsertExpression(
+    dialect=dialect,
+    table_name='employees',
+    columns=['id', 'name', 'manager_id'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 1), Literal(dialect, 'CEO'), Literal(dialect, None)],
+        [Literal(dialect, 2), Literal(dialect, 'VP Sales'), Literal(dialect, 1)],
+        [Literal(dialect, 3), Literal(dialect, 'VP Engineering'), Literal(dialect, 1)],
+        [Literal(dialect, 4), Literal(dialect, 'Sales Manager'), Literal(dialect, 2)],
+        [Literal(dialect, 5), Literal(dialect, 'Engineer'), Literal(dialect, 3)],
+    ]),
+)
+sql, params = insert_expr.to_sql()
+backend.execute(sql, params)
 
 # ============================================================
 # SECTION: Basic CTE
@@ -101,7 +130,9 @@ print(f"Multiple CTEs result: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-backend.execute("DROP TABLE IF EXISTS employees")
+drop_table = DropTableExpression(dialect=dialect, table_name='employees', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 backend.disconnect()
 
 # ============================================================

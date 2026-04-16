@@ -23,16 +23,21 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-backend.execute("DROP TABLE IF EXISTS departments")
-backend.execute("DROP TABLE IF EXISTS employees")
-
-from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+
+drop_departments = DropTableExpression(dialect=dialect, table_name='departments', if_exists=True)
+sql, params = drop_departments.to_sql()
+backend.execute(sql, params)
+
+drop_employees = DropTableExpression(dialect=dialect, table_name='employees', if_exists=True)
+sql, params = drop_employees.to_sql()
+backend.execute(sql, params)
 
 create_departments = CreateTableExpression(
     dialect=dialect,

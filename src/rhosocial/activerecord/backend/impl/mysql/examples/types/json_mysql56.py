@@ -17,7 +17,7 @@ from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConf
 
 config = MySQLConnectionConfig(
     host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
+    port=int(os.getenv('MYSQL_PORT', 3306)),
     database=os.getenv('MYSQL_DATABASE', 'test'),
     username=os.getenv('MYSQL_USERNAME', 'root'),
     password=os.getenv('MYSQL_PASSWORD', ''),
@@ -27,21 +27,49 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-backend.execute("DROP TABLE IF EXISTS documents")
+from rhosocial.activerecord.backend.expression import (
+    DropTableExpression,
+    InsertExpression,
+    ValuesSource,
+)
+from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
 
-# Create table with TEXT column instead of JSON (MySQL 5.6)
-backend.execute("""
-    CREATE TABLE documents (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        data TEXT NOT NULL
-    )
-""")
+drop_table = DropTableExpression(dialect=dialect, table_name='documents', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 
-backend.execute("""
-    INSERT INTO documents (data) VALUES 
-    ('{"name": "Alice", "age": 30}'),
-    ('{"name": "Bob", "age": 25}')
-""")
+from rhosocial.activerecord.backend.expression import CreateTableExpression
+create_table = CreateTableExpression(
+    dialect=dialect,
+    table_name='documents',
+    columns=[
+        ColumnDefinition('id', 'INT', constraints=[
+            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+        ], autoincrement=True),
+        ColumnDefinition('data', 'TEXT', constraints=[
+            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+        ]),
+    ],
+)
+sql, params = create_table.to_sql()
+backend.execute(sql, params)
+
+insert_expr = InsertExpression(
+    dialect=dialect,
+    table_name='documents',
+    columns=['data'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, '{"name": "Alice", "age": 30}')],
+        [Literal(dialect, '{"name": "Bob", "age": 25}')],
+    ]),
+)
+sql, params = insert_expr.to_sql()
+backend.execute(sql, params)
 
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)

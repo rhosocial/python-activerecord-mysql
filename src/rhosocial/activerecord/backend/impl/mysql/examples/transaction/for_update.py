@@ -24,17 +24,56 @@ config = MySQLConnectionConfig(
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
+dialect = backend.dialect
 
-# Create table for testing (use InnoDB for row locking)
-backend.execute("""
-    CREATE TABLE IF NOT EXISTS accounts (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        balance DECIMAL(10,2) DEFAULT 0
-    ) ENGINE=InnoDB
-""")
-backend.execute("TRUNCATE TABLE accounts")
-backend.execute("INSERT INTO accounts (name, balance) VALUES ('Alice', 1000), ('Bob', 500)")
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression,
+    InsertExpression,
+    ValuesSource,
+    DropTableExpression,
+)
+from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
+
+create_table = CreateTableExpression(
+    dialect=dialect,
+    table_name='accounts',
+    columns=[
+        ColumnDefinition('id', 'INT AUTO_INCREMENT', constraints=[
+            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+        ]),
+        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
+            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+        ]),
+        ColumnDefinition('balance', 'DECIMAL(10,2)', default_value='0'),
+    ],
+    if_not_exists=True,
+    extra='ENGINE=InnoDB',
+)
+sql, params = create_table.to_sql()
+backend.execute(sql, params)
+
+truncate_table = DropTableExpression(dialect=dialect, table_name='accounts')
+sql, params = truncate_table.to_sql()
+if_exists = truncate_table.if_exists
+truncate_sql = f"TRUNCATE TABLE accounts"
+backend.execute(truncate_sql)
+
+insert_expr = InsertExpression(
+    dialect=dialect,
+    table_name='accounts',
+    columns=['name', 'balance'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'Alice'), Literal(dialect, 1000)],
+        [Literal(dialect, 'Bob'), Literal(dialect, 500)],
+    ]),
+)
+sql, params = insert_expr.to_sql()
+backend.execute(sql, params)
 
 # ============================================================
 # SECTION: SELECT FOR UPDATE
@@ -106,7 +145,9 @@ with backend.transaction():
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-backend.execute("DROP TABLE IF EXISTS accounts")
+drop_table = DropTableExpression(dialect=dialect, table_name='accounts', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 backend.disconnect()
 
 # ============================================================

@@ -24,15 +24,17 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-backend.execute("DROP TABLE IF EXISTS documents")
-
-from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource
+from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+
+drop_table = DropTableExpression(dialect=dialect, table_name='documents', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 
 # Create table with JSON column (MySQL 5.7+)
 create_table = CreateTableExpression(

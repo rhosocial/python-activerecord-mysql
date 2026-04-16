@@ -23,16 +23,47 @@ config = MySQLConnectionConfig(
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
+dialect = backend.dialect
 
-# Create table for testing
-backend.execute("""
-    CREATE TABLE IF NOT EXISTS accounts (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        balance DECIMAL(10,2) DEFAULT 0
-    )
-""")
-backend.execute("INSERT INTO accounts (name, balance) VALUES ('Alice', 100)")
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression,
+    InsertExpression,
+    ValuesSource,
+)
+from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
+
+create_table = CreateTableExpression(
+    dialect=dialect,
+    table_name='accounts',
+    columns=[
+        ColumnDefinition('id', 'INT AUTO_INCREMENT', constraints=[
+            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+        ]),
+        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
+            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+        ]),
+        ColumnDefinition('balance', 'DECIMAL(10,2)', default_value='0'),
+    ],
+    if_not_exists=True,
+)
+sql, params = create_table.to_sql()
+backend.execute(sql, params)
+
+insert_expr = InsertExpression(
+    dialect=dialect,
+    table_name='accounts',
+    columns=['name', 'balance'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'Alice'), Literal(dialect, 100)],
+    ]),
+)
+sql, params = insert_expr.to_sql()
+backend.execute(sql, params)
 
 # ============================================================
 # SECTION: Transaction Context Manager

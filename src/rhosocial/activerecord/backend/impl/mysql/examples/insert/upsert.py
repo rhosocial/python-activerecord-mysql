@@ -24,17 +24,44 @@ config = MySQLConnectionConfig(
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
+dialect = backend.dialect
 
-# Create table for testing (requires unique key for conflict)
-backend.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        email VARCHAR(100) NOT NULL,
-        login_count INT DEFAULT 0
-    )
-""")
-backend.execute("TRUNCATE TABLE users")
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression,
+    DropTableExpression,
+    InsertExpression,
+    ValuesSource,
+)
+from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
+)
+
+create_table = CreateTableExpression(
+    dialect=dialect,
+    table_name='users',
+    columns=[
+        ColumnDefinition('id', 'INT AUTO_INCREMENT', constraints=[
+            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+        ]),
+        ColumnDefinition('username', 'VARCHAR(100)', constraints=[
+            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ColumnConstraint(ColumnConstraintType.UNIQUE),
+        ]),
+        ColumnDefinition('email', 'VARCHAR(100)', constraints=[
+            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+        ]),
+        ColumnDefinition('login_count', 'INT', default_value='0'),
+    ],
+    if_not_exists=True,
+)
+sql, params = create_table.to_sql()
+backend.execute(sql, params)
+
+truncate_sql = "TRUNCATE TABLE users"
+backend.execute(truncate_sql)
 
 # ============================================================
 # SECTION: INSERT ON DUPLICATE KEY UPDATE
@@ -105,7 +132,9 @@ backend.execute("""
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-backend.execute("DROP TABLE IF EXISTS users")
+drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 backend.disconnect()
 
 # ============================================================
