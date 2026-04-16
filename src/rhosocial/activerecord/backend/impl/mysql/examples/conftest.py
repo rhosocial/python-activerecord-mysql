@@ -120,4 +120,11 @@ EXAMPLES_META = {
         'min_version': '5.6',
         'max_version': '5.6',
     },
+    'types/fulltext_search.py': {
+        'title': 'Full-Text Search (Index)',
+        'dialect_protocols': ['MySQLFullTextSearchSupport'],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
 }
