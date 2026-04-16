@@ -66,8 +66,9 @@ from rhosocial.activerecord.backend.expression import (
     InsertExpression,
     ValuesSource,
     TableExpression,
+    QueryExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Literal, WildcardExpression, Column
 
 insert_expr = InsertExpression(
     dialect=dialect,
@@ -94,11 +95,18 @@ print(f"Params: {params}")
 result = backend.execute(sql, params)
 print(f"Affected rows: {result.affected_rows}")
 
+verify_query = QueryExpression(
+    dialect=dialect,
+    select=[WildcardExpression(dialect)],
+    from_=TableExpression(dialect, 'logs'),
+    order_by=[Column(dialect, 'id')],
+)
 options = ExecutionOptions(stmt_type=StatementType.DQL)
-result = backend.execute("SELECT * FROM logs ORDER BY id", options=options)
+sql, params = verify_query.to_sql()
+result = backend.execute(sql, params, options=options)
 print(f"Total rows in table: {len(result.data) if result.data else 0}")
 for row in result.data or []:
-    print(f" {row}")
+    print(f"  {row}")
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)

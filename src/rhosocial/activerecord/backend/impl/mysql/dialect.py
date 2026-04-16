@@ -75,6 +75,8 @@ from .protocols import (
     MySQLVectorSupport,
     MySQLDMLOperationSupport,
     MySQLFullTextSearchSupport,
+    MySQLLockingSupport,
+    MySQLModifyColumnSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -87,6 +89,8 @@ from .mixins import (
     MySQLSpatialMixin,
     MySQLVectorMixin,
     MySQLIntrospectionMixin,
+    MySQLLockingMixin,
+    MySQLModifyColumnMixin,
 )
 from .show.dialect import MySQLShowDialectMixin
 
@@ -114,6 +118,7 @@ class MySQLDialect(
     ArrayMixin,
     ExplainMixin,
     GraphMixin,
+    MySQLLockingMixin,  # MySQL FOR SHARE/NOWAIT/SKIP LOCKED (before LockingMixin for method override)
     LockingMixin,
     MergeMixin,
     OrderedSetAggregationMixin,
@@ -140,6 +145,7 @@ class MySQLDialect(
     MySQLVectorMixin,  # MySQL 9.0+ VECTOR type support
     MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
     MySQLShowDialectMixin,  # MySQL SHOW commands
+    MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
     IntrospectionMixin,
     # Protocols for type checking
     CTESupport,
@@ -178,6 +184,8 @@ class MySQLDialect(
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
     MySQLDMLOperationSupport,  # MySQL-specific DML operations (INSERT IGNORE, REPLACE INTO)
     MySQLFullTextSearchSupport,  # MySQL full-text search
+    MySQLLockingSupport,  # MySQL FOR SHARE and NOWAIT support
+    MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
     # Function Support Protocol
     SQLFunctionSupport,
 ):
@@ -350,10 +358,6 @@ class MySQLDialect(
         selected rows preventing other transactions from modifying them.
         """
         return True
-
-    def supports_for_update_skip_locked(self) -> bool:
-        """Whether FOR UPDATE SKIP LOCKED is supported."""
-        return self.version >= (8, 0, 1)  # Supported since 8.0.1
 
     def supports_merge_statement(self) -> bool:
         """Whether MERGE statement is supported."""

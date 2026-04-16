@@ -14,8 +14,6 @@ from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnConstraintType,
 )
-from rhosocial.activerecord.backend.options import ExecutionOptions
-from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
     host=os.getenv('MYSQL_HOST', 'localhost'),
@@ -72,9 +70,10 @@ print(f"Params: {params}")
 backend.execute(sql, params)
 print("Index created successfully")
 
-options = ExecutionOptions(stmt_type=StatementType.DQL)
-result = backend.execute("SHOW INDEX FROM products WHERE Key_name = 'idx_category_price'", options=options)
-print(f"Index info: {result.data}")
+# Verify using introspector
+indexes = backend.introspector.get_indexes('products')
+target_index = [idx for idx in indexes if idx.name == 'idx_category_price']
+print(f"Index info: {target_index}")
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)

@@ -4,7 +4,7 @@ MySQL-specific expression classes.
 
 This module provides expression classes that are specific to MySQL, such as
 LOAD DATA INFILE, JSON_TABLE, JSON functions, spatial functions, vector
-functions, and MATCH...AGAINST expressions.
+functions, MATCH...AGAINST expressions, and row-level locking expressions.
 
 Directory structure:
 - load_data.py      - LOAD DATA INFILE expression
@@ -13,6 +13,7 @@ Directory structure:
 - spatial.py         - Spatial function expressions
 - vector.py          - Vector function expressions (MySQL 9.0+)
 - match_against.py - MATCH...AGAINST expression
+- locking.py        - Row-level locking expressions (FOR UPDATE, FOR SHARE)
 """
 
 from .load_data import LoadDataExpression, LoadDataOptions
@@ -36,6 +37,7 @@ from .vector import (
     DistanceDotExpression,
 )
 from .match_against import MatchAgainstExpression, MatchAgainstMode
+from .locking import MySQLForUpdateClause, MySQLLockStrength
 
 __all__ = [
     "LoadDataExpression",
@@ -57,4 +59,6 @@ __all__ = [
     "DistanceDotExpression",
     "MatchAgainstExpression",
     "MatchAgainstMode",
+    "MySQLForUpdateClause",
+    "MySQLLockStrength",
 ]

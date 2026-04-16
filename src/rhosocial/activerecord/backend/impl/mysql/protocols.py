@@ -409,3 +409,102 @@ class MySQLFullTextSearchSupport(Protocol):
             Tuple of (SQL string, parameters tuple)
         """
         ...
+
+
+@runtime_checkable
+class MySQLLockingSupport(Protocol):
+    """MySQL row-level locking protocol.
+
+    Feature Source: MySQL native (FOR UPDATE all versions, FOR SHARE MySQL 8.0+)
+
+    MySQL locking features beyond SQL standard:
+    - FOR SHARE: Shared lock (MySQL 8.0+, replaces LOCK IN SHARE MODE)
+    - NOWAIT: Fail immediately if rows are locked (MySQL 8.0+)
+    - SKIP LOCKED: Skip locked rows (MySQL 8.0+)
+
+    Note: MySQL does NOT support PostgreSQL's FOR NO KEY UPDATE or
+    FOR KEY SHARE lock strengths.
+
+    Official Documentation:
+    - SELECT ... FOR UPDATE: https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html
+    - LOCK IN SHARE MODE: https://dev.mysql.com/doc/refman/8.0/en/innodb-locking-reads.html
+
+    Version Requirements:
+    - FOR UPDATE: All MySQL versions
+    - FOR SHARE (replacing LOCK IN SHARE MODE): MySQL 8.0+
+    - NOWAIT: MySQL 8.0+
+    - SKIP LOCKED: MySQL 8.0+
+    """
+
+    def supports_for_share(self) -> bool:
+        """Whether FOR SHARE clause is supported (MySQL 8.0+)."""
+        ...
+
+    def supports_for_update_nowait(self) -> bool:
+        """Whether FOR UPDATE NOWAIT is supported (MySQL 8.0+)."""
+        ...
+
+    def supports_for_update_skip_locked(self) -> bool:
+        """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
+        ...
+
+    def format_mysql_for_update_clause(self, clause: Any) -> Tuple[str, tuple]:
+        """Format MySQL-specific FOR UPDATE clause.
+
+        Args:
+            clause: MySQLForUpdateClause instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+
+@runtime_checkable
+class MySQLModifyColumnSupport(Protocol):
+    """MySQL MODIFY COLUMN and CHANGE COLUMN protocol.
+
+    Feature Source: MySQL native (not SQL standard)
+
+    MySQL ALTER TABLE features beyond SQL standard:
+    - MODIFY COLUMN: Redefine a column with new specification (name unchanged)
+    - CHANGE COLUMN: Rename and redefine a column in one operation
+    - FIRST/AFTER: Column positioning within the table
+
+    Official Documentation:
+    - ALTER TABLE: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+
+    Version Requirements:
+    - MODIFY COLUMN: All MySQL versions
+    - CHANGE COLUMN: All MySQL versions
+    """
+
+    def supports_modify_column(self) -> bool:
+        """Whether MODIFY COLUMN is supported."""
+        ...
+
+    def supports_change_column(self) -> bool:
+        """Whether CHANGE COLUMN is supported."""
+        ...
+
+    def format_modify_column_action(self, action) -> Tuple[str, tuple]:
+        """Format MODIFY COLUMN action for ALTER TABLE.
+
+        Args:
+            action: ModifyColumn action instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_change_column_action(self, action) -> Tuple[str, tuple]:
+        """Format CHANGE COLUMN action for ALTER TABLE.
+
+        Args:
+            action: ChangeColumn action instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...

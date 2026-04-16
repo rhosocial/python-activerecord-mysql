@@ -1567,3 +1567,140 @@ class MySQLFullTextSearchMixin:
 
         sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
         return sql, search_params
+
+
+class MySQLLockingMixin:
+    """MySQL row-level locking mixin.
+
+    MySQL locking features beyond SQL standard:
+    - FOR SHARE: Shared lock (MySQL 8.0+, replaces LOCK IN SHARE MODE)
+    - NOWAIT: Fail immediately if rows are locked (MySQL 8.0+)
+
+    Note: MySQL does NOT support PostgreSQL's FOR NO KEY UPDATE or
+    FOR KEY SHARE lock strengths.
+    """
+
+    def supports_for_share(self) -> bool:
+        """Whether FOR SHARE clause is supported (MySQL 8.0+)."""
+        return self.version >= (8, 0, 0)
+
+    def supports_for_update_nowait(self) -> bool:
+        """Whether FOR UPDATE NOWAIT is supported (MySQL 8.0+)."""
+        return self.version >= (8, 0, 0)
+
+    def supports_for_update_skip_locked(self) -> bool:
+        """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
+        return self.version >= (8, 0, 0)
+
+    def format_mysql_for_update_clause(self, clause) -> Tuple[str, tuple]:
+        """Format MySQL-specific FOR UPDATE clause.
+
+        Handles MySQL-specific lock strengths (FOR SHARE)
+        and options (NOWAIT, SKIP LOCKED).
+
+        Args:
+            clause: MySQLForUpdateClause instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+        from rhosocial.activerecord.backend.impl.mysql.expression.locking import MySQLLockStrength
+
+        all_params = []
+
+        # Check version support for lock strength
+        if clause.strength == MySQLLockStrength.SHARE:
+            if not self.supports_for_share():
+                raise UnsupportedFeatureError(
+                    self.name, "FOR SHARE (requires MySQL 8.0+)"
+                )
+
+        # Use the strength value directly (e.g., "FOR UPDATE", "FOR SHARE")
+        sql_parts = [clause.strength.value]
+
+        # Handle OF columns if specified
+        if clause.of_columns:
+            of_parts = []
+            for col in clause.of_columns:
+                if isinstance(col, str):
+                    of_parts.append(self.format_identifier(col))
+                else:
+                    # BaseExpression
+                    col_sql, col_params = col.to_sql()
+                    of_parts.append(col_sql)
+                    all_params.extend(col_params)
+            if of_parts:
+                sql_parts.append(f"OF {', '.join(of_parts)}")
+
+        # Handle NOWAIT/SKIP LOCKED options
+        if clause.nowait:
+            if not self.supports_for_update_nowait():
+                raise UnsupportedFeatureError(
+                    self.name, "NOWAIT (requires MySQL 8.0+)"
+                )
+            sql_parts.append("NOWAIT")
+        elif clause.skip_locked:
+            if not self.supports_for_update_skip_locked():
+                raise UnsupportedFeatureError(
+                    self.name, "SKIP LOCKED (requires MySQL 8.0+)"
+                )
+            sql_parts.append("SKIP LOCKED")
+
+        return " ".join(sql_parts), tuple(all_params)
+
+
+class MySQLModifyColumnMixin:
+    """MySQL MODIFY COLUMN and CHANGE COLUMN mixin.
+
+    MySQL ALTER TABLE features beyond SQL standard:
+    - MODIFY COLUMN: Redefine a column with new specification (name unchanged)
+    - CHANGE COLUMN: Rename and redefine a column in one operation
+    - FIRST/AFTER: Column positioning within the table
+
+    Version Requirements:
+    - MODIFY COLUMN: All MySQL versions
+    - CHANGE COLUMN: All MySQL versions
+    """
+
+    def supports_modify_column(self) -> bool:
+        """Whether MODIFY COLUMN is supported (all MySQL versions)."""
+        return True
+
+    def supports_change_column(self) -> bool:
+        """Whether CHANGE COLUMN is supported (all MySQL versions)."""
+        return True
+
+    def format_modify_column_action(self, action) -> Tuple[str, tuple]:
+        """Format MODIFY COLUMN action for ALTER TABLE.
+
+        Args:
+            action: ModifyColumn action instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        col_sql, col_params = self.format_column_definition(action.column)
+        sql = f"MODIFY COLUMN {col_sql}"
+        if action.after_column:
+            sql += f" AFTER {self.format_identifier(action.after_column)}"
+        elif action.first:
+            sql += " FIRST"
+        return sql, col_params
+
+    def format_change_column_action(self, action) -> Tuple[str, tuple]:
+        """Format CHANGE COLUMN action for ALTER TABLE.
+
+        Args:
+            action: ChangeColumn action instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        col_sql, col_params = self.format_column_definition(action.column)
+        sql = f"CHANGE COLUMN {self.format_identifier(action.old_name)} {col_sql}"
+        if action.after_column:
+            sql += f" AFTER {self.format_identifier(action.after_column)}"
+        elif action.first:
+            sql += " FIRST"
+        return sql, col_params

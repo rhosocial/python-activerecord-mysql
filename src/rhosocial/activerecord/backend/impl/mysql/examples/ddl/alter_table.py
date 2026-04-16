@@ -11,15 +11,15 @@ but for simplicity we demonstrate individual operations.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression,
+)
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
-from rhosocial.activerecord.backend.options import ExecutionOptions
-from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
     host=os.getenv('MYSQL_HOST', 'localhost'),
@@ -132,22 +132,40 @@ print(f"Params: {params}")
 backend.execute(sql, params)
 print("Column age added successfully")
 
-# Note: MODIFY COLUMN is MySQL-specific and not covered by AlterTableExpression.
-# Use raw SQL for MODIFY COLUMN operations.
-sql = "ALTER TABLE users MODIFY COLUMN name VARCHAR(200) NOT NULL"
+# Note: MODIFY COLUMN is MySQL-specific, use ModifyColumn action
+from rhosocial.activerecord.backend.expression.statements.ddl_alter import ModifyColumn
+
+modify_action = ModifyColumn(
+    column=ColumnDefinition(
+        name='name',
+        data_type='VARCHAR(200)',
+        constraints=[
+            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+        ],
+    ),
+)
+
+modify_expr = AlterTableExpression(
+    dialect=dialect,
+    table_name='users',
+    actions=[modify_action],
+)
+
+sql, params = modify_expr.to_sql()
 print(f"SQL (Modify Column name): {sql}")
+print(f"Params: {params}")
 
 # ============================================================
 # SECTION: Execution (run the expression)
 # ============================================================
-backend.execute(sql)
+backend.execute(sql, params)
 print("Column name modified successfully")
 
-options = ExecutionOptions(stmt_type=StatementType.DQL)
-result = backend.execute("DESCRIBE users", options=options)
+# Verify using introspector
+columns = backend.introspector.get_columns('users')
 print("Table structure after alterations:")
-for row in result.data or []:
-    print(f" {row}")
+for col in columns:
+    print(f"  {col.name} {col.data_type}")
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)

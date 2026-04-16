@@ -36,8 +36,6 @@ from rhosocial.activerecord.backend.expression import (
 from rhosocial.activerecord.backend.expression.core import Literal, Column
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
-    ColumnConstraint,
-    ColumnConstraintType,
 )
 
 create_table = CreateTableExpression(
@@ -75,6 +73,7 @@ from rhosocial.activerecord.backend.expression import (
     CreateViewExpression,
     DropViewExpression,
 )
+from rhosocial.activerecord.backend.expression.core import WildcardExpression
 
 query = QueryExpression(
     dialect=dialect,
@@ -94,7 +93,14 @@ print(f"Params: {params}")
 options = ExecutionOptions(stmt_type=StatementType.DDL)
 backend.execute(sql, params, options=options)
 
-result = backend.execute("SELECT * FROM user_names")
+verify_query = QueryExpression(
+    dialect=dialect,
+    select=[WildcardExpression(dialect)],
+    from_=TableExpression(dialect, 'user_names'),
+)
+options = ExecutionOptions(stmt_type=StatementType.DQL)
+sql, params = verify_query.to_sql()
+result = backend.execute(sql, params, options=options)
 print(f"View result: {result.data}")
 
 # ============================================================
