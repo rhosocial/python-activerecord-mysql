@@ -104,7 +104,7 @@ view_expr_replace = CreateViewExpression(
     dialect=dialect,
     view_name='user_names',
     query=query,
-    or_replace=True,
+    replace=True,
 )
 sql, params = view_expr_replace.to_sql()
 print(f"CREATE OR REPLACE VIEW SQL: {sql}")
@@ -134,5 +134,5 @@ backend.disconnect()
 # ============================================================
 # Key points:
 # 1. Use CreateViewExpression to create views
-# 2. Use or_replace=True to replace existing view
+# 2. Use replace=True to replace existing view
 # 3. Use DropViewExpression to drop views
