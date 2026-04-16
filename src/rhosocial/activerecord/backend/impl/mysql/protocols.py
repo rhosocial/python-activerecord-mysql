@@ -5,7 +5,7 @@ This module defines protocols for features exclusive to MySQL,
 which are not part of the SQL standard and not supported by other
 mainstream databases.
 """
-from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, TYPE_CHECKING
+from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
@@ -35,7 +35,6 @@ class MySQLDMLOperationSupport(Protocol):
     Usage:
         INSERT IGNORE is supported via dialect_options in InsertExpression:
         ```python
-        # Using dialect_options
         InsertExpression(
             dialect,
             into='users',
@@ -80,19 +79,21 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
-    def supports_json_table(self) -> bool:
-        """Whether JSON_TABLE is supported.
-
-        JSON_TABLE is supported in MySQL 8.0.4+ for converting
-        JSON data to relational format.
-        """
-        ...
-
-    def format_json_table_expression(self, expr: Any) -> Tuple[str, tuple]:
+    def format_json_table_expression(
+        self,
+        expr: Any,
+        dialect_options: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, tuple]:
         """Format JSON_TABLE expression.
+
+        Note: Generic JSONSupport protocol defines supports_json_table() with dialect_options.
+        This MySQL-specific version documents available options.
 
         Args:
             expr: JSONTableExpression instance
+            dialect_options: MySQL-specific options:
+                - 'on_error': How to handle errors ('IGNORE' to skip row on error)
+                Example: dialect_options={'on_error': 'IGNORE'}
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -106,67 +107,26 @@ class MySQLTriggerSupport(Protocol):
 
     Feature Source: Native support (no extension required)
 
-    MySQL trigger features and restrictions:
-    - FOR EACH ROW only (no FOR EACH STATEMENT)
-    - No INSTEAD OF triggers
-    - No WHEN condition
-    - No REFERENCING clause
-    - Single event per trigger (no OR syntax)
-    - Trigger body is BEGIN...END block
-    - Requires same definer as table
+    MySQL triggers:
+    - BEFORE/AFTER: Timing
+    - INSERT/UPDATE/DELETE: Event
+    - FOR EACH ROW: Level (only row-level triggers supported)
+    - NEW/OLD: Row references
 
     Official Documentation:
     - CREATE TRIGGER: https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
-    - Trigger Restrictions: https://dev.mysql.com/doc/refman/8.0/en/trigger-restrictions.html
 
     Version Requirements:
-    - Basic triggers: MySQL 5.0+
-    - Multiple triggers per event: MySQL 5.7+
+    - Triggers: MySQL 5.0.2+
+    - Trigger IF EXISTS: MySQL 8.0.4+
     """
 
-    def supports_instead_of_trigger(self) -> bool:
-        """Whether INSTEAD OF triggers are supported.
-
-        MySQL does NOT support INSTEAD OF triggers.
-        """
-        ...
-
-    def supports_statement_trigger(self) -> bool:
-        """Whether FOR EACH STATEMENT triggers are supported.
-
-        MySQL does NOT support FOR EACH STATEMENT triggers.
-        Only FOR EACH ROW is supported.
-        """
-        ...
-
-    def supports_trigger_referencing(self) -> bool:
-        """Whether REFERENCING clause is supported.
-
-        MySQL does NOT support REFERENCING clause.
-        OLD and NEW are implicit references.
-        """
-        ...
-
-    def supports_trigger_when(self) -> bool:
-        """Whether WHEN condition is supported.
-
-        MySQL does NOT support WHEN condition in triggers.
-        """
+    def supports_trigger(self) -> bool:
+        """Whether triggers are supported."""
         ...
 
     def supports_trigger_if_not_exists(self) -> bool:
-        """Whether CREATE TRIGGER IF NOT EXISTS is supported.
-
-        MySQL 5.7+ supports IF NOT EXISTS.
-        """
-        ...
-
-    def format_create_trigger_statement(self, expr) -> Tuple[str, tuple]:
-        """Format CREATE TRIGGER statement (MySQL syntax)."""
-        ...
-
-    def format_drop_trigger_statement(self, expr) -> Tuple[str, tuple]:
-        """Format DROP TRIGGER statement (MySQL syntax)."""
+        """Whether CREATE TRIGGER IF NOT EXISTS is supported (MySQL 8.0.4+)."""
         ...
 
 
@@ -222,79 +182,63 @@ class MySQLTableSupport(Protocol):
         """
         ...
 
-    def format_create_table_statement(self, expr) -> Tuple[str, tuple]:
-        """Format CREATE TABLE statement (MySQL syntax)."""
+    def format_create_table_statement(
+        self,
+        expr,
+        dialect_options: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, tuple]:
+        """Format CREATE TABLE statement.
+
+        Note: Generic TableSupport protocol defines this interface.
+        This MySQL-specific version documents available options.
+
+        Args:
+            expr: CreateTableExpression instance
+            dialect_options: MySQL-specific options:
+                - 'engine': Storage engine (InnoDB, MyISAM, etc.)
+                - 'charset': Character set
+                - 'collate': Collation
+                - 'auto_increment': Initial AUTO_INCREMENT value
+                - 'row_format': Row format (DYNAMIC, COMPACT, etc.)
+                Example: dialect_options={'engine': 'InnoDB', 'charset': 'utf8mb4'}
+        """
         ...
 
 
 @runtime_checkable
 class MySQLSetTypeSupport(Protocol):
     """MySQL SET type protocol.
-    
+
     Feature Source: MySQL native (not SQL standard)
-    
+
     MySQL SET features:
     - String object with zero or more values from predefined list
     - Stored as integer (bit flags) internally
     - Maximum 64 members
     - Supports FIND_IN_SET, LIKE operations
     - Automatically sorted on storage
-    
+
     Official Documentation:
     - SET Type: https://dev.mysql.com/doc/refman/8.0/en/set.html
-    
+
     Version Requirements:
     - All MySQL versions
     """
-    
+
     def supports_set_type(self) -> bool:
         """Whether SET type is supported."""
         ...
-    
+
     def format_set_literal(
         self,
         values: List[str],
         column_values: Optional[List[str]] = None
     ) -> Tuple[str, tuple]:
-        """Format SET literal value.
-        
-        Args:
-            values: Values to include in the SET
-            column_values: Allowed values for the column (for validation)
-        
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-    
-    def format_find_in_set(
-        self,
-        value: str,
-        set_column: str
-    ) -> Tuple[str, tuple]:
-        """Format FIND_IN_SET function.
-        
-        Args:
-            value: Value to find
-            set_column: SET column name
-        
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-    
-    def format_set_contains(
-        self,
-        column: str,
-        values: List[str]
-    ) -> Tuple[str, tuple]:
-        """Format SET contains check.
-
-        Checks if all values are present in the SET column.
+        """Format SET type literal.
 
         Args:
-            column: SET column name
-            values: Values to check for
+            values: Allowed values for the SET type
+            column_values: Values being inserted/compared
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -306,45 +250,27 @@ class MySQLSetTypeSupport(Protocol):
 class MySQLJSONFunctionSupport(Protocol):
     """MySQL JSON function protocol.
 
-    Feature Source: MySQL 5.7.8+
+    Feature Source: MySQL 5.7+
 
-    MySQL JSON functions beyond SQL standard:
-    - JSON_EXTRACT: Extract data from JSON documents
-    - JSON_UNQUOTE: Unquote JSON value
-    - JSON_OBJECT: Create JSON object
-    - JSON_ARRAY: Create JSON array
-    - JSON_MERGE_PRESERVE: Merge JSON documents
-    - JSON_MERGE_PATCH: Merge with patch logic
-    - JSON_CONTAINS: Check if JSON contains value
-    - JSON_SEARCH: Search in JSON
-    - JSON_SET: Set value in JSON
-    - JSON_INSERT: Insert value into JSON
-    - JSON_REPLACE: Replace value in JSON
-    - JSON_REMOVE: Remove data from JSON
-    - JSON_TYPE: Get type of JSON value
-    - JSON_VALID: Validate JSON
-    - JSON_SCHEMA_VALID: Validate against JSON schema (MySQL 8.0.17+)
+    MySQL JSON functions:
+    - JSON_ARRAY, JSON_OBJECT
+    - JSON_EXTRACT, JSON_SET, JSON_REMOVE
+    - JSON_SEARCH, JSON_CONTAINS, JSON_KEYS
 
     Official Documentation:
     - JSON Functions: https://dev.mysql.com/doc/refman/8.0/en/json-functions.html
 
     Version Requirements:
-    - JSON type and basic functions: MySQL 5.7.8+
-    - JSON_MERGE_PATCH: MySQL 8.0.3+
-    - JSON_TABLE: MySQL 8.0.4+
-    - JSON_VALUE: MySQL 8.0.21+
-    - JSON schema validation: MySQL 8.0.17+
+    - JSON type: MySQL 5.7+
+    - JSONTABLE: MySQL 8.0.4+
     """
 
-    def supports_json_function(self, function_name: str) -> bool:
-        """Check if specific JSON function is supported.
+    def supports_json_type(self) -> bool:
+        """Whether JSON data type is supported (MySQL 5.7+)."""
+        ...
 
-        Args:
-            function_name: Name of JSON function (e.g., 'JSON_TABLE', 'JSON_VALUE')
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def supports_json_merge_patch(self) -> bool:
+        """Whether JSON_MERGE_PATCH is supported (MySQL 8.0.3+)."""
         ...
 
 
@@ -352,342 +278,49 @@ class MySQLJSONFunctionSupport(Protocol):
 class MySQLSpatialSupport(Protocol):
     """MySQL spatial data type protocol.
 
-    Feature Source: MySQL 5.7+ (OpenGIS compliant)
+    Feature Source: MySQL 5.7+ with InnoDB, all versions with MyISAM
 
     MySQL spatial features:
-    - GEOMETRY: Base type for all spatial values
-    - POINT: A point in 2D/3D/4D space
-    - LINESTRING: A sequence of points forming a line
-    - POLYGON: A closed area with one or more rings
-    - MULTIPOINT, MULTILINESTRING, MULTIPOLYGON: Collections
-    - GEOMETRYCOLLECTION: Heterogeneous collection
-
-    Format Support:
-    - WKT (Well-Known Text): 'POINT(1 1)'
-    - WKB (Well-Known Binary): Binary format
-    - GeoJSON: JSON-based format (MySQL 5.7.5+)
+    - SPATIAL data types: GEOMETRY, POINT, LINESTRING, POLYGON, etc.
+    - Spatial indexes (only for MyISAM with NOT NULL)
+    - SPATIAL KEY/MULTIPLE KEY for indexes
 
     Official Documentation:
-    - Spatial Types: https://dev.mysql.com/doc/refman/8.0/en/spatial-types.html
-    - Spatial Functions: https://dev.mysql.com/doc/refman/8.0/en/spatial-functions.html
+    - Spatial Data Types: https://dev.mysql.com/doc/refman/8.0/en/spatial-type.html
 
     Version Requirements:
-    - Basic spatial types: MySQL 5.7+
-    - GeoJSON support: MySQL 5.7.5+
-    - Improved SRID handling: MySQL 8.0+
+    - Basic spatial types: MySQL 5.7+ (InnoDB), all versions (MyISAM)
+    - Spatial index restrictions: MySQL 5.7.5+ for correct SRID handling
     """
 
-    def supports_spatial_type(self, type_name: str) -> bool:
-        """Check if specific spatial type is supported.
-
-        Args:
-            type_name: Name of spatial type (e.g., 'POINT', 'GEOMETRY')
-
-        Returns:
-            True if type is supported in current MySQL version
-        """
+    def supports_spatial_type(self) -> bool:
+        """Whether spatial data types are supported."""
         ...
 
     def supports_spatial_index(self) -> bool:
-        """Whether SPATIAL indexes are supported.
-
-        MySQL 5.7+ supports SPATIAL indexes for spatial columns.
-        """
+        """Whether SPATIAL index is supported."""
         ...
 
-    def supports_geojson(self) -> bool:
-        """Whether GeoJSON functions are supported.
 
-        MySQL 5.7.5+ supports ST_AsGeoJSON and ST_GeomFromGeoJSON.
-        """
+    def supports_geometry_type(self) -> bool:
+        """Whether GEOMETRY type is supported."""
         ...
 
-    def format_spatial_literal(
-        self,
-        wkt: str,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
-        """Format spatial literal from WKT.
-
-        Args:
-            wkt: Well-Known Text representation (e.g., 'POINT(1 1)')
-            srid: Optional Spatial Reference System Identifier
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def supports_point_type(self) -> bool:
+        """Whether POINT type is supported."""
         ...
 
-    def format_st_geom_from_text(
-        self,
-        wkt: str,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
-        """Format ST_GeomFromText function.
 
-        Args:
-            wkt: Well-Known Text representation
-            srid: Optional SRID
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def supports_curve_type(self) -> bool:
+        """Whether curve types (LINESTRING, MULTILINESTRING) are supported."""
         ...
 
-    def format_st_geom_from_wkb(
-        self,
-        wkb: bytes,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
-        """Format ST_GeomFromWKB function.
-
-        Args:
-            wkb: Well-Known Binary representation
-            srid: Optional SRID
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def supports_surface_type(self) -> bool:
+        """Whether surface types (POLYGON, MULTIPOLYGON) are supported."""
         ...
 
-    def format_st_as_text(self, geom: str) -> Tuple[str, tuple]:
-        """Format ST_AsText function.
-
-        Args:
-            geom: Geometry column or expression
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_st_as_geojson(self, geom: str) -> Tuple[str, tuple]:
-        """Format ST_AsGeoJSON function (MySQL 5.7.5+).
-
-        Args:
-            geom: Geometry column or expression
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_st_distance(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
-        """Format ST_Distance function.
-
-        Args:
-            geom1: First geometry
-            geom2: Second geometry
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_st_within(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
-        """Format ST_Within function.
-
-        Args:
-            geom1: Geometry to test
-            geom2: Geometry to test against
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_st_contains(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
-        """Format ST_Contains function.
-
-        Args:
-            geom1: Geometry to test against
-            geom2: Geometry to test
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_create_spatial_index(
-        self,
-        index_name: str,
-        table_name: str,
-        column: str
-    ) -> Tuple[str, tuple]:
-        """Format CREATE SPATIAL INDEX statement.
-
-        Args:
-            index_name: Name of the index
-            table_name: Name of the table
-            column: Spatial column name
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_extract(
-        self,
-        json_doc: str,
-        path: str,
-        paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
-        """Format JSON_EXTRACT function.
-
-        Args:
-            json_doc: JSON document or column name
-            path: JSON path expression
-            paths: Additional paths for multiple extraction (optional)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
-        """Format JSON_UNQUOTE function.
-
-        Args:
-            json_val: JSON value to unquote
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_object(
-        self,
-        key_value_pairs: List[Tuple[str, Any]]
-    ) -> Tuple[str, tuple]:
-        """Format JSON_OBJECT function.
-
-        Args:
-            key_value_pairs: List of (key, value) tuples
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_array(self, values: List[Any]) -> Tuple[str, tuple]:
-        """Format JSON_ARRAY function.
-
-        Args:
-            values: List of values
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_contains(
-        self,
-        target: str,
-        candidate: str,
-        path: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format JSON_CONTAINS function.
-
-        Args:
-            target: JSON document or column to search in
-            candidate: JSON value to search for
-            path: Optional path within target to search
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_set(
-        self,
-        json_doc: str,
-        path: str,
-        value: Any,
-        path_value_pairs: Optional[List[Tuple[str, Any]]] = None
-    ) -> Tuple[str, tuple]:
-        """Format JSON_SET function.
-
-        Args:
-            json_doc: JSON document or column name
-            path: JSON path expression
-            value: Value to set
-            path_value_pairs: Additional (path, value) pairs (optional)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_remove(
-        self,
-        json_doc: str,
-        path: str,
-        paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
-        """Format JSON_REMOVE function.
-
-        Args:
-            json_doc: JSON document or column name
-            path: JSON path to remove
-            paths: Additional paths to remove (optional)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_type(self, json_val: str) -> Tuple[str, tuple]:
-        """Format JSON_TYPE function.
-
-        Args:
-            json_val: JSON value to check type
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_valid(self, json_val: str) -> Tuple[str, tuple]:
-        """Format JSON_VALID function.
-
-        Args:
-            json_val: Value to validate as JSON
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_json_search(
-        self,
-        json_doc: str,
-        search_str: str,
-        path: Optional[str] = None,
-        all: bool = False
-    ) -> Tuple[str, tuple]:
-        """Format JSON_SEARCH function.
-
-        Args:
-            json_doc: JSON document or column name
-            search_str: String to search for
-            path: Optional path to search within
-            all: If True, return all matches; if False, return first match
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def supports_geometry_collection_type(self) -> bool:
+        """Whether GEOMETRYCOLLECTION is supported."""
         ...
 
 
@@ -695,190 +328,49 @@ class MySQLSpatialSupport(Protocol):
 class MySQLVectorSupport(Protocol):
     """MySQL vector data type protocol.
 
-    Feature Source: MySQL 9.0+ (AI/ML vector storage)
+    Feature Source: MySQL 8.0+ (optional feature in 8.0.16+, GA in 8.0.17+)
 
-    MySQL VECTOR type features:
-    - VECTOR: Store multi-dimensional vectors for AI/ML applications
-    - Supports similarity search with vector distance functions
-    - Maximum dimension: 16,384
-    - Storage: Binary format (optimized for similarity operations)
-    - Indexing: Supports VECTOR index for fast similarity search
-
-    Vector Functions (MySQL 9.0+):
-    - VECTOR_DIM(): Get vector dimension
-    - STRING_TO_VECTOR(): Convert string to vector
-    - VECTOR_TO_STRING(): Convert vector to string
-    - DISTANCE_EUCLIDEAN(): Euclidean distance
-    - DISTANCE_COSINE(): Cosine distance
-    - DISTANCE_DOT(): Dot product distance
+    MySQL vector features:
+    - VECTOR data type for embedding vectors
+    - Vector operations and functions
 
     Official Documentation:
-    - VECTOR Type: https://dev.mysql.com/doc/refman/9.0/en/vector-type.html
-    - Vector Functions: https://dev.mysql.com/doc/refman/9.0/en/spatial-vector-functions.html
+    - Vector Type: https://dev.mysql.com/doc/refman/8.0/en/vector-type.html
 
     Version Requirements:
-    - VECTOR type and functions: MySQL 9.0+
+    - VECTOR type: MySQL 8.0.16+ (experimental), 8.0.17+ (GA)
     """
 
     def supports_vector_type(self) -> bool:
-        """Whether VECTOR type is supported.
-
-        MySQL 9.0+ supports VECTOR type for AI/ML applications.
-        """
-        ...
-
-    def supports_vector_index(self) -> bool:
-        """Whether VECTOR indexes are supported.
-
-        MySQL 9.0.1+ supports VECTOR indexes for fast similarity search.
-        """
-        ...
-
-    def get_max_vector_dimension(self) -> int:
-        """Get maximum supported vector dimension.
-
-        MySQL 9.0 supports up to 16,384 dimensions.
-        """
-        ...
-
-    def format_vector_literal(
-        self,
-        values: List[float]
-    ) -> Tuple[str, tuple]:
-        """Format VECTOR literal value.
-
-        Args:
-            values: List of float values representing the vector
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_string_to_vector(
-        self,
-        vector_str: str
-    ) -> Tuple[str, tuple]:
-        """Format STRING_TO_VECTOR function.
-
-        Args:
-            vector_str: String representation of vector
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_vector_to_string(
-        self,
-        vector_col: str
-    ) -> Tuple[str, tuple]:
-        """Format VECTOR_TO_STRING function.
-
-        Args:
-            vector_col: VECTOR column name
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_vector_dim(
-        self,
-        vector_col: str
-    ) -> Tuple[str, tuple]:
-        """Format VECTOR_DIM function.
-
-        Args:
-            vector_col: VECTOR column name
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_distance_euclidean(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
-        """Format DISTANCE_EUCLIDEAN function.
-
-        Args:
-            vector1: First vector (column or literal)
-            vector2: Second vector (column or literal)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_distance_cosine(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
-        """Format DISTANCE_COSINE function.
-
-        Args:
-            vector1: First vector (column or literal)
-            vector2: Second vector (column or literal)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_distance_dot(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
-        """Format DISTANCE_DOT function.
-
-        Args:
-            vector1: First vector (column or literal)
-            vector2: Second vector (column or literal)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
-    def format_create_vector_index(
-        self,
-        index_name: str,
-        table_name: str,
-        column: str
-    ) -> Tuple[str, tuple]:
-        """Format CREATE VECTOR INDEX statement.
-
-        Args:
-            index_name: Name of the vector index
-            table_name: Name of the table
-            column: VECTOR column name
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+        """Whether VECTOR data type is supported (MySQL 8.0.17+)."""
         ...
 
 
 @runtime_checkable
 class MySQLFullTextSearchSupport(Protocol):
-    """MySQL full-text search protocol."""
+    """MySQL full-text search protocol.
 
-    def supports_fulltext_index(self) -> bool:
-        """Whether FULLTEXT indexes are supported (MySQL 5.6+)."""
-        ...
+    Note: Most interfaces are defined in generic IndexSupport protocol.
+    This protocol only defines MySQL-specific interfaces.
 
-    def supports_fulltext_parser(self) -> bool:
-        """Whether FULLTEXT parser plugins are supported (MySQL 5.1+)."""
-        ...
+    Feature Source: MySQL 5.6+
 
-    def supports_fulltext_query_expansion(self) -> bool:
-        """Whether query expansion mode is supported."""
-        ...
+    MySQL full-text features:
+    - FULLTEXT index on CHAR, VARCHAR, TEXT columns
+    - FULLTEXT index on multiple columns
+    - Natural language, Boolean, Query expansion modes
+    - IN NATURAL LANGUAGE MODE, IN BOOLEAN MODE, WITH QUERY EXPANSION
+    - Stopwords, minimum word length
+
+    Official Documentation:
+    - Full-Text Search Functions: https://dev.mysql.com/doc/refman/8.0/en/fulltext-search.html
+
+    Version Requirements:
+    - FULLTEXT index: MySQL 5.6+ (InnoDB), all versions (MyISAM)
+    - FULLTEXT parser: MySQL 5.1+
+    - IN BOOLEAN MODE: MySQL 5.6+
+    - WITH QUERY EXPANSION: MySQL 5.6.7+
+    """
 
     def format_match_against(
         self,
@@ -886,5 +378,34 @@ class MySQLFullTextSearchSupport(Protocol):
         search_string: str,
         mode: Optional[str] = None
     ) -> Tuple[str, tuple]:
-        """Format MATCH ... AGAINST expression."""
+        """Format MATCH ... AGAINST expression.
+
+        Args:
+            columns: Column names to search
+            search_string: Search string
+            mode: Search mode (None, 'NATURAL_LANGUAGE', 'BOOLEAN', 'QUERY_EXPANSION')
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_fulltext_index_options(
+        self,
+        index_name: str,
+        columns: List[str],
+        index_type: Optional[str] = None,
+        parser_name: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format FULLTEXT index options.
+
+        Args:
+            index_name: Index name (usually 'FULLTEXT')
+            columns: Indexed columns
+            index_type: Index type (BTREE, HASH - ignored for FULLTEXT)
+            parser_name: Parser name for full-text search
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
         ...
