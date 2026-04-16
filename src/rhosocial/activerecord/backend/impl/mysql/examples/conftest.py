@@ -77,6 +77,20 @@ EXAMPLES_META = {
         'min_version': '5.6',
         'max_version': '9.6',
     },
+    'ddl/unique_index.py': {
+        'title': 'CREATE UNIQUE INDEX',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'query/pagination.py': {
+        'title': 'Pagination with LIMIT/OFFSET',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
     'insert/batch.py': {
         'title': 'Batch Insert',
         'dialect_protocols': [],
