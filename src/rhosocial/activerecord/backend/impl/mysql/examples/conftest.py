@@ -34,6 +34,13 @@ EXAMPLES_META = {
         'max_version': '9.6',
         'note': 'SKIP LOCKED and NOWAIT require MySQL 8.0+',
     },
+    'transaction/exclusive.py': {
+        'title': 'Transaction Isolation Levels',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
     'query/cte.py': {
         'title': 'CTE (Common Table Expressions)',
         'dialect_protocols': [],
@@ -44,6 +51,13 @@ EXAMPLES_META = {
     },
     'connection/quickstart.py': {
         'title': 'Connect to MySQL and Execute Queries',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'ddl/create_table.py': {
+        'title': 'Create Table',
         'dialect_protocols': [],
         'priority': 10,
         'min_version': '5.6',
@@ -93,6 +107,13 @@ EXAMPLES_META = {
     },
     'insert/batch.py': {
         'title': 'Batch Insert',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'insert/single.py': {
+        'title': 'Single Row Insert',
         'dialect_protocols': [],
         'priority': 10,
         'min_version': '5.6',
@@ -209,6 +230,13 @@ EXAMPLES_META = {
     'types/fulltext_search.py': {
         'title': 'Full-Text Search (Index)',
         'dialect_protocols': ['MySQLFullTextSearchSupport'],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'query/predicate.py': {
+        'title': 'Complex Predicates',
+        'dialect_protocols': [],
         'priority': 10,
         'min_version': '5.6',
         'max_version': '9.6',
