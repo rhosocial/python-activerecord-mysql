@@ -82,7 +82,6 @@ insert_expr = InsertExpression(
         ],
     ),
     columns=['level', 'message'],
-    dialect_options={},
 )
 
 sql, params = insert_expr.to_sql()

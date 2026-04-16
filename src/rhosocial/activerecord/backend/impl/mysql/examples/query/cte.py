@@ -30,13 +30,22 @@ from rhosocial.activerecord.backend.expression import (
     InsertExpression,
     ValuesSource,
     DropTableExpression,
+    QueryExpression,
+    TableExpression,
+    CTEExpression,
+    WithQueryExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Literal, Column
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+from rhosocial.activerecord.backend.options import ExecutionOptions
+from rhosocial.activerecord.backend.schema import StatementType
+
+dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -46,7 +55,7 @@ create_table = CreateTableExpression(
             ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
         ]),
         ColumnDefinition('name', 'VARCHAR(100)'),
-        ColumnDefinition('manager_id', 'INT', nullable=True),
+        ColumnDefinition('manager_id', 'INT'),
     ],
     if_not_exists=True,
 )
@@ -76,12 +85,29 @@ backend.execute(sql, params)
 # ============================================================
 # CTE simplifies complex queries by defining temporary named result sets
 
-result = backend.execute("""
-    WITH high_earners AS (
-        SELECT id, name FROM employees WHERE id > 2
-    )
-    SELECT * FROM high_earners
-""")
+high_earners_cte = CTEExpression(
+    dialect=dialect,
+    name='high_earners',
+    query=QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name')],
+        from_=TableExpression(dialect, 'employees'),
+        where=ComparisonPredicate(dialect, '>', Column(dialect, 'id'), Literal(dialect, 2)),
+    ),
+)
+
+cte_query = WithQueryExpression(
+    dialect=dialect,
+    ctes=[high_earners_cte],
+    main_query=QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name')],
+        from_=TableExpression(dialect, 'high_earners'),
+    ),
+)
+sql, params = cte_query.to_sql()
+print(f"Basic CTE SQL: {sql}")
+result = backend.execute(sql, params, options=dql_options)
 print(f"Basic CTE result: {result.data}")
 
 # ============================================================
@@ -89,22 +115,38 @@ print(f"Basic CTE result: {result.data}")
 # ============================================================
 # Recursive CTE for hierarchical data (organizational chart)
 
-result = backend.execute("""
-    WITH RECURSIVE org_chart AS (
-        -- Base case: top-level employees
-        SELECT id, name, manager_id, 1 AS level
-        FROM employees
-        WHERE manager_id IS NULL
+# Base case: top-level employees
+base_query = QueryExpression(
+    dialect=dialect,
+    select=[
+        Column(dialect, 'id'),
+        Column(dialect, 'name'),
+        Column(dialect, 'manager_id'),
+        Literal(dialect, 1).as_('level'),
+    ],
+    from_=TableExpression(dialect, 'employees'),
+    where=ComparisonPredicate(dialect, 'IS', Column(dialect, 'manager_id'), Literal(dialect, None)),
+)
 
-        UNION ALL
+org_cte = CTEExpression(
+    dialect=dialect,
+    name='org_chart',
+    query=base_query,
+)
 
-        -- Recursive case: employees with a manager
-        SELECT e.id, e.name, e.manager_id, oc.level + 1
-        FROM employees e
-        INNER JOIN org_chart oc ON e.manager_id = oc.id
-    )
-    SELECT * FROM org_chart ORDER BY level, name
-""")
+recursive_query = WithQueryExpression(
+    dialect=dialect,
+    ctes=[org_cte],
+    main_query=QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'manager_id')],
+        from_=TableExpression(dialect, 'org_chart'),
+    ),
+    recursive=True,
+)
+sql, params = recursive_query.to_sql()
+print(f"Recursive CTE SQL: {sql}")
+result = backend.execute(sql, params, options=dql_options)
 print(f"Recursive CTE result:")
 for row in result.data or []:
     print(f"  {row}")
@@ -114,17 +156,40 @@ for row in result.data or []:
 # ============================================================
 # Multiple CTEs can be defined in a single WITH clause
 
-result = backend.execute("""
-    WITH
-        active_employees AS (
-            SELECT id, name FROM employees WHERE id > 0
-        ),
-        top_employees AS (
-            SELECT * FROM active_employees WHERE id > 2
-        )
-    SELECT te.* FROM top_employees te
-    JOIN active_employees ae ON te.id = ae.id
-""")
+active_cte = CTEExpression(
+    dialect=dialect,
+    name='active_employees',
+    query=QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name')],
+        from_=TableExpression(dialect, 'employees'),
+        where=ComparisonPredicate(dialect, '>', Column(dialect, 'id'), Literal(dialect, 0)),
+    ),
+)
+
+top_cte = CTEExpression(
+    dialect=dialect,
+    name='top_employees',
+    query=QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name')],
+        from_=TableExpression(dialect, 'active_employees'),
+        where=ComparisonPredicate(dialect, '>', Column(dialect, 'id'), Literal(dialect, 2)),
+    ),
+)
+
+multi_cte_query = WithQueryExpression(
+    dialect=dialect,
+    ctes=[active_cte, top_cte],
+    main_query=QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name')],
+        from_=TableExpression(dialect, 'top_employees'),
+    ),
+)
+sql, params = multi_cte_query.to_sql()
+print(f"Multiple CTEs SQL: {sql}")
+result = backend.execute(sql, params, options=dql_options)
 print(f"Multiple CTEs result: {result.data}")
 
 # ============================================================
@@ -140,7 +205,7 @@ backend.disconnect()
 # ============================================================
 # Key points:
 # 1. CTE requires MySQL 8.0+
-# 2. Use WITH clause to define CTEs
-# 3. RECURSIVE keyword needed for hierarchical queries
-# 4. Multiple CTEs can be defined in single WITH clause
-# 5. CTE improves readability vs subqueries
+# 2. Use CTEExpression to define CTEs
+# 3. Use WithQueryExpression to combine CTEs with a main query
+# 4. Set recursive=True for recursive CTEs (hierarchical queries)
+# 5. Multiple CTEs can be defined in a single WithQueryExpression

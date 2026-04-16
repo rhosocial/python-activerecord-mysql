@@ -31,13 +31,28 @@ from rhosocial.activerecord.backend.expression import (
     InsertExpression,
     ValuesSource,
     DropTableExpression,
+    QueryExpression,
+    TableExpression,
+    WhereClause,
+    UpdateExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Literal, Column
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
+from rhosocial.activerecord.backend.expression.query_parts import ForUpdateClause
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+from rhosocial.activerecord.backend.options import ExecutionOptions
+from rhosocial.activerecord.backend.schema import StatementType
+
+dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
+dml_options = ExecutionOptions(stmt_type=StatementType.DML)
+
+drop_table = DropTableExpression(dialect=dialect, table_name='accounts', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -56,12 +71,6 @@ create_table = CreateTableExpression(
 )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
-
-truncate_table = DropTableExpression(dialect=dialect, table_name='accounts')
-sql, params = truncate_table.to_sql()
-if_exists = truncate_table.if_exists
-truncate_sql = f"TRUNCATE TABLE accounts"
-backend.execute(truncate_sql)
 
 insert_expr = InsertExpression(
     dialect=dialect,
@@ -82,16 +91,27 @@ backend.execute(sql, params)
 
 # In a transaction, select with FOR UPDATE
 with backend.transaction():
-    # Lock Alice's row
-    result = backend.execute(
-        "SELECT * FROM accounts WHERE name = 'Alice' FOR UPDATE"
+    # Lock Alice's row using ForUpdateClause
+    lock_query = QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'balance')],
+        from_=TableExpression(dialect, 'accounts'),
+        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        for_update=ForUpdateClause(dialect),
     )
+    sql, params = lock_query.to_sql()
+    result = backend.execute(sql, params, options=dql_options)
     print(f"Locked row: {result.data}")
 
     # Update the balance
-    backend.execute(
-        "UPDATE accounts SET balance = balance - 100 WHERE name = 'Alice'"
+    update_expr = UpdateExpression(
+        dialect=dialect,
+        table='accounts',
+        assignments={'balance': Literal(dialect, 900)},
+        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
     )
+    sql, params = update_expr.to_sql()
+    backend.execute(sql, params, options=dml_options)
 
 # The lock is released after commit
 
@@ -101,9 +121,15 @@ with backend.transaction():
 # Lock specific rows based on conditions
 
 with backend.transaction():
-    result = backend.execute(
-        "SELECT * FROM accounts WHERE balance > 500 FOR UPDATE"
+    lock_query = QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'balance')],
+        from_=TableExpression(dialect, 'accounts'),
+        where=ComparisonPredicate(dialect, '>', Column(dialect, 'balance'), Literal(dialect, 500)),
+        for_update=ForUpdateClause(dialect),
     )
+    sql, params = lock_query.to_sql()
+    result = backend.execute(sql, params, options=dql_options)
     print(f"Locked high balance accounts: {len(result.data)} rows")
 
 # ============================================================
@@ -111,9 +137,15 @@ with backend.transaction():
 # ============================================================
 # Skip locked rows instead of waiting
 
-result = backend.execute("""
-    SELECT * FROM accounts FOR UPDATE SKIP LOCKED
-""")
+skip_query = QueryExpression(
+    dialect=dialect,
+    select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'balance')],
+    from_=TableExpression(dialect, 'accounts'),
+    for_update=ForUpdateClause(dialect, skip_locked=True),
+)
+sql, params = skip_query.to_sql()
+print(f"SKIP LOCKED SQL: {sql}")
+result = backend.execute(sql, params, options=dql_options)
 print(f"SKIP LOCKED result: {result.data}")
 
 # ============================================================
@@ -122,9 +154,15 @@ print(f"SKIP LOCKED result: {result.data}")
 # Fail immediately if rows are locked
 
 try:
-    result = backend.execute(
-        "SELECT * FROM accounts WHERE name = 'Alice' FOR UPDATE NOWAIT"
+    nowait_query = QueryExpression(
+        dialect=dialect,
+        select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'balance')],
+        from_=TableExpression(dialect, 'accounts'),
+        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        for_update=ForUpdateClause(dialect, nowait=True),
     )
+    sql, params = nowait_query.to_sql()
+    result = backend.execute(sql, params, options=dql_options)
     print(f"NOWAIT result: {result.data}")
 except Exception as e:
     print(f"NOWAIT failed (expected if locked): {e}")
@@ -135,8 +173,11 @@ except Exception as e:
 # FOR UPDATE - exclusive lock (write lock)
 # FOR SHARE - shared lock (read lock)
 
+# Note: FOR SHARE uses ForUpdateClause with different lock mode
+# Currently Expression API provides ForUpdateClause for FOR UPDATE.
+# FOR SHARE requires raw SQL or extension of ForUpdateClause.
+
 with backend.transaction():
-    # Shared lock - allows other transactions to also read
     result = backend.execute(
         "SELECT * FROM accounts FOR SHARE"
     )
@@ -154,10 +195,9 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use FOR UPDATE to lock rows during transaction
-# 2. Prevents other transactions from modifying locked rows
-# 3. SKIP LOCKED skips locked rows (MySQL 8.0+)
-# 4. NOWAIT fails immediately if locked (MySQL 8.0+)
-# 5. FOR SHARE allows concurrent reads
-# 6. Requires InnoDB engine
-# 7. Locks released on COMMIT/ROLLBACK
+# 1. Use ForUpdateClause with QueryExpression for SELECT ... FOR UPDATE
+# 2. ForUpdateClause(dialect, skip_locked=True) for SKIP LOCKED (MySQL 8.0+)
+# 3. ForUpdateClause(dialect, nowait=True) for NOWAIT (MySQL 8.0+)
+# 4. FOR SHARE requires raw SQL (Expression API provides FOR UPDATE only)
+# 5. Requires InnoDB engine
+# 6. Locks released on COMMIT/ROLLBACK

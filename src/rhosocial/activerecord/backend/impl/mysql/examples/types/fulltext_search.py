@@ -12,28 +12,28 @@ config = MySQLConnectionConfig(
     host='localhost',
     port=3306,
     database='test',
-    user='test',
+    username='test',
     password='test',
 )
-backend = MySQLBackend(config)
+backend = MySQLBackend(connection_config=config)
 dialect = backend.dialect
 
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression
+from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression, MatchAgainstMode
 from rhosocial.activerecord.backend.expression.core import TableExpression
 
 # Create a full-text search expression
 # MySQL 5.6+ supports FULLTEXT indexes on InnoDB
-articles = TableExpression('articles')
+articles = TableExpression(dialect, 'articles')
 
 # Natural language search (default)
 match_expr = MatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='database',
-    mode='NATURAL_LANGUAGE',  # Default mode
+    mode=MatchAgainstMode.NATURAL_LANGUAGE,
 )
 
 sql, params = match_expr.to_sql()
@@ -45,7 +45,7 @@ match_boolean = MatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='+mysql -oracle',
-    mode='BOOLEAN',
+    mode=MatchAgainstMode.BOOLEAN,
 )
 
 sql, params = match_boolean.to_sql()
@@ -56,7 +56,7 @@ match_expanded = MatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='database',
-    mode='WITH_QUERY_EXPANSION',
+    mode=MatchAgainstMode.NATURAL_LANGUAGE_WITH_QUERY_EXPANSION,
 )
 
 sql, params = match_expanded.to_sql()

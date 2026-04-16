@@ -32,14 +32,16 @@ from rhosocial.activerecord.backend.expression import (
     InsertExpression,
     ValuesSource,
     DropTableExpression,
+    UpdateExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
+from rhosocial.activerecord.backend.expression.operators import BinaryArithmeticExpression
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
-from rhosocial.activerecord.backend.expression.operators import BinaryArithmeticExpression
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -76,14 +78,10 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Update Single Row
 # ============================================================
-from rhosocial.activerecord.backend.expression import UpdateExpression
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
-
 update_expr = UpdateExpression(
     dialect=dialect,
     table='users',
-    set_columns=[Column(dialect, 'age')],
-    set_values=[Literal(dialect, 26)],
+    assignments={'age': Literal(dialect, 26)},
     where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
 )
 sql, params = update_expr.to_sql()
@@ -97,15 +95,14 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Update with Expression
 # ============================================================
-from rhosocial.activerecord.backend.expression import UpdateExpression, BinaryArithmeticExpression
-
 update_expr = UpdateExpression(
     dialect=dialect,
     table='users',
-    set_columns=[Column(dialect, 'age')],
-    set_values=[BinaryArithmeticExpression(
-        dialect, '+', Column(dialect, 'age'), Literal(dialect, 1)
-    )],
+    assignments={
+        'age': BinaryArithmeticExpression(
+            dialect, '+', Column(dialect, 'age'), Literal(dialect, 1)
+        ),
+    },
     where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
 )
 sql, params = update_expr.to_sql()
@@ -119,8 +116,7 @@ print(f"Updated rows: {result.affected_rows}")
 update_expr = UpdateExpression(
     dialect=dialect,
     table='users',
-    set_columns=[Column(dialect, 'age')],
-    set_values=[Literal(dialect, 99)],
+    assignments={'age': Literal(dialect, 99)},
 )
 sql, params = update_expr.to_sql()
 print(f"Update all SQL: {sql}")
@@ -130,8 +126,6 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-from rhosocial.activerecord.backend.expression import DropTableExpression
-
 drop_expr = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
@@ -141,8 +135,7 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use UpdateExpression to build UPDATE query
-# 2. Use set_columns and set_values for SET clause
-# 3. Use BinaryArithmeticExpression for expressions like age + 1
-# 4. Omit where parameter to update all rows
-# 5. affected_rows shows number of updated rows
+# 1. Use UpdateExpression with assignments dict for SET clause
+# 2. Use BinaryArithmeticExpression for expressions like age + 1
+# 3. Omit where parameter to update all rows
+# 4. affected_rows shows number of updated rows

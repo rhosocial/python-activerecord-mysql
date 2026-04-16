@@ -29,13 +29,20 @@ from rhosocial.activerecord.backend.expression import (
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
+    UpdateExpression,
+    QueryExpression,
+    TableExpression,
+    WhereClause,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Literal, Column
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+from rhosocial.activerecord.backend.options import ExecutionOptions
+from rhosocial.activerecord.backend.schema import StatementType
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -65,22 +72,37 @@ insert_expr = InsertExpression(
 sql, params = insert_expr.to_sql()
 backend.execute(sql, params)
 
+dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
+dml_options = ExecutionOptions(stmt_type=StatementType.DML)
+
 # ============================================================
 # SECTION: Transaction Context Manager
 # ============================================================
 # The transaction() method returns a context manager
 # that automatically handles COMMIT/ROLLBACK
 
-# Auto-commit is disabled by default, each statement is in its own transaction
-# Use transaction() for explicit control
-
 # Simple transaction - auto commits on success
 with backend.transaction():
-    backend.execute("UPDATE accounts SET balance = balance - 50 WHERE name = 'Alice'")
+    update_expr = UpdateExpression(
+        dialect=dialect,
+        table='accounts',
+        assignments={'balance': Literal(dialect, 50)},
+        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+    )
+    sql, params = update_expr.to_sql()
+    backend.execute(sql, params, options=dml_options)
 
 # Verify
-result = backend.execute("SELECT balance FROM accounts WHERE name = 'Alice'")
-print(f"Balance after transaction: {result.data[0]['balance']}")
+query = QueryExpression(
+    dialect=dialect,
+    select=[Column(dialect, 'balance')],
+    from_=TableExpression(dialect, 'accounts'),
+    where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+)
+sql, params = query.to_sql()
+result = backend.execute(sql, params, options=dql_options)
+if result.data:
+    print(f"Balance after transaction: {result.data[0]['balance']}")
 
 # ============================================================
 # SECTION: Transaction with Rollback
@@ -89,9 +111,15 @@ print(f"Balance after transaction: {result.data[0]['balance']}")
 
 try:
     with backend.transaction():
-        backend.execute("UPDATE accounts SET balance = balance - 50 WHERE name = 'Alice'")
-        # This will fail - balance cannot be negative
-        backend.execute("UPDATE accounts SET balance = -100 WHERE name = 'Alice'")
+        update_expr = UpdateExpression(
+            dialect=dialect,
+            table='accounts',
+            assignments={'balance': Literal(dialect, -100)},
+            where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        )
+        sql, params = update_expr.to_sql()
+        backend.execute(sql, params, options=dml_options)
+        raise RuntimeError("Simulated error to trigger rollback")
 except Exception as e:
     print(f"Transaction rolled back: {e}")
 
@@ -101,11 +129,25 @@ except Exception as e:
 # MySQL supports savepoints for nested transactions
 
 with backend.transaction() as txn:
-    backend.execute("UPDATE accounts SET balance = balance - 10 WHERE name = 'Alice'")
+    update_expr = UpdateExpression(
+        dialect=dialect,
+        table='accounts',
+        assignments={'balance': Literal(dialect, 40)},
+        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+    )
+    sql, params = update_expr.to_sql()
+    backend.execute(sql, params, options=dml_options)
     txn.savepoint("sp1")
 
     try:
-        backend.execute("UPDATE accounts SET balance = balance - 20 WHERE name = 'Alice'")
+        update_expr2 = UpdateExpression(
+            dialect=dialect,
+            table='accounts',
+            assignments={'balance': Literal(dialect, 20)},
+            where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        )
+        sql, params = update_expr2.to_sql()
+        backend.execute(sql, params, options=dml_options)
     except Exception:
         txn.rollback_to("sp1")  # Rollback to savepoint, continue transaction
 

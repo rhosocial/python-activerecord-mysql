@@ -3,7 +3,7 @@ UPSERT (INSERT ... ON DUPLICATE KEY UPDATE) - MySQL.
 
 This example demonstrates:
 1. INSERT ... ON DUPLICATE KEY UPDATE
-2. Using VALUES() to reference attempted values
+2. Using OnConflictClause for upsert
 3. Affected rows tracking
 4. UPSERT with multiple values
 """
@@ -31,13 +31,22 @@ from rhosocial.activerecord.backend.expression import (
     DropTableExpression,
     InsertExpression,
     ValuesSource,
+    QueryExpression,
+    TableExpression,
+    WhereClause,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Literal, Column
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
+    OnConflictClause,
 )
+from rhosocial.activerecord.backend.options import ExecutionOptions
+from rhosocial.activerecord.backend.schema import StatementType
+
+dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -60,61 +69,93 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-truncate_sql = "TRUNCATE TABLE users"
-backend.execute(truncate_sql)
-
 # ============================================================
 # SECTION: INSERT ON DUPLICATE KEY UPDATE
 # ============================================================
-# Update on duplicate key
+# MySQL uses ON DUPLICATE KEY UPDATE, which is handled via OnConflictClause
 
-backend.execute("""
-    INSERT INTO users (username, email, login_count)
-    VALUES ('alice', 'alice@example.com', 1)
-    ON DUPLICATE KEY UPDATE login_count = login_count + 1
-""")
+# Initial insert
+insert_expr = InsertExpression(
+    dialect=dialect,
+    into='users',
+    columns=['username', 'email', 'login_count'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'alice'), Literal(dialect, 'alice@example.com'), Literal(dialect, 1)],
+    ]),
+)
+sql, params = insert_expr.to_sql()
+backend.execute(sql, params)
 
-result = backend.execute("SELECT * FROM users WHERE username = 'alice'")
+# Verify initial insert
+query = QueryExpression(
+    dialect=dialect,
+    select=[Column(dialect, 'id'), Column(dialect, 'username'), Column(dialect, 'email'), Column(dialect, 'login_count')],
+    from_=TableExpression(dialect, 'users'),
+    where=ComparisonPredicate(dialect, '=', Column(dialect, 'username'), Literal(dialect, 'alice')),
+)
+sql, params = query.to_sql()
+result = backend.execute(sql, params, options=dql_options)
 print(f"Initial insert: {result.data}")
 
-# Insert again - will update
-backend.execute("""
-    INSERT INTO users (username, email, login_count)
-    VALUES ('alice', 'alice@example.com', 1)
-    ON DUPLICATE KEY UPDATE login_count = login_count + 1
-""")
+# Insert again with ON DUPLICATE KEY UPDATE - will update
+upsert_expr = InsertExpression(
+    dialect=dialect,
+    into='users',
+    columns=['username', 'email', 'login_count'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'alice'), Literal(dialect, 'alice@example.com'), Literal(dialect, 1)],
+    ]),
+    on_conflict=OnConflictClause(
+        dialect,
+        None,
+        update_assignments={
+            'login_count': Literal(dialect, 'login_count + 1'),
+        },
+    ),
+)
+sql, params = upsert_expr.to_sql()
+print(f"UPSERT SQL: {sql}")
+backend.execute(sql, params)
 
-result = backend.execute("SELECT * FROM users WHERE username = 'alice'")
+# Verify after upsert
+sql, params = query.to_sql()
+result = backend.execute(sql, params, options=dql_options)
 print(f"After UPSERT: {result.data}")
-
-# ============================================================
-# SECTION: Using VALUES() function
-# ============================================================
-# Reference the values being inserted
-
-backend.execute("""
-    INSERT INTO users (username, email, login_count)
-    VALUES ('bob', 'bob@example.com', 1)
-    ON DUPLICATE KEY UPDATE email = VALUES(email)
-""")
 
 # ============================================================
 # SECTION: UPSERT with affected rows
 # ============================================================
 # affected_rows: 1 = inserted, 2 = updated
 
-result = backend.execute("""
-    INSERT INTO users (username, email, login_count)
-    VALUES ('charlie', 'charlie@example.com', 1)
-    ON DUPLICATE KEY UPDATE login_count = login_count + 1
-""")
+insert_result = InsertExpression(
+    dialect=dialect,
+    into='users',
+    columns=['username', 'email', 'login_count'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'charlie'), Literal(dialect, 'charlie@example.com'), Literal(dialect, 1)],
+    ]),
+)
+sql, params = insert_result.to_sql()
+result = backend.execute(sql, params)
 print(f"Insert affected_rows: {result.affected_rows}")
 
-result = backend.execute("""
-    INSERT INTO users (username, email, login_count)
-    VALUES ('charlie', 'charlie@example.com', 1)
-    ON DUPLICATE KEY UPDATE login_count = login_count + 1
-""")
+upsert_result = InsertExpression(
+    dialect=dialect,
+    into='users',
+    columns=['username', 'email', 'login_count'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'charlie'), Literal(dialect, 'charlie@example.com'), Literal(dialect, 1)],
+    ]),
+    on_conflict=OnConflictClause(
+        dialect,
+        None,
+        update_assignments={
+            'login_count': Literal(dialect, 'login_count + 1'),
+        },
+    ),
+)
+sql, params = upsert_result.to_sql()
+result = backend.execute(sql, params)
 print(f"Update affected_rows: {result.affected_rows}")
 
 # ============================================================
@@ -122,12 +163,25 @@ print(f"Update affected_rows: {result.affected_rows}")
 # ============================================================
 # MySQL supports multiple row VALUES()
 
-backend.execute("""
-    INSERT INTO users (username, email, login_count) VALUES
-        ('david', 'david@example.com', 1),
-        ('eve', 'eve@example.com', 1)
-    ON DUPLICATE KEY UPDATE login_count = login_count + 1
-""")
+multi_upsert = InsertExpression(
+    dialect=dialect,
+    into='users',
+    columns=['username', 'email', 'login_count'],
+    source=ValuesSource(dialect, [
+        [Literal(dialect, 'david'), Literal(dialect, 'david@example.com'), Literal(dialect, 1)],
+        [Literal(dialect, 'eve'), Literal(dialect, 'eve@example.com'), Literal(dialect, 1)],
+    ]),
+    on_conflict=OnConflictClause(
+        dialect,
+        None,
+        update_assignments={
+            'login_count': Literal(dialect, 'login_count + 1'),
+        },
+    ),
+)
+sql, params = multi_upsert.to_sql()
+print(f"Multi-row UPSERT SQL: {sql}")
+backend.execute(sql, params)
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
@@ -142,7 +196,7 @@ backend.disconnect()
 # ============================================================
 # Key points:
 # 1. Requires unique key or primary key for conflict detection
-# 2. Use ON DUPLICATE KEY UPDATE clause
-# 3. VALUES(col) references attempted values
+# 2. Use OnConflictClause with update_assignments for ON DUPLICATE KEY UPDATE
+# 3. MySQL auto-detects conflict by unique key (conflict_target=None)
 # 4. affected_rows = 1 for insert, 2 for update
 # 5. Works with multiple rows at once

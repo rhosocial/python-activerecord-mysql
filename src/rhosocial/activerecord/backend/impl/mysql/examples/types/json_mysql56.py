@@ -50,7 +50,8 @@ create_table = CreateTableExpression(
     columns=[
         ColumnDefinition('id', 'INT', constraints=[
             ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-        ], autoincrement=True),
+            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+        ],),
         ColumnDefinition('data', 'TEXT', constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),

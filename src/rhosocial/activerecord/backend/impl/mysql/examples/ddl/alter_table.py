@@ -132,6 +132,8 @@ print(f"Params: {params}")
 backend.execute(sql, params)
 print("Column age added successfully")
 
+# Note: MODIFY COLUMN is MySQL-specific and not covered by AlterTableExpression.
+# Use raw SQL for MODIFY COLUMN operations.
 sql = "ALTER TABLE users MODIFY COLUMN name VARCHAR(200) NOT NULL"
 print(f"SQL (Modify Column name): {sql}")
 
