@@ -22,6 +22,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, WildcardExpression, Column
+from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
@@ -43,6 +44,11 @@ backend.connect()
 dialect = backend.dialect
 
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
+
+# Drop table first for clean setup
+drop = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+sql, params = drop.to_sql()
+backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -122,7 +128,7 @@ all_query = QueryExpression(
     dialect=dialect,
     select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'email')],
     from_=TableExpression(dialect, 'users'),
-    order_by=[Column(dialect, 'id')],
+    order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
 )
 sql, params = all_query.to_sql()
 result = backend.execute(sql, params, options=dql_options)

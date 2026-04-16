@@ -1469,7 +1469,7 @@ class MySQLDMLOperationMixin:
         parts = ["JSON_TABLE("]
         parts.append(expr.json_doc)
         parts.append(",")
-        parts.append(expr.path)
+        parts.append(f"'{expr.path}'")
         parts.append(" COLUMNS (")
 
         column_parts = []
@@ -1515,6 +1515,35 @@ class MySQLDMLOperationMixin:
             parts.append(f" AS {expr.alias}")
 
         return "".join(parts), ()
+
+    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
+        """Format ON DUPLICATE KEY UPDATE for MySQL.
+
+        MySQL uses ON DUPLICATE KEY UPDATE instead of PostgreSQL's ON CONFLICT.
+        """
+        all_params = []
+        parts = ["ON DUPLICATE KEY UPDATE"]
+
+        update_parts = []
+        if expr.update_assignments:
+            for col_name, value_expr in expr.update_assignments.items():
+                col_sql = self.format_identifier(col_name)
+                if hasattr(value_expr, 'to_sql'):
+                    val_sql, val_params = value_expr.to_sql()
+                    all_params.extend(val_params)
+                else:
+                    val_sql = str(value_expr)
+                update_parts.append(f"{col_sql} = {val_sql}")
+
+        if update_parts:
+            parts.append(" ".join(update_parts))
+        else:
+            # No update assignments means DO NOTHING equivalent
+            # MySQL doesn't have INSERT ... ON CONFLICT DO NOTHING,
+            # but INSERT IGNORE can be used instead (handled separately)
+            parts.append(f"{self.format_identifier('id')} = {self.format_identifier('id')}")
+
+        return " ".join(parts), tuple(all_params)
 
 
 class MySQLFullTextSearchMixin:

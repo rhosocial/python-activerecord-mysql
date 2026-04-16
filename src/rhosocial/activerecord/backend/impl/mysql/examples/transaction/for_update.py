@@ -63,17 +63,19 @@ create_table = CreateTableExpression(
         ColumnDefinition('name', 'VARCHAR(100)', constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),
-        ColumnDefinition('balance', 'DECIMAL(10,2)', default_value='0'),
+        ColumnDefinition('balance', 'DECIMAL(10,2)', constraints=[
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='0'),
+        ]),
     ],
     if_not_exists=True,
-    extra='ENGINE=InnoDB',
+    dialect_options={'engine': 'InnoDB'},
 )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    table_name='accounts',
+    into='accounts',
     columns=['name', 'balance'],
     source=ValuesSource(dialect, [
         [Literal(dialect, 'Alice'), Literal(dialect, 1000)],

@@ -55,6 +55,9 @@ sql, params = create_table.to_sql()
 print(f"Create table SQL: {sql}")
 backend.execute(sql, params)
 
+# Clean up existing data
+backend.execute("DELETE FROM users")
+
 # Insert data into table_a
 insert = InsertExpression(
     dialect=dialect,

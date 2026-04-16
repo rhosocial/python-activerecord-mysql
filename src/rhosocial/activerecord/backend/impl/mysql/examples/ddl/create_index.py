@@ -8,7 +8,7 @@ Create an index on an existing table.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression import CreateTableExpression, DropTableExpression
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
@@ -26,6 +26,11 @@ config = MySQLConnectionConfig(
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
+
+# Drop table first for clean setup
+drop = DropTableExpression(dialect=dialect, table_name='products', if_exists=True)
+sql, params = drop.to_sql()
+backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -71,8 +76,8 @@ backend.execute(sql, params)
 print("Index created successfully")
 
 # Verify using introspector
-indexes = backend.introspector.get_indexes('products')
-target_index = [idx for idx in indexes if idx.name == 'idx_category_price']
+indexes = backend.introspector.list_indexes('products')
+target_index = [idx for idx in indexes if 'idx_category_price' in str(idx)]
 print(f"Index info: {target_index}")
 
 # ============================================================

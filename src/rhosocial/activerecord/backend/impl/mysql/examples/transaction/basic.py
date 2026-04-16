@@ -32,7 +32,6 @@ from rhosocial.activerecord.backend.expression import (
     UpdateExpression,
     QueryExpression,
     TableExpression,
-    WhereClause,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
@@ -54,7 +53,9 @@ create_table = CreateTableExpression(
         ColumnDefinition('name', 'VARCHAR(100)', constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),
-        ColumnDefinition('balance', 'DECIMAL(10,2)', default_value='0'),
+        ColumnDefinition('balance', 'DECIMAL(10,2)', constraints=[
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='0'),
+        ]),
     ],
     if_not_exists=True,
 )
@@ -63,7 +64,7 @@ backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    table_name='accounts',
+    into='accounts',
     columns=['name', 'balance'],
     source=ValuesSource(dialect, [
         [Literal(dialect, 'Alice'), Literal(dialect, 100)],
@@ -128,7 +129,7 @@ except Exception as e:
 # ============================================================
 # MySQL supports savepoints for nested transactions
 
-with backend.transaction() as txn:
+with backend.transaction():
     update_expr = UpdateExpression(
         dialect=dialect,
         table='accounts',
@@ -137,7 +138,7 @@ with backend.transaction() as txn:
     )
     sql, params = update_expr.to_sql()
     backend.execute(sql, params, options=dml_options)
-    txn.savepoint("sp1")
+    backend.transaction_manager.savepoint("sp1")
 
     try:
         update_expr2 = UpdateExpression(
@@ -149,7 +150,7 @@ with backend.transaction() as txn:
         sql, params = update_expr2.to_sql()
         backend.execute(sql, params, options=dml_options)
     except Exception:
-        txn.rollback_to("sp1")  # Rollback to savepoint, continue transaction
+        backend.transaction_manager.rollback_to("sp1")
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)

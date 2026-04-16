@@ -27,7 +27,6 @@ dialect = backend.dialect
 from rhosocial.activerecord.backend.expression import (
     CreateTableExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,

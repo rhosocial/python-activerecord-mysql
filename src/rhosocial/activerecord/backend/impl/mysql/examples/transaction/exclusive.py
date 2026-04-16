@@ -7,10 +7,6 @@ This example demonstrates:
 3. SERIALIZABLE isolation level
 4. How to set isolation level on a transaction
 """
-
-# ============================================================
-# SECTION: Setup (necessary for execution, reference only)
-# ============================================================
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
@@ -24,6 +20,7 @@ from rhosocial.activerecord.backend.expression import (
     UpdateExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column
+from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
@@ -62,17 +59,19 @@ create_table = CreateTableExpression(
         ColumnDefinition('name', 'VARCHAR(100)', constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),
-        ColumnDefinition('balance', 'DECIMAL(10,2)', default_value='0'),
+        ColumnDefinition('balance', 'DECIMAL(10,2)', constraints=[
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='0'),
+        ]),
     ],
     if_not_exists=True,
-    extra='ENGINE=InnoDB',
+    dialect_options={'engine': 'InnoDB'},
 )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    table_name='accounts',
+    into='accounts',
     columns=['name', 'balance'],
     source=ValuesSource(dialect, [
         [Literal(dialect, 'Alice'), Literal(dialect, 1000)],
@@ -90,7 +89,7 @@ backend.execute(sql, params)
 # Prevents dirty reads: only committed data is visible.
 # Non-repeatable reads and phantom reads can still occur.
 print("--- READ COMMITTED ---")
-with backend.transaction(isolation_level=IsolationLevel.READ_COMMITTED):
+with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ_COMMITTED):
     # Read Alice's balance
     query = QueryExpression(
         dialect=dialect,
@@ -127,7 +126,7 @@ print(f"After commit - Alice's balance: {result.data[0]['balance']}")
 # Prevents dirty reads and non-repeatable reads.
 # Phantom reads are also prevented in MySQL due to next-key locking.
 print("\n--- REPEATABLE READ (MySQL default) ---")
-with backend.transaction(isolation_level=IsolationLevel.REPEATABLE_READ):
+with backend.transaction_manager.transaction(isolation_level=IsolationLevel.REPEATABLE_READ):
     # First read
     query = QueryExpression(
         dialect=dialect,
@@ -152,13 +151,13 @@ with backend.transaction(isolation_level=IsolationLevel.REPEATABLE_READ):
 # The strictest level: prevents dirty reads, non-repeatable reads,
 # and phantom reads. Transactions appear to execute sequentially.
 print("\n--- SERIALIZABLE ---")
-with backend.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
+with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
     # Read all accounts
     query = QueryExpression(
         dialect=dialect,
         select=[Column(dialect, 'name'), Column(dialect, 'balance')],
         from_=TableExpression(dialect, 'accounts'),
-        order_by=[Column(dialect, 'id')],
+        order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -181,7 +180,7 @@ with backend.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
 print("\n--- Per-transaction isolation level ---")
 
 # Transaction 1: SERIALIZABLE
-with backend.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
+with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
     update_expr = UpdateExpression(
         dialect=dialect,
         table='accounts',
@@ -197,7 +196,7 @@ with backend.transaction():
         dialect=dialect,
         select=[Column(dialect, 'name'), Column(dialect, 'balance')],
         from_=TableExpression(dialect, 'accounts'),
-        order_by=[Column(dialect, 'id')],
+        order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -215,7 +214,7 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use isolation_level parameter in backend.transaction() to set isolation
+# 1. Use isolation_level parameter in backend.transaction_manager.transaction() to set isolation
 # 2. READ COMMITTED: prevents dirty reads, allows non-repeatable reads
 # 3. REPEATABLE READ: MySQL default, prevents dirty and non-repeatable reads
 # 4. SERIALIZABLE: strictest level, all transactions appear sequential

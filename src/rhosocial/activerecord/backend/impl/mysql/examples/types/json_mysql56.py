@@ -62,7 +62,7 @@ backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    table_name='documents',
+    into='documents',
     columns=['data'],
     source=ValuesSource(dialect, [
         [Literal(dialect, '{"name": "Alice", "age": 30}')],

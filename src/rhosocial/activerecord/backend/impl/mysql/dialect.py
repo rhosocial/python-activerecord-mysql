@@ -1518,6 +1518,35 @@ class MySQLDialect(
         """
         return self.version >= (8, 0, 4)
 
+    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
+        """Format ON DUPLICATE KEY UPDATE for MySQL.
+
+        MySQL uses ON DUPLICATE KEY UPDATE instead of PostgreSQL's ON CONFLICT.
+        This overrides UpsertMixin's format_on_conflict_clause which generates
+        ON CONFLICT syntax.
+        """
+        all_params = []
+        parts = ["ON DUPLICATE KEY UPDATE"]
+
+        update_parts = []
+        if expr.update_assignments:
+            for col_name, value_expr in expr.update_assignments.items():
+                col_sql = self.format_identifier(col_name)
+                if hasattr(value_expr, 'to_sql'):
+                    val_sql, val_params = value_expr.to_sql()
+                    all_params.extend(val_params)
+                else:
+                    val_sql = str(value_expr)
+                update_parts.append(f"{col_sql} = {val_sql}")
+
+        if update_parts:
+            parts.append(" ".join(update_parts))
+        else:
+            # No update assignments: use id = id as no-op
+            parts.append(f"{self.format_identifier('id')} = {self.format_identifier('id')}")
+
+        return " ".join(parts), tuple(all_params)
+
     def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
         """Format JSON_TABLE expression.
 
@@ -1532,7 +1561,7 @@ class MySQLDialect(
         parts = ["JSON_TABLE("]
         parts.append(expr.json_doc)
         parts.append(",")
-        parts.append(expr.path)
+        parts.append(f"'{expr.path}'")
         parts.append(" COLUMNS (")
 
         # Format columns

@@ -78,12 +78,16 @@ columns = [
     ColumnDefinition(
         name='is_active',
         data_type='TINYINT(1)',
-        default_value='1',
+        constraints=[
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='1'),
+        ],
     ),
     ColumnDefinition(
         name='created_at',
         data_type='TIMESTAMP',
-        default_value='CURRENT_TIMESTAMP',
+        constraints=[
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP'),
+        ],
     ),
 ]
 
@@ -118,10 +122,10 @@ result = backend.execute(sql, params)
 print("Table created: products")
 
 # Verify table structure using introspector
-columns_info = backend.introspector.get_columns('products')
+columns_info = backend.introspector.list_columns('products')
 print("Columns in 'products':")
 for col in columns_info:
-    print(f"  {col.name} {col.data_type} nullable={col.is_nullable}")
+    print(f"  {col}")
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)

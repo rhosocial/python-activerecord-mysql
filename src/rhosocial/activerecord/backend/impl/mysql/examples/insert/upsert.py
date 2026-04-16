@@ -33,7 +33,6 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
     QueryExpression,
     TableExpression,
-    WhereClause,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
@@ -62,7 +61,9 @@ create_table = CreateTableExpression(
         ColumnDefinition('email', 'VARCHAR(100)', constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ]),
-        ColumnDefinition('login_count', 'INT', default_value='0'),
+        ColumnDefinition('login_count', 'INT', constraints=[
+            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='0'),
+        ]),
     ],
     if_not_exists=True,
 )
@@ -109,7 +110,7 @@ upsert_expr = InsertExpression(
         dialect,
         None,
         update_assignments={
-            'login_count': Literal(dialect, 'login_count + 1'),
+            'login_count': Column(dialect, 'login_count'),
         },
     ),
 )
@@ -150,7 +151,7 @@ upsert_result = InsertExpression(
         dialect,
         None,
         update_assignments={
-            'login_count': Literal(dialect, 'login_count + 1'),
+            'login_count': Column(dialect, 'login_count'),
         },
     ),
 )
@@ -175,7 +176,7 @@ multi_upsert = InsertExpression(
         dialect,
         None,
         update_assignments={
-            'login_count': Literal(dialect, 'login_count + 1'),
+            'login_count': Column(dialect, 'login_count'),
         },
     ),
 )

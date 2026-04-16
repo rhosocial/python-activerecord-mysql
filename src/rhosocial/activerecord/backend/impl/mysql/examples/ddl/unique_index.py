@@ -24,7 +24,7 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression import CreateTableExpression, DropTableExpression
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
@@ -50,7 +50,15 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: CREATE UNIQUE INDEX
 # ============================================================
-from rhosocial.activerecord.backend.expression import CreateIndexExpression
+from rhosocial.activerecord.backend.expression import CreateIndexExpression, DropIndexExpression
+
+# Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
+try:
+    drop_idx = DropIndexExpression(dialect=dialect, index_name='idx_users_email_unique')
+    sql, params = drop_idx.to_sql()
+    backend.execute(sql, params)
+except Exception:
+    pass
 
 unique_idx = CreateIndexExpression(
     dialect=dialect,
@@ -58,7 +66,6 @@ unique_idx = CreateIndexExpression(
     table_name='users',
     columns=['email'],
     unique=True,
-    if_not_exists=True,
 )
 sql, params = unique_idx.to_sql()
 print(f"CREATE UNIQUE INDEX SQL: {sql}")
@@ -68,12 +75,19 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: CREATE INDEX with multiple columns
 # ============================================================
+# Drop composite index first if exists
+try:
+    drop_idx2 = DropIndexExpression(dialect=dialect, index_name='idx_users_name_email')
+    sql, params = drop_idx2.to_sql()
+    backend.execute(sql, params)
+except Exception:
+    pass
+
 composite_idx = CreateIndexExpression(
     dialect=dialect,
     index_name='idx_users_name_email',
     table_name='users',
     columns=['name', 'email'],
-    if_not_exists=True,
 )
 sql, params = composite_idx.to_sql()
 print(f"CREATE INDEX multi-col SQL: {sql}")
@@ -82,12 +96,6 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Teardown
 # ============================================================
-from rhosocial.activerecord.backend.expression import DropIndexExpression, DropTableExpression
-
-drop_idx = DropIndexExpression(dialect=dialect, index_name='idx_users_email_unique')
-sql, params = drop_idx.to_sql()
-backend.execute(sql, params)
-
 drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)

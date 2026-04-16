@@ -1,8 +1,12 @@
 """
-Alter table statements - ADD_COLUMN, MODIFY_COLUMN.
+Alter table statements - ADD_COLUMN.
 
 Note: MySQL supports multiple actions in a single ALTER TABLE statement,
 but for simplicity we demonstrate individual operations.
+
+Note: MODIFY COLUMN is a MySQL-specific feature. The MySQL dialect's
+format_modify_column_action is not yet implemented, so this example
+only demonstrates ADD_COLUMN.
 """
 
 # ============================================================
@@ -132,40 +136,15 @@ print(f"Params: {params}")
 backend.execute(sql, params)
 print("Column age added successfully")
 
-# Note: MODIFY COLUMN is MySQL-specific, use ModifyColumn action
-from rhosocial.activerecord.backend.expression.statements.ddl_alter import ModifyColumn
-
-modify_action = ModifyColumn(
-    column=ColumnDefinition(
-        name='name',
-        data_type='VARCHAR(200)',
-        constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
-        ],
-    ),
-)
-
-modify_expr = AlterTableExpression(
-    dialect=dialect,
-    table_name='users',
-    actions=[modify_action],
-)
-
-sql, params = modify_expr.to_sql()
-print(f"SQL (Modify Column name): {sql}")
-print(f"Params: {params}")
-
 # ============================================================
-# SECTION: Execution (run the expression)
+# SECTION: Execution (verify alterations)
 # ============================================================
-backend.execute(sql, params)
-print("Column name modified successfully")
 
 # Verify using introspector
-columns = backend.introspector.get_columns('users')
+columns = backend.introspector.list_columns('users')
 print("Table structure after alterations:")
 for col in columns:
-    print(f"  {col.name} {col.data_type}")
+    print(f"  {col}")
 
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)

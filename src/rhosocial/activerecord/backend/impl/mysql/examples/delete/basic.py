@@ -80,7 +80,7 @@ from rhosocial.activerecord.backend.expression.predicates import ComparisonPredi
 
 delete_expr = DeleteExpression(
     dialect=dialect,
-    from_='users',
+    table='users',
     where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
 )
 sql, params = delete_expr.to_sql()
@@ -96,7 +96,7 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 delete_expr = DeleteExpression(
     dialect=dialect,
-    from_='users',
+    table='users',
     where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Bob')),
 )
 sql, params = delete_expr.to_sql()
@@ -107,7 +107,7 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Delete All Rows
 # ============================================================
-delete_expr = DeleteExpression(dialect=dialect, from_='users')
+delete_expr = DeleteExpression(dialect=dialect, table='users')
 sql, params = delete_expr.to_sql()
 print(f"Delete all SQL: {sql}")
 result = backend.execute(sql, params, options=options)
