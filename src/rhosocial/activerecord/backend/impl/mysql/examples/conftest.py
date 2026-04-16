@@ -26,6 +26,14 @@ EXAMPLES_META = {
         'min_version': '5.6',
         'max_version': '9.6',
     },
+    'transaction/for_update.py': {
+        'title': 'FOR UPDATE Row Locking',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+        'note': 'SKIP LOCKED and NOWAIT require MySQL 8.0+',
+    },
     'query/cte.py': {
         'title': 'CTE (Common Table Expressions)',
         'dialect_protocols': [],
