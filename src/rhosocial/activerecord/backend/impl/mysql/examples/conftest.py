@@ -256,4 +256,11 @@ EXAMPLES_META = {
         'min_version': '5.6',
         'max_version': '9.6',
     },
+    'query/explain.py': {
+        'title': 'EXPLAIN Query Plan',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
 }
