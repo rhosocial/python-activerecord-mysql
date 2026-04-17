@@ -1,3 +1,10 @@
+## [v1.0.0.dev14] - 2026-04-17
+
+### Added
+
+- Added backend examples for MySQL expression system ([#33](https://github.com/rhosocial/python-activerecord-mysql/issues/33))
+
+
 ## [v1.0.0.dev13] - 2026-04-13
 
 ### Added
