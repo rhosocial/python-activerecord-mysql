@@ -13,7 +13,7 @@ import os
 import sys
 from dataclasses import asdict, is_dataclass
 from enum import Enum
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Tuple
 
 from . import MySQLBackend, AsyncMySQLBackend
 from .config import MySQLConnectionConfig
@@ -217,7 +217,7 @@ def parse_args():
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # info subcommand
-    info_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "info",
         help="Display MySQL environment information",
         parents=[parent_parser],
