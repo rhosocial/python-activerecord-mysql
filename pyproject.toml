@@ -3,8 +3,8 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rhosocial_activerecord_mysql"
-version = "1.0.0.dev13"
+name = "rhosocial-activerecord-mysql"
+version = "1.0.0.dev14"
 description = "MySQL backend implementation for rhosocial-activerecord, providing a robust and optimized MySQL database support."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -81,6 +81,13 @@ addopts = "-ra -q"
 asyncio_mode = "auto"
 testpaths = [
     "tests",
+]
+markers = [
+    "requires_capability: marks tests requiring specific backend capabilities",
+    "requires_protocol: marks tests requiring specific backend protocol support",
+    "requires_inner_join: marks tests requiring INNER JOIN support",
+    "basic_mapped_models: marks tests for models with custom column name mappings",
+    "mysql_json: marks MySQL-specific JSON tests",
 ]
 
 [tool.coverage.run]

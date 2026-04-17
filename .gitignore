@@ -178,6 +178,7 @@ cython_debug/
 # Examples - but allow specific docs examples to be tracked
 examples/
 !docs/examples/
+!src/**/examples/
 
 # Configuration files - to prevent accidental commit of sensitive information
 mysql_config.yaml

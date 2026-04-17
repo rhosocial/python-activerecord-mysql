@@ -759,7 +759,16 @@ class MySQLTableMixin:
                 constraint_parts.append("UNIQUE")
             elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
                 if constraint.default_value is not None:
-                    constraint_parts.append(f"DEFAULT {constraint.default_value}")
+                    from rhosocial.activerecord.backend.expression import bases
+                    if isinstance(constraint.default_value, bases.BaseExpression):
+                        default_sql, default_params = constraint.default_value.to_sql()
+                        constraint_parts.append(f"DEFAULT {default_sql}")
+                        params.extend(default_params)
+                    elif isinstance(constraint.default_value, str):
+                        escaped = constraint.default_value.replace("'", "''")
+                        constraint_parts.append(f"DEFAULT '{escaped}'")
+                    else:
+                        constraint_parts.append(f"DEFAULT {constraint.default_value}")
             elif constraint.constraint_type == ColumnConstraintType.NULL:
                 constraint_parts.append("NULL")
 
@@ -1378,3 +1387,358 @@ class MySQLVectorMixin:
             f"({self.format_identifier(column)})",
             ()
         )
+
+
+class MySQLDMLOperationMixin:
+    """MySQL DML operations mixin.
+
+    MySQL-specific DML operations:
+    - INSERT IGNORE
+    - REPLACE INTO
+    - LOAD DATA INFILE
+    - JSON_TABLE (8.0.4+)
+    """
+
+    def supports_insert_ignore(self) -> bool:
+        """Whether INSERT IGNORE is supported."""
+        return True
+
+    def supports_replace_into(self) -> bool:
+        """Whether REPLACE INTO is supported."""
+        return True
+
+    def supports_load_data(self) -> bool:
+        """Whether LOAD DATA INFILE is supported."""
+        return True
+
+    def supports_json_table(self) -> bool:
+        """Whether JSON_TABLE is supported (MySQL 8.0.4+)."""
+        return self.version >= (8, 0, 4)
+
+    def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
+        """Format LOAD DATA INFILE statement."""
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["LOAD DATA"]
+
+        if expr.options.local:
+            parts.append("LOCAL")
+
+        parts.append("INFILE")
+
+        file_path_escaped = expr.file_path.replace("\\", "\\\\").replace("'", "\\'")
+        parts.append(f"'{file_path_escaped}'")
+
+        if expr.options.replace:
+            parts.append("REPLACE")
+        elif expr.options.ignore:
+            parts.append("IGNORE")
+
+        parts.append("INTO TABLE")
+        parts.append(self.format_identifier(expr.table))
+
+        if expr.options.character_set:
+            parts.append(f"CHARACTER SET {expr.options.character_set}")
+
+        field_parts = []
+        if expr.options.fields_terminated_by is not None:
+            field_parts.append(
+                f"TERMINATED BY '{expr.options.fields_terminated_by}'"
+            )
+        if expr.options.fields_enclosed_by is not None:
+            field_parts.append(f"ENCLOSED BY '{expr.options.fields_enclosed_by}'")
+        if expr.options.fields_escaped_by is not None:
+            field_parts.append(f"ESCAPED BY '{expr.options.fields_escaped_by}'")
+        if field_parts:
+            parts.append("FIELDS " + " ".join(field_parts))
+
+        line_parts = []
+        if expr.options_lines_terminated_by is not None:
+            line_parts.append(f"TERMINATED BY '{expr.options_lines_terminated_by}'")
+        if expr.options_lines_starting_by is not None:
+            line_parts.append(f"STARTING BY '{expr.options_lines_starting_by}'")
+        if line_parts:
+            parts.append("LINES " + " ".join(line_parts))
+
+        if expr.options.skip:
+            parts.append(f"IGNORE {expr.options.skip} LINES")
+
+        if expr.options.set_assignments:
+            set_parts = []
+            for col, val in expr.options.set_assignments.items():
+                set_parts.append(f"{self.format_identifier(col)} = {val}")
+            parts.append("SET " + ", ".join(set_parts))
+
+        return " ".join(parts), ()
+
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Format JSON_TABLE expression."""
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["JSON_TABLE("]
+        parts.append(expr.json_doc)
+        parts.append(",")
+        parts.append(f"'{expr.path}'")
+        parts.append(" COLUMNS (")
+
+        column_parts = []
+        for col in expr.columns:
+            if col.ordinality:
+                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
+            elif col.exists:
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
+                )
+            else:
+                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                if col.path:
+                    col_def += f" PATH '{col.path}'"
+                if col.error_handling:
+                    if col.error_handling.upper() == 'DEFAULT':
+                        col_def += f" DEFAULT {col.default_value} ON ERROR"
+                    else:
+                        col_def += f" {col.error_handling.upper()} ON ERROR"
+                column_parts.append(col_def)
+
+        for nested in expr.nested_paths:
+            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            nested_cols = []
+            for col in nested.columns:
+                if col.ordinality:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
+                    )
+                else:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
+                    )
+            nested_def += ", ".join(nested_cols) + ")"
+            if nested.alias:
+                nested_def = f"{nested.alias} AS " + nested_def
+            column_parts.append(nested_def)
+
+        parts.append(", ".join(column_parts))
+        parts.append("))")
+
+        if expr.alias:
+            parts.append(f" AS {expr.alias}")
+
+        return "".join(parts), ()
+
+    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
+        """Format ON DUPLICATE KEY UPDATE for MySQL.
+
+        MySQL uses ON DUPLICATE KEY UPDATE instead of PostgreSQL's ON CONFLICT.
+        """
+        all_params = []
+        parts = ["ON DUPLICATE KEY UPDATE"]
+
+        update_parts = []
+        if expr.update_assignments:
+            for col_name, value_expr in expr.update_assignments.items():
+                col_sql = self.format_identifier(col_name)
+                if hasattr(value_expr, 'to_sql'):
+                    val_sql, val_params = value_expr.to_sql()
+                    all_params.extend(val_params)
+                else:
+                    val_sql = str(value_expr)
+                update_parts.append(f"{col_sql} = {val_sql}")
+
+        if update_parts:
+            parts.append(" ".join(update_parts))
+        else:
+            # No update assignments means DO NOTHING equivalent
+            # MySQL doesn't have INSERT ... ON CONFLICT DO NOTHING,
+            # but INSERT IGNORE can be used instead (handled separately)
+            parts.append(f"{self.format_identifier('id')} = {self.format_identifier('id')}")
+
+        return " ".join(parts), tuple(all_params)
+
+
+class MySQLFullTextSearchMixin:
+    """MySQL full-text search mixin.
+
+    MySQL full-text search features:
+    - FULLTEXT indexes (InnoDB 5.6+, MyISAM all versions)
+    - FULLTEXT parser plugins (5.1+)
+    - Query expansion mode
+    - MATCH ... AGAINST expression
+    """
+
+    def supports_fulltext_index(self) -> bool:
+        """MySQL 5.6+ supports FULLTEXT for InnoDB."""
+        return self.version >= (5, 6, 0)
+
+    def supports_fulltext_parser(self) -> bool:
+        """MySQL supports FULLTEXT parser plugins."""
+        return self.version >= (5, 1, 0)
+
+    def supports_fulltext_query_expansion(self) -> bool:
+        """MySQL supports QUERY EXPANSION."""
+        return True
+
+    def format_match_against(
+        self,
+        columns: List[str],
+        search_string: str,
+        mode: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format MATCH ... AGAINST expression."""
+        cols_sql = ", ".join(self.format_identifier(c) for c in columns)
+
+        placeholder = self.get_parameter_placeholder()
+        search_sql = placeholder
+        search_params = (search_string,)
+
+        if mode:
+            mode_upper = mode.upper()
+            if mode_upper == "NATURAL_LANGUAGE":
+                mode_str = "IN NATURAL LANGUAGE MODE"
+            elif mode_upper == "BOOLEAN":
+                mode_str = "IN BOOLEAN MODE"
+            elif mode_upper == "QUERY_EXPANSION":
+                mode_str = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
+            else:
+                mode_str = ""
+        else:
+            mode_str = "IN NATURAL LANGUAGE MODE"
+
+        sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
+        return sql, search_params
+
+
+class MySQLLockingMixin:
+    """MySQL row-level locking mixin.
+
+    MySQL locking features beyond SQL standard:
+    - FOR SHARE: Shared lock (MySQL 8.0+, replaces LOCK IN SHARE MODE)
+    - NOWAIT: Fail immediately if rows are locked (MySQL 8.0+)
+
+    Note: MySQL does NOT support PostgreSQL's FOR NO KEY UPDATE or
+    FOR KEY SHARE lock strengths.
+    """
+
+    def supports_for_share(self) -> bool:
+        """Whether FOR SHARE clause is supported (MySQL 8.0+)."""
+        return self.version >= (8, 0, 0)
+
+    def supports_for_update_nowait(self) -> bool:
+        """Whether FOR UPDATE NOWAIT is supported (MySQL 8.0+)."""
+        return self.version >= (8, 0, 0)
+
+    def supports_for_update_skip_locked(self) -> bool:
+        """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
+        return self.version >= (8, 0, 0)
+
+    def format_mysql_for_update_clause(self, clause) -> Tuple[str, tuple]:
+        """Format MySQL-specific FOR UPDATE clause.
+
+        Handles MySQL-specific lock strengths (FOR SHARE)
+        and options (NOWAIT, SKIP LOCKED).
+
+        Args:
+            clause: MySQLForUpdateClause instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+        from rhosocial.activerecord.backend.impl.mysql.expression.locking import MySQLLockStrength
+
+        all_params = []
+
+        # Check version support for lock strength
+        if clause.strength == MySQLLockStrength.SHARE:
+            if not self.supports_for_share():
+                raise UnsupportedFeatureError(
+                    self.name, "FOR SHARE (requires MySQL 8.0+)"
+                )
+
+        # Use the strength value directly (e.g., "FOR UPDATE", "FOR SHARE")
+        sql_parts = [clause.strength.value]
+
+        # Handle OF columns if specified
+        if clause.of_columns:
+            of_parts = []
+            for col in clause.of_columns:
+                if isinstance(col, str):
+                    of_parts.append(self.format_identifier(col))
+                else:
+                    # BaseExpression
+                    col_sql, col_params = col.to_sql()
+                    of_parts.append(col_sql)
+                    all_params.extend(col_params)
+            if of_parts:
+                sql_parts.append(f"OF {', '.join(of_parts)}")
+
+        # Handle NOWAIT/SKIP LOCKED options
+        if clause.nowait:
+            if not self.supports_for_update_nowait():
+                raise UnsupportedFeatureError(
+                    self.name, "NOWAIT (requires MySQL 8.0+)"
+                )
+            sql_parts.append("NOWAIT")
+        elif clause.skip_locked:
+            if not self.supports_for_update_skip_locked():
+                raise UnsupportedFeatureError(
+                    self.name, "SKIP LOCKED (requires MySQL 8.0+)"
+                )
+            sql_parts.append("SKIP LOCKED")
+
+        return " ".join(sql_parts), tuple(all_params)
+
+
+class MySQLModifyColumnMixin:
+    """MySQL MODIFY COLUMN and CHANGE COLUMN mixin.
+
+    MySQL ALTER TABLE features beyond SQL standard:
+    - MODIFY COLUMN: Redefine a column with new specification (name unchanged)
+    - CHANGE COLUMN: Rename and redefine a column in one operation
+    - FIRST/AFTER: Column positioning within the table
+
+    Version Requirements:
+    - MODIFY COLUMN: All MySQL versions
+    - CHANGE COLUMN: All MySQL versions
+    """
+
+    def supports_modify_column(self) -> bool:
+        """Whether MODIFY COLUMN is supported (all MySQL versions)."""
+        return True
+
+    def supports_change_column(self) -> bool:
+        """Whether CHANGE COLUMN is supported (all MySQL versions)."""
+        return True
+
+    def format_modify_column_action(self, action) -> Tuple[str, tuple]:
+        """Format MODIFY COLUMN action for ALTER TABLE.
+
+        Args:
+            action: ModifyColumn action instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        col_sql, col_params = self.format_column_definition(action.column)
+        sql = f"MODIFY COLUMN {col_sql}"
+        if action.after_column:
+            sql += f" AFTER {self.format_identifier(action.after_column)}"
+        elif action.first:
+            sql += " FIRST"
+        return sql, col_params
+
+    def format_change_column_action(self, action) -> Tuple[str, tuple]:
+        """Format CHANGE COLUMN action for ALTER TABLE.
+
+        Args:
+            action: ChangeColumn action instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        col_sql, col_params = self.format_column_definition(action.column)
+        sql = f"CHANGE COLUMN {self.format_identifier(action.old_name)} {col_sql}"
+        if action.after_column:
+            sql += f" AFTER {self.format_identifier(action.after_column)}"
+        elif action.first:
+            sql += " FIRST"
+        return sql, col_params

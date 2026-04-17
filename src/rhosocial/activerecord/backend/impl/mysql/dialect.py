@@ -36,6 +36,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     IntrospectionSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
+    # Function Support Protocol
+    SQLFunctionSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CTEMixin,
@@ -72,8 +74,14 @@ from .protocols import (
     MySQLSpatialSupport,
     MySQLVectorSupport,
     MySQLDMLOperationSupport,
+    MySQLFullTextSearchSupport,
+    MySQLLockingSupport,
+    MySQLModifyColumnSupport,
 )
 from .mixins import (
+    MySQLTransactionMixin,
+    MySQLDMLOperationMixin,
+    MySQLFullTextSearchMixin,
     MySQLTriggerMixin,
     MySQLTableMixin,
     MySQLSetTypeMixin,
@@ -81,6 +89,8 @@ from .mixins import (
     MySQLSpatialMixin,
     MySQLVectorMixin,
     MySQLIntrospectionMixin,
+    MySQLLockingMixin,
+    MySQLModifyColumnMixin,
 )
 from .show.dialect import MySQLShowDialectMixin
 
@@ -89,6 +99,10 @@ if TYPE_CHECKING:
         CreateTableExpression, CreateViewExpression, DropViewExpression,
         ColumnDefinition, TableConstraint, IndexDefinition,
         ExplainExpression, InsertExpression,
+    )
+    from rhosocial.activerecord.backend.expression.transaction import (
+        SetTransactionExpression,
+        BeginTransactionExpression,
     )
 
 
@@ -104,6 +118,7 @@ class MySQLDialect(
     ArrayMixin,
     ExplainMixin,
     GraphMixin,
+    MySQLLockingMixin,  # MySQL FOR SHARE/NOWAIT/SKIP LOCKED (before LockingMixin for method override)
     LockingMixin,
     MergeMixin,
     OrderedSetAggregationMixin,
@@ -119,6 +134,9 @@ class MySQLDialect(
     TableMixin,
     ConstraintMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
+    MySQLTransactionMixin,  # MySQL transaction support
+    MySQLDMLOperationMixin,  # MySQL DML operations
+    MySQLFullTextSearchMixin,  # MySQL full-text search
     MySQLTriggerMixin,
     MySQLTableMixin,
     MySQLSetTypeMixin,
@@ -127,6 +145,7 @@ class MySQLDialect(
     MySQLVectorMixin,  # MySQL 9.0+ VECTOR type support
     MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
     MySQLShowDialectMixin,  # MySQL SHOW commands
+    MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
     IntrospectionMixin,
     # Protocols for type checking
     CTESupport,
@@ -164,6 +183,11 @@ class MySQLDialect(
     MySQLSpatialSupport,
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
     MySQLDMLOperationSupport,  # MySQL-specific DML operations (INSERT IGNORE, REPLACE INTO)
+    MySQLFullTextSearchSupport,  # MySQL full-text search
+    MySQLLockingSupport,  # MySQL FOR SHARE and NOWAIT support
+    MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
+    # Function Support Protocol
+    SQLFunctionSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -334,10 +358,6 @@ class MySQLDialect(
         selected rows preventing other transactions from modifying them.
         """
         return True
-
-    def supports_for_update_skip_locked(self) -> bool:
-        """Whether FOR UPDATE SKIP LOCKED is supported."""
-        return self.version >= (8, 0, 1)  # Supported since 8.0.1
 
     def supports_merge_statement(self) -> bool:
         """Whether MERGE statement is supported."""
@@ -722,7 +742,16 @@ class MySQLDialect(
                 constraint_parts.append("UNIQUE")
             elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
                 if constraint.default_value is not None:
-                    constraint_parts.append(f"DEFAULT {constraint.default_value}")
+                    from rhosocial.activerecord.backend.expression import bases
+                    if isinstance(constraint.default_value, bases.BaseExpression):
+                        default_sql, default_params = constraint.default_value.to_sql()
+                        constraint_parts.append(f"DEFAULT {default_sql}")
+                        params.extend(default_params)
+                    elif isinstance(constraint.default_value, str):
+                        escaped = constraint.default_value.replace("'", "''")
+                        constraint_parts.append(f"DEFAULT '{escaped}'")
+                    else:
+                        constraint_parts.append(f"DEFAULT {constraint.default_value}")
             elif constraint.constraint_type == ColumnConstraintType.NULL:
                 constraint_parts.append("NULL")
 
@@ -961,6 +990,44 @@ class MySQLDialect(
         """MySQL supports QUERY EXPANSION."""
         return True  # All versions with FULLTEXT support this
 
+    def format_match_against(
+        self,
+        columns: List[str],
+        search_string: str,
+        mode: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format MATCH ... AGAINST expression.
+
+        Args:
+            columns: Column names to search
+            search_string: Search term
+            mode: Search mode - NATURAL_LANGUAGE, BOOLEAN, or QUERY_EXPANSION
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        cols_sql = ", ".join(self.format_identifier(c) for c in columns)
+
+        placeholder = self.get_parameter_placeholder()
+        search_sql = placeholder
+        search_params = (search_string,)
+
+        if mode:
+            mode_upper = mode.upper()
+            if mode_upper == "NATURAL_LANGUAGE":
+                mode_str = "IN NATURAL LANGUAGE MODE"
+            elif mode_upper == "BOOLEAN":
+                mode_str = "IN BOOLEAN MODE"
+            elif mode_upper == "QUERY_EXPANSION":
+                mode_str = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
+            else:
+                mode_str = ""
+        else:
+            mode_str = "IN NATURAL LANGUAGE MODE"
+
+        sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
+        return sql, search_params
+
     # endregion
 
     # region MySQL 8.0 Index Features
@@ -1030,6 +1097,114 @@ class MySQLDialect(
     # endregion
 
     # region Transaction Control
+
+    # MySQL function version support: function_name -> (min_version, max_version)
+    # min_version: minimum supported version (inclusive), None = all versions
+    # max_version: maximum supported version (inclusive), None = no upper limit
+    # Reference: https://dev.mysql.com/doc/refman/en/inline-functions.html
+    _MYSQL_FUNCTION_VERSIONS = {
+        # JSON functions: MySQL 5.7.8+
+        "json_extract": ((5, 7, 8), None),
+        "json_unquote": ((5, 7, 8), None),
+        "json_object": ((5, 7, 8), None),
+        "json_array": ((5, 7, 8), None),
+        "json_contains": ((5, 7, 8), None),
+        "json_set": ((5, 7, 8), None),
+        "json_remove": ((5, 7, 8), None),
+        "json_type": ((5, 7, 8), None),
+        "json_valid": ((5, 7, 8), None),
+        "json_search": ((5, 7, 8), None),
+        # Spatial functions: MySQL 5.7+ (renamed from ST_* to lowercase)
+        "st_geom_from_text": ((5, 7, 0), None),
+        "st_geom_from_wkb": ((5, 7, 0), None),
+        "st_as_text": ((5, 7, 0), None),
+        "st_as_geojson": ((5, 7, 5), None),
+        "st_distance": ((5, 7, 0), None),
+        "st_within": ((5, 7, 0), None),
+        "st_contains": ((5, 7, 0), None),
+        "st_intersects": ((5, 7, 0), None),
+        # Full-text search: MySQL 5.6+ (with some features requiring 5.7+)
+        "match_against": (None, None),  # Available since early versions
+        # SET type functions: All MySQL versions
+        "find_in_set": (None, None),
+        # Enum type functions: All MySQL versions
+        "elt": (None, None),
+        "field": (None, None),
+        # Math enhanced functions: All MySQL versions
+        "round_": (None, None),
+        "pow": (None, None),
+        "power": (None, None),
+        "sqrt": (None, None),
+        "mod": (None, None),
+        "ceil": (None, None),
+        "floor": (None, None),
+        "trunc": (None, None),
+        "max_": (None, None),
+        "min_": (None, None),
+        "avg": (None, None),
+        # Bitwise functions: All MySQL versions
+        "bit_and": (None, None),
+        "bit_or": (None, None),
+        "bit_xor": (None, None),
+        "bit_count": (None, None),
+        "bit_get_bit": ((8, 0, 0), None),  # BIT() function added in 8.0
+        "bit_shift_left": ((8, 0, 0), None),  # Added in 8.0
+        "bit_shift_right": ((8, 0, 0), None),  # Added in 8.0
+    }
+
+    def supports_functions(self) -> Dict[str, bool]:
+        """Return supported SQL functions as function_name -> bool mapping.
+
+        This method combines:
+        1. Core functions from rhosocial.activerecord.backend.expression.functions
+        2. MySQL-specific functions from rhosocial.activerecord.backend.impl.mysql.functions
+
+        MySQL version-specific functions:
+        - JSON functions: MySQL 5.7.8+
+        - Spatial functions: MySQL 5.7+
+        - GeoJSON functions: MySQL 5.7.5+
+
+        Returns:
+            Dict mapping function names to True (supported) or False.
+        """
+        from rhosocial.activerecord.backend.expression.functions import (
+            __all__ as core_functions,
+        )
+        from rhosocial.activerecord.backend.impl.mysql import functions as mysql_functions
+
+        result = {}
+        for func_name in core_functions:
+            result[func_name] = self._is_mysql_function_supported(func_name)
+
+        mysql_funcs = getattr(mysql_functions, "__all__", [])
+        for func_name in mysql_funcs:
+            if func_name not in result:
+                result[func_name] = self._is_mysql_function_supported(func_name)
+
+        return result
+
+    def _is_mysql_function_supported(self, func_name: str) -> bool:
+        """Check if a MySQL-specific function is supported based on version.
+
+        Args:
+            func_name: Name of the MySQL function
+
+        Returns:
+            True if supported, False otherwise
+        """
+        version_range = self._MYSQL_FUNCTION_VERSIONS.get(func_name)
+        if version_range is None:
+            return True
+
+        min_version, max_version = version_range
+
+        if min_version is not None and self.version < min_version:
+            return False
+
+        if max_version is not None and self.version > max_version:
+            return False
+
+        return True
 
     def supports_transaction_mode(self) -> bool:
         """MySQL supports READ ONLY transactions (5.6.5+)."""
@@ -1352,6 +1527,35 @@ class MySQLDialect(
         """
         return self.version >= (8, 0, 4)
 
+    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
+        """Format ON DUPLICATE KEY UPDATE for MySQL.
+
+        MySQL uses ON DUPLICATE KEY UPDATE instead of PostgreSQL's ON CONFLICT.
+        This overrides UpsertMixin's format_on_conflict_clause which generates
+        ON CONFLICT syntax.
+        """
+        all_params = []
+        parts = ["ON DUPLICATE KEY UPDATE"]
+
+        update_parts = []
+        if expr.update_assignments:
+            for col_name, value_expr in expr.update_assignments.items():
+                col_sql = self.format_identifier(col_name)
+                if hasattr(value_expr, 'to_sql'):
+                    val_sql, val_params = value_expr.to_sql()
+                    all_params.extend(val_params)
+                else:
+                    val_sql = str(value_expr)
+                update_parts.append(f"{col_sql} = {val_sql}")
+
+        if update_parts:
+            parts.append(" ".join(update_parts))
+        else:
+            # No update assignments: use id = id as no-op
+            parts.append(f"{self.format_identifier('id')} = {self.format_identifier('id')}")
+
+        return " ".join(parts), tuple(all_params)
+
     def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
         """Format JSON_TABLE expression.
 
@@ -1366,7 +1570,7 @@ class MySQLDialect(
         parts = ["JSON_TABLE("]
         parts.append(expr.json_doc)
         parts.append(",")
-        parts.append(expr.path)
+        parts.append(f"'{expr.path}'")
         parts.append(" COLUMNS (")
 
         # Format columns

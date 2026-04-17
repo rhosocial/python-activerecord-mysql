@@ -50,6 +50,83 @@ create_expr = CreateTableExpression(
 - 只有 `temporary` 和 `if_not_exists` 标志会被考虑
 - MySQL 的 LIKE 会复制：列、索引、约束、默认值、auto_increment 设置
 
+### 语句级常量与 DEFAULT 值
+
+MySQL DDL 中的 `DEFAULT` 子句经常需要使用 SQL 语句级常量（statement-level constants），如 `CURRENT_TIMESTAMP`、`NOW()`、`CURRENT_DATE` 等。这些是 SQL 关键字或函数调用，**不是字符串字面量**，因此必须使用表达式实例传入，而非 Python 字符串。
+
+```python
+from rhosocial.activerecord.backend.expression.functions.datetime import (
+    current_timestamp, now,
+)
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefinition, ColumnConstraint, ColumnConstraintType,
+)
+
+# 正确：使用工厂函数传递 SQL:2003 零元函数
+ColumnDefinition(
+    name='created_at',
+    data_type='TIMESTAMP',
+    constraints=[
+        ColumnConstraint(ColumnConstraintType.DEFAULT,
+                         default_value=current_timestamp(dialect)),
+        # 生成: `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        # （无括号 — SQL:2003 零元形式）
+    ],
+)
+
+# 正确：使用 NOW() 函数（非零元函数，始终带括号）
+ColumnDefinition(
+    name='updated_at',
+    data_type='DATETIME',
+    constraints=[
+        ColumnConstraint(ColumnConstraintType.DEFAULT,
+                         default_value=now(dialect)),
+        # 生成: `updated_at` DATETIME DEFAULT NOW()
+    ],
+)
+
+# 正确：数字字面量直接传入 Python 原生类型
+ColumnDefinition(
+    name='is_active',
+    data_type='TINYINT(1)',
+    constraints=[
+        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
+        # 生成: `is_active` TINYINT(1) DEFAULT 1
+    ],
+)
+
+# 正确：字符串字面量传入 Python 字符串（会自动加引号）
+ColumnDefinition(
+    name='status',
+    data_type='VARCHAR(20)',
+    constraints=[
+        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='active'),
+        # 生成: `status` VARCHAR(20) DEFAULT 'active'
+    ],
+)
+```
+
+**错误做法：**
+
+```python
+# 错误：将 SQL 关键字作为 Python 字符串传入
+# 这会导致生成 DEFAULT 'CURRENT_TIMESTAMP'（被引号包裹，变成字符串字面量）
+ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP')
+```
+
+**常见语句级常量对照表：**
+
+| SQL 常量 | Expression API | 说明 |
+| ---------- | ---------------------------------------------- | ------ |
+| `CURRENT_TIMESTAMP` | `current_timestamp(dialect)` | 当前时间戳（SQL:2003 零元函数，无括号） |
+| `CURRENT_TIMESTAMP(6)` | `current_timestamp(dialect, 6)` | 带精度的时间戳（有括号） |
+| `NOW()` | `now(dialect)` | 当前日期时间（普通函数） |
+| `CURRENT_DATE` | `current_date(dialect)` | 当前日期（SQL:2003 零元函数） |
+| `CURRENT_TIME` | `current_time(dialect)` | 当前时间（SQL:2003 零元函数） |
+| `UUID()` | `FunctionCall(dialect, 'UUID')` | 生成 UUID（MySQL 8.0+） |
+
+> **核心规则**：SQL:2003 零元函数（`CURRENT_TIMESTAMP`、`CURRENT_DATE`、`CURRENT_TIME`、`CURRENT_USER` 等）使用专用工厂函数，自动生成不带括号的标准形式。其他 SQL 中的关键字、函数、常量（不需要引号包裹的），使用 `FunctionCall`；需要引号包裹的字面量值，使用 Python 原生类型（字符串、数字、布尔值）。
+
 ## 特有的运算符
 
 ### LIKE 表达式
@@ -96,3 +173,79 @@ class GroupConcat(FunctionExpression):
 ```
 
 💡 *AI 提示词：* "MySQL 的 REPLACE INTO 和 INSERT ... ON DUPLICATE KEY UPDATE 有什么区别？"
+
+## 查询运行时函数与常量
+
+MySQL 支持不涉及数据源的纯函数查询，如 `SELECT CURRENT_TIMESTAMP`、`SELECT NOW()`、`SELECT VERSION()` 等。使用 `QueryExpression` 不指定 `from_` 子句即可实现。
+
+```python
+from rhosocial.activerecord.backend.expression import QueryExpression
+from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
+from rhosocial.activerecord.backend.expression.functions.datetime import (
+    current_timestamp, now, current_date, current_time,
+)
+
+# SELECT CURRENT_TIMESTAMP（零元函数 — 无括号）
+query = QueryExpression(
+    dialect=dialect,
+    select=[current_timestamp(dialect)],
+)
+sql, params = query.to_sql()
+# 生成: SELECT CURRENT_TIMESTAMP
+
+# SELECT NOW()
+query = QueryExpression(
+    dialect=dialect,
+    select=[now(dialect)],
+)
+# 生成: SELECT NOW()
+
+# SELECT CURRENT_DATE, CURRENT_TIME（零元函数 — 无括号）
+query = QueryExpression(
+    dialect=dialect,
+    select=[
+        current_date(dialect),
+        current_time(dialect),
+    ],
+)
+# 生成: SELECT CURRENT_DATE, CURRENT_TIME
+
+# 带别名的多函数查询
+query = QueryExpression(
+    dialect=dialect,
+    select=[
+        now(dialect).as_('current_time'),
+        FunctionCall(dialect, 'DATABASE').as_('db_name'),
+        FunctionCall(dialect, 'VERSION').as_('db_version'),
+    ],
+)
+# 生成: SELECT NOW() AS `current_time`, DATABASE() AS `db_name`, VERSION() AS `db_version`
+
+# 带参数的函数调用
+query = QueryExpression(
+    dialect=dialect,
+    select=[
+        FunctionCall(dialect, 'DATE_FORMAT',
+                     now(dialect),
+                     Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
+    ],
+)
+# 生成: SELECT DATE_FORMAT(NOW(), %s) AS `formatted_date`
+```
+
+**常用 MySQL 信息函数：**
+
+| 函数 | Expression API | 返回值 |
+| ------ | ---------------------------------------------- | ------ |
+| `CURRENT_TIMESTAMP` | `current_timestamp(dialect)` | 当前时间戳（零元函数） |
+| `CURRENT_TIMESTAMP(6)` | `current_timestamp(dialect, 6)` | 带精度的时间戳 |
+| `NOW()` | `now(dialect)` | 当前日期时间 |
+| `CURRENT_DATE` | `current_date(dialect)` | 当前日期（零元函数） |
+| `CURRENT_TIME` | `current_time(dialect)` | 当前时间（零元函数） |
+| `DATABASE()` | `FunctionCall(dialect, 'DATABASE')` | 当前数据库名 |
+| `VERSION()` | `FunctionCall(dialect, 'VERSION')` | MySQL 版本号 |
+| `USER()` | `FunctionCall(dialect, 'USER')` | 当前用户 |
+| `UUID()` | `FunctionCall(dialect, 'UUID')` | 生成 UUID（8.0+） |
+| `CONNECTION_ID()` | `FunctionCall(dialect, 'CONNECTION_ID')` | 连接 ID |
+
+> **注意**：SQL:2003 零元函数（`CURRENT_TIMESTAMP`、`CURRENT_DATE`、`CURRENT_TIME` 等）在无参数调用时生成不带括号的标准形式。MySQL 也接受带括号的形式（如 `CURRENT_TIMESTAMP()`）——两种形式在 DDL DEFAULT 和 SELECT 上下文中均合法。推荐使用专用工厂函数（`current_timestamp()`、`current_date()` 等），它们会自动处理零元形式。
