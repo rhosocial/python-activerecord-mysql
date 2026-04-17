@@ -86,6 +86,8 @@ markers = [
     "requires_capability: marks tests requiring specific backend capabilities",
     "requires_protocol: marks tests requiring specific backend protocol support",
     "requires_inner_join: marks tests requiring INNER JOIN support",
+    "basic_mapped_models: marks tests for models with custom column name mappings",
+    "mysql_json: marks MySQL-specific JSON tests",
 ]
 
 [tool.coverage.run]
