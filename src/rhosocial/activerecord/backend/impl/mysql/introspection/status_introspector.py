@@ -1328,7 +1328,7 @@ class AsyncMySQLStatusIntrospector(
             # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
             try:
                 # Get server version first
-                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_result = await self._backend.execute("SELECT VERSION()", ())
                 version_str = (
                     version_result.data[0].get("VERSION()", "")
                     if version_result and version_result.data
