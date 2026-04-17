@@ -119,6 +119,14 @@ EXAMPLES_META = {
         'min_version': '5.6',
         'max_version': '9.6',
     },
+    'insert/with_returning.py': {
+        'title': 'Retrieve Auto-Generated ID (LAST_INSERT_ID)',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+        'note': 'MySQL does not support RETURNING clause; use LAST_INSERT_ID() instead',
+    },
     'delete/basic.py': {
         'title': 'DELETE using DeleteExpression',
         'dialect_protocols': [],
@@ -236,6 +244,13 @@ EXAMPLES_META = {
     },
     'query/predicate.py': {
         'title': 'Complex Predicates',
+        'dialect_protocols': [],
+        'priority': 10,
+        'min_version': '5.6',
+        'max_version': '9.6',
+    },
+    'query/constants.py': {
+        'title': 'Query Runtime Constants and Niladic Functions',
         'dialect_protocols': [],
         'priority': 10,
         'min_version': '5.6',
