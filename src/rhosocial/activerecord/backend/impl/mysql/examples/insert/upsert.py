@@ -100,7 +100,12 @@ backend.execute(sql, params)
 # Verify initial insert
 query = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, 'id'), Column(dialect, 'username'), Column(dialect, 'email'), Column(dialect, 'login_count')],
+    select=[
+        Column(dialect, 'id'),
+        Column(dialect, 'username'),
+        Column(dialect, 'email'),
+        Column(dialect, 'login_count'),
+    ],
     from_=TableExpression(dialect, 'users'),
     where=ComparisonPredicate(dialect, '=', Column(dialect, 'username'), Literal(dialect, 'alice')),
 )

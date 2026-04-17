@@ -21,7 +21,12 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression,
+    InsertExpression,
+    ValuesSource,
+    DropTableExpression,
+)
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
@@ -60,9 +65,15 @@ insert = InsertExpression(
     source=ValuesSource(
         dialect,
         [
-            [Literal(dialect, 'MySQL Tutorial'), Literal(dialect, 'This tutorial covers MySQL database basics and advanced features.')],
-            [Literal(dialect, 'PostgreSQL Guide'), Literal(dialect, 'Learn PostgreSQL from beginner to advanced level.')],
-            [Literal(dialect, 'Database Design'), Literal(dialect, 'Best practices for designing relational databases including MySQL and PostgreSQL.')],
+            [Literal(dialect, 'MySQL Tutorial'),
+             Literal(dialect, 'This tutorial covers MySQL database basics '
+                             'and advanced features.')],
+            [Literal(dialect, 'PostgreSQL Guide'),
+             Literal(dialect, 'Learn PostgreSQL from beginner '
+                             'to advanced level.')],
+            [Literal(dialect, 'Database Design'),
+             Literal(dialect, 'Best practices for designing relational '
+                             'databases including MySQL and PostgreSQL.')],
         ],
     ),
 )
