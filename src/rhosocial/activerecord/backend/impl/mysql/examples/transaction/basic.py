@@ -27,6 +27,7 @@ dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (
     CreateTableExpression,
+    DropTableExpression,
     InsertExpression,
     ValuesSource,
     UpdateExpression,
@@ -43,12 +44,18 @@ from rhosocial.activerecord.backend.expression.statements import (
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
+# Drop table first for clean setup
+drop_table = DropTableExpression(dialect=dialect, table_name='accounts', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
+
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='accounts',
     columns=[
-        ColumnDefinition('id', 'INT AUTO_INCREMENT', constraints=[
+        ColumnDefinition('id', 'INT', constraints=[
             ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
         ]),
         ColumnDefinition('name', 'VARCHAR(100)', constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),

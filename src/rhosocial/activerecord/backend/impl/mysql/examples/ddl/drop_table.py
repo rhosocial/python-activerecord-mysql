@@ -26,12 +26,21 @@ dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (
     CreateTableExpression,
+    DropTableExpression,
 )
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
+
+drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+sql, params = drop_orders.to_sql()
+backend.execute(sql, params)
+
+drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
@@ -50,8 +59,6 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: DROP TABLE
 # ============================================================
-from rhosocial.activerecord.backend.expression import DropTableExpression
-
 drop_expr = DropTableExpression(
     dialect=dialect,
     table_name='users',

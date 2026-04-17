@@ -56,7 +56,15 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import CreateIndexExpression
+from rhosocial.activerecord.backend.expression import CreateIndexExpression, DropIndexExpression
+
+# Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
+try:
+    drop_idx = DropIndexExpression(dialect=dialect, index_name='idx_category_price')
+    sql, params = drop_idx.to_sql()
+    backend.execute(sql, params)
+except Exception:
+    pass
 
 create_idx = CreateIndexExpression(
     dialect=dialect,

@@ -40,6 +40,11 @@ from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraintType,
 )
 
+# Drop table first for clean setup
+drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
+
 create_table = CreateTableExpression(
     dialect=dialect,
     table_name='users',
@@ -54,9 +59,6 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 print(f"Create table SQL: {sql}")
 backend.execute(sql, params)
-
-# Clean up existing data
-backend.execute("DELETE FROM users")
 
 # Insert data into table_a
 insert = InsertExpression(

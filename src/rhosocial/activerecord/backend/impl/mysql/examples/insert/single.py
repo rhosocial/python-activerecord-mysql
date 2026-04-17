@@ -45,7 +45,11 @@ dialect = backend.dialect
 
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
-# Drop table first for clean setup
+# Drop dependent tables first for clean setup
+drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+sql, params = drop_orders.to_sql()
+backend.execute(sql, params)
+
 drop = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
@@ -137,6 +141,10 @@ print(f"All rows: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
+drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+sql, params = drop_orders.to_sql()
+backend.execute(sql, params)
+
 drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)

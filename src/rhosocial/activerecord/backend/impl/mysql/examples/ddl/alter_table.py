@@ -37,6 +37,10 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
+drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+sql, params = drop_orders.to_sql()
+backend.execute(sql, params)
+
 drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)

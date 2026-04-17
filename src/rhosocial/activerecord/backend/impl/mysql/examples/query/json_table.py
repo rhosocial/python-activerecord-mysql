@@ -97,7 +97,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
 
 json_table = JSONTableExpression(
     dialect=dialect,
-    json_doc="order_data",
+    json_doc="o.order_data",
     path="$.items[*]",
     columns=[
         JSONTableColumn(name="product", type="VARCHAR(100)", path="$.product"),

@@ -8,7 +8,10 @@ Batch insert with multiple rows.
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression import (
+    CreateTableExpression,
+    DropTableExpression,
+)
 from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
@@ -29,6 +32,11 @@ config = MySQLConnectionConfig(
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
+
+# Drop table first for clean setup
+drop_table = DropTableExpression(dialect=dialect, table_name='logs', if_exists=True)
+sql, params = drop_table.to_sql()
+backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
