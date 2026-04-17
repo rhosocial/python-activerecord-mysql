@@ -9,7 +9,7 @@ import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.expression import CreateTableExpression
-from rhosocial.activerecord.backend.expression.core import FunctionCall
+from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
@@ -50,7 +50,7 @@ create_table = CreateTableExpression(
             constraints=[
                 ColumnConstraint(
                     ColumnConstraintType.DEFAULT,
-                    default_value=FunctionCall(dialect, 'CURRENT_TIMESTAMP'),
+                    default_value=current_timestamp(dialect),
                 ),
             ],
         ),

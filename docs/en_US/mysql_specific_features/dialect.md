@@ -52,32 +52,35 @@ create_expr = CreateTableExpression(
 
 ### Statement-Level Constants and DEFAULT Values
 
-MySQL DDL `DEFAULT` clauses frequently require SQL statement-level constants such as `CURRENT_TIMESTAMP`, `NOW()`, `CURRENT_DATE`, etc. These are SQL keywords or function calls, **not string literals**, so they must be passed as `FunctionCall` instances rather than Python strings.
+MySQL DDL `DEFAULT` clauses frequently require SQL statement-level constants such as `CURRENT_TIMESTAMP`, `NOW()`, `CURRENT_DATE`, etc. These are SQL keywords or function calls, **not string literals**, so they must be passed as expression instances rather than Python strings.
 
 ```python
-from rhosocial.activerecord.backend.expression.core import FunctionCall
+from rhosocial.activerecord.backend.expression.functions.datetime import (
+    current_timestamp, now,
+)
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition, ColumnConstraint, ColumnConstraintType,
 )
 
-# Correct: Use FunctionCall for SQL statement-level constants
+# Correct: Use factory functions for SQL:2003 niladic functions
 ColumnDefinition(
     name='created_at',
     data_type='TIMESTAMP',
     constraints=[
         ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=FunctionCall(dialect, 'CURRENT_TIMESTAMP')),
-        # Generates: `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+                         default_value=current_timestamp(dialect)),
+        # Generates: `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        # (no parentheses — SQL:2003 niladic form)
     ],
 )
 
-# Correct: Use NOW() function
+# Correct: Use NOW() function (not niladic, always has parentheses)
 ColumnDefinition(
     name='updated_at',
     data_type='DATETIME',
     constraints=[
         ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=FunctionCall(dialect, 'NOW')),
+                         default_value=now(dialect)),
         # Generates: `updated_at` DATETIME DEFAULT NOW()
     ],
 )
@@ -115,14 +118,14 @@ ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP'
 
 | SQL Constant | Expression API | Description |
 | ------------ | ---------------------------------------------- | ----------- |
-| `CURRENT_TIMESTAMP` | `FunctionCall(dialect, 'CURRENT_TIMESTAMP')` | Current timestamp |
-| `CURRENT_TIMESTAMP(6)` | `FunctionCall(dialect, 'CURRENT_TIMESTAMP', Literal(dialect, 6))` | Timestamp with precision |
-| `NOW()` | `FunctionCall(dialect, 'NOW')` | Current date and time |
-| `CURRENT_DATE` | `FunctionCall(dialect, 'CURRENT_DATE')` | Current date |
-| `CURRENT_TIME` | `FunctionCall(dialect, 'CURRENT_TIME')` | Current time |
+| `CURRENT_TIMESTAMP` | `current_timestamp(dialect)` | Current timestamp (SQL:2003 niladic, no parentheses) |
+| `CURRENT_TIMESTAMP(6)` | `current_timestamp(dialect, 6)` | Timestamp with precision (has parentheses) |
+| `NOW()` | `now(dialect)` | Current date and time (regular function) |
+| `CURRENT_DATE` | `current_date(dialect)` | Current date (SQL:2003 niladic) |
+| `CURRENT_TIME` | `current_time(dialect)` | Current time (SQL:2003 niladic) |
 | `UUID()` | `FunctionCall(dialect, 'UUID')` | Generate UUID (MySQL 8.0+) |
 
-> **Core rule**: Anything that is a SQL keyword, function, or constant (i.e., should NOT be quoted in the generated SQL) must use `FunctionCall`. Literal values that need quoting should use Python native types (strings, numbers, booleans).
+> **Core rule**: For SQL:2003 niladic functions (`CURRENT_TIMESTAMP`, `CURRENT_DATE`, `CURRENT_TIME`, `CURRENT_USER`, etc.), use the dedicated factory functions which generate the standard form without parentheses. For other SQL functions and constants (i.e., should NOT be quoted in the generated SQL), use `FunctionCall`. Literal values that need quoting should use Python native types (strings, numbers, booleans).
 
 ## Specific Operators
 
@@ -178,37 +181,40 @@ MySQL supports querying runtime functions without a data source, such as `SELECT
 ```python
 from rhosocial.activerecord.backend.expression import QueryExpression
 from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
+from rhosocial.activerecord.backend.expression.functions.datetime import (
+    current_timestamp, now, current_date, current_time,
+)
 
-# SELECT CURRENT_TIMESTAMP()
+# SELECT CURRENT_TIMESTAMP (niladic — no parentheses)
 query = QueryExpression(
     dialect=dialect,
-    select=[FunctionCall(dialect, 'CURRENT_TIMESTAMP')],
+    select=[current_timestamp(dialect)],
 )
 sql, params = query.to_sql()
-# Generates: SELECT CURRENT_TIMESTAMP()
+# Generates: SELECT CURRENT_TIMESTAMP
 
 # SELECT NOW()
 query = QueryExpression(
     dialect=dialect,
-    select=[FunctionCall(dialect, 'NOW')],
+    select=[now(dialect)],
 )
 # Generates: SELECT NOW()
 
-# SELECT CURRENT_DATE, CURRENT_TIME
+# SELECT CURRENT_DATE, CURRENT_TIME (niladic — no parentheses)
 query = QueryExpression(
     dialect=dialect,
     select=[
-        FunctionCall(dialect, 'CURRENT_DATE'),
-        FunctionCall(dialect, 'CURRENT_TIME'),
+        current_date(dialect),
+        current_time(dialect),
     ],
 )
-# Generates: SELECT CURRENT_DATE(), CURRENT_TIME()
+# Generates: SELECT CURRENT_DATE, CURRENT_TIME
 
 # Multi-function query with aliases
 query = QueryExpression(
     dialect=dialect,
     select=[
-        FunctionCall(dialect, 'NOW').as_('current_time'),
+        now(dialect).as_('current_time'),
         FunctionCall(dialect, 'DATABASE').as_('db_name'),
         FunctionCall(dialect, 'VERSION').as_('db_version'),
     ],
@@ -220,7 +226,7 @@ query = QueryExpression(
     dialect=dialect,
     select=[
         FunctionCall(dialect, 'DATE_FORMAT',
-                     FunctionCall(dialect, 'NOW'),
+                     now(dialect),
                      Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
     ],
 )
@@ -231,14 +237,15 @@ query = QueryExpression(
 
 | Function | Expression API | Returns |
 | -------- | ---------------------------------------------- | ------- |
-| `CURRENT_TIMESTAMP()` | `FunctionCall(dialect, 'CURRENT_TIMESTAMP')` | Current timestamp |
-| `NOW()` | `FunctionCall(dialect, 'NOW')` | Current date and time |
-| `CURRENT_DATE` | `FunctionCall(dialect, 'CURRENT_DATE')` | Current date |
-| `CURRENT_TIME` | `FunctionCall(dialect, 'CURRENT_TIME')` | Current time |
+| `CURRENT_TIMESTAMP` | `current_timestamp(dialect)` | Current timestamp (niladic) |
+| `CURRENT_TIMESTAMP(6)` | `current_timestamp(dialect, 6)` | Timestamp with precision |
+| `NOW()` | `now(dialect)` | Current date and time |
+| `CURRENT_DATE` | `current_date(dialect)` | Current date (niladic) |
+| `CURRENT_TIME` | `current_time(dialect)` | Current time (niladic) |
 | `DATABASE()` | `FunctionCall(dialect, 'DATABASE')` | Current database name |
 | `VERSION()` | `FunctionCall(dialect, 'VERSION')` | MySQL version string |
 | `USER()` | `FunctionCall(dialect, 'USER')` | Current user |
 | `UUID()` | `FunctionCall(dialect, 'UUID')` | Generate UUID (8.0+) |
 | `CONNECTION_ID()` | `FunctionCall(dialect, 'CONNECTION_ID')` | Connection ID |
 
-> **Note**: `FunctionCall` always generates function calls with parentheses. In MySQL, both `CURRENT_TIMESTAMP` and `CURRENT_TIMESTAMP()` are valid in DDL DEFAULT context and SELECT context.
+> **Note**: SQL:2003 niladic functions (`CURRENT_TIMESTAMP`, `CURRENT_DATE`, `CURRENT_TIME`, etc.) generate the standard form without parentheses when called without arguments. MySQL also accepts the form with parentheses (e.g., `CURRENT_TIMESTAMP()`) — both are valid in DDL DEFAULT and SELECT contexts. Use the dedicated factory functions (`current_timestamp()`, `current_date()`, etc.) which automatically handle the niladic form.

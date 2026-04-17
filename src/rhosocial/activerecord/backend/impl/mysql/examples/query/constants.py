@@ -3,7 +3,7 @@ Query runtime functions and statement-level constants without a data source.
 
 This example demonstrates:
 1. SELECT CURRENT_TIMESTAMP, NOW(), etc. without FROM clause
-2. How to use FunctionCall for SQL functions in SELECT list
+2. How to use factory functions for SQL niladic functions in SELECT list
 3. Various MySQL date/time functions as standalone queries
 4. Expression API for constant expressions
 """
@@ -34,16 +34,23 @@ dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 # ============================================================
 # SECTION: SELECT CURRENT_TIMESTAMP
 # ============================================================
-# Use FunctionCall for SQL statement-level constants.
-# FunctionCall(dialect, 'CURRENT_TIMESTAMP') generates CURRENT_TIMESTAMP()
-# which is valid in MySQL for both DDL DEFAULT and SELECT contexts.
+# Use factory functions for SQL statement-level constants.
+# current_timestamp(dialect) generates CURRENT_TIMESTAMP (no parentheses)
+# which is the SQL:2003 standard niladic form, valid in both DDL DEFAULT
+# and SELECT contexts. MySQL also accepts CURRENT_TIMESTAMP() with parentheses.
 
 from rhosocial.activerecord.backend.expression import QueryExpression
 from rhosocial.activerecord.backend.expression.core import FunctionCall
+from rhosocial.activerecord.backend.expression.functions.datetime import (
+    current_timestamp,
+    now,
+    current_date,
+    current_time,
+)
 
 query_ts = QueryExpression(
     dialect=dialect,
-    select=[FunctionCall(dialect, 'CURRENT_TIMESTAMP')],
+    select=[current_timestamp(dialect)],
 )
 sql, params = query_ts.to_sql()
 print(f"CURRENT_TIMESTAMP SQL: {sql}")
@@ -55,7 +62,7 @@ print(f"Result: {result.data}")
 # ============================================================
 query_now = QueryExpression(
     dialect=dialect,
-    select=[FunctionCall(dialect, 'NOW')],
+    select=[now(dialect)],
 )
 sql, params = query_now.to_sql()
 print(f"NOW() SQL: {sql}")
@@ -68,8 +75,8 @@ print(f"Result: {result.data}")
 query_date = QueryExpression(
     dialect=dialect,
     select=[
-        FunctionCall(dialect, 'CURRENT_DATE'),
-        FunctionCall(dialect, 'CURRENT_TIME'),
+        current_date(dialect),
+        current_time(dialect),
     ],
 )
 sql, params = query_date.to_sql()
@@ -85,8 +92,8 @@ from rhosocial.activerecord.backend.expression.core import Literal
 query_multi = QueryExpression(
     dialect=dialect,
     select=[
-        FunctionCall(dialect, 'NOW').as_('current_time'),
-        FunctionCall(dialect, 'CURRENT_DATE').as_('current_date'),
+        now(dialect).as_('current_time'),
+        current_date(dialect).as_('current_date'),
         FunctionCall(dialect, 'DATABASE').as_('db_name'),
         FunctionCall(dialect, 'VERSION').as_('db_version'),
     ],
@@ -104,7 +111,7 @@ print(f"Result: {result.data}")
 query_format = QueryExpression(
     dialect=dialect,
     select=[
-        FunctionCall(dialect, 'DATE_FORMAT', FunctionCall(dialect, 'NOW'), Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
+        FunctionCall(dialect, 'DATE_FORMAT', now(dialect), Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
     ],
 )
 sql, params = query_format.to_sql()
@@ -133,9 +140,9 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use FunctionCall(dialect, 'FUNCTION_NAME') for SQL functions and constants
+# 1. Use factory functions (current_timestamp, now, current_date, etc.) for SQL niladic functions
 # 2. QueryExpression without from_ clause generates "SELECT ..." without FROM
-# 3. FunctionCall supports arguments: FunctionCall(dialect, 'FUNC', arg1, arg2)
+# 3. Use FunctionCall(dialect, 'FUNC', arg1, arg2) for regular functions with arguments
 # 4. Use .as_('alias') for column aliases in SELECT
-# 5. Common MySQL constants: CURRENT_TIMESTAMP, NOW, CURRENT_DATE, CURRENT_TIME
+# 5. SQL:2003 niladic functions (CURRENT_TIMESTAMP, CURRENT_DATE, etc.) omit parentheses
 # 6. Common MySQL info functions: DATABASE, VERSION, USER, UUID
