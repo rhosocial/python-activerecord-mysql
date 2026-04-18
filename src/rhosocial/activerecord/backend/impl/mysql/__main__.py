@@ -34,6 +34,11 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     OrderedSetAggregationSupport, QualifyClauseSupport,
     SchemaSupport, SequenceSupport, TemporalTableSupport,
 )
+from rhosocial.activerecord.backend.named_query.cli import (
+    create_named_query_parser,
+    handle_named_query as handle_nq,
+)
+from rhosocial.activerecord.backend.options import ExecutionOptions
 from .protocols import (
     MySQLTriggerSupport,
     MySQLTableSupport,
@@ -345,6 +350,9 @@ def parse_args():
         choices=STATUS_TYPES,
         help="Status type: all (default), config, performance, connections, storage, databases, users",
     )
+
+    # named-query subcommand (using shared CLI helper)
+    create_named_query_parser(subparsers, parent_parser)
 
     return parser.parse_args()
 
@@ -1250,12 +1258,64 @@ def _format_size(size_bytes: int) -> str:
     return f"{size:.1f} PB"
 
 
+def _create_mysql_backend(args) -> MySQLBackend:
+    """Create and connect a MySQL backend based on args."""
+    config = MySQLConnectionConfig(
+        host=args.host,
+        port=args.port,
+        database=args.database,
+        username=args.user,
+        password=args.password,
+        charset=args.charset or "utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    backend.introspect_and_adapt()
+    return backend
+
+
+_default_mysql_backend: MySQLBackend | None = None
+
+
+def _disconnect_mysql():
+    """Disconnect the default backend."""
+    global _default_mysql_backend
+    if _default_mysql_backend and _default_mysql_backend._connection:
+        _default_mysql_backend.disconnect()
+        _default_mysql_backend = None
+
+
+def _handle_named_query_mysql(args, provider):
+    """Handle named-query subcommand for MySQL."""
+    global _default_mysql_backend
+
+    def backend_factory():
+        global _default_mysql_backend
+        _default_mysql_backend = _create_mysql_backend(args)
+        return _default_mysql_backend
+
+    def get_dialect(b):
+        return b.dialect
+
+    def execute_query(sql, params, stmt_type):
+        return _default_mysql_backend.execute(sql, params, options=ExecutionOptions(stmt_type=stmt_type))
+
+    handle_nq(
+        args,
+        provider,
+        backend_factory=backend_factory,
+        get_dialect=get_dialect,
+        execute_query=execute_query,
+        disconnect=_disconnect_mysql,
+    )
+
+
 def main():
     args = parse_args()
 
     # Require a subcommand
     if args.command is None:
-        print("Error: Please specify a command: 'info', 'query', 'introspect', or 'status'", file=sys.stderr)
+        print("Error: Please specify a command: 'info', 'query', 'introspect', 'status', or 'named-query'", file=sys.stderr)
         print("Use --help for more information.", file=sys.stderr)
         sys.exit(1)
 
@@ -1310,6 +1370,11 @@ def main():
         else:
             backend = MySQLBackend(connection_config=config)
             handle_status_sync(args, backend, provider)
+        return
+
+    # Handle named-query subcommand
+    if args.command == "named-query":
+        _handle_named_query_mysql(args, provider)
         return
 
     # Handle query subcommand
