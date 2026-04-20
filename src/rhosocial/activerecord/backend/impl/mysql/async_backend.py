@@ -189,6 +189,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 f"Connected to MySQL database: "
                 f"{self.config.host}:{self.config.port}/{self.config.database}"
             )
+            await self._fetch_concurrency_hint()
         except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
