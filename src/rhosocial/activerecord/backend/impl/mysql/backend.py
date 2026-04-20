@@ -33,10 +33,10 @@ from rhosocial.activerecord.backend.explain import SyncExplainBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
-from .mixins import MySQLBackendMixin
+from .mixins import MySQLBackendMixin, MySQLConcurrencyMixin
 
 
-class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
+class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, MySQLConcurrencyMixin, StorageBackend):
     """MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):

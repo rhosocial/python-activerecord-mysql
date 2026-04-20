@@ -34,10 +34,10 @@ from rhosocial.activerecord.backend.explain import AsyncExplainBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .async_transaction import AsyncMySQLTransactionManager
-from .mixins import MySQLBackendMixin
+from .mixins import MySQLBackendMixin, AsyncMySQLConcurrencyMixin
 
 
-class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, AsyncStorageBackend):
+class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, AsyncMySQLConcurrencyMixin, AsyncStorageBackend):
     """Asynchronous MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):

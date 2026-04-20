@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 from rhosocial.activerecord.backend.errors import TransactionError
+from rhosocial.activerecord.backend.protocols import ConcurrencyHint
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 
 if TYPE_CHECKING:
@@ -1742,3 +1743,95 @@ class MySQLModifyColumnMixin:
         elif action.first:
             sql += " FIRST"
         return sql, col_params
+
+
+class MySQLConcurrencyMixin:
+    """Mixin providing MySQL-specific concurrency hint.
+
+    Fetches max_connections from MySQL server during connect and caches the value.
+    Returns min(max_connections, pool_size) as the concurrency limit.
+    """
+
+    _concurrency_hint: Optional[ConcurrencyHint] = None
+
+    def connect(self):
+        """Establish connection to MySQL and fetch concurrency hint."""
+        # Call parent connect first
+        super().connect()
+
+        # Fetch max_connections and cache hint
+        self._fetch_concurrency_hint()
+
+    def _fetch_concurrency_hint(self) -> None:
+        """Fetch max_connections from MySQL server and compute concurrency hint."""
+        try:
+            cursor = self._connection.cursor(dictionary=True)
+            cursor.execute("SHOW VARIABLES LIKE 'max_connections'")
+            row = cursor.fetchone()
+            cursor.close()
+
+            if row:
+                max_connections = int(row["Value"])
+                pool_size = getattr(self.config, "pool_size", 5) or 5
+                limit = min(max_connections, pool_size)
+                self._concurrency_hint = ConcurrencyHint(
+                    max_concurrency=limit,
+                    reason=f"min(max_connections={max_connections}, pool_size={pool_size})",
+                )
+                self.log(
+                    logging.DEBUG,
+                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",
+                )
+        except Exception as e:
+            self.log(logging.WARNING, f"Failed to fetch concurrency hint: {e}")
+            self._concurrency_hint = None
+
+    def get_concurrency_hint(self) -> Optional[ConcurrencyHint]:
+        """Get cached concurrency hint."""
+        return self._concurrency_hint
+
+
+class AsyncMySQLConcurrencyMixin:
+    """Async mixin providing MySQL-specific concurrency hint.
+
+    Fetches max_connections from MySQL server during connect and caches the value.
+    Returns min(max_connections, pool_size) as the concurrency limit.
+    """
+
+    _concurrency_hint: Optional[ConcurrencyHint] = None
+
+    async def connect(self):
+        """Establish connection to MySQL and fetch concurrency hint."""
+        # Call parent connect first
+        await super().connect()
+
+        # Fetch max_connections and cache hint
+        await self._fetch_concurrency_hint()
+
+    async def _fetch_concurrency_hint(self) -> None:
+        """Fetch max_connections from MySQL server and compute concurrency hint."""
+        try:
+            cursor = await self._connection.cursor(dictionary=True)
+            await cursor.execute("SHOW VARIABLES LIKE 'max_connections'")
+            row = await cursor.fetchone()
+            await cursor.close()
+
+            if row:
+                max_connections = int(row["Value"])
+                pool_size = getattr(self.config, "pool_size", 5) or 5
+                limit = min(max_connections, pool_size)
+                self._concurrency_hint = ConcurrencyHint(
+                    max_concurrency=limit,
+                    reason=f"min(max_connections={max_connections}, pool_size={pool_size})",
+                )
+                self.log(
+                    logging.DEBUG,
+                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",
+                )
+        except Exception as e:
+            self.log(logging.WARNING, f"Failed to fetch concurrency hint: {e}")
+            self._concurrency_hint = None
+
+    def get_concurrency_hint(self) -> Optional[ConcurrencyHint]:
+        """Get cached concurrency hint."""
+        return self._concurrency_hint
