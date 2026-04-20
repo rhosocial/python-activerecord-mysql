@@ -356,10 +356,51 @@ def parse_args():
     )
 
     # named-query subcommand (using shared CLI helper)
-    create_named_query_parser(subparsers, parent_parser)
+    nq_epilog = """Examples:
+  # Execute named query with connection parameters
+  %(prog)s myapp.queries.orders.high_value_pending --host localhost --database mydb --user root --password secret
+
+  # Override parameters
+  %(prog)s myapp.queries.orders.high_value_pending --host localhost --database mydb \\
+      --param threshold=5000 --param days=7
+
+  # Show signature without executing
+  %(prog)s myapp.queries.orders.high_value_pending --describe
+
+  # Preview SQL without executing
+  %(prog)s myapp.queries.orders.orders_by_status \\
+      --database mydb --param status=pending --dry-run
+
+  # List all named queries in a module
+  %(prog)s myapp.queries.orders --list
+
+  # Using environment variables
+  export MYSQL_HOST=localhost MYSQL_DATABASE=mydb MYSQL_USER=root MYSQL_PASSWORD=secret
+  %(prog)s myapp.queries.orders --list
+"""
+    create_named_query_parser(subparsers, parent_parser, epilog=nq_epilog)
 
     # named-procedure subcommand (using shared CLI helper)
-    create_named_procedure_parser(subparsers, parent_parser)
+    np_epilog = """Examples:
+  # Execute named procedure with connection parameters
+  %(prog)s myapp.procedures.monthly_report --host localhost --database mydb --param month=2026-03
+
+  # Show signature without executing
+  %(prog)s myapp.procedures.monthly_report --describe
+
+  # Preview execution plan
+  %(prog)s myapp.procedures.monthly_report --database mydb --dry-run --param month=2026-03
+
+  # List all procedures in a module
+  %(prog)s myapp.procedures --list
+
+  # Execute with step transaction mode
+  %(prog)s myapp.procedures.monthly_report --database mydb --param month=2026-03 --transaction step
+
+  # Async execution
+  %(prog)s myapp.procedures.monthly_report --database mydb --param month=2026-03 --async
+"""
+    create_named_procedure_parser(subparsers, parent_parser, epilog=np_epilog)
 
     return parser.parse_args()
 
