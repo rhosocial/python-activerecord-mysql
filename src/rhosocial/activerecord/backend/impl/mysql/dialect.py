@@ -151,13 +151,13 @@ class MySQLDialect(
     CTESupport,
     FilterClauseSupport,
     WindowFunctionSupport,
-    JSONSupport,
+    # Use MySQL-specific JSON support instead of generic
+    MySQLJSONFunctionSupport,
     ReturningSupport,
     AdvancedGroupingSupport,
     ArraySupport,
     ExplainSupport,
     GraphSupport,
-    LockingSupport,
     MergeSupport,
     OrderedSetAggregationSupport,
     QualifyClauseSupport,
@@ -170,22 +170,21 @@ class MySQLDialect(
     SchemaSupport,
     IndexSupport,
     SequenceSupport,
-    TableSupport,
+    # Use MySQL-specific table support instead of generic
+    MySQLTableSupport,
     ConstraintSupport,
     IntrospectionSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
     # MySQL-specific protocols
     MySQLTriggerSupport,
-    MySQLTableSupport,
     MySQLSetTypeSupport,
-    MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
-    MySQLDMLOperationSupport,  # MySQL-specific DML operations (INSERT IGNORE, REPLACE INTO)
     MySQLFullTextSearchSupport,  # MySQL full-text search
     MySQLLockingSupport,  # MySQL FOR SHARE and NOWAIT support
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
+    MySQLDMLOperationSupport,  # MySQL DML operations
     # Function Support Protocol
     SQLFunctionSupport,
 ):
