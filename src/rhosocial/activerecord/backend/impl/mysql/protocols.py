@@ -4,11 +4,21 @@
 This module defines protocols for features exclusive to MySQL,
 which are not part of the SQL standard and not supported by other
 mainstream databases.
+
+Note: MySQL-specific protocols extend generic protocols to avoid interface overlap.
+When a MySQL protocol extends a generic protocol, dialects only need to implement
+the MySQL-specific protocol - isinstance checks for the generic protocol will still work.
 """
 from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
+
+from rhosocial.activerecord.backend.dialect.protocols import (
+    JSONSupport,
+    LockingSupport,
+    TableSupport,
+)
 
 
 @runtime_checkable
@@ -79,27 +89,6 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
-    def format_json_table_expression(
-        self,
-        expr: Any,
-        dialect_options: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, tuple]:
-        """Format JSON_TABLE expression.
-
-        Note: Generic JSONSupport protocol defines supports_json_table() with dialect_options.
-        This MySQL-specific version documents available options.
-
-        Args:
-            expr: JSONTableExpression instance
-            dialect_options: MySQL-specific options:
-                - 'on_error': How to handle errors ('IGNORE' to skip row on error)
-                Example: dialect_options={'on_error': 'IGNORE'}
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        ...
-
 
 @runtime_checkable
 class MySQLTriggerSupport(Protocol):
@@ -131,7 +120,7 @@ class MySQLTriggerSupport(Protocol):
 
 
 @runtime_checkable
-class MySQLTableSupport(Protocol):
+class MySQLTableSupport(TableSupport, Protocol):
     """MySQL table DDL protocol.
 
     Feature Source: Native support (no extension required)
@@ -247,7 +236,7 @@ class MySQLSetTypeSupport(Protocol):
 
 
 @runtime_checkable
-class MySQLJSONFunctionSupport(Protocol):
+class MySQLJSONFunctionSupport(JSONSupport, Protocol):
     """MySQL JSON function protocol.
 
     Feature Source: MySQL 5.7+
@@ -412,7 +401,7 @@ class MySQLFullTextSearchSupport(Protocol):
 
 
 @runtime_checkable
-class MySQLLockingSupport(Protocol):
+class MySQLLockingSupport(LockingSupport, Protocol):
     """MySQL row-level locking protocol.
 
     Feature Source: MySQL native (FOR UPDATE all versions, FOR SHARE MySQL 8.0+)
