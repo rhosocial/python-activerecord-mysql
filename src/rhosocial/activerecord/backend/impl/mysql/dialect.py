@@ -148,16 +148,18 @@ class MySQLDialect(
     MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
     IntrospectionMixin,
     # Protocols for type checking
+    # Note: MySQL-specific protocols extend generic protocols,
+    # so only MySQL-specific protocols are needed for isinstance checks
     CTESupport,
     FilterClauseSupport,
     WindowFunctionSupport,
-    # Use MySQL-specific JSON support instead of generic
-    MySQLJSONFunctionSupport,
+    MySQLJSONFunctionSupport,  # extends JSONSupport
     ReturningSupport,
     AdvancedGroupingSupport,
     ArraySupport,
     ExplainSupport,
     GraphSupport,
+    MySQLLockingSupport,  # extends LockingSupport
     MergeSupport,
     OrderedSetAggregationSupport,
     QualifyClauseSupport,
@@ -170,8 +172,7 @@ class MySQLDialect(
     SchemaSupport,
     IndexSupport,
     SequenceSupport,
-    # Use MySQL-specific table support instead of generic
-    MySQLTableSupport,
+    MySQLTableSupport,  # extends TableSupport
     ConstraintSupport,
     IntrospectionSupport,
     # Transaction Control Protocol
@@ -182,9 +183,8 @@ class MySQLDialect(
     MySQLSpatialSupport,
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
     MySQLFullTextSearchSupport,  # MySQL full-text search
-    MySQLLockingSupport,  # MySQL FOR SHARE and NOWAIT support
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
-    MySQLDMLOperationSupport,  # MySQL DML operations
+    MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
 ):
