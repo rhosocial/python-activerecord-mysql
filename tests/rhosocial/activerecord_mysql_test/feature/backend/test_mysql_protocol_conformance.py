@@ -116,10 +116,9 @@ class TestProtocolNonOverlap:
             assert len(members) > 0, f"Protocol {name} has no members defined"
 
         excluded_overlaps = {
+            # MySQL-specific protocols extend generic protocols (intentional inheritance)
             ('JSONSupport', 'MySQLJSONFunctionSupport'),
             ('MySQLJSONFunctionSupport', 'JSONSupport'),
-            ('JSONSupport', 'MySQLDMLOperationSupport'),
-            ('MySQLDMLOperationSupport', 'JSONSupport'),
             ('LockingSupport', 'MySQLLockingSupport'),
             ('MySQLLockingSupport', 'LockingSupport'),
             ('TableSupport', 'MySQLTableSupport'),
