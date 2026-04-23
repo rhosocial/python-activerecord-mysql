@@ -428,6 +428,19 @@ class MySQLBackendMixin:
         """Get the MySQL transaction manager."""
         return self._transaction_manager
 
+    @property
+    def threadsafety(self) -> int:
+        """Return driver threadsafety level.
+
+        MySQL connections cannot be shared across threads safely without proper locking.
+        The mysql.connector module reports threadsafety=1 (connections are thread-local).
+
+        Returns:
+            1 (connections cannot be safely shared across threads)
+        """
+        import mysql.connector
+        return mysql.connector.threadsafety
+
     def requires_manual_commit(self) -> bool:
         """Check if manual commit is required for this database."""
         return not getattr(self.config, 'autocommit', True)
