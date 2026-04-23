@@ -42,6 +42,8 @@ from rhosocial.activerecord.backend.named_query.cli_procedure import (
     create_named_procedure_parser,
     handle_named_procedure as handle_np,
 )
+from rhosocial.activerecord.backend.named_connection import NamedConnectionResolver
+from rhosocial.activerecord.backend.named_connection.cli import parse_params
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from .protocols import (
     MySQLTriggerSupport,
@@ -208,6 +210,20 @@ def parse_args():
         "--rich-ascii",
         action="store_true",
         help="Use ASCII characters for rich table borders.",
+    )
+    parent_parser.add_argument(
+        "--named-connection",
+        dest="named_connection",
+        metavar="QUALIFIED_NAME",
+        help="Named connection from Python module (e.g., myapp.connections.prod_db).",
+    )
+    parent_parser.add_argument(
+        "--conn-param",
+        action="append",
+        metavar="KEY=VALUE",
+        default=[],
+        dest="connection_params",
+        help="Connection parameter override for named connection. Can be specified multiple times.",
     )
 
     # Main parser: global options only
@@ -593,16 +609,10 @@ def handle_info(args, provider: Any):
     dialect = None
     version_display = None
 
-    if args.database:
+    named_conn = getattr(args, "named_connection", None)
+    if named_conn or args.database:
         try:
-            config = MySQLConnectionConfig(
-                host=args.host,
-                port=args.port,
-                database=args.database,
-                username=args.user,
-                password=args.password,
-                charset=args.charset,
-            )
+            config = _resolve_mysql_config(args)
             backend = MySQLBackend(connection_config=config)
             backend.connect()
             backend.introspect_and_adapt()
@@ -1306,16 +1316,34 @@ def _format_size(size_bytes: int) -> str:
     return f"{size:.1f} PB"
 
 
-def _create_mysql_backend(args) -> MySQLBackend:
-    """Create and connect a MySQL backend based on args."""
-    config = MySQLConnectionConfig(
+def _resolve_mysql_config(args) -> MySQLConnectionConfig:
+    """Resolve MySQL connection config from named connection or explicit params."""
+    named_conn = getattr(args, "named_connection", None)
+    conn_params = getattr(args, "connection_params", [])
+
+    if conn_params:
+        conn_params = parse_params(conn_params)
+    else:
+        conn_params = {}
+
+    if named_conn:
+        resolver = NamedConnectionResolver(named_conn).load()
+        return resolver.resolve(MySQLBackend, conn_params)
+
+    # Fallback to explicit connection parameters
+    return MySQLConnectionConfig(
         host=args.host,
         port=args.port,
         database=args.database,
         username=args.user,
         password=args.password,
-        charset=args.charset or "utf8mb4",
+        charset=args.charset,
     )
+
+
+def _create_mysql_backend(args) -> MySQLBackend:
+    """Create and connect a MySQL backend based on args."""
+    config = _resolve_mysql_config(args)
     backend = MySQLBackend(connection_config=config)
     backend.connect()
     backend.introspect_and_adapt()
@@ -1359,14 +1387,7 @@ def _handle_named_query_mysql(args, provider):
 
     async def backend_async_factory():
         global _default_mysql_backend
-        config = MySQLConnectionConfig(
-            host=args.host,
-            port=args.port,
-            database=args.database,
-            username=args.user,
-            password=args.password,
-            charset=args.charset,
-        )
+        config = _resolve_mysql_config(args)
         _default_mysql_backend = AsyncMySQLBackend(connection_config=config)
         return _default_mysql_backend
 
@@ -1401,14 +1422,7 @@ def _handle_named_procedure_mysql(args, provider):
 
     async def backend_async_factory():
         global _default_mysql_backend
-        config = MySQLConnectionConfig(
-            host=args.host,
-            port=args.port,
-            database=args.database,
-            username=args.user,
-            password=args.password,
-            charset=args.charset,
-        )
+        config = _resolve_mysql_config(args)
         _default_mysql_backend = AsyncMySQLBackend(connection_config=config)
         return _default_mysql_backend
 
@@ -1466,18 +1480,12 @@ def main():
 
     # Handle introspect subcommand
     if args.command == "introspect":
-        if not args.database:
+        named_conn = getattr(args, "named_connection", None)
+        if not named_conn and not args.database:
             print("Error: --database is required for introspection", file=sys.stderr)
             sys.exit(1)
 
-        config = MySQLConnectionConfig(
-            host=args.host,
-            port=args.port,
-            database=args.database,
-            username=args.user,
-            password=args.password,
-            charset=args.charset,
-        )
+        config = _resolve_mysql_config(args)
 
         if args.use_async:
             backend = AsyncMySQLBackend(connection_config=config)
@@ -1489,18 +1497,12 @@ def main():
 
     # Handle status subcommand
     if args.command == "status":
-        if not args.database:
+        named_conn = getattr(args, "named_connection", None)
+        if not named_conn and not args.database:
             print("Error: --database is required for status", file=sys.stderr)
             sys.exit(1)
 
-        config = MySQLConnectionConfig(
-            host=args.host,
-            port=args.port,
-            database=args.database,
-            username=args.user,
-            password=args.password,
-            charset=args.charset,
-        )
+        config = _resolve_mysql_config(args)
 
         if args.use_async:
             backend = AsyncMySQLBackend(connection_config=config)
@@ -1571,14 +1573,7 @@ def main():
         logger.error("Error: Multiple SQL statements are not supported.")
         sys.exit(1)
 
-    config = MySQLConnectionConfig(
-        host=args.host,
-        port=args.port,
-        database=args.database,
-        username=args.user,
-        password=args.password,
-        charset=args.charset,
-    )
+    config = _resolve_mysql_config(args)
 
     kwargs = {"use_ascii": args.rich_ascii}
     if args.use_async:
