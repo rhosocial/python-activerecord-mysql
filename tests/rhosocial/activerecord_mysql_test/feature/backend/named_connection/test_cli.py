@@ -43,12 +43,12 @@ class TestMySQLConnectionConfigPriority:
     def test_default_values(self):
         """Test that default MySQL values are used when no connection specified."""
         args = MockArgs()
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _resolve_mysql_config
+        from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
         with patch(
-            "rhosocial.activerecord.backend.impl.mysql.__main__.NamedConnectionResolver"
+            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver"
         ):
-            config = _resolve_mysql_config(args)
+            config = resolve_connection_config_from_args(args)
 
         assert config.host == "localhost"
         assert config.port == 3306
@@ -62,12 +62,12 @@ class TestMySQLConnectionConfigPriority:
             user="myuser",
             password="mypass",
         )
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _resolve_mysql_config
+        from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
         with patch(
-            "rhosocial.activerecord.backend.impl.mysql.__main__.NamedConnectionResolver"
+            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver"
         ):
-            config = _resolve_mysql_config(args)
+            config = resolve_connection_config_from_args(args)
 
         assert config.host == "myhost"
         assert config.port == 3307
@@ -79,7 +79,7 @@ class TestMySQLConnectionConfigPriority:
         args = MockArgs(
             named_connection="myapp.connections.prod_db",
         )
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _resolve_mysql_config
+        from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
         mock_resolver = MagicMock()
         mock_config = MySQLConnectionConfig(
@@ -91,10 +91,10 @@ class TestMySQLConnectionConfigPriority:
         mock_resolver.resolve.return_value = mock_config
 
         with patch(
-            "rhosocial.activerecord.backend.impl.mysql.__main__.NamedConnectionResolver",
+            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver",
             return_value=mock_resolver,
         ):
-            config = _resolve_mysql_config(args)
+            config = resolve_connection_config_from_args(args)
 
         mock_resolver.load.assert_called_once()
         assert config.host == "prod.example.com"
@@ -105,7 +105,7 @@ class TestMySQLConnectionConfigPriority:
             named_connection="myapp.connections.prod_db",
             connection_params=["database=custom_db", "charset=utf8mb4"],
         )
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _resolve_mysql_config
+        from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
         mock_resolver = MagicMock()
         mock_config = MySQLConnectionConfig(host="prod.example.com")
@@ -113,10 +113,10 @@ class TestMySQLConnectionConfigPriority:
         mock_resolver.resolve.return_value = mock_config
 
         with patch(
-            "rhosocial.activerecord.backend.impl.mysql.__main__.NamedConnectionResolver",
+            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver",
             return_value=mock_resolver,
         ):
-            config = _resolve_mysql_config(args)
+            config = resolve_connection_config_from_args(args)
 
         mock_resolver.resolve.assert_called_once_with(
             {"database": "custom_db", "charset": "utf8mb4"}
@@ -132,7 +132,7 @@ class TestMySQLConnectionConfigPriority:
             host="myhost",
             named_connection="myapp.connections.prod_db",
         )
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _resolve_mysql_config
+        from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
         mock_resolver = MagicMock()
         mock_config = MySQLConnectionConfig(host="prod.example.com")
@@ -140,10 +140,10 @@ class TestMySQLConnectionConfigPriority:
         mock_resolver.resolve.return_value = mock_config
 
         with patch(
-            "rhosocial.activerecord.backend.impl.mysql.__main__.NamedConnectionResolver",
+            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver",
             return_value=mock_resolver,
         ):
-            config = _resolve_mysql_config(args)
+            config = resolve_connection_config_from_args(args)
 
         # Named connection is used, explicit host is ignored when named_connection present
         assert config.host == "prod.example.com"
