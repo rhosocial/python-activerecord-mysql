@@ -1317,7 +1317,13 @@ def _format_size(size_bytes: int) -> str:
 
 
 def _resolve_mysql_config(args) -> MySQLConnectionConfig:
-    """Resolve MySQL connection config from named connection or explicit params."""
+    """Resolve MySQL connection config with priority: explicit params > named connection.
+
+    Priority order:
+        1. Explicit connection parameters (--host, --port, etc.)
+        2. --named-connection + --conn-param
+        3. Default values
+    """
     named_conn = getattr(args, "named_connection", None)
     conn_params = getattr(args, "connection_params", [])
 
@@ -1328,12 +1334,14 @@ def _resolve_mysql_config(args) -> MySQLConnectionConfig:
 
     if named_conn:
         resolver = NamedConnectionResolver(named_conn).load()
-        return resolver.resolve(MySQLBackend, conn_params)
+        if conn_params:
+            return resolver.resolve(conn_params)
+        return resolver.resolve({})
 
     # Fallback to explicit connection parameters
     return MySQLConnectionConfig(
-        host=args.host,
-        port=args.port,
+        host=args.host or "localhost",
+        port=args.port or 3306,
         database=args.database,
         username=args.user,
         password=args.password,

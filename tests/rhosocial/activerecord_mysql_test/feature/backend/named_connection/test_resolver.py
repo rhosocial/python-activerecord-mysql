@@ -24,7 +24,6 @@ from rhosocial.activerecord.backend.named_connection.exceptions import (
     NamedConnectionMissingParameterError,
     NamedConnectionInvalidParameterError,
 )
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
@@ -35,7 +34,7 @@ class TestMysqlNamedConnectionResolverUnit:
         """Test resolving a MySQL connection config."""
         module = types.ModuleType("test_mysql_connections")
 
-        def dev_db(backend_cls, database: str = "test_db"):
+        def dev_db(database: str = "test_db"):
             return MySQLConnectionConfig(
                 host="localhost",
                 port=3306,
@@ -46,9 +45,7 @@ class TestMysqlNamedConnectionResolverUnit:
 
         module.dev_db = dev_db
         with patch("importlib.import_module", return_value=module):
-            config = NamedConnectionResolver("test_mysql_connections.dev_db").load().resolve(
-                MySQLBackend, {}
-            )
+            config = NamedConnectionResolver("test_mysql_connections.dev_db").load().resolve({})
             assert isinstance(config, MySQLConnectionConfig)
             assert config.host == "localhost"
             assert config.database == "test_db"
@@ -57,7 +54,7 @@ class TestMysqlNamedConnectionResolverUnit:
         """Test resolving MySQL config with custom database parameter."""
         module = types.ModuleType("test_mysql_connections")
 
-        def dev_db(backend_cls, database: str = "test_db"):
+        def dev_db(database: str = "test_db"):
             return MySQLConnectionConfig(
                 host="localhost",
                 port=3306,
@@ -69,7 +66,7 @@ class TestMysqlNamedConnectionResolverUnit:
         module.dev_db = dev_db
         with patch("importlib.import_module", return_value=module):
             config = NamedConnectionResolver("test_mysql_connections.dev_db").load().resolve(
-                MySQLBackend, {"database": "my_app_db"}
+                {"database": "my_app_db"}
             )
             assert isinstance(config, MySQLConnectionConfig)
             assert config.database == "my_app_db"
@@ -78,36 +75,36 @@ class TestMysqlNamedConnectionResolverUnit:
         """Test resolve fails when required MySQL parameter is missing."""
         module = types.ModuleType("test_mysql_connections")
 
-        def strict_db(backend_cls, host: str):
+        def strict_db(host: str):
             return MySQLConnectionConfig(host=host)
 
         module.strict_db = strict_db
         with patch("importlib.import_module", return_value=module):
             resolver = NamedConnectionResolver("test_mysql_connections.strict_db").load()
             with pytest.raises(NamedConnectionMissingParameterError):
-                resolver.resolve(MySQLBackend, {})
+                resolver.resolve({})
 
     def test_resolve_mysql_invalid_return_type(self):
         """Test resolve fails when callable returns non-BaseConfig."""
         module = types.ModuleType("test_mysql_connections")
 
-        def bad_connection(backend_cls):
+        def bad_connection():
             return {"host": "localhost"}
 
         module.bad_connection = bad_connection
         with patch("importlib.import_module", return_value=module):
             resolver = NamedConnectionResolver("test_mysql_connections.bad_connection").load()
             with pytest.raises(NamedConnectionInvalidReturnTypeError):
-                resolver.resolve(MySQLBackend, {})
+                resolver.resolve({})
 
     def test_list_mysql_connections(self):
         """Test listing MySQL connections in a module."""
         module = types.ModuleType("test_mysql_connections")
 
-        def dev_db(backend_cls, database: str = "test_db"):
+        def dev_db(database: str = "test_db"):
             return MySQLConnectionConfig(host="localhost", database=database)
 
-        def prod_db(backend_cls):
+        def prod_db():
             return MySQLConnectionConfig(host="prod.example.com", database="prod")
 
         module.dev_db = dev_db
@@ -127,7 +124,6 @@ class TestMysqlNamedConnectionsIntegration:
         """Test resolving the mysql_96 named connection."""
         config = resolve_named_connection(
             "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96",
-            MySQLBackend,
             {},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -140,7 +136,6 @@ class TestMysqlNamedConnectionsIntegration:
         """Test resolving mysql_96 with custom database parameter."""
         config = resolve_named_connection(
             "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96",
-            MySQLBackend,
             {"database": "my_app"},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -150,7 +145,6 @@ class TestMysqlNamedConnectionsIntegration:
         """Test resolving mysql_96_with_pool named connection."""
         config = resolve_named_connection(
             "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_with_pool",
-            MySQLBackend,
             {},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -160,7 +154,6 @@ class TestMysqlNamedConnectionsIntegration:
         """Test resolving mysql_96_with_pool with custom pool_size."""
         config = resolve_named_connection(
             "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_with_pool",
-            MySQLBackend,
             {"pool_size": "10"},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -170,7 +163,6 @@ class TestMysqlNamedConnectionsIntegration:
         """Test resolving mysql_96_readonly named connection."""
         config = resolve_named_connection(
             "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_readonly",
-            MySQLBackend,
             {},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -194,6 +186,5 @@ class TestMysqlNamedConnectionsIntegration:
         info = resolver.describe()
         assert info["is_class"] is False
         assert "database" in info["parameters"]
-        # Password should be filtered in describe config_preview
         if info.get("config_preview"):
             assert "password" not in info["config_preview"]
