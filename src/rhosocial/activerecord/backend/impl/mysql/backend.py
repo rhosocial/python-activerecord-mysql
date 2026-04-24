@@ -259,9 +259,11 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 self.log(logging.DEBUG, f"With {len(params_list)} parameter sets")
             
             # Execute multiple statements
+            # Convert '?' placeholders to '%s' for MySQL
+            mysql_sql = sql.replace('?', '%s')
             affected_rows = 0
             for params in params_list:
-                cursor.execute(sql, params)
+                cursor.execute(mysql_sql, params)
                 affected_rows += cursor.rowcount
             
             duration = (datetime.datetime.now() - start_time).total_seconds()

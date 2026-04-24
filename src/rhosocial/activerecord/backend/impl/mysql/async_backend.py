@@ -270,10 +270,10 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 self.log(logging.DEBUG, f"With {len(params_list)} parameter sets")
 
             # Execute multiple statements
+            # Convert '?' placeholders to '%s' for MySQL
+            mysql_sql = sql.replace('?', '%s')
             affected_rows = 0
             for params in params_list:
-                # Convert '?' placeholders to '%s' for MySQL
-                mysql_sql = sql.replace('?', '%s')
                 await cursor.execute(mysql_sql, params)
                 affected_rows += cursor.rowcount
 
