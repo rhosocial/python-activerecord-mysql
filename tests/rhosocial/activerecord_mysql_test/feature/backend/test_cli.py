@@ -1,6 +1,6 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/test_cli.py
 """
-Tests for MySQL backend CLI (__main__.py).
+Tests for MySQL backend CLI (cli/ subpackage).
 
 Tests argument parsing, help output, and basic CLI functionality.
 """
@@ -27,7 +27,6 @@ class TestCLIParseArgs:
             assert args.password == ''
             assert args.charset == 'utf8mb4'
             assert args.output == 'table'
-            assert args.log_level == 'INFO'
             assert args.use_async is False
             assert args.verbose == 0
 
@@ -103,7 +102,8 @@ class TestCLIParseArgs:
 
     def test_parse_args_introspect_valid_types(self):
         """Test all valid introspect types."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args, INTROSPECT_TYPES
+        from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import INTROSPECT_TYPES
 
         for introspect_type in INTROSPECT_TYPES:
             with patch.object(sys, 'argv', ['mysql', 'introspect', introspect_type]):
@@ -124,11 +124,11 @@ class TestCLIParseArgs:
         """Test verbose flags with subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, 'argv', ['mysql', '-v', 'info']):
+        with patch.object(sys, 'argv', ['mysql', 'info', '-v']):
             args = parse_args()
             assert args.verbose == 1
 
-        with patch.object(sys, 'argv', ['mysql', '-vv', 'info']):
+        with patch.object(sys, 'argv', ['mysql', 'info', '-vv']):
             args = parse_args()
             assert args.verbose == 2
 
@@ -157,52 +157,52 @@ class TestCLISerialization:
 
     def test_serialize_none(self):
         """Test serializing None."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         assert _serialize_for_output(None) is None
 
     def test_serialize_string(self):
         """Test serializing string."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         assert _serialize_for_output("test") == "test"
 
     def test_serialize_int(self):
         """Test serializing integer."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         assert _serialize_for_output(42) == 42
 
     def test_serialize_float(self):
         """Test serializing float."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         assert _serialize_for_output(3.14) == 3.14
 
     def test_serialize_bool(self):
         """Test serializing boolean."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         assert _serialize_for_output(True) is True
         assert _serialize_for_output(False) is False
 
     def test_serialize_list(self):
         """Test serializing list."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         result = _serialize_for_output([1, "two", None])
         assert result == [1, "two", None]
 
     def test_serialize_dict(self):
         """Test serializing dict."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         result = _serialize_for_output({"key": "value", "num": 42})
         assert result == {"key": "value", "num": 42}
 
     def test_serialize_nested(self):
         """Test serializing nested structures."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         result = _serialize_for_output({
             "list": [1, 2, 3],
@@ -212,7 +212,7 @@ class TestCLISerialization:
 
     def test_serialize_enum(self):
         """Test serializing Enum."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
         from enum import Enum
 
         class Color(Enum):
@@ -224,7 +224,7 @@ class TestCLISerialization:
 
     def test_serialize_fallback(self):
         """Test fallback serialization for unknown types."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         class CustomObject:
             def __str__(self):
@@ -276,7 +276,7 @@ class TestCLIUtilityFunctions:
 
     def test_parse_version(self):
         """Test parse_version function."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_version
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import parse_version
 
         assert parse_version('8.0.0') == (8, 0, 0)
         assert parse_version('5.7.8') == (5, 7, 8)
@@ -285,7 +285,7 @@ class TestCLIUtilityFunctions:
 
     def test_get_status_style(self):
         """Test _get_status_style function."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _get_status_style
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _get_status_style
 
         # 100% coverage
         color, symbol = _get_status_style(100)
@@ -314,7 +314,7 @@ class TestCLIUtilityFunctions:
 
     def test_format_method_display(self):
         """Test _format_method_display function."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _format_method_display
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _format_method_display
 
         assert _format_method_display('supports_window_function') == 'window function'
         assert _format_method_display('is_cte_available') == 'is cte available'
@@ -322,7 +322,7 @@ class TestCLIUtilityFunctions:
 
     def test_calculate_protocol_stats(self):
         """Test _calculate_protocol_stats function."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _calculate_protocol_stats
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _calculate_protocol_stats
 
         # All boolean True
         stats = {'method1': True, 'method2': True}
@@ -347,7 +347,7 @@ class TestCLIUtilityFunctions:
 
     def test_get_protocol_support_methods(self):
         """Test get_protocol_support_methods function."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import get_protocol_support_methods
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import get_protocol_support_methods
         from rhosocial.activerecord.backend.dialect.protocols import WindowFunctionSupport
 
         methods = get_protocol_support_methods(WindowFunctionSupport)
@@ -356,7 +356,7 @@ class TestCLIUtilityFunctions:
 
     def test_serialize_pydantic_model(self):
         """Test serializing Pydantic model."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
         from pydantic import BaseModel
 
         class TestModel(BaseModel):
@@ -368,7 +368,7 @@ class TestCLIUtilityFunctions:
 
     def test_serialize_dataclass(self):
         """Test serializing dataclass."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
         from dataclasses import dataclass
 
         @dataclass
@@ -381,7 +381,7 @@ class TestCLIUtilityFunctions:
 
     def test_serialize_tuple(self):
         """Test serializing tuple."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _serialize_for_output
+        from rhosocial.activerecord.backend.impl.mysql.cli.introspect import _serialize_for_output
 
         result = _serialize_for_output((1, 2, 3))
         assert result == [1, 2, 3]
@@ -391,39 +391,24 @@ class TestCLIProviderFactory:
     """Tests for CLI output provider factory."""
 
     def test_get_provider_json(self):
-        """Test get_provider returns JsonOutputProvider for json output."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import get_provider
-        from unittest.mock import MagicMock
+        """Test create_provider returns JsonOutputProvider for json output."""
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
 
-        args = MagicMock()
-        args.output = 'json'
-        args.rich_ascii = False
-
-        provider = get_provider(args)
+        provider = create_provider('json')
         assert provider.__class__.__name__ == 'JsonOutputProvider'
 
     def test_get_provider_csv(self):
-        """Test get_provider returns CsvOutputProvider for csv output."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import get_provider
-        from unittest.mock import MagicMock
+        """Test create_provider returns CsvOutputProvider for csv output."""
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
 
-        args = MagicMock()
-        args.output = 'csv'
-        args.rich_ascii = False
-
-        provider = get_provider(args)
+        provider = create_provider('csv')
         assert provider.__class__.__name__ == 'CsvOutputProvider'
 
     def test_get_provider_tsv(self):
-        """Test get_provider returns TsvOutputProvider for tsv output."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import get_provider
-        from unittest.mock import MagicMock
+        """Test create_provider returns TsvOutputProvider for tsv output."""
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
 
-        args = MagicMock()
-        args.output = 'tsv'
-        args.rich_ascii = False
-
-        provider = get_provider(args)
+        provider = create_provider('tsv')
         assert provider.__class__.__name__ == 'TsvOutputProvider'
 
 
@@ -432,7 +417,7 @@ class TestCLICheckProtocolSupport:
 
     def test_check_protocol_support_basic(self):
         """Test check_protocol_support with basic protocol."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import check_protocol_support
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import check_protocol_support
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
         from rhosocial.activerecord.backend.dialect.protocols import WindowFunctionSupport
 
@@ -445,7 +430,7 @@ class TestCLICheckProtocolSupport:
 
     def test_check_protocol_support_with_params(self):
         """Test check_protocol_support with parameterized methods."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import check_protocol_support
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import check_protocol_support
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
         from rhosocial.activerecord.backend.dialect.protocols import ExplainSupport
 
@@ -465,7 +450,7 @@ class TestCLIBuildProtocolInfo:
 
     def test_build_protocol_info_verbose_0(self):
         """Test _build_protocol_info with verbose=0."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import (
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import (
             _build_protocol_info, PROTOCOL_FAMILY_GROUPS
         )
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -485,7 +470,7 @@ class TestCLIBuildProtocolInfo:
 
     def test_build_protocol_info_verbose_2(self):
         """Test _build_protocol_info with verbose=2."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import (
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import (
             _build_protocol_info, PROTOCOL_FAMILY_GROUPS
         )
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -509,8 +494,8 @@ class TestCLIHandleInfo:
 
     def test_handle_info_json_output(self, capsys):
         """Test handle_info with JSON output (no database required)."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import handle_info, parse_args
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import get_provider
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import handle
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
         from unittest.mock import MagicMock
 
         args = MagicMock()
@@ -523,12 +508,13 @@ class TestCLIHandleInfo:
         args.charset = 'utf8mb4'
         args.version = '8.0.0'
         args.verbose = 0
+        args.named_connection = None
 
         # Create a JSON provider
         args.rich_ascii = False
-        provider = get_provider(args)
+        provider = create_provider(args.output, ascii_borders=args.rich_ascii)
 
-        handle_info(args, provider)
+        handle(args)
 
         captured = capsys.readouterr()
         # Should output JSON
@@ -573,7 +559,7 @@ class TestCLIDisplayFunctions:
 
     def test_display_method_details_bool(self):
         """Test _display_method_details with boolean value."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _display_method_details
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _display_method_details
 
         # Mock console
         class MockConsole:
@@ -588,7 +574,7 @@ class TestCLIDisplayFunctions:
 
     def test_display_method_details_dict(self):
         """Test _display_method_details with dict value (parameterized method)."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _display_method_details
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _display_method_details
 
         class MockConsole:
             def print(self, msg):
@@ -603,7 +589,7 @@ class TestCLIDisplayFunctions:
 
     def test_display_protocol_item_verbose_0(self):
         """Test _display_protocol_item with verbose=0."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _display_protocol_item
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _display_protocol_item
 
         class MockConsole:
             def print(self, msg):
@@ -619,7 +605,7 @@ class TestCLIDisplayFunctions:
 
     def test_display_protocol_item_verbose_2(self):
         """Test _display_protocol_item with verbose=2 and methods."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _display_protocol_item
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _display_protocol_item
 
         class MockConsole:
             def print(self, msg):
@@ -640,7 +626,7 @@ class TestCLIDisplayFunctions:
 
     def test_display_protocol_group(self):
         """Test _display_protocol_group."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import _display_protocol_group
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import _display_protocol_group
 
         class MockConsole:
             def print(self, msg):
@@ -658,7 +644,7 @@ class TestCLIDisplayFunctions:
 
     def test_display_protocol_group_dialect_specific(self):
         """Test _display_protocol_group with dialect-specific group."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import (
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import (
             _display_protocol_group, DIALECT_SPECIFIC_GROUPS
         )
 
@@ -684,7 +670,8 @@ class TestCLIHandleInfoVerbose:
 
     def test_handle_info_verbose_1(self, capsys):
         """Test handle_info with verbose=1."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import handle_info, get_provider
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import handle
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
         from unittest.mock import MagicMock
 
         args = MagicMock()
@@ -693,9 +680,10 @@ class TestCLIHandleInfoVerbose:
         args.version = '8.0.0'
         args.verbose = 1
         args.rich_ascii = False
+        args.named_connection = None
 
-        provider = get_provider(args)
-        handle_info(args, provider)
+        provider = create_provider(args.output, ascii_borders=args.rich_ascii)
+        handle(args)
 
         captured = capsys.readouterr()
         import json
@@ -704,7 +692,8 @@ class TestCLIHandleInfoVerbose:
 
     def test_handle_info_verbose_2(self, capsys):
         """Test handle_info with verbose=2."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import handle_info, get_provider
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import handle
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
         from unittest.mock import MagicMock
 
         args = MagicMock()
@@ -713,9 +702,10 @@ class TestCLIHandleInfoVerbose:
         args.version = '8.0.0'
         args.verbose = 2
         args.rich_ascii = False
+        args.named_connection = None
 
-        provider = get_provider(args)
-        handle_info(args, provider)
+        provider = create_provider(args.output, ascii_borders=args.rich_ascii)
+        handle(args)
 
         captured = capsys.readouterr()
         import json
@@ -729,7 +719,8 @@ class TestCLIHandleInfoVerbose:
 
     def test_handle_info_with_version(self, capsys):
         """Test handle_info with custom version."""
-        from rhosocial.activerecord.backend.impl.mysql.__main__ import handle_info, get_provider
+        from rhosocial.activerecord.backend.impl.mysql.cli.info import handle
+        from rhosocial.activerecord.backend.impl.mysql.cli.output import create_provider
         from unittest.mock import MagicMock
 
         args = MagicMock()
@@ -738,9 +729,10 @@ class TestCLIHandleInfoVerbose:
         args.version = '5.7.0'
         args.verbose = 0
         args.rich_ascii = False
+        args.named_connection = None
 
-        provider = get_provider(args)
-        handle_info(args, provider)
+        provider = create_provider(args.output, ascii_borders=args.rich_ascii)
+        handle(args)
 
         captured = capsys.readouterr()
         import json
