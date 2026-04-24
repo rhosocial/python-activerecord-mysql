@@ -418,6 +418,10 @@ def parse_args():
 """
     create_named_procedure_parser(subparsers, parent_parser, epilog=np_epilog)
 
+    # named-connection subcommand (using shared CLI helper)
+    from rhosocial.activerecord.backend.named_connection.cli import create_named_connection_parser
+    create_named_connection_parser(subparsers, parent_parser)
+
     return parser.parse_args()
 
 
@@ -1528,6 +1532,17 @@ def main():
     # Handle named-procedure subcommand
     if args.command == "named-procedure":
         _handle_named_procedure_mysql(args, provider)
+        return
+
+    # Handle named-connection subcommand
+    if args.command == "named-connection":
+        from rhosocial.activerecord.backend.named_connection.cli import handle_named_connection as handle_nc
+        from rhosocial.activerecord.backend.named_connection import NamedConnectionResolver
+
+        def named_connection_resolver_factory(name):
+            return NamedConnectionResolver(name)
+
+        handle_nc(args, named_connection_resolver_factory)
         return
 
     # Handle query subcommand
