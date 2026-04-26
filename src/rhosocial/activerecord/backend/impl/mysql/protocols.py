@@ -82,7 +82,7 @@ class MySQLDMLOperationSupport(Protocol):
         """Format LOAD DATA INFILE statement.
 
         Args:
-            expr: LoadDataExpression instance
+            expr: MySQLLoadDataExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -437,7 +437,7 @@ class MySQLLockingSupport(LockingSupport, Protocol):
         """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
         ...
 
-    def format_mysql_for_update_clause(self, clause: Any) -> Tuple[str, tuple]:
+    def format_for_update_clause(self, clause: Any) -> Tuple[str, tuple]:
         """Format MySQL-specific FOR UPDATE clause.
 
         Args:

@@ -2,7 +2,7 @@
 """
 MySQL-specific LOAD DATA expression.
 
-This module provides LoadDataExpression and LoadDataOptions for
+This module provides MySQLLoadDataExpression and LoadDataOptions for
 MySQL's LOAD DATA INFILE functionality.
 """
 
@@ -47,7 +47,7 @@ class LoadDataOptions:
     set_assignments: Optional[Dict[str, Any]] = None
 
 
-class LoadDataExpression(BaseExpression):
+class MySQLLoadDataExpression(BaseExpression):
     """MySQL LOAD DATA INFILE expression.
 
     Collects parameters for LOAD DATA [LOCAL] INFILE statement.

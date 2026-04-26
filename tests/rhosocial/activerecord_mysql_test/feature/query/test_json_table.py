@@ -12,7 +12,7 @@ import pytest
 import pytest_asyncio
 
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    JSONTableExpression, JSONTableColumn, NestedPath
+    MySQLJSONTableExpression, JSONTableColumn, NestedPath
 )
 
 
@@ -41,7 +41,7 @@ class TestMySQLJSONTable:
     def test_json_table_basic_expression(self, mysql_backend):
         """Test basic JSON_TABLE expression generation."""
         json_doc = r"'[{""name"": ""Alice"", ""age"": 30}]'"
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc=json_doc,
             path='$[*]',
@@ -62,7 +62,7 @@ class TestMySQLJSONTable:
 
     def test_json_table_for_ordinality(self, mysql_backend):
         """Test JSON_TABLE with FOR ORDINALITY column."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
             path='$[*]',
@@ -79,7 +79,7 @@ class TestMySQLJSONTable:
 
     def test_json_table_exists_path(self, mysql_backend):
         """Test JSON_TABLE with EXISTS PATH."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc=r"'{""a"": 1, ""b"": 2}'",
             path='$',
@@ -95,7 +95,7 @@ class TestMySQLJSONTable:
 
     def test_json_table_nested_path(self, mysql_backend):
         """Test JSON_TABLE with NESTED PATH."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc=r"'[{""name"": ""Alice"", ""orders"": [{""id"": 1}, {""id"": 2}]}]'",
             path='$[*]',
@@ -120,7 +120,7 @@ class TestMySQLJSONTable:
 
     def test_json_table_with_alias(self, mysql_backend):
         """Test JSON_TABLE with table alias."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
             path='$[*]',
@@ -135,7 +135,7 @@ class TestMySQLJSONTable:
 
     def test_json_table_error_handling_null(self, mysql_backend):
         """Test JSON_TABLE with NULL ON ERROR."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
             path='$[*]',
@@ -155,7 +155,7 @@ class TestMySQLJSONTable:
 
     def test_json_table_multiple_columns(self, mysql_backend):
         """Test JSON_TABLE with multiple columns."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc=r"'[{""id"": 1, ""name"": ""Alice"", ""email"": ""alice@example.com""}]'",
             path='$[*]',
@@ -191,7 +191,7 @@ class TestMySQLAsyncJSONTable:
 
     async def test_json_table_expression_async(self, async_mysql_backend):
         """Test async JSON_TABLE expression generation."""
-        expr = JSONTableExpression(
+        expr = MySQLJSONTableExpression(
             dialect=async_mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
             path='$[*]',

@@ -3,29 +3,29 @@
 Tests for MySQL vector expression classes.
 
 This module tests the following expression classes:
-- VectorExpression
-- DistanceEuclideanExpression
-- DistanceCosineExpression
-- DistanceDotExpression
+- MySQLVectorExpression
+- MySQLDistanceEuclideanExpression
+- MySQLDistanceCosineExpression
+- MySQLDistanceDotExpression
 """
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    VectorExpression,
-    DistanceEuclideanExpression,
-    DistanceCosineExpression,
-    DistanceDotExpression,
+    MySQLVectorExpression,
+    MySQLDistanceEuclideanExpression,
+    MySQLDistanceCosineExpression,
+    MySQLDistanceDotExpression,
 )
 
 
-class TestVectorExpression:
-    """Test VectorExpression class."""
+class TestMySQLVectorExpression:
+    """Test MySQLVectorExpression class."""
 
     def test_vector_expression_basic(self):
         """Test basic vector literal creation."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = VectorExpression(dialect, '[1, 2, 3]')
+        expr = MySQLVectorExpression(dialect, '[1, 2, 3]')
         sql, params = expr.to_sql()
         
         assert 'STRING_TO_VECTOR' in sql
@@ -35,7 +35,7 @@ class TestVectorExpression:
         """Test vector expression with alias."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = VectorExpression(dialect, '[1, 2, 3]').as_('embedding')
+        expr = MySQLVectorExpression(dialect, '[1, 2, 3]').as_('embedding')
         sql, params = expr.to_sql()
         
         assert 'STRING_TO_VECTOR' in sql
@@ -50,14 +50,14 @@ class TestVectorExpression:
         assert dialect_new.supports_vector_type()
 
 
-class TestDistanceEuclideanExpression:
-    """Test DistanceEuclideanExpression class."""
+class TestMySQLDistanceEuclideanExpression:
+    """Test MySQLDistanceEuclideanExpression class."""
 
     def test_distance_euclidean_expression(self):
         """Test Euclidean distance calculation."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = DistanceEuclideanExpression(dialect, 'vec1', 'vec2')
+        expr = MySQLDistanceEuclideanExpression(dialect, 'vec1', 'vec2')
         sql, params = expr.to_sql()
         
         assert 'DISTANCE_EUCLIDEAN' in sql
@@ -68,21 +68,21 @@ class TestDistanceEuclideanExpression:
         """Test Euclidean distance with alias."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = DistanceEuclideanExpression(dialect, 'vec1', 'vec2').as_('dist')
+        expr = MySQLDistanceEuclideanExpression(dialect, 'vec1', 'vec2').as_('dist')
         sql, params = expr.to_sql()
         
         assert 'DISTANCE_EUCLIDEAN' in sql
         assert 'AS `dist`' in sql
 
 
-class TestDistanceCosineExpression:
-    """Test DistanceCosineExpression class."""
+class TestMySQLDistanceCosineExpression:
+    """Test MySQLDistanceCosineExpression class."""
 
     def test_distance_cosine_expression(self):
         """Test Cosine distance calculation."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = DistanceCosineExpression(dialect, 'vec1', 'vec2')
+        expr = MySQLDistanceCosineExpression(dialect, 'vec1', 'vec2')
         sql, params = expr.to_sql()
         
         assert 'DISTANCE_COSINE' in sql
@@ -93,21 +93,21 @@ class TestDistanceCosineExpression:
         """Test Cosine distance with alias."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = DistanceCosineExpression(dialect, 'vec1', 'vec2').as_('cos_dist')
+        expr = MySQLDistanceCosineExpression(dialect, 'vec1', 'vec2').as_('cos_dist')
         sql, params = expr.to_sql()
         
         assert 'DISTANCE_COSINE' in sql
         assert 'AS `cos_dist`' in sql
 
 
-class TestDistanceDotExpression:
-    """Test DistanceDotExpression class."""
+class TestMySQLDistanceDotExpression:
+    """Test MySQLDistanceDotExpression class."""
 
     def test_distance_dot_expression(self):
         """Test Dot product calculation."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = DistanceDotExpression(dialect, 'vec1', 'vec2')
+        expr = MySQLDistanceDotExpression(dialect, 'vec1', 'vec2')
         sql, params = expr.to_sql()
         
         assert 'DISTANCE_DOT' in sql
@@ -118,7 +118,7 @@ class TestDistanceDotExpression:
         """Test Dot product with alias."""
         dialect = MySQLDialect(version=(9, 0, 0))
         
-        expr = DistanceDotExpression(dialect, 'vec1', 'vec2').as_('dot_prod')
+        expr = MySQLDistanceDotExpression(dialect, 'vec1', 'vec2').as_('dot_prod')
         sql, params = expr.to_sql()
         
         assert 'DISTANCE_DOT' in sql

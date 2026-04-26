@@ -3,10 +3,10 @@
 MySQL-specific vector expression functions.
 
 This module provides expression classes for MySQL vector functions:
-- VectorExpression
-- DistanceEuclideanExpression
-- DistanceCosineExpression
-- DistanceDotExpression
+- MySQLVectorExpression
+- MySQLDistanceEuclideanExpression
+- MySQLDistanceCosineExpression
+- MySQLDistanceDotExpression
 
 Note: Vector support requires MySQL 9.0+
 """
@@ -23,13 +23,13 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class VectorExpression(AliasableMixin, SQLValueExpression):
+class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
     """MySQL vector literal expression.
     
     Creates a vector value from array string.
     
     Example:
-        >>> expr = VectorExpression(dialect, '[1,2,3]')
+        >>> expr = MySQLVectorExpression(dialect, '[1,2,3]')
     """
 
     def __init__(
@@ -48,11 +48,11 @@ class VectorExpression(AliasableMixin, SQLValueExpression):
         return sql, params
 
 
-class DistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Euclidean distance expression.
     
     Example:
-        >>> expr = DistanceEuclideanExpression(dialect, 'vec1', 'vec2')
+        >>> expr = MySQLDistanceEuclideanExpression(dialect, 'vec1', 'vec2')
     """
 
     def __init__(
@@ -73,11 +73,11 @@ class DistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         return sql, params
 
 
-class DistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Cosine distance expression.
     
     Example:
-        >>> expr = DistanceCosineExpression(dialect, 'vec1', 'vec2')
+        >>> expr = MySQLDistanceCosineExpression(dialect, 'vec1', 'vec2')
     """
 
     def __init__(
@@ -98,11 +98,11 @@ class DistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return sql, params
 
 
-class DistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Dot product distance expression.
     
     Example:
-        >>> expr = DistanceDotExpression(dialect, 'vec1', 'vec2')
+        >>> expr = MySQLDistanceDotExpression(dialect, 'vec1', 'vec2')
     """
 
     def __init__(
@@ -124,8 +124,8 @@ class DistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression)
 
 
 __all__ = [
-    "VectorExpression",
-    "DistanceEuclideanExpression",
-    "DistanceCosineExpression",
-    "DistanceDotExpression",
+    "MySQLVectorExpression",
+    "MySQLDistanceEuclideanExpression",
+    "MySQLDistanceCosineExpression",
+    "MySQLDistanceDotExpression",
 ]

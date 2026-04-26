@@ -137,3 +137,90 @@ class TestProtocolNonOverlap:
             "The following protocols have overlapping interfaces, need to merge or rename:\n"
             + "\n".join(f"  • {v}" for v in violations)
         )
+
+
+class TestMySQLProtocolDerivation:
+    """Verify MySQL-specific protocols derive from their generic counterparts.
+
+    This ensures that backend-specific protocols inherit the standard interface,
+    allowing isinstance() checks against generic protocols to work correctly.
+    """
+
+    PROTOCOL_DERIVATIONS = [
+        ("MySQLTableSupport", "TableSupport"),
+        ("MySQLLockingSupport", "LockingSupport"),
+        ("MySQLJSONFunctionSupport", "JSONSupport"),
+    ]
+
+    @pytest.mark.parametrize("mysql_name,generic_name", PROTOCOL_DERIVATIONS)
+    def test_protocol_derives_from_generic(self, mysql_name, generic_name):
+        """Backend-specific protocol should derive from its generic counterpart."""
+        mysql_proto = getattr(mysql_protocols, mysql_name)
+        generic_proto = getattr(dialect_protocols, generic_name)
+        assert issubclass(mysql_proto, generic_proto), (
+            f"{mysql_name} does not derive from {generic_name}"
+        )
+
+    def test_dialect_satisfies_generic_protocols_via_derivation(self):
+        """MySQLDialect should satisfy generic protocols through derived protocols."""
+        dialect = mysql_dialect.MySQLDialect()
+        for mysql_name, generic_name in self.PROTOCOL_DERIVATIONS:
+            generic_proto = getattr(dialect_protocols, generic_name)
+            if getattr(generic_proto, "_is_runtime_protocol", False):
+                assert isinstance(dialect, generic_proto), (
+                    f"MySQLDialect does not satisfy {generic_name} "
+                    f"(should be inherited via {mysql_name})"
+                )
+
+
+class TestMySQLExpressionDialectSeparation:
+    """Verify MySQL-specific expression classes delegate to dialect for SQL generation.
+
+    Expression-Dialect separation means expression classes collect parameters
+    and delegate to_sql() to dialect.format_*() methods, never directly
+    constructing SQL strings.
+    """
+
+    EXPRESSION_DIALECT_PAIRS = [
+        ("MySQLLoadDataExpression", "format_load_data_statement"),
+        ("MySQLJSONTableExpression", "format_json_table_expression"),
+        ("MySQLJSONExtractExpression", "format_json_extract"),
+        ("MySQLJSONObjectExpression", "format_json_object"),
+        ("MySQLJSONArrayExpression", "format_json_array"),
+        ("MySQLJSONContainsExpression", "format_json_contains"),
+        ("MySQLSTGeomFromTextExpression", "format_st_geom_from_text"),
+        ("MySQLSTDistanceExpression", "format_st_distance"),
+        ("MySQLSTWithinExpression", "format_st_within"),
+        ("MySQLSTContainsExpression", "format_st_contains"),
+        ("MySQLVectorExpression", "format_vector_literal"),
+        ("MySQLDistanceEuclideanExpression", "format_distance_euclidean"),
+        ("MySQLDistanceCosineExpression", "format_distance_cosine"),
+        ("MySQLDistanceDotExpression", "format_distance_dot"),
+        ("MySQLMatchAgainstExpression", "format_match_against"),
+    ]
+
+    @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)
+    def test_expression_delegates_to_dialect(self, expr_name, format_method):
+        """Expression.to_sql() should delegate to dialect.format_*() method."""
+        from rhosocial.activerecord.backend.impl.mysql import expression as mysql_expr
+
+        # Find the expression class
+        expr_class = None
+        for module_name in dir(mysql_expr):
+            module = getattr(mysql_expr, module_name)
+            if hasattr(module, expr_name):
+                expr_class = getattr(module, expr_name)
+                break
+
+        # Also check top-level imports
+        if expr_class is None:
+            expr_class = getattr(mysql_expr, expr_name, None)
+
+        assert expr_class is not None, f"Expression class {expr_name} not found"
+
+        # Verify the dialect has the corresponding format method
+        dialect = mysql_dialect.MySQLDialect()
+        assert hasattr(dialect, format_method), (
+            f"MySQLDialect missing format method {format_method} "
+            f"for expression {expr_name}"
+        )

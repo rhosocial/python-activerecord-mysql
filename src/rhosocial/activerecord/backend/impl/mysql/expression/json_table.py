@@ -2,7 +2,7 @@
 """
 MySQL-specific JSON_TABLE expression.
 
-This module provides JSONTableExpression, JSONTableColumn, and NestedPath
+This module provides MySQLJSONTableExpression, JSONTableColumn, and NestedPath
 for MySQL's JSON_TABLE functionality.
 """
 
@@ -51,7 +51,7 @@ class NestedPath:
     alias: Optional[str] = None
 
 
-class JSONTableExpression(BaseExpression):
+class MySQLJSONTableExpression(BaseExpression):
     """MySQL JSON_TABLE expression.
 
     Generates JSON_TABLE function for converting JSON data to relational format.

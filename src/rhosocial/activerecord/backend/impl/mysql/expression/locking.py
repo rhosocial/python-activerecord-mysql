@@ -116,7 +116,7 @@ class MySQLForUpdateClause(ForUpdateClause):
         """
         Generate the SQL representation of the MySQL FOR UPDATE clause.
 
-        Delegates to the dialect's format_mysql_for_update_clause method
+        Delegates to the dialect's format_for_update_clause method
         to follow the Expression-Dialect separation pattern.
 
         Returns:
@@ -124,4 +124,4 @@ class MySQLForUpdateClause(ForUpdateClause):
             - SQL string fragment for the FOR UPDATE clause
             - Tuple of parameter values for prepared statements
         """
-        return self.dialect.format_mysql_for_update_clause(self)
+        return self.dialect.format_for_update_clause(self)
