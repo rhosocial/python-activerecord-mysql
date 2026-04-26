@@ -1661,15 +1661,18 @@ class MySQLLockingMixin:
 
         all_params = []
 
+        # Handle both base ForUpdateClause (no strength) and MySQLForUpdateClause
+        strength = getattr(clause, 'strength', MySQLLockStrength.UPDATE)
+
         # Check version support for lock strength
-        if clause.strength == MySQLLockStrength.SHARE:
+        if strength == MySQLLockStrength.SHARE:
             if not self.supports_for_share():
                 raise UnsupportedFeatureError(
                     self.name, "FOR SHARE (requires MySQL 8.0+)"
                 )
 
         # Use the strength value directly (e.g., "FOR UPDATE", "FOR SHARE")
-        sql_parts = [clause.strength.value]
+        sql_parts = [strength.value]
 
         # Handle OF columns if specified
         if clause.of_columns:
