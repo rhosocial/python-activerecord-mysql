@@ -1437,7 +1437,7 @@ class MySQLDialect(
         """Format LOAD DATA INFILE statement.
 
         Args:
-            expr: LoadDataExpression instance
+            expr: MySQLLoadDataExpression instance
 
         Returns:
             Tuple of (SQL string, empty tuple - no parameters for LOAD DATA)
@@ -1559,7 +1559,7 @@ class MySQLDialect(
         """Format JSON_TABLE expression.
 
         Args:
-            expr: JSONTableExpression instance
+            expr: MySQLJSONTableExpression instance
 
         Returns:
             Tuple of (SQL string, empty tuple)

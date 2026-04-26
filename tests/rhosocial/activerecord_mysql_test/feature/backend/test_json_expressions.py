@@ -3,29 +3,29 @@
 Tests for MySQL JSON expression classes.
 
 This module tests the following expression classes:
-- JSONExtractExpression
-- JSONObjectExpression
-- JSONArrayExpression
-- JSONContainsExpression
+- MySQLJSONExtractExpression
+- MySQLJSONObjectExpression
+- MySQLJSONArrayExpression
+- MySQLJSONContainsExpression
 """
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    JSONExtractExpression,
-    JSONObjectExpression,
-    JSONArrayExpression,
-    JSONContainsExpression,
+    MySQLJSONExtractExpression,
+    MySQLJSONObjectExpression,
+    MySQLJSONArrayExpression,
+    MySQLJSONContainsExpression,
 )
 
 
-class TestJSONExtractExpression:
-    """Test JSONExtractExpression class."""
+class TestMySQLJSONExtractExpression:
+    """Test MySQLJSONExtractExpression class."""
 
     def test_json_extract_basic(self):
         """Test basic JSON extraction."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONExtractExpression(dialect, 'data', '$.name')
+        expr = MySQLJSONExtractExpression(dialect, 'data', '$.name')
         sql, params = expr.to_sql()
         
         assert 'JSON_EXTRACT' in sql
@@ -36,7 +36,7 @@ class TestJSONExtractExpression:
         """Test JSON extraction with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONExtractExpression(dialect, 'data', '$.name').as_('extracted_name')
+        expr = MySQLJSONExtractExpression(dialect, 'data', '$.name').as_('extracted_name')
         sql, params = expr.to_sql()
         
         assert 'JSON_EXTRACT' in sql
@@ -46,21 +46,21 @@ class TestJSONExtractExpression:
         """Test JSON extraction with array path."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONExtractExpression(dialect, 'data', '$[0]')
+        expr = MySQLJSONExtractExpression(dialect, 'data', '$[0]')
         sql, params = expr.to_sql()
         
         assert 'JSON_EXTRACT' in sql
         assert '$[0]' in params
 
 
-class TestJSONObjectExpression:
-    """Test JSONObjectExpression class."""
+class TestMySQLJSONObjectExpression:
+    """Test MySQLJSONObjectExpression class."""
 
     def test_json_object_basic(self):
         """Test basic JSON object creation."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONObjectExpression(dialect, data={'name': 'John', 'age': 30})
+        expr = MySQLJSONObjectExpression(dialect, data={'name': 'John', 'age': 30})
         sql, params = expr.to_sql()
         
         assert 'JSON_OBJECT' in sql
@@ -71,21 +71,21 @@ class TestJSONObjectExpression:
         """Test JSON object creation with keyword arguments."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONObjectExpression(dialect, name='John', age=30).as_('obj')
+        expr = MySQLJSONObjectExpression(dialect, name='John', age=30).as_('obj')
         sql, params = expr.to_sql()
         
         assert 'JSON_OBJECT' in sql
         assert 'AS `obj`' in sql
 
 
-class TestJSONArrayExpression:
-    """Test JSONArrayExpression class."""
+class TestMySQLJSONArrayExpression:
+    """Test MySQLJSONArrayExpression class."""
 
     def test_json_array_basic(self):
         """Test basic JSON array creation."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONArrayExpression(dialect, values=[1, 2, 3])
+        expr = MySQLJSONArrayExpression(dialect, values=[1, 2, 3])
         sql, params = expr.to_sql()
         
         assert 'JSON_ARRAY' in sql
@@ -95,7 +95,7 @@ class TestJSONArrayExpression:
         """Test JSON array with positional arguments."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONArrayExpression(dialect, 1, 2, 3)
+        expr = MySQLJSONArrayExpression(dialect, 1, 2, 3)
         sql, params = expr.to_sql()
         
         assert 'JSON_ARRAY' in sql
@@ -105,21 +105,21 @@ class TestJSONArrayExpression:
         """Test JSON array with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONArrayExpression(dialect, ['a', 'b']).as_('arr')
+        expr = MySQLJSONArrayExpression(dialect, ['a', 'b']).as_('arr')
         sql, params = expr.to_sql()
         
         assert 'JSON_ARRAY' in sql
         assert 'AS `arr`' in sql
 
 
-class TestJSONContainsExpression:
-    """Test JSONContainsExpression class."""
+class TestMySQLJSONContainsExpression:
+    """Test MySQLJSONContainsExpression class."""
 
     def test_json_contains_basic(self):
         """Test basic JSON contains check."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONContainsExpression(dialect, 'data', 'John', '$.name')
+        expr = MySQLJSONContainsExpression(dialect, 'data', 'John', '$.name')
         sql, params = expr.to_sql()
         
         assert 'JSON_CONTAINS' in sql
@@ -130,7 +130,7 @@ class TestJSONContainsExpression:
         """Test JSON contains with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = JSONContainsExpression(dialect, 'data', 'value', '$.key').as_('contains')
+        expr = MySQLJSONContainsExpression(dialect, 'data', 'value', '$.key').as_('contains')
         sql, params = expr.to_sql()
         
         assert 'JSON_CONTAINS' in sql

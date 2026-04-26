@@ -3,10 +3,10 @@
 MySQL-specific spatial expression functions.
 
 This module provides expression classes for MySQL spatial functions:
-- STGeomFromTextExpression
-- STDistanceExpression
-- STWithinExpression
-- STContainsExpression
+- MySQLSTGeomFromTextExpression
+- MySQLSTDistanceExpression
+- MySQLSTWithinExpression
+- MySQLSTContainsExpression
 """
 
 from typing import TYPE_CHECKING
@@ -21,13 +21,13 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class STGeomFromTextExpression(AliasableMixin, SQLValueExpression):
+class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValueExpression):
     """MySQL ST_GeomFromText expression.
     
     Creates a geometry value from WKT.
     
     Example:
-        >>> expr = STGeomFromTextExpression(dialect, 'POINT(1 1)')
+        >>> expr = MySQLSTGeomFromTextExpression(dialect, 'POINT(1 1)')
     """
 
     def __init__(
@@ -46,13 +46,13 @@ class STGeomFromTextExpression(AliasableMixin, SQLValueExpression):
         return sql, params
 
 
-class STDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_Distance expression.
     
     Returns the distance between two geometries.
     
     Example:
-        >>> expr = STDistanceExpression(dialect, 'geom1', 'geom2')
+        >>> expr = MySQLSTDistanceExpression(dialect, 'geom1', 'geom2')
     """
 
     def __init__(
@@ -73,13 +73,13 @@ class STDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return sql, params
 
 
-class STWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_Within expression.
     
     Returns whether one geometry is within another.
     
     Example:
-        >>> expr = STWithinExpression(dialect, 'geom1', 'geom2')
+        >>> expr = MySQLSTWithinExpression(dialect, 'geom1', 'geom2')
     """
 
     def __init__(
@@ -100,13 +100,13 @@ class STWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return sql, params
 
 
-class STContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_Contains expression.
     
     Returns whether one geometry contains another.
     
     Example:
-        >>> expr = STContainsExpression(dialect, 'geom1', 'geom2')
+        >>> expr = MySQLSTContainsExpression(dialect, 'geom1', 'geom2')
     """
 
     def __init__(
@@ -128,8 +128,8 @@ class STContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
 
 
 __all__ = [
-    "STGeomFromTextExpression",
-    "STDistanceExpression",
-    "STWithinExpression",
-    "STContainsExpression",
+    "MySQLSTGeomFromTextExpression",
+    "MySQLSTDistanceExpression",
+    "MySQLSTWithinExpression",
+    "MySQLSTContainsExpression",
 ]

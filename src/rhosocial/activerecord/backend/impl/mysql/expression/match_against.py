@@ -2,7 +2,7 @@
 """
 MySQL-specific MATCH...AGAINST expression.
 
-This module provides MatchAgainstExpression for MySQL's full-text search functionality.
+This module provides MySQLMatchAgainstExpression for MySQL's full-text search functionality.
 """
 
 from typing import TYPE_CHECKING, List, Optional
@@ -25,7 +25,7 @@ class MatchAgainstMode:
     NATURAL_LANGUAGE_WITH_QUERY_EXPANSION = "NATURAL LANGUAGE WITH QUERY EXPANSION"
 
 
-class MatchAgainstExpression(
+class MySQLMatchAgainstExpression(
     AliasableMixin,
     ComparisonMixin,
     SQLValueExpression,
@@ -41,7 +41,7 @@ class MatchAgainstExpression(
         mode: Search mode - NATURAL_LANGUAGE, BOOLEAN, or NATURAL_LANGUAGE_WITH_QUERY_EXPANSION
 
     Example:
-        >>> expr = MatchAgainstExpression(
+        >>> expr = MySQLMatchAgainstExpression(
         ...     dialect,
         ...     columns=['title', 'content'],
         ...     search_string='MySQL',
@@ -86,6 +86,6 @@ class MatchAgainstExpression(
 
 
 __all__ = [
-    "MatchAgainstExpression",
+    "MySQLMatchAgainstExpression",
     "MatchAgainstMode",
 ]

@@ -1644,7 +1644,7 @@ class MySQLLockingMixin:
         """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
         return self.version >= (8, 0, 0)
 
-    def format_mysql_for_update_clause(self, clause) -> Tuple[str, tuple]:
+    def format_for_update_clause(self, clause) -> Tuple[str, tuple]:
         """Format MySQL-specific FOR UPDATE clause.
 
         Handles MySQL-specific lock strengths (FOR SHARE)
