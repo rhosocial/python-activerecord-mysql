@@ -202,7 +202,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
             self._connection = None  # Clear reference first to prevent recursion
             try:
                 # Rollback any active transaction
-                if self.transaction_manager.is_active:
+                if self.in_transaction:
                     try:
                         self.transaction_manager.rollback()
                     except Exception:
@@ -557,7 +557,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 return
 
             # Check if we're not in an active transaction
-            if not self._transaction_manager or not self._transaction_manager.is_active:
+            if not self.in_transaction:
                 # For MySQL, if autocommit is disabled, we need to commit explicitly
                 if not getattr(self.config, 'autocommit', True):
                     self._connection.commit()

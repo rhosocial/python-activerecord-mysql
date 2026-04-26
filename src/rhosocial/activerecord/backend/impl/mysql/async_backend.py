@@ -201,7 +201,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             self._connection = None  # Clear reference first to prevent recursion
             try:
                 # Rollback any active transaction
-                if self.transaction_manager.is_active:
+                if self.in_transaction:
                     try:
                         await self.transaction_manager.rollback()
                     except Exception:
@@ -569,7 +569,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 return
 
             # Check if we're not in an active transaction
-            if not self._transaction_manager or not self._transaction_manager.is_active:
+            if not self.in_transaction:
                 # For MySQL, if autocommit is disabled, we need to commit explicitly
                 if not getattr(self.config, 'autocommit', True):
                     await self._connection.commit()
