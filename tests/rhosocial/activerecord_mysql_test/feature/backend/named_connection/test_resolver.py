@@ -123,7 +123,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_mysql_96_connection(self):
         """Test resolving the mysql_96 named connection."""
         config = resolve_named_connection(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96",
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96",
             {},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -135,7 +135,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_mysql_96_with_custom_database(self):
         """Test resolving mysql_96 with custom database parameter."""
         config = resolve_named_connection(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96",
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96",
             {"database": "my_app"},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -144,7 +144,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_mysql_96_with_pool(self):
         """Test resolving mysql_96_with_pool named connection."""
         config = resolve_named_connection(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_with_pool",
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_with_pool",
             {},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -153,7 +153,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_mysql_96_with_custom_pool_size(self):
         """Test resolving mysql_96_with_pool with custom pool_size."""
         config = resolve_named_connection(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_with_pool",
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_with_pool",
             {"pool_size": "10"},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -162,7 +162,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_mysql_96_readonly(self):
         """Test resolving mysql_96_readonly named connection."""
         config = resolve_named_connection(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_readonly",
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96_readonly",
             {},
         )
         assert isinstance(config, MySQLConnectionConfig)
@@ -171,7 +171,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_list_example_connections(self):
         """Test listing connections in example_connections module."""
         connections = list_named_connections_in_module(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections"
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections"
         )
         names = [c["name"] for c in connections]
         assert "mysql_96" in names
@@ -181,7 +181,7 @@ class TestMysqlNamedConnectionsIntegration:
     def test_describe_mysql_96(self):
         """Test describing the mysql_96 connection."""
         resolver = NamedConnectionResolver(
-            "tests.rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96"
+            "rhosocial.activerecord_mysql_test.feature.backend.named_connection.example_connections.mysql_96"
         ).load()
         info = resolver.describe()
         assert info["is_class"] is False

@@ -110,7 +110,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py39-mysql57:
@@ -203,7 +203,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py310-mysql80:
@@ -296,7 +296,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py311-mysql84:
@@ -389,7 +389,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py312-mysql90:
@@ -482,7 +482,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py313-mysql91:
@@ -575,7 +575,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py314-mysql92:
@@ -683,7 +683,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           coverage run -m pytest tests/
           coverage xml
           coverage report
@@ -787,7 +787,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py314t-mysql94:
@@ -880,7 +880,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py314-mysql95:
@@ -973,7 +973,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
 
   test-py314t-mysql96:
@@ -1066,5 +1066,5 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=src
+          export PYTHONPATH=src:tests
           python -m pytest tests/
