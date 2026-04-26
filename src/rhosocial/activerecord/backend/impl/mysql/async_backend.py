@@ -270,11 +270,9 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                 self.log(logging.DEBUG, f"With {len(params_list)} parameter sets")
 
             # Execute multiple statements
-            # Convert '?' placeholders to '%s' for MySQL
-            mysql_sql = sql.replace('?', '%s')
             affected_rows = 0
             for params in params_list:
-                await cursor.execute(mysql_sql, params)
+                await cursor.execute(sql, params)
                 affected_rows += cursor.rowcount
 
             duration = (datetime.datetime.now() - start_time).total_seconds()
@@ -624,12 +622,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             if 'column_adapters' in kwargs:
                 options.column_adapters = kwargs['column_adapters']
 
-        # Convert '?' placeholders to '%s' for MySQL
-        if params:
-            mysql_sql = sql.replace('?', '%s')
-            return await super().execute(mysql_sql, params, options=options)
-        else:
-            return await super().execute(sql, params, options=options)
+        return await super().execute(sql, params, options=options)
 
     async def executescript(self, sql_script: str) -> None:
         """Execute a multi-statement SQL script asynchronously.
