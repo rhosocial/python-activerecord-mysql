@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/named_connection/test_cli.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/named_connection/test_named_connection_cli.py
 """
 Tests for MySQL CLI parameter resolution.
 
