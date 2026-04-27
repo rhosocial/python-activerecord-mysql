@@ -8,19 +8,19 @@ START TRANSACTION as separate statements. This class overrides _do_begin()
 to handle this sequencing properly.
 """
 import logging
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from rhosocial.activerecord.backend.transaction import (
     AsyncTransactionManager,
-    IsolationLevel,
-    IsolationLevelError,
 )
+
+from .mixins import MySQLTransactionMixin
 
 if TYPE_CHECKING:
     from .backend import AsyncMySQLBackend
 
 
-class AsyncMySQLTransactionManager(AsyncTransactionManager):
+class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManager):
     """Asynchronous transaction manager for MySQL backend.
 
     MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
@@ -29,15 +29,10 @@ class AsyncMySQLTransactionManager(AsyncTransactionManager):
 
     The format_begin_transaction() in MySQLDialect returns only "START TRANSACTION",
     while this class handles the SET TRANSACTION step separately.
-    """
 
-    # Isolation level mapping for MySQL
-    _ISOLATION_LEVELS = {
-        IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
-        IsolationLevel.READ_COMMITTED: "READ COMMITTED",
-        IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
-        IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
-    }
+    Non-I/O methods (isolation_level, _build_set_isolation_sql, _ISOLATION_LEVELS)
+    are inherited from MySQLTransactionMixin.
+    """
 
     def __init__(self, backend: "AsyncMySQLBackend", logger=None):
         """Initialize async MySQL transaction manager.
@@ -50,52 +45,6 @@ class AsyncMySQLTransactionManager(AsyncTransactionManager):
         # Note: _isolation_level defaults to None (use database default).
         # MySQL's default isolation level is REPEATABLE READ, but we only
         # send SET TRANSACTION when user explicitly specifies a level.
-
-    @property
-    def isolation_level(self) -> Optional[IsolationLevel]:
-        """Get the current transaction isolation level."""
-        return self._isolation_level
-
-    @isolation_level.setter
-    def isolation_level(self, level: Optional[IsolationLevel]):
-        """Set the transaction isolation level.
-
-        Note: In MySQL, isolation level can only be set before transaction starts.
-        This setter only updates the internal state. The actual SET TRANSACTION
-        statement is executed in _do_begin().
-
-        Args:
-            level: The isolation level to be set
-
-        Raises:
-            IsolationLevelError: If attempting to change isolation level while
-                                 transaction is active
-        """
-        self.log(logging.DEBUG, f"Setting isolation level to {level}")
-
-        if self.is_active:
-            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
-            raise IsolationLevelError("Cannot change isolation level during active transaction")
-
-        self._isolation_level = level
-        self.log(logging.INFO, f"Isolation level set to {level}")
-
-    def _build_set_isolation_sql(self, level: IsolationLevel) -> Tuple[str, tuple]:
-        """Build SET TRANSACTION ISOLATION LEVEL SQL statement.
-
-        Args:
-            level: The isolation level to set.
-
-        Returns:
-            Tuple of (SQL string, parameters tuple).
-
-        Raises:
-            IsolationLevelError: If the isolation level is not supported.
-        """
-        level_str = self._ISOLATION_LEVELS.get(level)
-        if not level_str:
-            raise IsolationLevelError(f"Unsupported isolation level: {level}")
-        return f"SET TRANSACTION ISOLATION LEVEL {level_str}", ()
 
     async def _do_begin(self) -> None:
         """Begin a new transaction with MySQL-specific sequencing.

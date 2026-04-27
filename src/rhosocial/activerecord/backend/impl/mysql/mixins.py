@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
-from rhosocial.activerecord.backend.errors import TransactionError
 from rhosocial.activerecord.backend.protocols import ConcurrencyHint
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 
@@ -360,9 +359,28 @@ class MySQLTransactionMixin:
         if level is not None and level not in self._ISOLATION_LEVELS:
             error_msg = f"Unsupported isolation level: {level}"
             self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg)
+            raise IsolationLevelError(error_msg)
 
         self._isolation_level = level
+        self.log(logging.INFO, f"Isolation level set to {level}")
+
+    def _build_set_isolation_sql(self, level: IsolationLevel) -> Tuple[str, tuple]:
+        """Build SET TRANSACTION ISOLATION LEVEL SQL statement.
+
+        Args:
+            level: The isolation level to set.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Raises:
+            IsolationLevelError: If the isolation level is not supported.
+        """
+        from rhosocial.activerecord.backend.transaction import IsolationLevelError
+        level_str = self._ISOLATION_LEVELS.get(level)
+        if not level_str:
+            raise IsolationLevelError(f"Unsupported isolation level: {level}")
+        return f"SET TRANSACTION ISOLATION LEVEL {level_str}", ()
 
 
 class MySQLBackendMixin:
@@ -537,6 +555,94 @@ class MySQLBackendMixin:
         else:
             # Fallback logging
             print(f"[{logging.getLevelName(level)}] {message}")
+
+    # MySQL connection error codes that indicate connection loss
+    # Reference: https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
+    CONNECTION_ERROR_CODES = {
+        2003,  # CR_CONN_HOST_ERROR - Can't connect to MySQL server
+        2006,  # CR_SERVER_GONE_ERROR - MySQL server has gone away
+        2013,  # CR_SERVER_LOST - Lost connection to MySQL server during query
+        2048,  # CR_CONN_UNKNOW_PROTOCOL - Invalid connection protocol
+        2055,  # CR_SERVER_LOST_EXTENDED - Lost connection to MySQL server
+    }
+
+    def _is_connection_error(self, error: Exception) -> bool:
+        """Check if an error indicates a connection loss.
+
+        This method identifies errors that result from lost or invalid connections,
+        which should trigger automatic reconnection attempts.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error indicates a connection problem, False otherwise
+        """
+        # Check for MySQL error codes
+        if hasattr(error, 'errno'):
+            if error.errno in self.CONNECTION_ERROR_CODES:
+                return True
+
+        # Fallback to string matching for error messages
+        error_str = str(error).lower()
+        connection_error_patterns = [
+            'server has gone away',
+            'lost connection',
+            "can't connect to mysql server",
+            'connection refused',
+            'broken pipe',
+            'connection reset',
+        ]
+        return any(pattern in error_str for pattern in connection_error_patterns)
+
+    def _handle_error(self, error: Exception) -> None:
+        """Handle MySQL-specific errors.
+
+        This is a non-I/O method that classifies MySQL errors and re-raises
+        them as framework-specific exceptions. Shared between sync and async backends.
+        """
+        from mysql.connector.errors import (
+            DatabaseError as MySQLDatabaseError,
+            Error as MySQLError,
+            IntegrityError as MySQLIntegrityError,
+            OperationalError as MySQLOperationalError,
+        )
+        from rhosocial.activerecord.backend.errors import (
+            DatabaseError,
+            DeadlockError,
+            IntegrityError,
+            OperationalError,
+        )
+
+        error_msg = str(error)
+
+        if isinstance(error, MySQLIntegrityError):
+            if "Duplicate entry" in error_msg:
+                self.log(logging.ERROR, f"Unique constraint violation: {error_msg}")
+                raise IntegrityError(f"Unique constraint violation: {error_msg}")
+            elif "Cannot delete or update" in error_msg or "a foreign key constraint fails" in error_msg:
+                self.log(logging.ERROR, f"Foreign key constraint violation: {error_msg}")
+                raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
+            self.log(logging.ERROR, f"Integrity error: {error_msg}")
+            raise IntegrityError(error_msg)
+        elif isinstance(error, MySQLDatabaseError):
+            if "Deadlock found" in error_msg:
+                self.log(logging.ERROR, f"Deadlock error: {error_msg}")
+                raise DeadlockError(error_msg)
+            self.log(logging.ERROR, f"Database error: {error_msg}")
+            raise DatabaseError(error_msg)
+        elif isinstance(error, MySQLOperationalError):
+            if "Lock wait timeout exceeded" in error_msg:
+                self.log(logging.ERROR, f"Lock timeout error: {error_msg}")
+                raise OperationalError(error_msg)
+            self.log(logging.ERROR, f"Operational error: {error_msg}")
+            raise OperationalError(error_msg)
+        elif isinstance(error, MySQLError):
+            self.log(logging.ERROR, f"MySQL error: {error_msg}")
+            raise DatabaseError(error_msg)
+        else:
+            self.log(logging.ERROR, f"Unexpected error: {error_msg}")
+            raise error
 
 
 class MySQLTriggerMixin:
