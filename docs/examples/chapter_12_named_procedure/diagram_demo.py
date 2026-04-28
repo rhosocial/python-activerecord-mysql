@@ -95,7 +95,7 @@ def demo_instance_diagram():
     mock_dialect.format.return_value = ("SELECT 1", ())
 
     runner = ProcedureRunner(OrderWorkflowProcedure, mock_backend)
-    result = runner.run(mock_dialect, mock_backend, order_id=1, user_id=1)
+    result = runner.run(mock_backend, order_id=1, user_id=1)
 
     print("=" * 60)
     print("实例流程图(成功)")

@@ -56,7 +56,7 @@ backend = MySQLBackend(config)
 dialect = backend.get_dialect()
 
 runner = ProcedureRunner(OrderProcessingProcedure, backend)
-result = runner.run(dialect, backend, order_id=1, user_id=1, amount=100.0)
+result = runner.run(backend, order_id=1, user_id=1, amount=100.0)
 
 # 生成实例图
 print(result.diagram("flowchart"))
