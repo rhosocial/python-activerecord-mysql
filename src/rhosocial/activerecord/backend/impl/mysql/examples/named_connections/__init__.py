@@ -9,5 +9,7 @@ Examples:
     >>> config = local_dev()
 """
 
+__all__ = ["local_dev", "prod_db", "prod_db_ssl"]
+
 from rhosocial.activerecord.backend.impl.mysql.examples.named_connections.development import local_dev
 from rhosocial.activerecord.backend.impl.mysql.examples.named_connections.production import prod_db, prod_db_ssl

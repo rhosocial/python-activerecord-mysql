@@ -9,7 +9,6 @@ import argparse
 import inspect
 import json
 import logging
-import sys
 from typing import Any, Dict, List, Tuple
 
 from rhosocial.activerecord.backend.dialect.protocols import (
