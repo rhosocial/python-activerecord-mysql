@@ -212,3 +212,4 @@ tests/config/mysql_scenarios.yml
 # Claude Code temporary files (local only)
 .claude/tmp/
 .claude/plans/
+.claude/plan/

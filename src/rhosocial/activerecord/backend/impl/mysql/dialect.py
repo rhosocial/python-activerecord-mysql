@@ -463,6 +463,26 @@ class MySQLDialect(
         escaped = identifier.replace('`', '``')
         return f"`{escaped}`"
 
+    def format_column(self, name: str, table: Optional[str] = None,
+                      alias: Optional[str] = None,
+                      schema_name: Optional[str] = None) -> Tuple[str, Tuple]:
+        """Format column reference for MySQL.
+
+        MySQL uses database-qualified references (db.table.column) rather
+        than schema-qualified ones, so schema_name is silently ignored
+        here. Database qualification is handled separately through
+        cross-database query support.
+        """
+        if table:
+            col_sql = f"{self.format_identifier(table)}.{self.format_identifier(name)}"
+        else:
+            col_sql = self.format_identifier(name)
+
+        if alias:
+            col_sql = f"{col_sql} AS {self.format_identifier(alias)}"
+
+        return col_sql, ()
+
     def format_limit_offset(self, limit: Optional[int] = None,
                             offset: Optional[int] = None) -> Tuple[Optional[str], List[Any]]:
         """
