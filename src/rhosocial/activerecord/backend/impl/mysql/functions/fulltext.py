@@ -7,7 +7,7 @@ Functions: match_against
 
 from typing import Union, List, Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core, operators
+from rhosocial.activerecord.backend.expression import bases
 
 if TYPE_CHECKING:  # pragma: no cover
     from .dialect import MySQLDialect
@@ -15,10 +15,10 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def match_against(
     dialect: "MySQLDialect",
-    columns: Union[str, List[str], "bases.BaseExpression"],
+    columns: Union[str, List[str]],
     search_string: str,
     mode: Optional[str] = None,
-) -> "operators.RawSQLExpression":
+) -> "bases.BaseExpression":
     """
     Creates a MATCH ... AGAINST expression for full-text search.
 
@@ -34,31 +34,23 @@ def match_against(
         mode: Search mode - "NATURAL_LANGUAGE", "BOOLEAN", or "QUERY_EXPANSION"
 
     Returns:
-        A RawSQLExpression instance representing MATCH ... AGAINST
+        A MySQLMatchAgainstExpression instance representing MATCH ... AGAINST
 
     Version: MySQL 5.6+ (with parser option in 5.7+)
     """
-    if isinstance(columns, bases.BaseExpression):
-        cols_sql, cols_params = columns.to_sql()
-    elif isinstance(columns, list):
-        cols_sql = ", ".join(dialect.format_identifier(c) for c in columns)
-    else:
-        cols_sql = dialect.format_identifier(columns)
+    from rhosocial.activerecord.backend.impl.mysql.expression.match_against import (
+        MySQLMatchAgainstExpression,
+    )
 
-    search_expr = core.Literal(dialect, search_string)
-    search_sql, search_params = search_expr.to_sql()
+    if isinstance(columns, str):
+        columns = [columns]
 
-    if mode is None or mode.upper() == "NATURAL_LANGUAGE":
-        mode_str = "IN NATURAL LANGUAGE MODE"
-    elif mode.upper() == "BOOLEAN":
-        mode_str = "IN BOOLEAN MODE"
-    elif mode.upper() == "QUERY_EXPANSION":
-        mode_str = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
-    else:
-        mode_str = ""
-
-    sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
-    return operators.RawSQLExpression(dialect, sql, search_params)
+    return MySQLMatchAgainstExpression(
+        dialect,
+        columns=columns,
+        search_string=search_string,
+        mode=mode,
+    )
 
 
 __all__ = [

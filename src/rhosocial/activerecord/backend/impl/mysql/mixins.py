@@ -656,6 +656,10 @@ class MySQLTriggerMixin:
     - Single event per trigger
     """
 
+    def supports_trigger(self) -> bool:
+        """MySQL supports triggers since 5.0.2."""
+        return self.version >= (5, 0, 2)
+
     def supports_instead_of_trigger(self) -> bool:
         """MySQL does NOT support INSTEAD OF triggers."""
         return False
@@ -1096,6 +1100,18 @@ class MySQLJSONFunctionMixin:
         'JSON_MERGE_PATCH': (8, 0, 3),
     }
 
+    def supports_json_type(self) -> bool:
+        """MySQL supports JSON data type since 5.7.8."""
+        return self.version >= (5, 7, 8)
+
+    def supports_json_merge_patch(self) -> bool:
+        """MySQL supports JSON_MERGE_PATCH since 8.0.3."""
+        return self.version >= (8, 0, 3)
+
+    def supports_json_table(self) -> bool:
+        """MySQL supports JSON_TABLE since 8.0.4."""
+        return self.version >= (8, 0, 4)
+
     def supports_json_function(self, function_name: str) -> bool:
         """Check if specific JSON function is supported."""
         if function_name in self._JSON_FUNCTION_VERSIONS:
@@ -1217,6 +1233,60 @@ class MySQLJSONFunctionMixin:
             return f"JSON_SEARCH({json_doc}, {one_or_all}, %s, NULL, %s)", (search_str, path)
         return f"JSON_SEARCH({json_doc}, {one_or_all}, %s)", (search_str,)
 
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Format JSON_TABLE expression."""
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["JSON_TABLE("]
+        parts.append(expr.json_doc)
+        parts.append(",")
+        parts.append(f"'{expr.path}'")
+        parts.append(" COLUMNS (")
+
+        column_parts = []
+        for col in expr.columns:
+            if col.ordinality:
+                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
+            elif col.exists:
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
+                )
+            else:
+                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                if col.path:
+                    col_def += f" PATH '{col.path}'"
+                if col.error_handling:
+                    if col.error_handling.upper() == 'DEFAULT':
+                        col_def += f" DEFAULT {col.default_value} ON ERROR"
+                    else:
+                        col_def += f" {col.error_handling.upper()} ON ERROR"
+                column_parts.append(col_def)
+
+        for nested in expr.nested_paths:
+            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            nested_cols = []
+            for col in nested.columns:
+                if col.ordinality:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
+                    )
+                else:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
+                    )
+            nested_def += ", ".join(nested_cols) + ")"
+            if nested.alias:
+                nested_def = f"{nested.alias} AS " + nested_def
+            column_parts.append(nested_def)
+
+        parts.append(", ".join(column_parts))
+        parts.append("))")
+
+        if expr.alias:
+            parts.append(f" AS {expr.alias}")
+
+        return "".join(parts), ()
+
 
 class MySQLSpatialMixin:
     """MySQL spatial data type implementation.
@@ -1254,6 +1324,26 @@ class MySQLSpatialMixin:
     def supports_geojson(self) -> bool:
         """Whether GeoJSON functions are supported."""
         return self.version >= (5, 7, 5)
+
+    def supports_geometry_type(self) -> bool:
+        """Whether GEOMETRY type is supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_point_type(self) -> bool:
+        """Whether POINT type is supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_curve_type(self) -> bool:
+        """Whether curve types (LINESTRING, MULTILINESTRING) are supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_surface_type(self) -> bool:
+        """Whether surface types (POLYGON, MULTIPOLYGON) are supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_geometry_collection_type(self) -> bool:
+        """Whether GEOMETRYCOLLECTION is supported."""
+        return self.version >= (5, 7, 0)
 
     def format_spatial_literal(
         self,
@@ -1531,10 +1621,6 @@ class MySQLDMLOperationMixin:
         """Whether LOAD DATA INFILE is supported."""
         return True
 
-    def supports_json_table(self) -> bool:
-        """Whether JSON_TABLE is supported (MySQL 8.0.4+)."""
-        return self.version >= (8, 0, 4)
-
     def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement."""
         expr.validate(strict=self.strict_validation)
@@ -1591,60 +1677,6 @@ class MySQLDMLOperationMixin:
 
         return " ".join(parts), ()
 
-    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
-        """Format JSON_TABLE expression."""
-        expr.validate(strict=self.strict_validation)
-
-        parts = ["JSON_TABLE("]
-        parts.append(expr.json_doc)
-        parts.append(",")
-        parts.append(f"'{expr.path}'")
-        parts.append(" COLUMNS (")
-
-        column_parts = []
-        for col in expr.columns:
-            if col.ordinality:
-                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
-            elif col.exists:
-                column_parts.append(
-                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
-                )
-            else:
-                col_def = f"{self.format_identifier(col.name)} {col.type}"
-                if col.path:
-                    col_def += f" PATH '{col.path}'"
-                if col.error_handling:
-                    if col.error_handling.upper() == 'DEFAULT':
-                        col_def += f" DEFAULT {col.default_value} ON ERROR"
-                    else:
-                        col_def += f" {col.error_handling.upper()} ON ERROR"
-                column_parts.append(col_def)
-
-        for nested in expr.nested_paths:
-            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
-            nested_cols = []
-            for col in nested.columns:
-                if col.ordinality:
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
-                    )
-                else:
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
-                    )
-            nested_def += ", ".join(nested_cols) + ")"
-            if nested.alias:
-                nested_def = f"{nested.alias} AS " + nested_def
-            column_parts.append(nested_def)
-
-        parts.append(", ".join(column_parts))
-        parts.append("))")
-
-        if expr.alias:
-            parts.append(f" AS {expr.alias}")
-
-        return "".join(parts), ()
-
     def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
         """Format ON DUPLICATE KEY UPDATE for MySQL.
 
@@ -1696,6 +1728,30 @@ class MySQLFullTextSearchMixin:
     def supports_fulltext_query_expansion(self) -> bool:
         """MySQL supports QUERY EXPANSION."""
         return True
+
+    def format_fulltext_index_options(
+        self,
+        index_name: str,
+        columns: List[str],
+        index_type: Optional[str] = None,
+        parser_name: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format FULLTEXT index options for CREATE TABLE / ALTER TABLE.
+
+        Args:
+            index_name: Index name
+            columns: Indexed columns
+            index_type: Index type (ignored for FULLTEXT)
+            parser_name: Parser name for full-text search
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        col_parts = [self.format_identifier(c) for c in columns]
+        sql = f"FULLTEXT {self.format_identifier(index_name)} ({', '.join(col_parts)})"
+        if parser_name:
+            sql += f" WITH PARSER {self.format_identifier(parser_name)}"
+        return sql, ()
 
     def format_match_against(
         self,
