@@ -7,6 +7,13 @@ SQL is actually executed against a MySQL database.
 """
 import pytest
 
+from rhosocial.activerecord.backend.dialect.protocols import JSONSupport
+
+
+def requires_json_table():
+    """Decorator for tests requiring JSON_TABLE support (MySQL 8.0.4+)."""
+    return pytest.mark.requires_protocol((JSONSupport, 'supports_json_table'))
+
 
 class TestMySQLDialectSecurityIntegration:
     """Integration tests for MySQL dialect security."""
@@ -89,6 +96,7 @@ class TestMySQLDialectSecurityIntegration:
             dialect.format_column_definition(col_def)
 
 
+@requires_json_table()
 class TestMySQLJSONTableSecurityIntegration:
     """Integration tests for JSON_TABLE security."""
 
