@@ -840,7 +840,8 @@ class MySQLTableMixin:
                 parts.append(storage_sql)
 
         if 'comment' in expr.dialect_options:
-            parts.append(f"COMMENT '{expr.dialect_options['comment']}'")
+            escaped_comment = self._escape_sql_string(expr.dialect_options['comment'])
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), tuple(all_params)
 
@@ -889,7 +890,7 @@ class MySQLTableMixin:
                         constraint_parts.append(f"DEFAULT {default_sql}")
                         params.extend(default_params)
                     elif isinstance(constraint.default_value, str):
-                        escaped = constraint.default_value.replace("'", "''")
+                        escaped = self._escape_sql_string(constraint.default_value)
                         constraint_parts.append(f"DEFAULT '{escaped}'")
                     else:
                         constraint_parts.append(f"DEFAULT {constraint.default_value}")
@@ -903,7 +904,8 @@ class MySQLTableMixin:
             parts.append(' '.join(constraint_parts))
 
         if col_def.comment:
-            parts.append(f"COMMENT '{col_def.comment}'")
+            escaped_comment = self._escape_sql_string(col_def.comment)
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), params
 

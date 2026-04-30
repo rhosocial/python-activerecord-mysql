@@ -764,7 +764,7 @@ class MySQLDialect(
                         constraint_parts.append(f"DEFAULT {default_sql}")
                         params.extend(default_params)
                     elif isinstance(constraint.default_value, str):
-                        escaped = constraint.default_value.replace("'", "''")
+                        escaped = self._escape_sql_string(constraint.default_value)
                         constraint_parts.append(f"DEFAULT '{escaped}'")
                     else:
                         constraint_parts.append(f"DEFAULT {constraint.default_value}")
@@ -780,7 +780,8 @@ class MySQLDialect(
 
         # Add column comment (MySQL-specific)
         if col_def.comment:
-            parts.append(f"COMMENT '{col_def.comment}'")
+            escaped_comment = self._escape_sql_string(col_def.comment)
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), params
 
@@ -1584,9 +1585,17 @@ class MySQLDialect(
         expr.validate(strict=self.strict_validation)
 
         parts = ["JSON_TABLE("]
-        parts.append(expr.json_doc)
+
+        # Handle json_doc: if it's a string literal, escape and quote it;
+        # if it's an expression (SQL fragment), use as-is.
+        if isinstance(expr.json_doc, str):
+            parts.append(f"'{self._escape_sql_string(expr.json_doc)}'")
+        else:
+            parts.append(str(expr.json_doc))
+
         parts.append(",")
-        parts.append(f"'{expr.path}'")
+        escaped_path = self._escape_sql_string(expr.path)
+        parts.append(f"'{escaped_path}'")
         parts.append(" COLUMNS (")
 
         # Format columns
@@ -1595,11 +1604,15 @@ class MySQLDialect(
             if col.ordinality:
                 column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
             elif col.exists:
-                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'")
+                escaped_col_path = self._escape_sql_string(col.path) if col.path else ""
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'"
+                )
             else:
                 col_def = f"{self.format_identifier(col.name)} {col.type}"
                 if col.path:
-                    col_def += f" PATH '{col.path}'"
+                    escaped_col_path = self._escape_sql_string(col.path)
+                    col_def += f" PATH '{escaped_col_path}'"
                 if col.error_handling:
                     if col.error_handling.upper() == 'DEFAULT':
                         col_def += f" DEFAULT {col.default_value} ON ERROR"
@@ -1609,23 +1622,27 @@ class MySQLDialect(
 
         # Format nested paths
         for nested in expr.nested_paths:
-            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            escaped_nested_path = self._escape_sql_string(nested.path)
+            nested_def = f"NESTED PATH '{escaped_nested_path}' COLUMNS ("
             nested_cols = []
             for col in nested.columns:
                 if col.ordinality:
                     nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
                 else:
-                    nested_cols.append(f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'")
+                    escaped_nested_col_path = self._escape_sql_string(col.path) if col.path else ""
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} {col.type} PATH '{escaped_nested_col_path}'"
+                    )
             nested_def += ", ".join(nested_cols) + ")"
             if nested.alias:
-                nested_def = f"{nested.alias} AS " + nested_def
+                nested_def = f"{self.format_identifier(nested.alias)} AS " + nested_def
             column_parts.append(nested_def)
 
         parts.append(", ".join(column_parts))
         parts.append("))")
 
         if expr.alias:
-            parts.append(f" AS {expr.alias}")
+            parts.append(f" AS {self.format_identifier(expr.alias)}")
 
         return "".join(parts), ()
 
