@@ -131,7 +131,8 @@ class TestMySQLJSONTable:
         )
 
         sql, params = expr.to_sql()
-        assert "AS my_table" in sql
+        # MySQL uses backticks for identifier quoting
+        assert "`my_table`" in sql
 
     def test_json_table_error_handling_null(self, mysql_backend):
         """Test JSON_TABLE with NULL ON ERROR."""
