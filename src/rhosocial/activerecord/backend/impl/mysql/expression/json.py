@@ -3,10 +3,10 @@
 MySQL-specific JSON expression functions.
 
 This module provides expression classes for MySQL JSON functions:
-- JSONExtractExpression
-- JSONObjectExpression
-- JSONArrayExpression
-- JSONContainsExpression
+- MySQLJSONExtractExpression
+- MySQLJSONObjectExpression
+- MySQLJSONArrayExpression
+- MySQLJSONContainsExpression
 """
 
 from typing import TYPE_CHECKING, Any, List, Optional
@@ -21,13 +21,13 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class JSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_EXTRACT expression.
     
     Extracts a value from a JSON document using a path.
     
     Example:
-        >>> expr = JSONExtractExpression(dialect, 'data', '$.name')
+        >>> expr = MySQLJSONExtractExpression(dialect, 'data', '$.name')
     """
 
     def __init__(
@@ -48,15 +48,15 @@ class JSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpression)
         return sql, params
 
 
-class JSONObjectExpression(AliasableMixin, SQLValueExpression):
+class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
     """MySQL JSON_OBJECT expression.
     
     Creates a JSON object from key-value pairs.
     
     Example:
-        >>> expr = JSONObjectExpression(dialect, {'name': 'Alice', 'age': 30})
+        >>> expr = MySQLJSONObjectExpression(dialect, {'name': 'Alice', 'age': 30})
         OR
-        >>> expr = JSONObjectExpression(dialect, ('name', 'Alice'), ('age', 30))
+        >>> expr = MySQLJSONObjectExpression(dialect, ('name', 'Alice'), ('age', 30))
     """
 
     def __init__(
@@ -90,15 +90,15 @@ class JSONObjectExpression(AliasableMixin, SQLValueExpression):
         return sql, params
 
 
-class JSONArrayExpression(AliasableMixin, SQLValueExpression):
+class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
     """MySQL JSON_ARRAY expression.
     
     Creates a JSON array from values.
     
     Example:
-        >>> expr = JSONArrayExpression(dialect, [1, 2, 3])
+        >>> expr = MySQLJSONArrayExpression(dialect, [1, 2, 3])
         OR
-        >>> expr = JSONArrayExpression(dialect, 1, 2, 3)
+        >>> expr = MySQLJSONArrayExpression(dialect, 1, 2, 3)
     """
 
     def __init__(
@@ -125,13 +125,13 @@ class JSONArrayExpression(AliasableMixin, SQLValueExpression):
         return sql, params
 
 
-class JSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_CONTAINS expression.
     
     Checks if a JSON document contains a specific value.
     
     Example:
-        >>> expr = JSONContainsExpression(dialect, 'data', 'urgent', '$.tags')
+        >>> expr = MySQLJSONContainsExpression(dialect, 'data', 'urgent', '$.tags')
     """
 
     def __init__(
@@ -157,8 +157,8 @@ class JSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression
 
 
 __all__ = [
-    "JSONExtractExpression",
-    "JSONObjectExpression",
-    "JSONArrayExpression",
-    "JSONContainsExpression",
+    "MySQLJSONExtractExpression",
+    "MySQLJSONObjectExpression",
+    "MySQLJSONArrayExpression",
+    "MySQLJSONContainsExpression",
 ]

@@ -12,13 +12,11 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     CTESupport,
     FilterClauseSupport,
     WindowFunctionSupport,
-    JSONSupport,
     ReturningSupport,
     AdvancedGroupingSupport,
     ArraySupport,
     ExplainSupport,
     GraphSupport,
-    LockingSupport,
     MergeSupport,
     OrderedSetAggregationSupport,
     QualifyClauseSupport,
@@ -31,7 +29,6 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     SchemaSupport,
     IndexSupport,
     SequenceSupport,
-    TableSupport,
     ConstraintSupport,
     IntrospectionSupport,
     # Transaction Control Protocol
@@ -148,16 +145,18 @@ class MySQLDialect(
     MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
     IntrospectionMixin,
     # Protocols for type checking
+    # Note: MySQL-specific protocols extend generic protocols,
+    # so only MySQL-specific protocols are needed for isinstance checks
     CTESupport,
     FilterClauseSupport,
     WindowFunctionSupport,
-    JSONSupport,
+    MySQLJSONFunctionSupport,  # extends JSONSupport
     ReturningSupport,
     AdvancedGroupingSupport,
     ArraySupport,
     ExplainSupport,
     GraphSupport,
-    LockingSupport,
+    MySQLLockingSupport,  # extends LockingSupport
     MergeSupport,
     OrderedSetAggregationSupport,
     QualifyClauseSupport,
@@ -170,22 +169,19 @@ class MySQLDialect(
     SchemaSupport,
     IndexSupport,
     SequenceSupport,
-    TableSupport,
+    MySQLTableSupport,  # extends TableSupport
     ConstraintSupport,
     IntrospectionSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
     # MySQL-specific protocols
     MySQLTriggerSupport,
-    MySQLTableSupport,
     MySQLSetTypeSupport,
-    MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
-    MySQLDMLOperationSupport,  # MySQL-specific DML operations (INSERT IGNORE, REPLACE INTO)
     MySQLFullTextSearchSupport,  # MySQL full-text search
-    MySQLLockingSupport,  # MySQL FOR SHARE and NOWAIT support
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
+    MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
 ):
@@ -466,6 +462,26 @@ class MySQLDialect(
         # Escape any internal backticks by doubling them
         escaped = identifier.replace('`', '``')
         return f"`{escaped}`"
+
+    def format_column(self, name: str, table: Optional[str] = None,
+                      alias: Optional[str] = None,
+                      schema_name: Optional[str] = None) -> Tuple[str, Tuple]:
+        """Format column reference for MySQL.
+
+        MySQL uses database-qualified references (db.table.column) rather
+        than schema-qualified ones, so schema_name is silently ignored
+        here. Database qualification is handled separately through
+        cross-database query support.
+        """
+        if table:
+            col_sql = f"{self.format_identifier(table)}.{self.format_identifier(name)}"
+        else:
+            col_sql = self.format_identifier(name)
+
+        if alias:
+            col_sql = f"{col_sql} AS {self.format_identifier(alias)}"
+
+        return col_sql, ()
 
     def format_limit_offset(self, limit: Optional[int] = None,
                             offset: Optional[int] = None) -> Tuple[Optional[str], List[Any]]:
@@ -748,7 +764,7 @@ class MySQLDialect(
                         constraint_parts.append(f"DEFAULT {default_sql}")
                         params.extend(default_params)
                     elif isinstance(constraint.default_value, str):
-                        escaped = constraint.default_value.replace("'", "''")
+                        escaped = self._escape_sql_string(constraint.default_value)
                         constraint_parts.append(f"DEFAULT '{escaped}'")
                     else:
                         constraint_parts.append(f"DEFAULT {constraint.default_value}")
@@ -764,7 +780,8 @@ class MySQLDialect(
 
         # Add column comment (MySQL-specific)
         if col_def.comment:
-            parts.append(f"COMMENT '{col_def.comment}'")
+            escaped_comment = self._escape_sql_string(col_def.comment)
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), params
 
@@ -1438,7 +1455,7 @@ class MySQLDialect(
         """Format LOAD DATA INFILE statement.
 
         Args:
-            expr: LoadDataExpression instance
+            expr: MySQLLoadDataExpression instance
 
         Returns:
             Tuple of (SQL string, empty tuple - no parameters for LOAD DATA)
@@ -1560,7 +1577,7 @@ class MySQLDialect(
         """Format JSON_TABLE expression.
 
         Args:
-            expr: JSONTableExpression instance
+            expr: MySQLJSONTableExpression instance
 
         Returns:
             Tuple of (SQL string, empty tuple)
@@ -1568,9 +1585,17 @@ class MySQLDialect(
         expr.validate(strict=self.strict_validation)
 
         parts = ["JSON_TABLE("]
-        parts.append(expr.json_doc)
+
+        # Handle json_doc: if it's a string literal, escape and quote it;
+        # if it's an expression (SQL fragment), use as-is.
+        if isinstance(expr.json_doc, str):
+            parts.append(f"'{self._escape_sql_string(expr.json_doc)}'")
+        else:
+            parts.append(str(expr.json_doc))
+
         parts.append(",")
-        parts.append(f"'{expr.path}'")
+        escaped_path = self._escape_sql_string(expr.path)
+        parts.append(f"'{escaped_path}'")
         parts.append(" COLUMNS (")
 
         # Format columns
@@ -1579,11 +1604,15 @@ class MySQLDialect(
             if col.ordinality:
                 column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
             elif col.exists:
-                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'")
+                escaped_col_path = self._escape_sql_string(col.path) if col.path else ""
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'"
+                )
             else:
                 col_def = f"{self.format_identifier(col.name)} {col.type}"
                 if col.path:
-                    col_def += f" PATH '{col.path}'"
+                    escaped_col_path = self._escape_sql_string(col.path)
+                    col_def += f" PATH '{escaped_col_path}'"
                 if col.error_handling:
                     if col.error_handling.upper() == 'DEFAULT':
                         col_def += f" DEFAULT {col.default_value} ON ERROR"
@@ -1593,23 +1622,27 @@ class MySQLDialect(
 
         # Format nested paths
         for nested in expr.nested_paths:
-            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            escaped_nested_path = self._escape_sql_string(nested.path)
+            nested_def = f"NESTED PATH '{escaped_nested_path}' COLUMNS ("
             nested_cols = []
             for col in nested.columns:
                 if col.ordinality:
                     nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
                 else:
-                    nested_cols.append(f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'")
+                    escaped_nested_col_path = self._escape_sql_string(col.path) if col.path else ""
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} {col.type} PATH '{escaped_nested_col_path}'"
+                    )
             nested_def += ", ".join(nested_cols) + ")"
             if nested.alias:
-                nested_def = f"{nested.alias} AS " + nested_def
+                nested_def = f"{self.format_identifier(nested.alias)} AS " + nested_def
             column_parts.append(nested_def)
 
         parts.append(", ".join(column_parts))
         parts.append("))")
 
         if expr.alias:
-            parts.append(f" AS {expr.alias}")
+            parts.append(f" AS {self.format_identifier(expr.alias)}")
 
         return "".join(parts), ()
 

@@ -21,7 +21,7 @@ dialect = backend.dialect
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression, MatchAgainstMode
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode
 from rhosocial.activerecord.backend.expression.core import TableExpression
 
 # Create a full-text search expression
@@ -29,7 +29,7 @@ from rhosocial.activerecord.backend.expression.core import TableExpression
 articles = TableExpression(dialect, 'articles')
 
 # Natural language search (default)
-match_expr = MatchAgainstExpression(
+match_expr = MySQLMatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='database',
@@ -41,7 +41,7 @@ print(f"Natural Language: {sql}")
 print(f"Params: {params}")
 
 # Boolean mode (allows wildcards, operators)
-match_boolean = MatchAgainstExpression(
+match_boolean = MySQLMatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='+mysql -oracle',
@@ -52,7 +52,7 @@ sql, params = match_boolean.to_sql()
 print(f"Boolean: {sql}")
 
 # With query expansion
-match_expanded = MatchAgainstExpression(
+match_expanded = MySQLMatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='database',

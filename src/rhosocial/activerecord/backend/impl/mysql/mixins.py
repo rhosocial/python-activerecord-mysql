@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
-from rhosocial.activerecord.backend.errors import TransactionError
+from rhosocial.activerecord.backend.protocols import ConcurrencyHint
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 
 if TYPE_CHECKING:
@@ -359,9 +359,28 @@ class MySQLTransactionMixin:
         if level is not None and level not in self._ISOLATION_LEVELS:
             error_msg = f"Unsupported isolation level: {level}"
             self.log(logging.ERROR, error_msg)
-            raise TransactionError(error_msg)
+            raise IsolationLevelError(error_msg)
 
         self._isolation_level = level
+        self.log(logging.INFO, f"Isolation level set to {level}")
+
+    def _build_set_isolation_sql(self, level: IsolationLevel) -> Tuple[str, tuple]:
+        """Build SET TRANSACTION ISOLATION LEVEL SQL statement.
+
+        Args:
+            level: The isolation level to set.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Raises:
+            IsolationLevelError: If the isolation level is not supported.
+        """
+        from rhosocial.activerecord.backend.transaction import IsolationLevelError
+        level_str = self._ISOLATION_LEVELS.get(level)
+        if not level_str:
+            raise IsolationLevelError(f"Unsupported isolation level: {level}")
+        return f"SET TRANSACTION ISOLATION LEVEL {level_str}", ()
 
 
 class MySQLBackendMixin:
@@ -426,6 +445,19 @@ class MySQLBackendMixin:
     def transaction_manager(self):
         """Get the MySQL transaction manager."""
         return self._transaction_manager
+
+    @property
+    def threadsafety(self) -> int:
+        """Return driver threadsafety level.
+
+        MySQL connections cannot be shared across threads safely without proper locking.
+        The mysql.connector module reports threadsafety=1 (connections are thread-local).
+
+        Returns:
+            1 (connections cannot be safely shared across threads)
+        """
+        import mysql.connector
+        return mysql.connector.threadsafety
 
     def requires_manual_commit(self) -> bool:
         """Check if manual commit is required for this database."""
@@ -524,6 +556,94 @@ class MySQLBackendMixin:
             # Fallback logging
             print(f"[{logging.getLevelName(level)}] {message}")
 
+    # MySQL connection error codes that indicate connection loss
+    # Reference: https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
+    CONNECTION_ERROR_CODES = {
+        2003,  # CR_CONN_HOST_ERROR - Can't connect to MySQL server
+        2006,  # CR_SERVER_GONE_ERROR - MySQL server has gone away
+        2013,  # CR_SERVER_LOST - Lost connection to MySQL server during query
+        2048,  # CR_CONN_UNKNOW_PROTOCOL - Invalid connection protocol
+        2055,  # CR_SERVER_LOST_EXTENDED - Lost connection to MySQL server
+    }
+
+    def _is_connection_error(self, error: Exception) -> bool:
+        """Check if an error indicates a connection loss.
+
+        This method identifies errors that result from lost or invalid connections,
+        which should trigger automatic reconnection attempts.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error indicates a connection problem, False otherwise
+        """
+        # Check for MySQL error codes
+        if hasattr(error, 'errno'):
+            if error.errno in self.CONNECTION_ERROR_CODES:
+                return True
+
+        # Fallback to string matching for error messages
+        error_str = str(error).lower()
+        connection_error_patterns = [
+            'server has gone away',
+            'lost connection',
+            "can't connect to mysql server",
+            'connection refused',
+            'broken pipe',
+            'connection reset',
+        ]
+        return any(pattern in error_str for pattern in connection_error_patterns)
+
+    def _handle_error(self, error: Exception) -> None:
+        """Handle MySQL-specific errors.
+
+        This is a non-I/O method that classifies MySQL errors and re-raises
+        them as framework-specific exceptions. Shared between sync and async backends.
+        """
+        from mysql.connector.errors import (
+            DatabaseError as MySQLDatabaseError,
+            Error as MySQLError,
+            IntegrityError as MySQLIntegrityError,
+            OperationalError as MySQLOperationalError,
+        )
+        from rhosocial.activerecord.backend.errors import (
+            DatabaseError,
+            DeadlockError,
+            IntegrityError,
+            OperationalError,
+        )
+
+        error_msg = str(error)
+
+        if isinstance(error, MySQLIntegrityError):
+            if "Duplicate entry" in error_msg:
+                self.log(logging.ERROR, f"Unique constraint violation: {error_msg}")
+                raise IntegrityError(f"Unique constraint violation: {error_msg}")
+            elif "Cannot delete or update" in error_msg or "a foreign key constraint fails" in error_msg:
+                self.log(logging.ERROR, f"Foreign key constraint violation: {error_msg}")
+                raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
+            self.log(logging.ERROR, f"Integrity error: {error_msg}")
+            raise IntegrityError(error_msg)
+        elif isinstance(error, MySQLDatabaseError):
+            if "Deadlock found" in error_msg:
+                self.log(logging.ERROR, f"Deadlock error: {error_msg}")
+                raise DeadlockError(error_msg)
+            self.log(logging.ERROR, f"Database error: {error_msg}")
+            raise DatabaseError(error_msg)
+        elif isinstance(error, MySQLOperationalError):
+            if "Lock wait timeout exceeded" in error_msg:
+                self.log(logging.ERROR, f"Lock timeout error: {error_msg}")
+                raise OperationalError(error_msg)
+            self.log(logging.ERROR, f"Operational error: {error_msg}")
+            raise OperationalError(error_msg)
+        elif isinstance(error, MySQLError):
+            self.log(logging.ERROR, f"MySQL error: {error_msg}")
+            raise DatabaseError(error_msg)
+        else:
+            self.log(logging.ERROR, f"Unexpected error: {error_msg}")
+            raise error
+
 
 class MySQLTriggerMixin:
     """MySQL trigger DDL implementation.
@@ -535,6 +655,10 @@ class MySQLTriggerMixin:
     - No REFERENCING clause
     - Single event per trigger
     """
+
+    def supports_trigger(self) -> bool:
+        """MySQL supports triggers since 5.0.2."""
+        return self.version >= (5, 0, 2)
 
     def supports_instead_of_trigger(self) -> bool:
         """MySQL does NOT support INSTEAD OF triggers."""
@@ -716,7 +840,8 @@ class MySQLTableMixin:
                 parts.append(storage_sql)
 
         if 'comment' in expr.dialect_options:
-            parts.append(f"COMMENT '{expr.dialect_options['comment']}'")
+            escaped_comment = self._escape_sql_string(expr.dialect_options['comment'])
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), tuple(all_params)
 
@@ -765,7 +890,7 @@ class MySQLTableMixin:
                         constraint_parts.append(f"DEFAULT {default_sql}")
                         params.extend(default_params)
                     elif isinstance(constraint.default_value, str):
-                        escaped = constraint.default_value.replace("'", "''")
+                        escaped = self._escape_sql_string(constraint.default_value)
                         constraint_parts.append(f"DEFAULT '{escaped}'")
                     else:
                         constraint_parts.append(f"DEFAULT {constraint.default_value}")
@@ -779,7 +904,8 @@ class MySQLTableMixin:
             parts.append(' '.join(constraint_parts))
 
         if col_def.comment:
-            parts.append(f"COMMENT '{col_def.comment}'")
+            escaped_comment = self._escape_sql_string(col_def.comment)
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), params
 
@@ -976,6 +1102,18 @@ class MySQLJSONFunctionMixin:
         'JSON_MERGE_PATCH': (8, 0, 3),
     }
 
+    def supports_json_type(self) -> bool:
+        """MySQL supports JSON data type since 5.7.8."""
+        return self.version >= (5, 7, 8)
+
+    def supports_json_merge_patch(self) -> bool:
+        """MySQL supports JSON_MERGE_PATCH since 8.0.3."""
+        return self.version >= (8, 0, 3)
+
+    def supports_json_table(self) -> bool:
+        """MySQL supports JSON_TABLE since 8.0.4."""
+        return self.version >= (8, 0, 4)
+
     def supports_json_function(self, function_name: str) -> bool:
         """Check if specific JSON function is supported."""
         if function_name in self._JSON_FUNCTION_VERSIONS:
@@ -1097,6 +1235,60 @@ class MySQLJSONFunctionMixin:
             return f"JSON_SEARCH({json_doc}, {one_or_all}, %s, NULL, %s)", (search_str, path)
         return f"JSON_SEARCH({json_doc}, {one_or_all}, %s)", (search_str,)
 
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Format JSON_TABLE expression."""
+        expr.validate(strict=self.strict_validation)
+
+        parts = ["JSON_TABLE("]
+        parts.append(expr.json_doc)
+        parts.append(",")
+        parts.append(f"'{expr.path}'")
+        parts.append(" COLUMNS (")
+
+        column_parts = []
+        for col in expr.columns:
+            if col.ordinality:
+                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
+            elif col.exists:
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
+                )
+            else:
+                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                if col.path:
+                    col_def += f" PATH '{col.path}'"
+                if col.error_handling:
+                    if col.error_handling.upper() == 'DEFAULT':
+                        col_def += f" DEFAULT {col.default_value} ON ERROR"
+                    else:
+                        col_def += f" {col.error_handling.upper()} ON ERROR"
+                column_parts.append(col_def)
+
+        for nested in expr.nested_paths:
+            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
+            nested_cols = []
+            for col in nested.columns:
+                if col.ordinality:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
+                    )
+                else:
+                    nested_cols.append(
+                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
+                    )
+            nested_def += ", ".join(nested_cols) + ")"
+            if nested.alias:
+                nested_def = f"{nested.alias} AS " + nested_def
+            column_parts.append(nested_def)
+
+        parts.append(", ".join(column_parts))
+        parts.append("))")
+
+        if expr.alias:
+            parts.append(f" AS {expr.alias}")
+
+        return "".join(parts), ()
+
 
 class MySQLSpatialMixin:
     """MySQL spatial data type implementation.
@@ -1134,6 +1326,26 @@ class MySQLSpatialMixin:
     def supports_geojson(self) -> bool:
         """Whether GeoJSON functions are supported."""
         return self.version >= (5, 7, 5)
+
+    def supports_geometry_type(self) -> bool:
+        """Whether GEOMETRY type is supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_point_type(self) -> bool:
+        """Whether POINT type is supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_curve_type(self) -> bool:
+        """Whether curve types (LINESTRING, MULTILINESTRING) are supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_surface_type(self) -> bool:
+        """Whether surface types (POLYGON, MULTIPOLYGON) are supported."""
+        return self.version >= (5, 7, 0)
+
+    def supports_geometry_collection_type(self) -> bool:
+        """Whether GEOMETRYCOLLECTION is supported."""
+        return self.version >= (5, 7, 0)
 
     def format_spatial_literal(
         self,
@@ -1411,10 +1623,6 @@ class MySQLDMLOperationMixin:
         """Whether LOAD DATA INFILE is supported."""
         return True
 
-    def supports_json_table(self) -> bool:
-        """Whether JSON_TABLE is supported (MySQL 8.0.4+)."""
-        return self.version >= (8, 0, 4)
-
     def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement."""
         expr.validate(strict=self.strict_validation)
@@ -1471,60 +1679,6 @@ class MySQLDMLOperationMixin:
 
         return " ".join(parts), ()
 
-    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
-        """Format JSON_TABLE expression."""
-        expr.validate(strict=self.strict_validation)
-
-        parts = ["JSON_TABLE("]
-        parts.append(expr.json_doc)
-        parts.append(",")
-        parts.append(f"'{expr.path}'")
-        parts.append(" COLUMNS (")
-
-        column_parts = []
-        for col in expr.columns:
-            if col.ordinality:
-                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
-            elif col.exists:
-                column_parts.append(
-                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
-                )
-            else:
-                col_def = f"{self.format_identifier(col.name)} {col.type}"
-                if col.path:
-                    col_def += f" PATH '{col.path}'"
-                if col.error_handling:
-                    if col.error_handling.upper() == 'DEFAULT':
-                        col_def += f" DEFAULT {col.default_value} ON ERROR"
-                    else:
-                        col_def += f" {col.error_handling.upper()} ON ERROR"
-                column_parts.append(col_def)
-
-        for nested in expr.nested_paths:
-            nested_def = f"NESTED PATH '{nested.path}' COLUMNS ("
-            nested_cols = []
-            for col in nested.columns:
-                if col.ordinality:
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
-                    )
-                else:
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
-                    )
-            nested_def += ", ".join(nested_cols) + ")"
-            if nested.alias:
-                nested_def = f"{nested.alias} AS " + nested_def
-            column_parts.append(nested_def)
-
-        parts.append(", ".join(column_parts))
-        parts.append("))")
-
-        if expr.alias:
-            parts.append(f" AS {expr.alias}")
-
-        return "".join(parts), ()
-
     def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
         """Format ON DUPLICATE KEY UPDATE for MySQL.
 
@@ -1576,6 +1730,30 @@ class MySQLFullTextSearchMixin:
     def supports_fulltext_query_expansion(self) -> bool:
         """MySQL supports QUERY EXPANSION."""
         return True
+
+    def format_fulltext_index_options(
+        self,
+        index_name: str,
+        columns: List[str],
+        index_type: Optional[str] = None,
+        parser_name: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format FULLTEXT index options for CREATE TABLE / ALTER TABLE.
+
+        Args:
+            index_name: Index name
+            columns: Indexed columns
+            index_type: Index type (ignored for FULLTEXT)
+            parser_name: Parser name for full-text search
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        col_parts = [self.format_identifier(c) for c in columns]
+        sql = f"FULLTEXT {self.format_identifier(index_name)} ({', '.join(col_parts)})"
+        if parser_name:
+            sql += f" WITH PARSER {self.format_identifier(parser_name)}"
+        return sql, ()
 
     def format_match_against(
         self,
@@ -1630,7 +1808,7 @@ class MySQLLockingMixin:
         """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
         return self.version >= (8, 0, 0)
 
-    def format_mysql_for_update_clause(self, clause) -> Tuple[str, tuple]:
+    def format_for_update_clause(self, clause) -> Tuple[str, tuple]:
         """Format MySQL-specific FOR UPDATE clause.
 
         Handles MySQL-specific lock strengths (FOR SHARE)
@@ -1647,15 +1825,18 @@ class MySQLLockingMixin:
 
         all_params = []
 
+        # Handle both base ForUpdateClause (no strength) and MySQLForUpdateClause
+        strength = getattr(clause, 'strength', MySQLLockStrength.UPDATE)
+
         # Check version support for lock strength
-        if clause.strength == MySQLLockStrength.SHARE:
+        if strength == MySQLLockStrength.SHARE:
             if not self.supports_for_share():
                 raise UnsupportedFeatureError(
                     self.name, "FOR SHARE (requires MySQL 8.0+)"
                 )
 
         # Use the strength value directly (e.g., "FOR UPDATE", "FOR SHARE")
-        sql_parts = [clause.strength.value]
+        sql_parts = [strength.value]
 
         # Handle OF columns if specified
         if clause.of_columns:
@@ -1742,3 +1923,95 @@ class MySQLModifyColumnMixin:
         elif action.first:
             sql += " FIRST"
         return sql, col_params
+
+
+class MySQLConcurrencyMixin:
+    """Mixin providing MySQL-specific concurrency hint.
+
+    Fetches max_connections from MySQL server during connect and caches the value.
+    Returns min(max_connections, pool_size) as the concurrency limit.
+    """
+
+    _concurrency_hint: Optional[ConcurrencyHint] = None
+
+    def connect(self):
+        """Establish connection to MySQL and fetch concurrency hint."""
+        # Call parent connect first
+        super().connect()
+
+        # Fetch max_connections and cache hint
+        self._fetch_concurrency_hint()
+
+    def _fetch_concurrency_hint(self) -> None:
+        """Fetch max_connections from MySQL server and compute concurrency hint."""
+        try:
+            cursor = self._connection.cursor(dictionary=True)
+            cursor.execute("SHOW VARIABLES LIKE 'max_connections'")
+            row = cursor.fetchone()
+            cursor.close()
+
+            if row:
+                max_connections = int(row["Value"])
+                pool_size = getattr(self.config, "pool_size", 5) or 5
+                limit = min(max_connections, pool_size)
+                self._concurrency_hint = ConcurrencyHint(
+                    max_concurrency=limit,
+                    reason=f"min(max_connections={max_connections}, pool_size={pool_size})",
+                )
+                self.log(
+                    logging.DEBUG,
+                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",
+                )
+        except Exception as e:
+            self.log(logging.WARNING, f"Failed to fetch concurrency hint: {e}")
+            self._concurrency_hint = None
+
+    def get_concurrency_hint(self) -> Optional[ConcurrencyHint]:
+        """Get cached concurrency hint."""
+        return self._concurrency_hint
+
+
+class AsyncMySQLConcurrencyMixin:
+    """Async mixin providing MySQL-specific concurrency hint.
+
+    Fetches max_connections from MySQL server during connect and caches the value.
+    Returns min(max_connections, pool_size) as the concurrency limit.
+    """
+
+    _concurrency_hint: Optional[ConcurrencyHint] = None
+
+    async def connect(self):
+        """Establish connection to MySQL and fetch concurrency hint."""
+        # Call parent connect first
+        await super().connect()
+
+        # Fetch max_connections and cache hint
+        await self._fetch_concurrency_hint()
+
+    async def _fetch_concurrency_hint(self) -> None:
+        """Fetch max_connections from MySQL server and compute concurrency hint."""
+        try:
+            cursor = await self._connection.cursor(dictionary=True)
+            await cursor.execute("SHOW VARIABLES LIKE 'max_connections'")
+            row = await cursor.fetchone()
+            await cursor.close()
+
+            if row:
+                max_connections = int(row["Value"])
+                pool_size = getattr(self.config, "pool_size", 5) or 5
+                limit = min(max_connections, pool_size)
+                self._concurrency_hint = ConcurrencyHint(
+                    max_concurrency=limit,
+                    reason=f"min(max_connections={max_connections}, pool_size={pool_size})",
+                )
+                self.log(
+                    logging.DEBUG,
+                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",
+                )
+        except Exception as e:
+            self.log(logging.WARNING, f"Failed to fetch concurrency hint: {e}")
+            self._concurrency_hint = None
+
+    def get_concurrency_hint(self) -> Optional[ConcurrencyHint]:
+        """Get cached concurrency hint."""
+        return self._concurrency_hint

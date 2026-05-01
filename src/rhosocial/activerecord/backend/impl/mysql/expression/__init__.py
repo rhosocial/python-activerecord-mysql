@@ -16,48 +16,48 @@ Directory structure:
 - locking.py        - Row-level locking expressions (FOR UPDATE, FOR SHARE)
 """
 
-from .load_data import LoadDataExpression, LoadDataOptions
-from .json_table import JSONTableExpression, JSONTableColumn, NestedPath
+from .load_data import MySQLLoadDataExpression, LoadDataOptions
+from .json_table import MySQLJSONTableExpression, JSONTableColumn, NestedPath
 from .json import (
-    JSONExtractExpression,
-    JSONObjectExpression,
-    JSONArrayExpression,
-    JSONContainsExpression,
+    MySQLJSONExtractExpression,
+    MySQLJSONObjectExpression,
+    MySQLJSONArrayExpression,
+    MySQLJSONContainsExpression,
 )
 from .spatial import (
-    STGeomFromTextExpression,
-    STDistanceExpression,
-    STWithinExpression,
-    STContainsExpression,
+    MySQLSTGeomFromTextExpression,
+    MySQLSTDistanceExpression,
+    MySQLSTWithinExpression,
+    MySQLSTContainsExpression,
 )
 from .vector import (
-    VectorExpression,
-    DistanceEuclideanExpression,
-    DistanceCosineExpression,
-    DistanceDotExpression,
+    MySQLVectorExpression,
+    MySQLDistanceEuclideanExpression,
+    MySQLDistanceCosineExpression,
+    MySQLDistanceDotExpression,
 )
-from .match_against import MatchAgainstExpression, MatchAgainstMode
+from .match_against import MySQLMatchAgainstExpression, MatchAgainstMode
 from .locking import MySQLForUpdateClause, MySQLLockStrength
 
 __all__ = [
-    "LoadDataExpression",
+    "MySQLLoadDataExpression",
     "LoadDataOptions",
-    "JSONTableExpression",
+    "MySQLJSONTableExpression",
     "JSONTableColumn",
     "NestedPath",
-    "JSONExtractExpression",
-    "JSONObjectExpression",
-    "JSONArrayExpression",
-    "JSONContainsExpression",
-    "STGeomFromTextExpression",
-    "STDistanceExpression",
-    "STWithinExpression",
-    "STContainsExpression",
-    "VectorExpression",
-    "DistanceEuclideanExpression",
-    "DistanceCosineExpression",
-    "DistanceDotExpression",
-    "MatchAgainstExpression",
+    "MySQLJSONExtractExpression",
+    "MySQLJSONObjectExpression",
+    "MySQLJSONArrayExpression",
+    "MySQLJSONContainsExpression",
+    "MySQLSTGeomFromTextExpression",
+    "MySQLSTDistanceExpression",
+    "MySQLSTWithinExpression",
+    "MySQLSTContainsExpression",
+    "MySQLVectorExpression",
+    "MySQLDistanceEuclideanExpression",
+    "MySQLDistanceCosineExpression",
+    "MySQLDistanceDotExpression",
+    "MySQLMatchAgainstExpression",
     "MatchAgainstMode",
     "MySQLForUpdateClause",
     "MySQLLockStrength",

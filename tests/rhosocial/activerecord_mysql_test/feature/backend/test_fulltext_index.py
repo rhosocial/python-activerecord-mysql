@@ -13,7 +13,7 @@ from rhosocial.activerecord.backend.expression.statements import (
     CreateFulltextIndexExpression,
     DropFulltextIndexExpression
 )
-from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression
 
 
 class TestFullTextProtocol:
@@ -49,10 +49,10 @@ class TestFullTextProtocol:
         assert params == ('MySQL',)
 
     def test_match_against_expression(self):
-        """Test MatchAgainstExpression class."""
+        """Test MySQLMatchAgainstExpression class."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = MatchAgainstExpression(
+        expr = MySQLMatchAgainstExpression(
             dialect,
             columns=['title', 'content'],
             search_string='database',
@@ -67,10 +67,10 @@ class TestFullTextProtocol:
         assert params == ('database',)
 
     def test_match_against_with_alias(self):
-        """Test MatchAgainstExpression with alias."""
+        """Test MySQLMatchAgainstExpression with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
         
-        expr = MatchAgainstExpression(
+        expr = MySQLMatchAgainstExpression(
             dialect,
             columns=['title', 'content'],
             search_string='test'

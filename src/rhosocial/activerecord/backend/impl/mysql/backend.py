@@ -12,7 +12,6 @@ from typing import List, Optional, Tuple
 
 import mysql.connector
 from mysql.connector.errors import (
-    DatabaseError as MySQLDatabaseError,
     Error as MySQLError,
     IntegrityError as MySQLIntegrityError,
     OperationalError as MySQLOperationalError,
@@ -22,9 +21,7 @@ from rhosocial.activerecord.backend.base import StorageBackend
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     DatabaseError,
-    DeadlockError,
     IntegrityError,
-    OperationalError,
     QueryError,
 )
 from rhosocial.activerecord.backend.result import QueryResult
@@ -33,10 +30,10 @@ from rhosocial.activerecord.backend.explain import SyncExplainBackendMixin
 from .config import MySQLConnectionConfig
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
-from .mixins import MySQLBackendMixin
+from .mixins import MySQLBackendMixin, MySQLConcurrencyMixin
 
 
-class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, StorageBackend):
+class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, MySQLConcurrencyMixin, StorageBackend):
     """MySQL-specific backend implementation."""
 
     def __init__(self, **kwargs):
@@ -66,10 +63,9 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 'read_timeout', 'write_timeout', 'use_pure', 'get_warnings',
                 'raise_on_warnings', 'buffered', 'raw', 'consume_results',
                 'force_ipv6', 'option_files', 'option_groups', 'use_unicode',
-                'sql_mode', 'time_zone', 'sql_log_off', 'get_warnings',
-                'raise_on_warnings', 'buffered', 'raw', 'consume_results',
-                'compress', 'allow_local_infile', 'conn_attrs', 'autocommit',
-                'client_flags', 'unix_socket', 'auth_plugin',
+                'sql_mode', 'time_zone', 'sql_log_off',
+                'compress', 'allow_local_infile', 'conn_attrs',
+                'client_flags', 'unix_socket',
                 'allow_local_infile_in_path', 'dsn'
             ]
 
@@ -92,7 +88,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
         super().__init__(**kwargs)
 
         # Store the expected MySQL server version
-        self._version = version or (8, 0, 0)
+        self._version = version
         # Initialize MySQL-specific components (lazy load dialect)
         self._dialect = None
         # Initialize transaction manager (will use backend.execute())
@@ -190,6 +186,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 f"Connected to MySQL database: "
                 f"{self.config.host}:{self.config.port}/{self.config.database}"
             )
+            self._fetch_concurrency_hint()
         except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
@@ -201,7 +198,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
             self._connection = None  # Clear reference first to prevent recursion
             try:
                 # Rollback any active transaction
-                if self.transaction_manager.is_active:
+                if self.in_transaction:
                     try:
                         self.transaction_manager.rollback()
                     except Exception:
@@ -300,7 +297,8 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
         try:
             cursor = self._get_cursor()
             cursor.execute("SELECT VERSION()")
-            version_str = cursor.fetchone()[0]
+            version_row = cursor.fetchone()
+            version_str = version_row[0] if version_row else "8.0.0"
             
             # Parse version string (e.g., "8.0.26" or "8.0.26-log")
             version_clean = version_str.split('-')[0]  # Remove suffix like "-log"
@@ -378,7 +376,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                     return True
                 return False
 
-        except (MySQLError, mysql.connector.Error, OSError) as e:
+        except (MySQLError, OSError) as e:
             self.log(logging.WARNING, f"MySQL connection ping failed: {str(e)}")
             if reconnect:
                 try:
@@ -389,46 +387,6 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                     self.log(logging.ERROR, f"Failed to reconnect after ping failure: {str(connect_error)}")
                     return False
             return False
-
-    # MySQL connection error codes that indicate connection loss
-    # Reference: https://dev.mysql.com/doc/mysql-errors/8.0/en/server-error-reference.html
-    CONNECTION_ERROR_CODES = {
-        2003,  # CR_CONN_HOST_ERROR - Can't connect to MySQL server
-        2006,  # CR_SERVER_GONE_ERROR - MySQL server has gone away
-        2013,  # CR_SERVER_LOST - Lost connection to MySQL server during query
-        2048,  # CR_CONN_UNKNOW_PROTOCOL - Invalid connection protocol
-        2055,  # CR_SERVER_LOST_EXTENDED - Lost connection to MySQL server
-    }
-
-    def _is_connection_error(self, error: Exception) -> bool:
-        """
-        Check if an error indicates a connection loss.
-
-        This method identifies errors that result from lost or invalid connections,
-        which should trigger automatic reconnection attempts.
-
-        Args:
-            error: The exception to check
-
-        Returns:
-            True if the error indicates a connection problem, False otherwise
-        """
-        # Check for MySQL error codes
-        if hasattr(error, 'errno'):
-            if error.errno in self.CONNECTION_ERROR_CODES:
-                return True
-
-        # Fallback to string matching for error messages
-        error_str = str(error).lower()
-        connection_error_patterns = [
-            'server has gone away',
-            'lost connection',
-            "can't connect to mysql server",
-            'connection refused',
-            'broken pipe',
-            'connection reset',
-        ]
-        return any(pattern in error_str for pattern in connection_error_patterns)
 
     def _reconnect(self) -> bool:
         """
@@ -450,96 +408,6 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
             self.log(logging.ERROR, f"Reconnection failed: {str(e)}")
             return False
 
-    def execute(self, sql: str, params: Optional[Tuple] = None, *, options, max_retries: int = 2) -> 'QueryResult':
-        """
-        Execute a SQL statement with automatic reconnection on connection errors.
-
-        This method extends the parent execute method with retry logic for connection
-        errors. If a connection error occurs during execution, it will automatically
-        attempt to reconnect and retry the query up to max_retries times.
-
-        This implements Plan B: Error retry mechanism for handling connection loss
-        that occurs mid-query (which Plan A's pre-check cannot prevent).
-
-        Args:
-            sql: The SQL statement to execute
-            params: Optional tuple of parameter values
-            options: ExecutionOptions object
-            max_retries: Maximum number of retry attempts (default: 2)
-
-        Returns:
-            QueryResult object containing execution results
-
-        Raises:
-            DatabaseError: If execution fails after all retries
-            Other exceptions from parent execute method
-        """
-        last_error = None
-
-        for attempt in range(max_retries + 1):
-            try:
-                return super().execute(sql, params, options=options)
-            except (MySQLOperationalError, MySQLError) as e:
-                last_error = e
-
-                # Check if this is a connection error that warrants retry
-                if self._is_connection_error(e) and attempt < max_retries:
-                    self.log(
-                        logging.WARNING,
-                        f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}"
-                    )
-
-                    # Attempt to reconnect
-                    if self._reconnect():
-                        # Retry the query
-                        continue
-                    else:
-                        # Reconnection failed, no point in retrying
-                        self.log(logging.ERROR, "Reconnection failed, aborting retry")
-                        break
-                else:
-                    # Not a connection error or max retries reached
-                    break
-
-        # All retries exhausted or non-connection error
-        if last_error:
-            self._handle_error(last_error)
-
-        # This should not be reached, but for type safety
-        raise DatabaseError(f"Execution failed after {max_retries + 1} attempts")
-
-    def _handle_error(self, error: Exception) -> None:
-        """Handle MySQL-specific errors."""
-        error_msg = str(error)
-
-        if isinstance(error, MySQLIntegrityError):
-            if "Duplicate entry" in error_msg:
-                self.log(logging.ERROR, f"Unique constraint violation: {error_msg}")
-                raise IntegrityError(f"Unique constraint violation: {error_msg}")
-            elif "Cannot delete or update" in error_msg or "a foreign key constraint fails" in error_msg:
-                self.log(logging.ERROR, f"Foreign key constraint violation: {error_msg}")
-                raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
-            self.log(logging.ERROR, f"Integrity error: {error_msg}")
-            raise IntegrityError(error_msg)
-        elif isinstance(error, MySQLDatabaseError):
-            if "Deadlock found" in error_msg:
-                self.log(logging.ERROR, f"Deadlock error: {error_msg}")
-                raise DeadlockError(error_msg)
-            self.log(logging.ERROR, f"Database error: {error_msg}")
-            raise DatabaseError(error_msg)
-        elif isinstance(error, MySQLOperationalError):
-            if "Lock wait timeout exceeded" in error_msg:
-                self.log(logging.ERROR, f"Lock timeout error: {error_msg}")
-                raise OperationalError(error_msg)
-            self.log(logging.ERROR, f"Operational error: {str(error)}")
-            raise OperationalError(error_msg)
-        elif isinstance(error, MySQLError):
-            self.log(logging.ERROR, f"MySQL error: {error_msg}")
-            raise DatabaseError(error_msg)
-        else:
-            self.log(logging.ERROR, f"Unexpected error: {error_msg}")
-            raise error
-
     def _handle_auto_commit(self) -> None:
         """Handle auto commit based on MySQL connection and transaction state.
 
@@ -556,7 +424,7 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 return
 
             # Check if we're not in an active transaction
-            if not self._transaction_manager or not self._transaction_manager.is_active:
+            if not self.in_transaction:
                 # For MySQL, if autocommit is disabled, we need to commit explicitly
                 if not getattr(self.config, 'autocommit', True):
                     self._connection.commit()
@@ -576,8 +444,30 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 self._connection.commit()
                 self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
 
-    def execute(self, sql: str, params: Optional[Tuple] = None, *, options=None, **kwargs) -> QueryResult:
-        """Execute a SQL statement with optional parameters."""
+    def execute(self, sql: str, params: Optional[Tuple] = None, *,
+                options=None, max_retries: int = 2, **kwargs) -> QueryResult:
+        """Execute a SQL statement with automatic reconnection and options construction.
+
+        This method combines:
+        1. Automatic ExecutionOptions construction when none is provided
+        2. Retry logic for connection errors (Plan B error recovery)
+
+        Plan B: If a connection error occurs during execution, it will automatically
+        attempt to reconnect and retry the query up to max_retries times.
+
+        Args:
+            sql: The SQL statement to execute
+            params: Optional tuple of parameter values
+            options: ExecutionOptions object (constructed automatically if None)
+            max_retries: Maximum number of retry attempts (default: 2)
+            **kwargs: Additional keyword arguments (column_mapping, column_adapters)
+
+        Returns:
+            QueryResult object containing execution results
+
+        Raises:
+            DatabaseError: If execution fails after all retries
+        """
         from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
 
         # If no options provided, create default options from kwargs
@@ -609,12 +499,38 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
             if 'column_adapters' in kwargs:
                 options.column_adapters = kwargs['column_adapters']
 
-        # Convert '?' placeholders to '%s' for MySQL
-        if params:
-            mysql_sql = sql.replace('?', '%s')
-            return super().execute(mysql_sql, params, options=options)
-        else:
-            return super().execute(sql, params, options=options)
+        # Execute with retry logic for connection errors
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return super().execute(sql, params, options=options)
+            except (MySQLOperationalError, MySQLError) as e:
+                last_error = e
+
+                # Check if this is a connection error that warrants retry
+                if self._is_connection_error(e) and attempt < max_retries:
+                    self.log(
+                        logging.WARNING,
+                        f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}"
+                    )
+
+                    # Attempt to reconnect
+                    if self._reconnect():
+                        continue
+                    else:
+                        self.log(logging.ERROR, "Reconnection failed, aborting retry")
+                        break
+                else:
+                    # Not a connection error or max retries reached
+                    break
+
+        # All retries exhausted or non-connection error
+        if last_error:
+            self._handle_error(last_error)
+
+        # This should not be reached, but for type safety
+        raise DatabaseError(f"Execution failed after {max_retries + 1} attempts")
 
     def executescript(self, sql_script: str) -> None:
         """Execute a multi-statement SQL script.
@@ -672,7 +588,12 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
                 cursor.close()
 
     def _parse_explain_result(self, raw_rows, sql, duration):
-        """Return a typed :class:`MySQLExplainResult` for MySQL's tabular EXPLAIN output."""
+        """Return a typed MySQLExplainResult for MySQL's tabular EXPLAIN output.
+
+        Note: This method must be defined on the backend class directly (not in
+        MySQLBackendMixin) because _ExplainMixinBase appears earlier in the MRO
+        and would otherwise take precedence.
+        """
         from .explain import MySQLExplainResult, MySQLExplainRow
         rows = [MySQLExplainRow(**r) for r in raw_rows]
         return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)

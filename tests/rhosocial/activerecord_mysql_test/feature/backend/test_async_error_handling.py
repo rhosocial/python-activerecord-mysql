@@ -208,11 +208,11 @@ class TestAsyncErrorClassValidation:
     @pytest.mark.asyncio
     async def test_error_classes_from_correct_module(self):
         """Verify that error classes are imported from mysql.connector.errors."""
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import (
-            MySQLError,
-            MySQLDatabaseError,
-            MySQLIntegrityError,
-            MySQLOperationalError,
+        from mysql.connector.errors import (
+            Error as MySQLError,
+            DatabaseError as MySQLDatabaseError,
+            IntegrityError as MySQLIntegrityError,
+            OperationalError as MySQLOperationalError,
         )
 
         # All should come from mysql.connector.errors

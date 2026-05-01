@@ -1,7 +1,7 @@
 """
 MySQL JSON_TABLE - Convert JSON data to relational format (MySQL 8.0+).
 
-Demonstrates using JSONTableExpression with QueryExpression to build
+Demonstrates using MySQLJSONTableExpression with QueryExpression to build
 a SELECT query that flattens JSON array data into relational rows.
 """
 
@@ -91,11 +91,11 @@ from rhosocial.activerecord.backend.expression import (
     Column,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
-    JSONTableExpression,
+    MySQLJSONTableExpression,
     JSONTableColumn,
 )
 
-json_table = JSONTableExpression(
+json_table = MySQLJSONTableExpression(
     dialect=dialect,
     json_doc="o.order_data",
     path="$.items[*]",
@@ -112,7 +112,7 @@ print(f"JSON_TABLE SQL: {json_table_sql}")
 
 # Build the query using QueryExpression with a comma-separated FROM clause
 # (equivalent to an implicit CROSS JOIN).
-# Note: JSONTableExpression is not yet in the FromSourceType validation whitelist,
+# Note: MySQLJSONTableExpression is not yet in the FromSourceType validation whitelist,
 # so we temporarily disable strict validation when generating SQL.
 query = QueryExpression(
     dialect=dialect,
@@ -128,7 +128,7 @@ query = QueryExpression(
     ],
 )
 
-# Temporarily disable strict validation to allow JSONTableExpression in FROM
+# Temporarily disable strict validation to allow MySQLJSONTableExpression in FROM
 original_strict = dialect.strict_validation
 dialect.strict_validation = False
 sql, params = query.to_sql()

@@ -1,3 +1,22 @@
+## [v1.0.0.dev15] - 2026-05-01
+
+### Added
+
+- Added named query and named procedure CLI subcommands for MySQL backend. Added ConcurrencyAware protocol implementation for MySQL. Added named connection support with MySQL CLI integration. ([#35](https://github.com/rhosocial/python-activerecord-mysql/issues/35))
+
+
+
+### Changed
+
+- Aligned expression system with three architectural principles. Extracted CLI subcommands into modular cli/ subpackage. Moved threadsafety to MySQLBackendMixin. Removed ? → %s fallback from MySQL backend (now uses proper dialect placeholder conversion). Changed CI to install rhosocial-activerecord from git branch release/v1.0.0.dev25. ([#35](https://github.com/rhosocial/python-activerecord-mysql/issues/35))
+
+
+
+### Fixed
+
+- Fixed missing placeholder conversion in sync execute_many. Fixed ForUpdateClause handling without strength attribute. Fixed MySQL-specific protocols to properly extend generic protocols. Fixed _fetch_concurrency_hint call after connect. ([#35](https://github.com/rhosocial/python-activerecord-mysql/issues/35))
+
+
 ## [v1.0.0.dev14] - 2026-04-17
 
 ### Added

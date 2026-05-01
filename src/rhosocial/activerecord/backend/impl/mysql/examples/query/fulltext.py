@@ -87,10 +87,10 @@ backend.execute(sql)
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
 from rhosocial.activerecord.backend.expression import QueryExpression, Column, TableExpression
-from rhosocial.activerecord.backend.impl.mysql.expression import MatchAgainstExpression, MatchAgainstMode
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode
 
-# Use MatchAgainstExpression for full-text search
-match_expr = MatchAgainstExpression(
+# Use MySQLMatchAgainstExpression for full-text search
+match_expr = MySQLMatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='MySQL',
@@ -98,7 +98,7 @@ match_expr = MatchAgainstExpression(
 )
 
 # Create separate instances - one for SELECT with alias, one for WHERE without alias
-match_with_alias = MatchAgainstExpression(
+match_with_alias = MySQLMatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='MySQL',
@@ -106,7 +106,7 @@ match_with_alias = MatchAgainstExpression(
 )
 match_with_alias = match_with_alias.as_('relevance')
 
-match_for_where = MatchAgainstExpression(
+match_for_where = MySQLMatchAgainstExpression(
     dialect=dialect,
     columns=['title', 'content'],
     search_string='MySQL',
