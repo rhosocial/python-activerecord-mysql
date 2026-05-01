@@ -5,9 +5,10 @@ MySQL backend SQL dialect implementation.
 This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
+from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
 from rhosocial.activerecord.backend.dialect.protocols import (
     CTESupport,
     FilterClauseSupport,
@@ -217,6 +218,24 @@ class MySQLDialect(
     def get_server_version(self) -> Tuple[int, int, int]:
         """Return the MySQL version this dialect is configured for."""
         return self.version
+
+    @staticmethod
+    def _escape_sql_string(value: str) -> str:
+        """Escape string for MySQL with backslash support.
+
+        MySQL default SQL mode (STRICT_TRANS_TABLES) treats backslash as an
+        escape character. This method properly escapes backslashes first,
+        then single quotes, to ensure correct handling under default mode.
+
+        Args:
+            value: The string value to escape
+
+        Returns:
+            Escaped string safe for use in MySQL SQL statements
+        """
+        value = value.replace('\\', '\\\\')
+        value = value.replace("'", "''")
+        return value
 
     # region Protocol Support Checks based on version
     def supports_basic_cte(self) -> bool:
@@ -713,7 +732,8 @@ class MySQLDialect(
 
         # Add table-level comment (from dialect_options)
         if 'comment' in expr.dialect_options:
-            parts.append(f"COMMENT '{expr.dialect_options['comment']}'")
+            escaped_comment = self._escape_sql_string(expr.dialect_options['comment'])
+            parts.append(f"COMMENT '{escaped_comment}'")
 
         return ' '.join(parts), tuple(all_params)
 
@@ -1587,11 +1607,18 @@ class MySQLDialect(
         parts = ["JSON_TABLE("]
 
         # Handle json_doc: if it's a string literal, escape and quote it;
-        # if it's an expression (SQL fragment), use as-is.
+        # if it's a ToSQLProtocol expression, use to_sql() for parameterized query;
+        # otherwise raise an error to prevent SQL injection.
         if isinstance(expr.json_doc, str):
             parts.append(f"'{self._escape_sql_string(expr.json_doc)}'")
+        elif isinstance(expr.json_doc, ToSQLProtocol):
+            json_sql, _ = expr.json_doc.to_sql()
+            parts.append(json_sql)
         else:
-            parts.append(str(expr.json_doc))
+            raise ValueError(
+                f"json_doc must be a string or implement ToSQLProtocol, "
+                f"got {type(expr.json_doc).__name__}"
+            )
 
         parts.append(",")
         escaped_path = self._escape_sql_string(expr.path)
@@ -1609,15 +1636,22 @@ class MySQLDialect(
                     f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'"
                 )
             else:
+                if not self._validate_data_type(col.type):
+                    raise ValueError(f"Invalid data type: {col.type}")
                 col_def = f"{self.format_identifier(col.name)} {col.type}"
                 if col.path:
                     escaped_col_path = self._escape_sql_string(col.path)
                     col_def += f" PATH '{escaped_col_path}'"
                 if col.error_handling:
-                    if col.error_handling.upper() == 'DEFAULT':
-                        col_def += f" DEFAULT {col.default_value} ON ERROR"
+                    valid_error_handling = {'NULL', 'ERROR', 'DEFAULT'}
+                    error_handling_upper = col.error_handling.upper()
+                    if error_handling_upper not in valid_error_handling:
+                        raise ValueError(f"Invalid error_handling: {col.error_handling}. Must be one of {valid_error_handling}")
+                    if error_handling_upper == 'DEFAULT':
+                        escaped_default = self._escape_sql_string(str(col.default_value))
+                        col_def += f" DEFAULT '{escaped_default}' ON ERROR"
                     else:
-                        col_def += f" {col.error_handling.upper()} ON ERROR"
+                        col_def += f" {error_handling_upper} ON ERROR"
                 column_parts.append(col_def)
 
         # Format nested paths

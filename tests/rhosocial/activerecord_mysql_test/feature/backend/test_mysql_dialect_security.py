@@ -165,3 +165,283 @@ def test_mysql_format_cast_expression_rejects_injection(dialect):
     """Test that malicious target_type is rejected."""
     with pytest.raises(ValueError, match="Invalid target type"):
         dialect.format_cast_expression("column", "INTEGER; DROP TABLE users--", (), None)
+
+
+class TestMySQLEscapeSqlStringBackslash:
+    """Tests for MySQL _escape_sql_string with backslash escaping."""
+
+    def test_escape_sql_string_backslash_escaped(self, dialect):
+        """Test backslash is properly escaped in MySQL."""
+        result = dialect._escape_sql_string("test\\value")
+        assert "\\\\" in result
+
+    def test_escape_sql_string_backslash_and_quote(self, dialect):
+        """Test both backslash and single quote are escaped."""
+        result = dialect._escape_sql_string("test\\'value")
+        assert "\\\\" in result
+        assert "''" in result
+
+    def test_escape_sql_string_preserves_others(self, dialect):
+        """Test other characters are preserved."""
+        result = dialect._escape_sql_string('test"double"value')
+        assert "test\"double\"value" in result
+
+
+class TestMySQLJSONTableTypeValidation:
+    """Tests for JSON_TABLE col.type validation."""
+
+    def test_json_table_valid_data_type(self, dialect):
+        """Test valid data type in JSON_TABLE column."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                ),
+            ],
+        )
+
+        sql, params = dialect.format_json_table_expression(expr)
+        assert "VARCHAR(255)" in sql
+
+    def test_json_table_invalid_data_type_rejected(self, dialect):
+        """Test invalid data type in JSON_TABLE column is rejected."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255); DROP TABLE users--",
+                    path="$.col1",
+                ),
+            ],
+        )
+
+        with pytest.raises(ValueError, match="Invalid data type"):
+            dialect.format_json_table_expression(expr)
+
+
+class TestMySQLJSONTableErrorHandling:
+    """Tests for JSON_TABLE col.error_handling validation."""
+
+    def test_json_table_valid_error_handling_null(self, dialect):
+        """Test valid error_handling: NULL."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                    error_handling="NULL",
+                ),
+            ],
+        )
+
+        sql, params = dialect.format_json_table_expression(expr)
+        assert "NULL ON ERROR" in sql
+
+    def test_json_table_valid_error_handling_error(self, dialect):
+        """Test valid error_handling: ERROR."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                    error_handling="ERROR",
+                ),
+            ],
+        )
+
+        sql, params = dialect.format_json_table_expression(expr)
+        assert "ERROR ON ERROR" in sql
+
+    def test_json_table_valid_error_handling_default(self, dialect):
+        """Test valid error_handling: DEFAULT with default_value."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                    error_handling="DEFAULT",
+                    default_value="fallback",
+                ),
+            ],
+        )
+
+        sql, params = dialect.format_json_table_expression(expr)
+        assert "DEFAULT" in sql
+        assert "fallback" in sql
+
+    def test_json_table_invalid_error_handling_rejected(self, dialect):
+        """Test invalid error_handling is rejected."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                    error_handling="INVALID",
+                ),
+            ],
+        )
+
+        with pytest.raises(ValueError, match="Invalid error_handling"):
+            dialect.format_json_table_expression(expr)
+
+
+class TestMySQLJSONTableDefaultValueEscaping:
+    """Tests for JSON_TABLE col.default_value escaping."""
+
+    def test_json_table_default_value_escaped(self, dialect):
+        """Test default_value with single quotes is escaped."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"data": "test"}',
+            path="$.data",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                    error_handling="DEFAULT",
+                    default_value="it's broken",
+                ),
+            ],
+        )
+
+        sql, params = dialect.format_json_table_expression(expr)
+        assert "it''s broken" in sql
+        assert "'; DROP" not in sql
+
+
+class TestMySQLJSONTableJsonDocSecurity:
+    """Tests for JSON_TABLE json_doc type validation."""
+
+    def test_json_table_json_doc_string(self, dialect):
+        """Test json_doc as string is properly escaped."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc='{"key": "value"}',
+            path="$.key",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                ),
+            ],
+        )
+
+        sql, params = dialect.format_json_table_expression(expr)
+        assert "key" in sql
+
+    def test_json_table_json_doc_to_sql_protocol_rejected_by_validate(self, dialect):
+        """Test json_doc as ToSQLProtocol is rejected by validate in strict mode.
+
+        Note: This test demonstrates the current limitation - the dialect code at
+        lines 1614-1616 supports ToSQLProtocol, but validate() at line 1605 rejects
+        it in strict mode. To enable ToSQLProtocol support, validate() needs modification.
+        """
+        from rhosocial.activerecord.backend.expression.bases import BaseExpression
+
+        class MockExpression(BaseExpression):
+            def __init__(self):
+                self._sql = "JSON_COLUMN"
+                self._params = ()
+
+            def to_sql(self):
+                return self._sql, self._params
+
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc=MockExpression(),
+            path="$.key",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                ),
+            ],
+        )
+
+        with pytest.raises(TypeError, match="json_doc must be str"):
+            dialect.format_json_table_expression(expr)
+
+    def test_json_table_json_doc_invalid_type_rejected(self, dialect):
+        """Test json_doc with invalid type is rejected (raises before our check)."""
+        expr = MySQLJSONTableExpression(
+            dialect=dialect,
+            json_doc={"key": "value"},
+            path="$.key",
+            columns=[
+                JSONTableColumn(
+                    name="col1",
+                    type="VARCHAR(255)",
+                    path="$.col1",
+                ),
+            ],
+        )
+
+        with pytest.raises(TypeError, match="json_doc must be str"):
+            dialect.format_json_table_expression(expr)
+
+
+class TestMySQLCreateTableCommentEscaping:
+    """Tests for CREATE TABLE COMMENT escaping."""
+
+    def test_create_table_comment_escaped(self, dialect):
+        """Test table-level COMMENT is properly escaped."""
+        from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
+
+        expr = CreateTableExpression(
+            dialect=dialect,
+            table_name="test_table",
+            columns=[],
+            dialect_options={
+                "comment": "Table's comment with 'quotes'",
+            },
+        )
+
+        sql, params = dialect.format_create_table_statement(expr)
+
+        assert "Table''s comment" in sql
+        assert "quotes''" in sql
+        assert "'; DROP" not in sql
+
+    def test_create_table_comment_with_backslash(self, dialect):
+        """Test table-level COMMENT with backslash is properly escaped."""
+        from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
+
+        expr = CreateTableExpression(
+            dialect=dialect,
+            table_name="test_table",
+            columns=[],
+            dialect_options={
+                "comment": "Test\\value",
+            },
+        )
+
+        sql, params = dialect.format_create_table_statement(expr)
+
+        assert "\\\\" in sql
