@@ -83,8 +83,8 @@ testpaths = [
     "tests",
 ]
 markers = [
-    "requires_capability: marks tests requiring specific backend capabilities",
     "requires_protocol: marks tests requiring specific backend protocol support",
+    "requires_functions: marks tests requiring specific database functions",
     "requires_inner_join: marks tests requiring INNER JOIN support",
     "basic_mapped_models: marks tests for models with custom column name mappings",
     "mysql_json: marks MySQL-specific JSON tests",
