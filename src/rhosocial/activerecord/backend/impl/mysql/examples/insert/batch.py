@@ -25,7 +25,7 @@ config = MySQLConnectionConfig(
     host=os.getenv('MYSQL_HOST', 'localhost'),
     port=int(os.getenv('MYSQL_PORT', '3306')),
     database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USERNAME', 'root'),
+    username=os.getenv('MYSQL_USER', 'root'),
     password=os.getenv('MYSQL_PASSWORD', ''),
     charset='utf8mb4',
 )
