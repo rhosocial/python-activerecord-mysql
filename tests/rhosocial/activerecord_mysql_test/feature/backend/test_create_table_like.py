@@ -18,7 +18,7 @@ class TestMySQLCreateTableLike:
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="users_copy",
+            table="users_copy",
             columns=[],
             dialect_options={'like_table': 'users'}
         )
@@ -32,7 +32,7 @@ class TestMySQLCreateTableLike:
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="users_copy",
+            table="users_copy",
             columns=[],
             if_not_exists=True,
             dialect_options={'like_table': 'users'}
@@ -47,7 +47,7 @@ class TestMySQLCreateTableLike:
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="temp_users",
+            table="temp_users",
             columns=[],
             temporary=True,
             dialect_options={'like_table': 'users'}
@@ -62,7 +62,7 @@ class TestMySQLCreateTableLike:
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="users_copy",
+            table="users_copy",
             columns=[],
             dialect_options={'like_table': ('production', 'users')}
         )
@@ -82,7 +82,7 @@ class TestMySQLCreateTableLike:
         ]
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="users_copy",
+            table="users_copy",
             columns=columns,
             dialect_options={'like_table': 'users'}
         )
@@ -97,7 +97,7 @@ class TestMySQLCreateTableLike:
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="temp_users_copy",
+            table="temp_users_copy",
             columns=[],
             temporary=True,
             if_not_exists=True,
@@ -121,7 +121,7 @@ class TestMySQLCreateTableLike:
         ]
         create_expr = CreateTableExpression(
             dialect=dialect,
-            table_name="users",
+            table="users",
             columns=columns
         )
         sql, params = create_expr.to_sql()

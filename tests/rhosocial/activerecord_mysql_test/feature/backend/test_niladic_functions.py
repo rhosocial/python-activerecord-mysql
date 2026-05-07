@@ -114,12 +114,12 @@ class TestMySQLNiladicDDLContext:
 
         # Clean up
         mysql_backend.execute(*DropTableExpression(
-            dialect=dialect, table_name=table_name, if_exists=True
+            dialect=dialect, table=table_name, if_exists=True
         ).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table_name=table_name,
+            table=table_name,
             columns=[
                 ColumnDefinition('id', 'INT', constraints=[
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
@@ -144,7 +144,7 @@ class TestMySQLNiladicDDLContext:
             assert 'ts' in col_names
         finally:
             mysql_backend.execute(*DropTableExpression(
-                dialect=dialect, table_name=table_name, if_exists=True
+                dialect=dialect, table=table_name, if_exists=True
             ).to_sql())
 
     def test_ddl_default_current_timestamp_with_parens(self, mysql_backend):
@@ -154,12 +154,12 @@ class TestMySQLNiladicDDLContext:
 
         # Clean up
         mysql_backend.execute(*DropTableExpression(
-            dialect=dialect, table_name=table_name, if_exists=True
+            dialect=dialect, table=table_name, if_exists=True
         ).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table_name=table_name,
+            table=table_name,
             columns=[
                 ColumnDefinition('id', 'INT', constraints=[
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
@@ -183,7 +183,7 @@ class TestMySQLNiladicDDLContext:
             assert 'ts' in col_names
         finally:
             mysql_backend.execute(*DropTableExpression(
-                dialect=dialect, table_name=table_name, if_exists=True
+                dialect=dialect, table=table_name, if_exists=True
             ).to_sql())
 
     def test_ddl_default_current_timestamp_with_precision(self, mysql_backend):
@@ -193,12 +193,12 @@ class TestMySQLNiladicDDLContext:
 
         # Clean up
         mysql_backend.execute(*DropTableExpression(
-            dialect=dialect, table_name=table_name, if_exists=True
+            dialect=dialect, table=table_name, if_exists=True
         ).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table_name=table_name,
+            table=table_name,
             columns=[
                 ColumnDefinition('id', 'INT', constraints=[
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
@@ -222,7 +222,7 @@ class TestMySQLNiladicDDLContext:
             assert 'ts' in col_names
         finally:
             mysql_backend.execute(*DropTableExpression(
-                dialect=dialect, table_name=table_name, if_exists=True
+                dialect=dialect, table=table_name, if_exists=True
             ).to_sql())
 
 
@@ -254,12 +254,12 @@ class TestAsyncMySQLNiladicDDLContext:
 
         # Clean up
         await async_mysql_backend.execute(*DropTableExpression(
-            dialect=dialect, table_name=table_name, if_exists=True
+            dialect=dialect, table=table_name, if_exists=True
         ).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table_name=table_name,
+            table=table_name,
             columns=[
                 ColumnDefinition('id', 'INT', constraints=[
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
@@ -281,5 +281,5 @@ class TestAsyncMySQLNiladicDDLContext:
             assert 'ts' in col_names
         finally:
             await async_mysql_backend.execute(*DropTableExpression(
-                dialect=dialect, table_name=table_name, if_exists=True
+                dialect=dialect, table=table_name, if_exists=True
             ).to_sql())
