@@ -38,7 +38,7 @@ class TestMySQLStorageOptions:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             columns=columns,
             storage_options={'ENGINE': 'InnoDB'}
         )
@@ -55,7 +55,7 @@ class TestMySQLStorageOptions:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             columns=columns,
             storage_options={'DEFAULT CHARSET': 'utf8mb4'}
         )
@@ -72,7 +72,7 @@ class TestMySQLStorageOptions:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             columns=columns,
             storage_options={'COLLATE': 'utf8mb4_unicode_ci'}
         )
@@ -89,7 +89,7 @@ class TestMySQLStorageOptions:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             columns=columns,
             storage_options={
                 'ENGINE': 'InnoDB',
@@ -112,7 +112,7 @@ class TestMySQLStorageOptions:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             columns=columns,
             if_not_exists=True,
             storage_options={'ENGINE': 'InnoDB'}
@@ -135,7 +135,7 @@ class TestMySQLTableComment:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             dialect_options={'comment': '用户信息表'}
         )
@@ -152,7 +152,7 @@ class TestMySQLTableComment:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             storage_options={
                 'ENGINE': 'InnoDB',
@@ -175,7 +175,7 @@ class TestMySQLTableComment:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test',
+            table='test',
             columns=columns,
             dialect_options={'comment': "测试's表"}
         )
@@ -197,7 +197,7 @@ class TestMySQLColumnComment:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns
         )
         sql, params = expr.to_sql()
@@ -215,7 +215,7 @@ class TestMySQLColumnComment:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             dialect_options={'comment': '用户表'}
         )
@@ -239,7 +239,7 @@ class TestMySQLAutoIncrement:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns
         )
         sql, params = expr.to_sql()
@@ -257,7 +257,7 @@ class TestMySQLAutoIncrement:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns
         )
         sql, params = expr.to_sql()
@@ -275,7 +275,7 @@ class TestMySQLAutoIncrement:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='test',
+            table='test',
             columns=columns
         )
         sql, params = expr.to_sql()
@@ -300,7 +300,7 @@ class TestMySQLInlineIndex:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             indexes=indexes
         )
@@ -322,7 +322,7 @@ class TestMySQLInlineIndex:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             indexes=indexes
         )
@@ -345,7 +345,7 @@ class TestMySQLInlineIndex:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='orders',
+            table='orders',
             columns=columns,
             indexes=indexes
         )
@@ -366,7 +366,7 @@ class TestMySQLInlineIndex:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             indexes=indexes
         )
@@ -387,7 +387,7 @@ class TestMySQLInlineIndex:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='cache',
+            table='cache',
             columns=columns,
             indexes=indexes
         )
@@ -410,7 +410,7 @@ class TestMySQLInlineIndex:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             indexes=indexes
         )
@@ -482,7 +482,7 @@ class TestMySQLEnumType:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='articles',
+            table='articles',
             columns=columns
         )
         sql, params = expr.to_sql()
@@ -542,7 +542,7 @@ class TestMySQLTableConstraints:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             table_constraints=table_constraints
         )
@@ -563,7 +563,7 @@ class TestMySQLTableConstraints:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             table_constraints=table_constraints
         )
@@ -582,7 +582,7 @@ class TestMySQLTableConstraints:
         ]
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='user_roles',
+            table='user_roles',
             columns=columns,
             table_constraints=table_constraints
         )
@@ -600,7 +600,7 @@ class TestMySQLDropTable:
         dialect = MySQLDialect()
         expr = DropTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             if_exists=True
         )
         sql, params = expr.to_sql()
@@ -612,7 +612,7 @@ class TestMySQLDropTable:
         dialect = MySQLDialect()
         expr = DropTableExpression(
             dialect=dialect,
-            table_name='test_table',
+            table='test_table',
             if_exists=False
         )
         sql, params = expr.to_sql()
@@ -666,7 +666,7 @@ class TestMySQLCompleteTableCreation:
         
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name='users',
+            table='users',
             columns=columns,
             indexes=indexes,
             if_not_exists=True,

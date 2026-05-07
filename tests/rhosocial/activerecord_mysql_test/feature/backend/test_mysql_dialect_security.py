@@ -416,7 +416,7 @@ class TestMySQLCreateTableCommentEscaping:
 
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name="test_table",
+            table="test_table",
             columns=[],
             dialect_options={
                 "comment": "Table's comment with 'quotes'",
@@ -435,7 +435,7 @@ class TestMySQLCreateTableCommentEscaping:
 
         expr = CreateTableExpression(
             dialect=dialect,
-            table_name="test_table",
+            table="test_table",
             columns=[],
             dialect_options={
                 "comment": "Test\\value",
