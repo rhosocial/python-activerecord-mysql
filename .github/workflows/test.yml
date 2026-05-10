@@ -35,6 +35,8 @@ jobs:
           - { python-version: '3.14t', mysql-version: '9.4', port: 3314 }
           - { python-version: '3.14', mysql-version: '9.5', port: 3315 }
           - { python-version: '3.14t', mysql-version: '9.6', port: 3316 }
+          - { python-version: '3.13', mysql-version: '9.7', port: 3317 }
+          - { python-version: '3.14', mysql-version: '9.7', port: 3318 }
 
     services:
       mysql:
