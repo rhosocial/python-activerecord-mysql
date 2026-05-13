@@ -9,6 +9,7 @@ implementations (Providers) defined within this project.
 import os
 import asyncio
 import pytest
+import re
 
 # Set the environment variable that the testsuite uses to locate the provider registry.
 # The testsuite is a generic package and doesn't know the specific location of the
@@ -58,3 +59,103 @@ def setup_asyncio_broken_pipe_handler():
             loop.set_exception_handler(original_handler)
     except RuntimeError:
         pass
+
+
+# =============================================================================
+# Scenario Parallel Scheduling Plugin
+#
+# Usage:
+#   pytest --scenario-parallel -n 7 --dist=loadgroup tests/
+#
+# Design: All tests for the same scenario are pinned to the same xdist worker
+#         (via nodeid @suffix), while tests for different scenarios run in
+#         parallel. Behavior is unchanged without --scenario-parallel.
+# =============================================================================
+
+def _get_scenario_names():
+    """Lazy import to avoid side effects during conftest loading."""
+    try:
+        from providers.scenarios import SCENARIO_MAP
+        return set(SCENARIO_MAP.keys()), list(SCENARIO_MAP.keys())
+    except Exception:
+        return set(), []
+
+
+def _extract_scenario_from_item(item, scenario_name_set):
+    """Extract scenario name from item's callspec, if present."""
+    callspec = getattr(item, 'callspec', None)
+    if callspec is None:
+        return None
+    for val in callspec.params.values():
+        if isinstance(val, str) and val in scenario_name_set:
+            return val
+    return None
+
+
+def _add_xdist_group_marker(item, group_name):
+    """Append @group_name suffix to item._nodeid for loadgroup scheduling."""
+    suffix = f"@{group_name}"
+    if suffix not in item.nodeid:
+        item._nodeid = item.nodeid + suffix
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        '--scenario-parallel',
+        action='store_true',
+        default=False,
+        help='Scenario parallel mode: distribute scenarios across workers, keep each scenario on one worker.',
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "xdist_group(name): specify the xdist group for a test (provided by pytest-xdist).",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if not config.getoption('--scenario-parallel', default=False):
+        return
+
+    scenario_name_set, scenario_name_list = _get_scenario_names()
+    if not scenario_name_set:
+        return
+
+    scenario_items = []
+    normal_items = []
+
+    for item in items:
+        scenario_name = _extract_scenario_from_item(item, scenario_name_set)
+        if scenario_name is not None:
+            _add_xdist_group_marker(item, scenario_name)
+            scenario_items.append(item)
+        else:
+            normal_items.append(item)
+
+    def sort_key(item):
+        scenario_name = _extract_scenario_from_item(item, scenario_name_set)
+        if scenario_name is None:
+            return ('~', 0)
+        try:
+            scenario_idx = scenario_name_list.index(scenario_name)
+        except ValueError:
+            scenario_idx = 0
+        base = item.nodeid.split('[')[0] if '[' in item.nodeid else item.nodeid
+        return (base, scenario_idx)
+
+    scenario_items.sort(key=sort_key)
+    items[:] = scenario_items + normal_items
+
+    groups: dict = {}
+    for item in scenario_items:
+        sn = _extract_scenario_from_item(item, scenario_name_set)
+        if sn:
+            base = item.nodeid.split('[')[0] if '[' in item.nodeid else item.nodeid
+            groups.setdefault(base, set()).add(sn)
+
+    print(f"\n[ScenarioParallel] {len(items)} items: {len(scenario_items)} scenario-param + "
+          f"{len(normal_items)} normal")
+    print(f"[ScenarioParallel] {len(groups)} test methods, {len(scenario_name_list)} scenarios in parallel")
+    print(f"[ScenarioParallel] Suggested: --dist=loadgroup -n {len(scenario_name_list)}")
