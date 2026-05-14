@@ -128,7 +128,13 @@ def mysql_backend(request):
 
 @pytest.fixture(scope="function")
 def mysql_backend_single():
-    """Non-parameterized fixture using the first available scenario."""
+    """Non-parameterized fixture using the first available scenario.
+
+    Use this for tests whose results do not vary across database versions
+    (e.g. Protocol conformance, Explain output format). These tests run
+    once instead of 7 times, and are pinned to the first scenario's worker
+    in --scenario-parallel mode.
+    """
     scenario_names = get_scenario_names()
     if not scenario_names:
         pytest.skip("No MySQL scenarios configured")
@@ -149,7 +155,11 @@ async def async_mysql_backend(request):
 
 @pytest_asyncio.fixture(scope="function")
 async def async_mysql_backend_single():
-    """Non-parameterized async fixture using the first available scenario."""
+    """Non-parameterized async fixture using the first available scenario.
+
+    Use this for tests whose results do not vary across database versions.
+    See mysql_backend_single for rationale.
+    """
     scenario_names = get_scenario_names()
     if not scenario_names:
         pytest.skip("No MySQL scenarios configured")
@@ -163,9 +173,9 @@ async def async_mysql_backend_single():
 # --- Control Backend for Session Modification Tests ---
 
 @pytest.fixture(scope="function")
-def mysql_control_backend():
+def mysql_control_backend(mysql_backend):
     """
-    Dedicated control backend for tests that modify MySQL session settings.
+    Dedicated control backend sharing the same connection config as mysql_backend.
 
     This fixture provides an independent backend instance for operations that
     need to control or interfere with the main test backend, such as:
@@ -173,23 +183,19 @@ def mysql_control_backend():
     - Setting global variables
     - Monitoring other connections
 
-    The fixture is NOT parameterized to ensure consistent behavior across
-    all MySQL scenarios.
+    Automatically follows the same scenario parametrization as mysql_backend.
     """
-    scenario_names = get_scenario_names()
-    if not scenario_names:
-        pytest.skip("No MySQL scenarios configured")
-    scenario_name = scenario_names[0]
-    provider = BackendFeatureProvider()
-    backend = provider.setup_backend(scenario_name)
+    backend = MySQLBackend(connection_config=mysql_backend.config)
+    backend.connect()
+    backend.introspect_and_adapt()
     yield backend
-    provider.cleanup()
+    backend.disconnect()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_mysql_control_backend():
+async def async_mysql_control_backend(async_mysql_backend):
     """
-    Dedicated async control backend for tests that modify MySQL session settings.
+    Dedicated async control backend that connects to the same scenario as async_mysql_backend.
 
     This fixture provides an independent async backend instance for operations that
     need to control or interfere with the main test backend, such as:
@@ -197,17 +203,13 @@ async def async_mysql_control_backend():
     - Setting global variables
     - Monitoring other connections
 
-    The fixture is NOT parameterized to ensure consistent behavior across
-    all MySQL scenarios.
+    Automatically follows the same scenario parametrization as async_mysql_backend.
     """
-    scenario_names = get_scenario_names()
-    if not scenario_names:
-        pytest.skip("No MySQL scenarios configured")
-    scenario_name = scenario_names[0]
-    provider = BackendFeatureProvider()
-    backend = await provider.setup_async_backend(scenario_name)
+    backend = AsyncMySQLBackend(connection_config=async_mysql_backend.config)
+    await backend.connect()
+    await backend.introspect_and_adapt()
     yield backend
-    await provider.async_cleanup()
+    await backend.disconnect()
 
 
 # --- Type Adapters ---

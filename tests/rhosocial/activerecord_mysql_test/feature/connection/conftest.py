@@ -129,14 +129,11 @@ def create_async_mysql_backend_factory(config_dict: Dict[str, Any]):
     return factory
 
 
-@pytest.fixture(scope="function")
-def mysql_pool() -> Generator[BackendPool, None, None]:
+@pytest.fixture(scope="function", params=get_scenario_names())
+def mysql_pool(request) -> Generator[BackendPool, None, None]:
     """Create a BackendPool with MySQL backends for testing."""
-    scenario_names = get_scenario_names()
-    if not scenario_names:
-        pytest.skip("No MySQL scenarios configured")
-
-    config_dict = get_scenario_config(scenario_names[0]).copy()
+    scenario_name = request.param
+    config_dict = get_scenario_config(scenario_name).copy()
 
     pool_config = PoolConfig(
         min_size=1,
@@ -152,14 +149,11 @@ def mysql_pool() -> Generator[BackendPool, None, None]:
     pool.close(timeout=5.0, force=True)
 
 
-@pytest_asyncio.fixture(scope="function")
-async def async_mysql_pool() -> AsyncBackendPool:
+@pytest_asyncio.fixture(scope="function", params=get_scenario_names())
+async def async_mysql_pool(request) -> AsyncBackendPool:
     """Create an AsyncBackendPool with MySQL backends for testing."""
-    scenario_names = get_scenario_names()
-    if not scenario_names:
-        pytest.skip("No MySQL scenarios configured")
-
-    config_dict = get_scenario_config(scenario_names[0]).copy()
+    scenario_name = request.param
+    config_dict = get_scenario_config(scenario_name).copy()
 
     pool_config = PoolConfig(
         min_size=1,
@@ -175,14 +169,11 @@ async def async_mysql_pool() -> AsyncBackendPool:
     await pool.close(timeout=5.0, force=True)
 
 
-@pytest.fixture(scope="function")
-def mysql_pool_large() -> Generator[BackendPool, None, None]:
+@pytest.fixture(scope="function", params=get_scenario_names())
+def mysql_pool_large(request) -> Generator[BackendPool, None, None]:
     """Create a larger BackendPool for stress testing."""
-    scenario_names = get_scenario_names()
-    if not scenario_names:
-        pytest.skip("No MySQL scenarios configured")
-
-    config_dict = get_scenario_config(scenario_names[0]).copy()
+    scenario_name = request.param
+    config_dict = get_scenario_config(scenario_name).copy()
 
     pool_config = PoolConfig(
         min_size=1,
@@ -197,14 +188,11 @@ def mysql_pool_large() -> Generator[BackendPool, None, None]:
     pool.close(timeout=5.0, force=True)
 
 
-@pytest_asyncio.fixture(scope="function")
-async def async_mysql_pool_large() -> AsyncBackendPool:
+@pytest_asyncio.fixture(scope="function", params=get_scenario_names())
+async def async_mysql_pool_large(request) -> AsyncBackendPool:
     """Create a larger AsyncBackendPool for stress testing."""
-    scenario_names = get_scenario_names()
-    if not scenario_names:
-        pytest.skip("No MySQL scenarios configured")
-
-    config_dict = get_scenario_config(scenario_names[0]).copy()
+    scenario_name = request.param
+    config_dict = get_scenario_config(scenario_name).copy()
 
     pool_config = PoolConfig(
         min_size=1,
