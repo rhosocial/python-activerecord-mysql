@@ -9,7 +9,6 @@ implementations (Providers) defined within this project.
 import os
 import asyncio
 import pytest
-import re
 
 # Set the environment variable that the testsuite uses to locate the provider registry.
 # The testsuite is a generic package and doesn't know the specific location of the
@@ -82,13 +81,24 @@ def _get_scenario_names():
 
 
 def _extract_scenario_from_item(item, scenario_name_set):
-    """Extract scenario name from item's callspec, if present."""
+    """Extract scenario name from item's callspec.
+
+    Returns:
+        str:  scenario name when exactly one scenario param is found
+        None: no scenario params (not a scenario-parametrized test)
+        list: multiple distinct scenario names (cross-scenario test)
+    """
     callspec = getattr(item, 'callspec', None)
     if callspec is None:
         return None
-    for val in callspec.params.values():
-        if isinstance(val, str) and val in scenario_name_set:
-            return val
+    scenario_values = [
+        v for v in callspec.params.values()
+        if isinstance(v, str) and v in scenario_name_set
+    ]
+    if len(scenario_values) == 1:
+        return scenario_values[0]
+    if len(scenario_values) >= 2:
+        return scenario_values  # cross-scenario: caller checks isinstance(result, list)
     return None
 
 
@@ -115,6 +125,19 @@ def pytest_configure(config):
     )
 
 
+def _is_backend_single_test(item):
+    """Check if a test uses mysql_backend_single or async_mysql_backend_single.
+
+    These fixtures connect to the first scenario's database but are not
+    scenario-parametrized. In --scenario-parallel mode they must be pinned
+    to the first scenario's worker to avoid table conflicts.
+    """
+    fixturenames = getattr(item, 'fixturenames', None)
+    if fixturenames is None:
+        return False
+    return 'mysql_backend_single' in fixturenames or 'async_mysql_backend_single' in fixturenames
+
+
 def pytest_collection_modifyitems(config, items):
     if not config.getoption('--scenario-parallel', default=False):
         return
@@ -123,39 +146,62 @@ def pytest_collection_modifyitems(config, items):
     if not scenario_name_set:
         return
 
+    first_scenario = scenario_name_list[0]
     scenario_items = []
+    cross_scenario_items = []
+    backend_single_items = []
     normal_items = []
 
     for item in items:
-        scenario_name = _extract_scenario_from_item(item, scenario_name_set)
-        if scenario_name is not None:
-            _add_xdist_group_marker(item, scenario_name)
+        result = _extract_scenario_from_item(item, scenario_name_set)
+        if isinstance(result, list):
+            # Cross-scenario test: uses fixtures from multiple scenarios simultaneously.
+            # Running concurrently with per-scenario workers causes table conflicts on
+            # shared database instances, so skip during parallel mode. Run separately
+            # without --scenario-parallel for serial execution.
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="Cross-scenario test skipped in --scenario-parallel mode. "
+                           "Run without --scenario-parallel for serial execution."
+                )
+            )
+            cross_scenario_items.append(item)
+        elif isinstance(result, str):
+            _add_xdist_group_marker(item, result)
             scenario_items.append(item)
+        elif _is_backend_single_test(item):
+            # Non-parametrized fixture using first scenario's DB.
+            # Pin to the first scenario's worker to avoid table conflicts.
+            _add_xdist_group_marker(item, first_scenario)
+            backend_single_items.append(item)
         else:
             normal_items.append(item)
 
     def sort_key(item):
-        scenario_name = _extract_scenario_from_item(item, scenario_name_set)
-        if scenario_name is None:
+        result = _extract_scenario_from_item(item, scenario_name_set)
+        if not isinstance(result, str):
             return ('~', 0)
         try:
-            scenario_idx = scenario_name_list.index(scenario_name)
+            scenario_idx = scenario_name_list.index(result)
         except ValueError:
             scenario_idx = 0
         base = item.nodeid.split('[')[0] if '[' in item.nodeid else item.nodeid
         return (base, scenario_idx)
 
     scenario_items.sort(key=sort_key)
-    items[:] = scenario_items + normal_items
+    items[:] = scenario_items + backend_single_items + normal_items + cross_scenario_items
 
     groups: dict = {}
     for item in scenario_items:
         sn = _extract_scenario_from_item(item, scenario_name_set)
-        if sn:
+        if isinstance(sn, str):
             base = item.nodeid.split('[')[0] if '[' in item.nodeid else item.nodeid
             groups.setdefault(base, set()).add(sn)
 
-    print(f"\n[ScenarioParallel] {len(items)} items: {len(scenario_items)} scenario-param + "
-          f"{len(normal_items)} normal")
+    print(f"\n[ScenarioParallel] {len(items)} items: "
+          f"{len(scenario_items)} scenario-param + "
+          f"{len(backend_single_items)} backend-single @{first_scenario} + "
+          f"{len(normal_items)} normal + "
+          f"{len(cross_scenario_items)} cross-scenario (skipped)")
     print(f"[ScenarioParallel] {len(groups)} test methods, {len(scenario_name_list)} scenarios in parallel")
     print(f"[ScenarioParallel] Suggested: --dist=loadgroup -n {len(scenario_name_list)}")
