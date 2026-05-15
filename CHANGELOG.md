@@ -1,3 +1,10 @@
+## [v1.0.0.dev16] - 2026-05-15
+
+### Security
+
+- **SECURITY**: Resolved SQL injection risks in MySQL backend ([#37](https://github.com/rhosocial/python-activerecord-mysql/issues/37))
+
+
 ## [v1.0.0.dev15] - 2026-05-01
 
 ### Added
