@@ -250,8 +250,16 @@ class MySQLDialect(
         """MySQL does not support MATERIALIZED hint for CTEs."""
         return False
 
-    def supports_returning_clause(self) -> bool:
-        """MySQL does not support RETURNING clause."""
+    def supports_returning_insert(self) -> bool:
+        """MySQL does not support RETURNING clause for INSERT."""
+        return False
+
+    def supports_returning_update(self) -> bool:
+        """MySQL does not support RETURNING clause for UPDATE."""
+        return False
+
+    def supports_returning_delete(self) -> bool:
+        """MySQL does not support RETURNING clause for DELETE."""
         return False
 
     def supports_window_functions(self) -> bool:
