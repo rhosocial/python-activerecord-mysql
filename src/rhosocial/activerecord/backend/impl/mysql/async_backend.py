@@ -43,10 +43,11 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         Args:
             version: Expected MySQL server version tuple (major, minor, patch).
                     Used for dialect and type adapter initialization.
-                    Defaults to (8, 0, 0). Can be passed as 'version' in kwargs.
+                    If None, actual version will be detected via introspect_and_adapt().
+                    Can be passed as 'version' in kwargs.
         """
         # Extract version from kwargs if provided
-        version = kwargs.pop('version', None) or (8, 0, 0)
+        version = kwargs.pop('version', None)
 
         # Ensure we have proper MySQL configuration
         connection_config = kwargs.get('connection_config')

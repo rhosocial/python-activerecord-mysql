@@ -201,15 +201,19 @@ class MySQLDialect(
     - MERGE statement (not supported, use ON DUPLICATE KEY UPDATE or REPLACE)
     """
 
-    def __init__(self, version: Tuple[int, int, int] = (8, 0, 0)):
+    def __init__(self, version: Optional[Tuple[int, int, int]] = None):
         """
         Initialize MySQL dialect with specific version.
 
         Args:
-            version: MySQL version tuple (major, minor, patch)
+            version: MySQL version tuple (major, minor, patch).
+                If None, the dialect must be adapted via
+                backend.introspect_and_adapt() before version-dependent
+                features can be used.
         """
-        self.version = version
         super().__init__()
+        if version is not None:
+            self.version = version
 
     def get_parameter_placeholder(self, position: int = 0) -> str:
         """MySQL uses '%s' for placeholders."""

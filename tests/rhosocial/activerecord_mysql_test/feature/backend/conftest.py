@@ -288,4 +288,6 @@ def check_protocol_requirements(request):
 def mysql_dialect():
     """Fixture providing MySQLDialect instance for testing transaction expressions."""
     from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-    return MySQLDialect()
+    dialect = MySQLDialect()
+    dialect.version = (8, 0, 0)
+    return dialect
