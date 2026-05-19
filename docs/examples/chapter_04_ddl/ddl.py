@@ -42,11 +42,11 @@ def main():
     from rhosocial.activerecord.backend.impl.mysql import MySQLConnectionConfig
 
     config = MySQLConnectionConfig(
-        host="db-dev-1-n.rho.im",
-        port=13694,
-        database="test_db",
-        username="root",
-        password="password",
+        host=os.environ.get("MYSQL_HOST", "localhost"),
+        port=int(os.environ.get("MYSQL_PORT", "3306")),
+        database=os.environ.get("MYSQL_DATABASE", "test_db"),
+        username=os.environ.get("MYSQL_USER", "root"),
+        password=os.environ.get("MYSQL_PASSWORD", ""),
         charset="utf8mb4",
         autocommit=True,
         ssl_verify_cert=False,
