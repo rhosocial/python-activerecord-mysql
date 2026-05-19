@@ -5,15 +5,17 @@ MySQL Full-Text Search example - MATCH...AGAINST.
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
 # ============================================================
+import os
+
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
-    host='localhost',
-    port=3306,
-    database='test',
-    username='test',
-    password='test',
+    host=os.getenv('MYSQL_HOST', 'localhost'),
+    port=int(os.getenv('MYSQL_PORT', '3306')),
+    database=os.getenv('MYSQL_DATABASE', 'test'),
+    username=os.getenv('MYSQL_USER', 'test'),
+    password=os.getenv('MYSQL_PASSWORD', ''),
 )
 backend = MySQLBackend(connection_config=config)
 dialect = backend.dialect

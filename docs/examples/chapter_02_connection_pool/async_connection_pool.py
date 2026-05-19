@@ -21,6 +21,7 @@ self-contained.
 
 import asyncio
 import inspect
+import os
 import unittest.mock as mock
 from typing import Optional
 
@@ -43,11 +44,11 @@ def demonstrate_pool_config_ignored() -> None:
         return
 
     config = MySQLConnectionConfig(
-        host="localhost",
-        port=3306,
-        database="myapp",
-        username="app",
-        password="secret",
+        host=os.environ.get("MYSQL_HOST", "localhost"),
+        port=int(os.environ.get("MYSQL_PORT", "3306")),
+        database=os.environ.get("MYSQL_DATABASE", "myapp"),
+        username=os.environ.get("MYSQL_USER", "app"),
+        password=os.environ.get("MYSQL_PASSWORD", "secret"),
         pool_size=10,
         pool_name="mypool",
         pool_timeout=60,
