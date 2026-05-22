@@ -1,8 +1,8 @@
 #!/bin/bash
-# named_query.sh - MySQL CLI named-query command example
+# named_expression.sh - MySQL CLI named-expression command example
 #
 # Usage:
-#   MYSQL_HOST=... MYSQL_PORT=... MYSQL_DATABASE=... MYSQL_USER=... MYSQL_PASSWORD=... ./named_query.sh
+#   MYSQL_HOST=... MYSQL_PORT=... MYSQL_DATABASE=... MYSQL_USER=... MYSQL_PASSWORD=... ./named_expression.sh
 
 set -e
 
@@ -19,12 +19,12 @@ export MYSQL_HOST MYSQL_PORT MYSQL_DATABASE MYSQL_USER MYSQL_PASSWORD
 PYTHON_CMD="python -m rhosocial.activerecord.backend.impl.mysql"
 
 echo "=========================================="
-echo "MySQL CLI - named-query command examples"
+echo "MySQL CLI - named-expression command examples"
 echo "=========================================="
 
 echo ""
-echo "--- List named queries in examples module ---"
-$PYTHON_CMD named-query --list rhosocial.activerecord.backend.impl.mysql.examples.named_queries 2>/dev/null || echo "(No named queries found)"
+echo "--- List named expressions in examples module ---"
+$PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions 2>/dev/null || echo "(No named expressions found)"
 
 echo ""
 echo "--- List named connections module for reference ---"

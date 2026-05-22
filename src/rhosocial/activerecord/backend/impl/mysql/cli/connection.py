@@ -75,7 +75,7 @@ def add_version_arg(parser):
 def create_connection_parent_parser():
     """Create a parent parser with connection and output arguments.
 
-    Used by shared CLI helpers (named-query, named-procedure) that
+    Used by shared CLI helpers (named-expression, named-procedure) that
     require a parent_parser containing connection parameters.
     """
     import argparse

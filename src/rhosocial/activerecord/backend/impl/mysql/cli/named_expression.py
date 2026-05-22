@@ -1,7 +1,7 @@
-# src/rhosocial/activerecord/backend/impl/mysql/cli/named_query.py
-"""named-query subcommand - Adapter for shared CLI helper.
+# src/rhosocial/activerecord/backend/impl/mysql/cli/named_expression.py
+"""named-expression subcommand - Adapter for shared CLI helper.
 
-named-query requires connection arguments, output arguments, and --rich-ascii.
+named-expression requires connection arguments, output arguments, and --rich-ascii.
 """
 
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, AsyncMySQLBackend
@@ -12,44 +12,38 @@ from .output import create_provider
 
 
 def create_parser(subparsers):
-    """Create the named-query subcommand parser.
+    """Create the named-expression subcommand parser.
 
-    Reuses the shared create_named_query_parser, passing a parent parser
+    Reuses the shared create_named_expression_parser, passing a parent parser
     containing only connection and output arguments.
     """
-    from rhosocial.activerecord.backend.named_query.cli import create_named_query_parser
+    from rhosocial.activerecord.backend.named_expression.cli import create_named_expression_parser
     local_parent = create_connection_parent_parser()
-
-    nq_epilog = """Examples:
-  # Execute named query with connection parameters
-  %(prog)s myapp.queries.orders.high_value_pending --host localhost --database mydb --user root --password secret
-
-  # Override parameters
-  %(prog)s myapp.queries.orders.high_value_pending --host localhost --database mydb \\
-      --param threshold=5000 --param days=7
-
-  # Show signature without executing
-  %(prog)s myapp.queries.orders.high_value_pending --describe
-
-  # Preview SQL without executing
-  %(prog)s myapp.queries.orders.orders_by_status \\
-      --database mydb --param status=pending --dry-run
-
-  # List all named queries in a module
-  %(prog)s myapp.queries.orders --list
-
-  # Using environment variables
-  export MYSQL_HOST=localhost MYSQL_DATABASE=mydb MYSQL_USER=root MYSQL_PASSWORD=secret
-  %(prog)s myapp.queries.orders --list
-"""
-    return create_named_query_parser(subparsers, local_parent, epilog=nq_epilog)
+    parser = create_named_expression_parser(subparsers, local_parent)
+    parser.add_argument(
+        "--dialect-version",
+        default=None,
+        help="MySQL dialect version for capability probing (e.g., 8.0.0, 5.7.8).",
+    )
+    return parser
 
 
 def handle(args):
-    """Handle the named-query subcommand."""
-    from rhosocial.activerecord.backend.named_query.cli import handle_named_query as handle_nq
+    """Handle the named-expression subcommand."""
+    from rhosocial.activerecord.backend.named_expression.cli import handle_named_expression as handle_ne
 
     provider = create_provider(args.output, ascii_borders=args.rich_ascii)
+
+    from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+    def _get_requested_version():
+        ver = getattr(args, "dialect_version", None)
+        if ver:
+            return tuple(int(p) for p in ver.split("."))
+        return None
+
+    def create_dialect():
+        return MySQLDialect(version=_get_requested_version())
 
     backend = None
 
@@ -59,6 +53,9 @@ def handle(args):
         backend = MySQLBackend(connection_config=config)
         backend.connect()
         backend.introspect_and_adapt()
+        req_ver = _get_requested_version()
+        if req_ver:
+            backend._dialect.version = req_ver
         return backend
 
     def get_dialect(b):
@@ -91,7 +88,7 @@ def handle(args):
             if async_backend and async_backend._connection:
                 await async_backend.disconnect()
 
-        handle_nq(
+        handle_ne(
             args,
             provider,
             backend_factory=backend_factory,
@@ -102,14 +99,16 @@ def handle(args):
             get_dialect_async=get_dialect_async,
             execute_query_async=execute_query_async,
             disconnect_async=disconnect_async,
+            create_dialect=create_dialect,
         )
         return
 
-    handle_nq(
+    handle_ne(
         args,
         provider,
         backend_factory=backend_factory,
         get_dialect=get_dialect,
         execute_query=execute_query_by_name,
         disconnect=disconnect,
+        create_dialect=create_dialect,
     )

@@ -83,5 +83,5 @@ python -m rhosocial.activerecord.backend.impl.mysql \\
 
 ## 文档
 
-- [中文文档](../../../zh_CN/backend/named_query.md)
-- [English Documentation](../../../en_US/backend/named_query.md)
+- [中文文档](../../../zh_CN/backend/named_expression.md)
+- [English Documentation](../../../en_US/backend/named_expression.md)

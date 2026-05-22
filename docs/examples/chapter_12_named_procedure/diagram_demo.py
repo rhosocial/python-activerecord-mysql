@@ -7,7 +7,7 @@
 2. 执行过程后生成实例图
 3. 将图嵌入文档
 """
-from rhosocial.activerecord.backend.named_query import (
+from rhosocial.activerecord.backend.named_expression import (
     Procedure,
     ProcedureContext,
     ProcedureRunner,
