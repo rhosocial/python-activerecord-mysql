@@ -890,21 +890,15 @@ class MySQLDialect(
         return ' '.join(parts)
 
     def _format_storage_options_mysql(self, storage_options: Dict[str, Any]) -> str:
-        """
-        Format storage options for MySQL.
-
-        Args:
-            storage_options: Dict with keys like 'ENGINE', 'DEFAULT CHARSET', 'COLLATE'
-
-        Returns:
-            Formatted storage options string (e.g., "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
-        """
         parts = []
         for key, value in storage_options.items():
+            quoted_key = self.format_identifier(key)
             if isinstance(value, str):
-                parts.append(f"{key}={value}")
+                parts.append(f"{quoted_key}='{self._escape_sql_string(value)}'")
+            elif isinstance(value, (int, float)):
+                parts.append(f"{quoted_key}={value}")
             else:
-                parts.append(f"{key}={value}")
+                parts.append(f"{quoted_key}={value}")
         return ' '.join(parts)
     # endregion
 
