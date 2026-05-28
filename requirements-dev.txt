@@ -4,3 +4,4 @@ rhosocial-activerecord-testsuite
 pydantic[email]
 pytz
 pytest-asyncio
+pytest-benchmark
