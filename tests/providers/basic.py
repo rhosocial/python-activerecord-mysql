@@ -28,6 +28,7 @@ from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (
     User as UserBase, TypeCase as TypeCaseBase, ValidatedFieldUser as ValidatedFieldUserBase,
     TypeTestModel as TypeTestModelBase, ValidatedUser as ValidatedUserBase,
     TypeAdapterTest as TypeAdapterTestBase, YesOrNoBooleanAdapter,
+    PydanticValidatedModel as PydanticValidatedModelBase,
     MappedUser as MappedUserBase, MappedPost as MappedPostBase, MappedComment as MappedCommentBase,
     ColumnMappingModel as ColumnMappingModelBase, MixedAnnotationModel as MixedAnnotationModelBase
 )
@@ -36,6 +37,7 @@ from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (
     AsyncUser as AsyncUserBase, AsyncTypeCase as AsyncTypeCaseBase,
     AsyncValidatedUser as AsyncValidatedUserBase, AsyncValidatedFieldUser as AsyncValidatedFieldUserBase,
     AsyncTypeTestModel as AsyncTypeTestModelBase, AsyncTypeAdapterTest as AsyncTypeAdapterTestBase,
+    AsyncPydanticValidatedModel as AsyncPydanticValidatedModelBase,
     AsyncMappedUser as AsyncMappedUserBase, AsyncMappedPost as AsyncMappedPostBase,
     AsyncMappedComment as AsyncMappedCommentBase,
     AsyncColumnMappingModel as AsyncColumnMappingModelBase, AsyncMixedAnnotationModel as AsyncMixedAnnotationModelBase
@@ -43,10 +45,10 @@ from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (
 
 # Conditionally import Python 3.10+ models
 User310 = TypeCase310 = ValidatedFieldUser310 = TypeTestModel310 = ValidatedUser310 = None
-TypeAdapterTest310 = MappedUser310 = MappedPost310 = MappedComment310 = None
+TypeAdapterTest310 = PydanticValidatedModel310 = MappedUser310 = MappedPost310 = MappedComment310 = None
 ColumnMappingModel310 = MixedAnnotationModel310 = None
 AsyncUser310 = AsyncTypeCase310 = AsyncValidatedFieldUser310 = AsyncTypeTestModel310 = None
-AsyncValidatedUser310 = AsyncTypeAdapterTest310 = AsyncMappedUser310 = AsyncMappedPost310 = None
+AsyncValidatedUser310 = AsyncTypeAdapterTest310 = AsyncPydanticValidatedModel310 = AsyncMappedUser310 = AsyncMappedPost310 = None
 AsyncMappedComment310 = AsyncColumnMappingModel310 = AsyncMixedAnnotationModel310 = None
 
 if sys.version_info >= (3, 10):
@@ -54,7 +56,7 @@ if sys.version_info >= (3, 10):
         from rhosocial.activerecord.testsuite.feature.basic.fixtures.models_py310 import (
             User as User310, TypeCase as TypeCase310, ValidatedFieldUser as ValidatedFieldUser310,
             TypeTestModel as TypeTestModel310, ValidatedUser as ValidatedUser310,
-            TypeAdapterTest as TypeAdapterTest310,
+            TypeAdapterTest as TypeAdapterTest310, PydanticValidatedModel as PydanticValidatedModel310,
             MappedUser as MappedUser310, MappedPost as MappedPost310, MappedComment as MappedComment310,
             ColumnMappingModel as ColumnMappingModel310, MixedAnnotationModel as MixedAnnotationModel310
         )
@@ -62,6 +64,7 @@ if sys.version_info >= (3, 10):
             AsyncUser as AsyncUser310, AsyncTypeCase as AsyncTypeCase310,
             AsyncValidatedUser as AsyncValidatedUser310, AsyncValidatedFieldUser as AsyncValidatedFieldUser310,
             AsyncTypeTestModel as AsyncTypeTestModel310, AsyncTypeAdapterTest as AsyncTypeAdapterTest310,
+            AsyncPydanticValidatedModel as AsyncPydanticValidatedModel310,
             AsyncMappedUser as AsyncMappedUser310, AsyncMappedPost as AsyncMappedPost310,
             AsyncMappedComment as AsyncMappedComment310,
             AsyncColumnMappingModel as AsyncColumnMappingModel310, AsyncMixedAnnotationModel as AsyncMixedAnnotationModel310
@@ -71,10 +74,10 @@ if sys.version_info >= (3, 10):
 
 # Conditionally import Python 3.11+ models
 User311 = TypeCase311 = ValidatedFieldUser311 = TypeTestModel311 = ValidatedUser311 = None
-TypeAdapterTest311 = MappedUser311 = MappedPost311 = MappedComment311 = None
+TypeAdapterTest311 = PydanticValidatedModel311 = MappedUser311 = MappedPost311 = MappedComment311 = None
 ColumnMappingModel311 = MixedAnnotationModel311 = None
 AsyncUser311 = AsyncTypeCase311 = AsyncValidatedFieldUser311 = AsyncTypeTestModel311 = None
-AsyncValidatedUser311 = AsyncTypeAdapterTest311 = AsyncMappedUser311 = AsyncMappedPost311 = None
+AsyncValidatedUser311 = AsyncTypeAdapterTest311 = AsyncPydanticValidatedModel311 = AsyncMappedUser311 = AsyncMappedPost311 = None
 AsyncMappedComment311 = AsyncColumnMappingModel311 = AsyncMixedAnnotationModel311 = None
 
 if sys.version_info >= (3, 11):
@@ -82,7 +85,7 @@ if sys.version_info >= (3, 11):
         from rhosocial.activerecord.testsuite.feature.basic.fixtures.models_py311 import (
             User as User311, TypeCase as TypeCase311, ValidatedFieldUser as ValidatedFieldUser311,
             TypeTestModel as TypeTestModel311, ValidatedUser as ValidatedUser311,
-            TypeAdapterTest as TypeAdapterTest311,
+            TypeAdapterTest as TypeAdapterTest311, PydanticValidatedModel as PydanticValidatedModel311,
             MappedUser as MappedUser311, MappedPost as MappedPost311, MappedComment as MappedComment311,
             ColumnMappingModel as ColumnMappingModel311, MixedAnnotationModel as MixedAnnotationModel311
         )
@@ -90,6 +93,7 @@ if sys.version_info >= (3, 11):
             AsyncUser as AsyncUser311, AsyncTypeCase as AsyncTypeCase311,
             AsyncValidatedUser as AsyncValidatedUser311, AsyncValidatedFieldUser as AsyncValidatedFieldUser311,
             AsyncTypeTestModel as AsyncTypeTestModel311, AsyncTypeAdapterTest as AsyncTypeAdapterTest311,
+            AsyncPydanticValidatedModel as AsyncPydanticValidatedModel311,
             AsyncMappedUser as AsyncMappedUser311, AsyncMappedPost as AsyncMappedPost311,
             AsyncMappedComment as AsyncMappedComment311,
             AsyncColumnMappingModel as AsyncColumnMappingModel311, AsyncMixedAnnotationModel as AsyncMixedAnnotationModel311
@@ -99,10 +103,10 @@ if sys.version_info >= (3, 11):
 
 # Conditionally import Python 3.12+ models
 User312 = TypeCase312 = ValidatedFieldUser312 = TypeTestModel312 = ValidatedUser312 = None
-TypeAdapterTest312 = MappedUser312 = MappedPost312 = MappedComment312 = None
+TypeAdapterTest312 = PydanticValidatedModel312 = MappedUser312 = MappedPost312 = MappedComment312 = None
 ColumnMappingModel312 = MixedAnnotationModel312 = None
 AsyncUser312 = AsyncTypeCase312 = AsyncValidatedFieldUser312 = AsyncTypeTestModel312 = None
-AsyncValidatedUser312 = AsyncTypeAdapterTest312 = AsyncMappedUser312 = AsyncMappedPost312 = None
+AsyncValidatedUser312 = AsyncTypeAdapterTest312 = AsyncPydanticValidatedModel312 = AsyncMappedUser312 = AsyncMappedPost312 = None
 AsyncMappedComment312 = AsyncColumnMappingModel312 = AsyncMixedAnnotationModel312 = None
 
 if sys.version_info >= (3, 12):
@@ -110,7 +114,7 @@ if sys.version_info >= (3, 12):
         from rhosocial.activerecord.testsuite.feature.basic.fixtures.models_py312 import (
             User as User312, TypeCase as TypeCase312, ValidatedFieldUser as ValidatedFieldUser312,
             TypeTestModel as TypeTestModel312, ValidatedUser as ValidatedUser312,
-            TypeAdapterTest as TypeAdapterTest312,
+            TypeAdapterTest as TypeAdapterTest312, PydanticValidatedModel as PydanticValidatedModel312,
             MappedUser as MappedUser312, MappedPost as MappedPost312, MappedComment as MappedComment312,
             ColumnMappingModel as ColumnMappingModel312, MixedAnnotationModel as MixedAnnotationModel312
         )
@@ -118,6 +122,7 @@ if sys.version_info >= (3, 12):
             AsyncUser as AsyncUser312, AsyncTypeCase as AsyncTypeCase312,
             AsyncValidatedUser as AsyncValidatedUser312, AsyncValidatedFieldUser as AsyncValidatedFieldUser312,
             AsyncTypeTestModel as AsyncTypeTestModel312, AsyncTypeAdapterTest as AsyncTypeAdapterTest312,
+            AsyncPydanticValidatedModel as AsyncPydanticValidatedModel312,
             AsyncMappedUser as AsyncMappedUser312, AsyncMappedPost as AsyncMappedPost312,
             AsyncMappedComment as AsyncMappedComment312,
             AsyncColumnMappingModel as AsyncColumnMappingModel312, AsyncMixedAnnotationModel as AsyncMixedAnnotationModel312
@@ -142,6 +147,7 @@ ValidatedFieldUser = _select_model_class(ValidatedFieldUserBase, ValidatedFieldU
 TypeTestModel = _select_model_class(TypeTestModelBase, TypeTestModel312, TypeTestModel311, TypeTestModel310, "TypeTestModel")
 ValidatedUser = _select_model_class(ValidatedUserBase, ValidatedUser312, ValidatedUser311, ValidatedUser310, "ValidatedUser")
 TypeAdapterTest = _select_model_class(TypeAdapterTestBase, TypeAdapterTest312, TypeAdapterTest311, TypeAdapterTest310, "TypeAdapterTest")
+PydanticValidatedModel = _select_model_class(PydanticValidatedModelBase, PydanticValidatedModel312, PydanticValidatedModel311, PydanticValidatedModel310, "PydanticValidatedModel")
 MappedUser = _select_model_class(MappedUserBase, MappedUser312, MappedUser311, MappedUser310, "MappedUser")
 MappedPost = _select_model_class(MappedPostBase, MappedPost312, MappedPost311, MappedPost310, "MappedPost")
 MappedComment = _select_model_class(MappedCommentBase, MappedComment312, MappedComment311, MappedComment310, "MappedComment")
@@ -155,6 +161,7 @@ AsyncValidatedFieldUser = _select_model_class(AsyncValidatedFieldUserBase, Async
 AsyncTypeTestModel = _select_model_class(AsyncTypeTestModelBase, AsyncTypeTestModel312, AsyncTypeTestModel311, AsyncTypeTestModel310, "AsyncTypeTestModel")
 AsyncValidatedUser = _select_model_class(AsyncValidatedUserBase, AsyncValidatedUser312, AsyncValidatedUser311, AsyncValidatedUser310, "AsyncValidatedUser")
 AsyncTypeAdapterTest = _select_model_class(AsyncTypeAdapterTestBase, AsyncTypeAdapterTest312, AsyncTypeAdapterTest311, AsyncTypeAdapterTest310, "AsyncTypeAdapterTest")
+AsyncPydanticValidatedModel = _select_model_class(AsyncPydanticValidatedModelBase, AsyncPydanticValidatedModel312, AsyncPydanticValidatedModel311, AsyncPydanticValidatedModel310, "AsyncPydanticValidatedModel")
 AsyncMappedUser = _select_model_class(AsyncMappedUserBase, AsyncMappedUser312, AsyncMappedUser311, AsyncMappedUser310, "AsyncMappedUser")
 AsyncMappedPost = _select_model_class(AsyncMappedPostBase, AsyncMappedPost312, AsyncMappedPost311, AsyncMappedPost310, "AsyncMappedPost")
 AsyncMappedComment = _select_model_class(AsyncMappedCommentBase, AsyncMappedComment312, AsyncMappedComment311, AsyncMappedComment310, "AsyncMappedComment")
@@ -331,6 +338,14 @@ class BasicProvider(IBasicProvider, WorkerTestProtocol):
         """Sets up the database for async validated user model tests."""
         return await self._setup_async_model(AsyncValidatedUser, scenario_name, "validated_users")
 
+    def setup_pydantic_validated_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for Pydantic native validation tests."""
+        return self._setup_model(PydanticValidatedModel, scenario_name, "pydantic_validated_models")
+
+    async def setup_async_pydantic_validated_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Sets up the database for async Pydantic native validation tests."""
+        return await self._setup_async_model(AsyncPydanticValidatedModel, scenario_name, "pydantic_validated_models")
+
     def setup_mapped_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for MappedUser, MappedPost, and MappedComment models."""
         return self._setup_multiple_models([
@@ -408,8 +423,8 @@ class BasicProvider(IBasicProvider, WorkerTestProtocol):
         """
         tables_to_drop = [
             'users', 'type_cases', 'type_tests', 'validated_field_users',
-            'validated_users', 'type_adapter_tests', 'posts', 'comments',
-            'column_mapping_items', 'mixed_annotation_items'
+            'validated_users', 'pydantic_validated_models', 'type_adapter_tests',
+            'posts', 'comments', 'column_mapping_items', 'mixed_annotation_items'
         ]
         for backend_instance in self._active_backends:
             try:
@@ -438,8 +453,8 @@ class BasicProvider(IBasicProvider, WorkerTestProtocol):
         """
         tables_to_drop = [
             'users', 'type_cases', 'type_tests', 'validated_field_users',
-            'validated_users', 'type_adapter_tests', 'posts', 'comments',
-            'column_mapping_items', 'mixed_annotation_items'
+            'validated_users', 'pydantic_validated_models', 'type_adapter_tests',
+            'posts', 'comments', 'column_mapping_items', 'mixed_annotation_items'
         ]
         for backend_instance in self._active_async_backends:
             try:
@@ -529,6 +544,7 @@ class BasicProvider(IBasicProvider, WorkerTestProtocol):
                 'type_test': 'type_tests',
                 'validated_field_user': 'validated_field_users',
                 'validated_user': 'validated_users',
+                'pydantic_validated_model': 'pydantic_validated_models',
                 'type_adapter_test': 'type_adapter_tests',
             }
             table_name = table_map.get(base_type, 'users')

@@ -17,6 +17,117 @@ permissions:
   contents: read
 
 jobs:
+  benchmark-python-314-mysql-97:
+    name: Run benchmarks with Python 3.14 / MySQL 9.7
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      mysql:
+        image: mysql:9.7
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -ppassword"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 3318:3306
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install activerecord and testsuite
+        run: |
+          pip install git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev27
+          pip install git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev14
+
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          conn = mysql.connector.connect(
+              host='127.0.0.1',
+              port=3318,
+              user='root',
+              password='password',
+              ssl_disabled=True
+          )
+          cursor = conn.cursor()
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL 9.7 connectivity test passed - Current time:', result[0])
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3318
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run benchmark suite
+        run: |
+          set -o pipefail
+          export PYTHONPATH=src:tests
+          TESTSUITE_DIR=$(python - <<'PY'
+          import pathlib
+          import rhosocial.activerecord.testsuite as testsuite
+
+          print(pathlib.Path(testsuite.__file__).parent)
+          PY
+          )
+          python -m pytest \
+            --rootdir=. \
+            --confcutdir=. \
+            "$TESTSUITE_DIR/benchmark" \
+            -m benchmark \
+            --benchmark-size=small \
+            --benchmark-sort=mean \
+            --tb=short | tee benchmark-output.txt
+
+      - name: Write benchmark conclusion
+        if: always()
+        run: |
+          {
+            echo "## Python 3.14 / MySQL 9.7 Benchmark Conclusion"
+            echo
+            echo "- Python: 3.14"
+            echo "- MySQL: 9.7"
+            echo "- Scope: testsuite benchmark suite"
+            echo "- Size: small"
+            echo "- Result: benchmark job fails only when benchmark execution or correctness checks fail."
+            echo
+            echo '```text'
+            grep -A 120 "benchmark:" benchmark-output.txt || cat benchmark-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
     runs-on: ubuntu-latest
