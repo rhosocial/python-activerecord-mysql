@@ -291,6 +291,8 @@ class MySQLBackend(SyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBacke
 
     def get_server_version(self) -> tuple:
         """Get MySQL server version."""
+        if self._version and self._version != (0, 0, 0):
+            return self._version
         if not self._connection:
             self.connect()
         
