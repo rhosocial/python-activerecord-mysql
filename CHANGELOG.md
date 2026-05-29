@@ -1,3 +1,10 @@
+## [v1.0.0.dev17] - 2026-05-30
+
+### Changed
+
+- Changed MySQLDialect to default to version=None instead of fixed version, requiring introspect_and_adapt() or explicit version before version-dependent features can be used. ([#39](https://github.com/rhosocial/python-activerecord-mysql/issues/39))
+
+
 ## [v1.0.0.dev16] - 2026-05-15
 
 ### Security
