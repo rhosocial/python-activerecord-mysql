@@ -717,6 +717,163 @@ class TestCLIHandleInfoVerbose:
             for protocol_name, stats in protocols.items():
                 assert 'methods' in stats
 
+
+class TestCLINamedExpressionAdapters:
+    """Tests for MySQL named-expression CLI adapters."""
+
+    def test_named_expression_parser_adds_dialect_version(self):
+        from unittest.mock import MagicMock, patch
+
+        from rhosocial.activerecord.backend.impl.mysql.cli import named_expression
+
+        parser = MagicMock()
+        subparsers = MagicMock()
+
+        with patch(
+            "rhosocial.activerecord.backend.named_expression.cli.create_named_expression_parser",
+            return_value=parser,
+        ) as create_parser:
+            result = named_expression.create_parser(subparsers)
+
+        assert result is parser
+        create_parser.assert_called_once()
+        parser.add_argument.assert_called_once_with(
+            "--dialect-version",
+            default=None,
+            help="MySQL dialect version for capability probing (e.g., 8.0.0, 5.7.8).",
+        )
+
+    def test_named_expression_handle_sync_passes_callbacks(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        from rhosocial.activerecord.backend.impl.mysql.cli import named_expression
+
+        provider = MagicMock()
+        args = SimpleNamespace(
+            output="table",
+            rich_ascii=False,
+            dialect_version="8.0.0",
+            is_async=False,
+        )
+
+        with patch.object(named_expression, "create_provider", return_value=provider), patch(
+            "rhosocial.activerecord.backend.named_expression.cli.handle_named_expression"
+        ) as handle_ne:
+            named_expression.handle(args)
+
+        handle_ne.assert_called_once()
+        call_args = handle_ne.call_args
+        assert call_args.args == (args, provider)
+        assert {
+            "backend_factory",
+            "get_dialect",
+            "execute_query",
+            "disconnect",
+            "create_dialect",
+        } <= set(call_args.kwargs)
+        dialect = call_args.kwargs["create_dialect"]()
+        assert dialect.version == (8, 0, 0)
+
+    def test_named_expression_handle_async_passes_async_callbacks(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        from rhosocial.activerecord.backend.impl.mysql.cli import named_expression
+
+        provider = MagicMock()
+        args = SimpleNamespace(
+            output="table",
+            rich_ascii=False,
+            dialect_version=None,
+            is_async=True,
+        )
+
+        with patch.object(named_expression, "create_provider", return_value=provider), patch(
+            "rhosocial.activerecord.backend.named_expression.cli.handle_named_expression"
+        ) as handle_ne:
+            named_expression.handle(args)
+
+        handle_ne.assert_called_once()
+        call_args = handle_ne.call_args
+        assert call_args.args == (args, provider)
+        assert {
+            "backend_factory",
+            "get_dialect",
+            "execute_query",
+            "disconnect",
+            "backend_async_factory",
+            "get_dialect_async",
+            "execute_query_async",
+            "disconnect_async",
+            "create_dialect",
+        } <= set(call_args.kwargs)
+        dialect = call_args.kwargs["create_dialect"]()
+        assert dialect._version is None
+
+    def test_named_procedure_graph_parser_uses_shared_parser(self):
+        from unittest.mock import MagicMock, patch
+
+        from rhosocial.activerecord.backend.impl.mysql.cli import named_procedure_graph
+
+        parser = MagicMock()
+        subparsers = MagicMock()
+
+        with patch(
+            "rhosocial.activerecord.backend.named_expression.cli_procedure_graph.create_named_procedure_graph_parser",
+            return_value=parser,
+        ) as create_parser:
+            result = named_procedure_graph.create_parser(subparsers)
+
+        assert result is parser
+        create_parser.assert_called_once()
+        assert create_parser.call_args.args[0] is subparsers
+
+    def test_named_procedure_graph_handle_sync_passes_callbacks(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        from rhosocial.activerecord.backend.impl.mysql.cli import named_procedure_graph
+
+        provider = MagicMock()
+        args = SimpleNamespace(output="table", rich_ascii=False, is_async=False)
+
+        with patch.object(named_procedure_graph, "create_provider", return_value=provider), patch(
+            "rhosocial.activerecord.backend.named_expression.cli_procedure_graph.handle_named_procedure_graph"
+        ) as handle_npg:
+            named_procedure_graph.handle(args)
+
+        handle_npg.assert_called_once()
+        call_args = handle_npg.call_args
+        assert call_args.args == (args, provider)
+        assert {"backend_factory", "disconnect"} <= set(call_args.kwargs)
+        assert "backend_async_factory" not in call_args.kwargs
+        assert "disconnect_async" not in call_args.kwargs
+
+    def test_named_procedure_graph_handle_async_passes_async_callbacks(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock, patch
+
+        from rhosocial.activerecord.backend.impl.mysql.cli import named_procedure_graph
+
+        provider = MagicMock()
+        args = SimpleNamespace(output="table", rich_ascii=False, is_async=True)
+
+        with patch.object(named_procedure_graph, "create_provider", return_value=provider), patch(
+            "rhosocial.activerecord.backend.named_expression.cli_procedure_graph.handle_named_procedure_graph"
+        ) as handle_npg:
+            named_procedure_graph.handle(args)
+
+        handle_npg.assert_called_once()
+        call_args = handle_npg.call_args
+        assert call_args.args == (args, provider)
+        assert {
+            "backend_factory",
+            "disconnect",
+            "backend_async_factory",
+            "disconnect_async",
+        } <= set(call_args.kwargs)
+
     def test_handle_info_with_version(self, capsys):
         """Test handle_info with custom version."""
         from rhosocial.activerecord.backend.impl.mysql.cli.info import handle
