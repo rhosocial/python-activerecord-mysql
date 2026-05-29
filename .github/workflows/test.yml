@@ -53,7 +53,7 @@ jobs:
       - name: Install activerecord and testsuite
         run: |
           pip install git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev27
-          pip install git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev14
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev14
 
       - name: Create and test database
         run: |
@@ -105,11 +105,42 @@ jobs:
           python -m pytest \
             --rootdir=. \
             --confcutdir=. \
-            "$TESTSUITE_DIR/benchmark" \
+            "$TESTSUITE_DIR/benchmark/crud" \
+            "$TESTSUITE_DIR/benchmark/query" \
+            "$TESTSUITE_DIR/benchmark/transaction" \
+            "$TESTSUITE_DIR/benchmark/mixin" \
             -m benchmark \
             --benchmark-size=small \
             --benchmark-sort=mean \
             --tb=short | tee benchmark-output.txt
+          python -m pytest \
+            --rootdir=. \
+            --confcutdir=. \
+            tests/benchmark/backend \
+            -m benchmark \
+            --benchmark-size=small \
+            --benchmark-sort=mean \
+            --tb=short | tee -a benchmark-output.txt
+
+      - name: Run FastAPI benchmark suite
+        run: |
+          set -o pipefail
+          export PYTHONPATH=src:tests
+          TESTSUITE_DIR=$(python - <<'PY'
+          import pathlib
+          import rhosocial.activerecord.testsuite as testsuite
+
+          print(pathlib.Path(testsuite.__file__).parent)
+          PY
+          )
+          python -m pytest \
+            --rootdir=. \
+            --confcutdir=. \
+            "$TESTSUITE_DIR/benchmark/fastapi" \
+            -m benchmark_fastapi \
+            --benchmark-size=small \
+            --benchmark-sort=mean \
+            --tb=short | tee fastapi-benchmark-output.txt
 
       - name: Write benchmark conclusion
         if: always()
@@ -119,12 +150,29 @@ jobs:
             echo
             echo "- Python: 3.14"
             echo "- MySQL: 9.7"
-            echo "- Scope: testsuite benchmark suite"
+            echo "- Scope: testsuite generic benchmarks + MySQL backend direct benchmarks"
             echo "- Size: small"
             echo "- Result: benchmark job fails only when benchmark execution or correctness checks fail."
             echo
             echo '```text'
             grep -A 120 "benchmark:" benchmark-output.txt || cat benchmark-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write FastAPI benchmark conclusion
+        if: always()
+        run: |
+          {
+            echo "## Python 3.14 / MySQL 9.7 FastAPI Benchmark Conclusion"
+            echo
+            echo "- Python: 3.14"
+            echo "- MySQL: 9.7"
+            echo "- Scope: testsuite FastAPI database benchmarks"
+            echo "- Size: small"
+            echo "- Result: benchmark job fails only when FastAPI benchmark execution or correctness checks fail."
+            echo
+            echo '```text'
+            grep -A 120 "benchmark:" fastapi-benchmark-output.txt || cat fastapi-benchmark-output.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -179,7 +227,7 @@ jobs:
       - name: Install activerecord and testsuite
         run: |
           pip install git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev27
-          pip install git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev14
+          pip install rhosocial-activerecord-testsuite==1.0.0.dev14
 
       - name: Create and test database
         run: |
