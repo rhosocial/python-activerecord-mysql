@@ -52,7 +52,7 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev27
+          pip install rhosocial-activerecord==1.0.0.dev27
           pip install rhosocial-activerecord-testsuite==1.0.0.dev14
 
       - name: Create and test database
@@ -226,7 +226,7 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev27
+          pip install rhosocial-activerecord==1.0.0.dev27
           pip install rhosocial-activerecord-testsuite==1.0.0.dev14
 
       - name: Create and test database
