@@ -116,6 +116,7 @@ jobs:
           python -m pytest \
             --rootdir=. \
             --confcutdir=. \
+            tests/benchmark/crud \
             tests/benchmark/backend \
             -m benchmark \
             --benchmark-size=small \
