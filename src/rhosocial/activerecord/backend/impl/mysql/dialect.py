@@ -77,6 +77,8 @@ from .protocols import (
     MySQLFullTextSearchSupport,
     MySQLLockingSupport,
     MySQLModifyColumnSupport,
+    MySQLJsonDualityViewSupport,
+    MySQLOptimizerHintSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -91,6 +93,8 @@ from .mixins import (
     MySQLIntrospectionMixin,
     MySQLLockingMixin,
     MySQLModifyColumnMixin,
+    MySQLJsonDualityViewMixin,
+    MySQLOptimizerHintMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -149,6 +153,8 @@ class MySQLDialect(
     MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
     MySQLShowDialectMixin,  # MySQL SHOW commands
     MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
+    MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
+    MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
     IntrospectionMixin,
     # Protocols for type checking
     # Note: MySQL-specific protocols extend generic protocols,
@@ -188,6 +194,8 @@ class MySQLDialect(
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
     MySQLFullTextSearchSupport,  # MySQL full-text search
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
+    MySQLJsonDualityViewSupport,  # MySQL 9.7+ JSON Duality Views
+    MySQLOptimizerHintSupport,  # MySQL optimizer hints
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,

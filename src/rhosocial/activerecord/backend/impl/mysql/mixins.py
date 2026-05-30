@@ -2010,3 +2010,107 @@ class AsyncMySQLConcurrencyMixin:
     def get_concurrency_hint(self) -> Optional[ConcurrencyHint]:
         """Get cached concurrency hint."""
         return self._concurrency_hint
+
+
+class MySQLJsonDualityViewMixin:
+    """MySQL JSON Duality View implementation (MySQL 9.7+).
+
+    Provides SQL generation for CREATE/DROP JSON RELATIONAL DUALITY VIEW
+    statements using JSON_DUALITY_OBJECT with WITH(...) annotations.
+    """
+
+    def supports_json_duality_view(self) -> bool:
+        """JSON Duality Views are supported since MySQL 9.7."""
+        return self.version >= (9, 7, 0)
+
+    def supports_json_duality_view_dml(self) -> bool:
+        """DML on JSON Duality Views is supported since MySQL 9.7."""
+        return self.version >= (9, 7, 0)
+
+    def format_create_json_duality_view_statement(self, expr) -> Tuple[str, tuple]:
+        """Format CREATE JSON RELATIONAL DUALITY VIEW statement."""
+        parts = []
+        if expr.replace:
+            parts.append("CREATE OR REPLACE JSON RELATIONAL DUALITY VIEW")
+        else:
+            parts.append("CREATE JSON RELATIONAL DUALITY VIEW")
+        parts.append(f"`{expr.view_name}`")
+        parts.append("AS")
+
+        select_clause = self._format_duality_object_select(expr.root_spec)
+        parts.append(select_clause)
+
+        return " ".join(parts), ()
+
+    def format_drop_json_duality_view_statement(self, expr) -> Tuple[str, tuple]:
+        """Format DROP VIEW for a JSON Duality View."""
+        if expr.if_exists:
+            return f"DROP VIEW IF EXISTS `{expr.view_name}`", ()
+        return f"DROP VIEW `{expr.view_name}`", ()
+
+    def _format_duality_object_select(self, spec) -> str:
+        """Format the SELECT JSON_DUALITY_OBJECT(...) FROM table clause."""
+        obj_body = self._format_duality_object_body(spec)
+        table_ref = f"`{spec.from_table}`"
+        if spec.from_alias:
+            table_ref += f" `{spec.from_alias}`"
+        return f"SELECT {obj_body} FROM {table_ref}"
+
+    def _format_duality_object_body(self, spec) -> str:
+        """Format JSON_DUALITY_OBJECT( WITH(...) 'key': col, ... )."""
+        inner_parts = []
+
+        if spec.tags:
+            tag_names = ",".join(t.value for t in spec.tags)
+            inner_parts.append(f"WITH({tag_names})")
+
+        for col in spec.columns:
+            inner_parts.append(f"'{col.json_key}': {col.column_expr}")
+
+        for nested in spec.nested:
+            nested_subquery = self._format_nested_duality(nested)
+            inner_parts.append(f"'{nested.json_key}': ({nested_subquery})")
+
+        if spec.tags:
+            with_part = inner_parts[0]
+            field_parts = inner_parts[1:]
+            fields_str = ", ".join(field_parts)
+            return f"JSON_DUALITY_OBJECT({with_part} {fields_str})"
+        else:
+            fields_str = ", ".join(inner_parts)
+            return f"JSON_DUALITY_OBJECT({fields_str})"
+
+    def _format_nested_duality(self, nested) -> str:
+        """Format a nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery."""
+        sub_spec = nested.subquery
+        obj_body = self._format_duality_object_body(sub_spec)
+        table_ref = f"`{sub_spec.from_table}`"
+        if sub_spec.from_alias:
+            table_ref += f" `{sub_spec.from_alias}`"
+        sql = f"SELECT JSON_ARRAYAGG({obj_body}) FROM {table_ref}"
+        if sub_spec.join_condition:
+            sql += f" WHERE {sub_spec.join_condition}"
+        return sql
+
+
+class MySQLOptimizerHintMixin:
+    """MySQL optimizer hint implementation.
+
+    Provides SQL generation for per-statement optimizer hints
+    using the /*+ ... */ syntax, including SET_VAR hints.
+    """
+
+    def supports_optimizer_hint(self) -> bool:
+        """Optimizer hints supported since MySQL 5.7."""
+        return self.version >= (5, 7, 0)
+
+    def supports_hypergraph_optimizer(self) -> bool:
+        """Hypergraph optimizer available in MySQL 9.7+ Community Edition."""
+        return self.version >= (9, 7, 0)
+
+    def format_optimizer_hint(self, expr) -> "Tuple[str, tuple]":
+        """Format /*+ SET_VAR(...) */ hint clause."""
+        parts = []
+        for hint in expr.hints:
+            parts.append(f"SET_VAR({hint.variable}='{hint.value}')")
+        return "/*+ " + " ".join(parts) + " */", ()

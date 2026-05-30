@@ -4,7 +4,8 @@ MySQL-specific expression classes.
 
 This module provides expression classes that are specific to MySQL, such as
 LOAD DATA INFILE, JSON_TABLE, JSON functions, spatial functions, vector
-functions, MATCH...AGAINST expressions, and row-level locking expressions.
+functions, MATCH...AGAINST expressions, row-level locking expressions,
+and JSON Duality View expressions.
 
 Directory structure:
 - load_data.py      - LOAD DATA INFILE expression
@@ -14,6 +15,7 @@ Directory structure:
 - vector.py          - Vector function expressions (MySQL 9.0+)
 - match_against.py - MATCH...AGAINST expression
 - locking.py        - Row-level locking expressions (FOR UPDATE, FOR SHARE)
+- json_duality_view.py - JSON Duality View expressions (MySQL 9.7+)
 """
 
 from .load_data import MySQLLoadDataExpression, LoadDataOptions
@@ -38,6 +40,19 @@ from .vector import (
 )
 from .match_against import MySQLMatchAgainstExpression, MatchAgainstMode
 from .locking import MySQLForUpdateClause, MySQLLockStrength
+from .json_duality_view import (
+    CreateJsonDualityViewExpression,
+    DropJsonDualityViewExpression,
+    DualityObjectSpec,
+    DualityColumnMapping,
+    DualityNestedMapping,
+    DualityViewDMLTag,
+)
+from .optimizer_hint import (
+    MySQLOptimizerHintExpression,
+    SetVarHint,
+    OptimizerHintType,
+)
 
 __all__ = [
     "MySQLLoadDataExpression",
@@ -61,4 +76,13 @@ __all__ = [
     "MatchAgainstMode",
     "MySQLForUpdateClause",
     "MySQLLockStrength",
+    "CreateJsonDualityViewExpression",
+    "DropJsonDualityViewExpression",
+    "DualityObjectSpec",
+    "DualityColumnMapping",
+    "DualityNestedMapping",
+    "DualityViewDMLTag",
+    "MySQLOptimizerHintExpression",
+    "SetVarHint",
+    "OptimizerHintType",
 ]
