@@ -24,6 +24,41 @@ def _requires_mysql_97(backend):
         pytest.skip("Requires MySQL 9.7+ for JSON Duality Views")
 
 
+def _product_columns(*names):
+    columns = {
+        "_id": "`dv_products`.`id`",
+        "name": "`dv_products`.`name`",
+        "price": "`dv_products`.`price`",
+    }
+    return [DualityColumnMapping(name, columns[name]) for name in names]
+
+
+def _product_spec(*columns, tags=()):
+    return DualityObjectSpec(
+        tags=list(tags),
+        columns=_product_columns(*columns),
+        from_table="dv_products",
+    )
+
+
+def _create_products_view(backend, spec, *, replace=False):
+    expr = CreateJsonDualityViewExpression(
+        backend.dialect,
+        "products_dv",
+        spec,
+        replace=replace,
+    )
+    backend.execute(*expr.to_sql(), options=ExecutionOptions(stmt_type=StatementType.DDL))
+
+
+def _select_products_view_metadata(backend):
+    return backend.execute(
+        "SELECT * FROM information_schema.JSON_DUALITY_VIEWS "
+        "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv'",
+        (),
+    )
+
+
 @pytest.fixture
 def duality_backend(mysql_backend):
     """Provides a backend with test tables for duality view tests."""
@@ -78,40 +113,15 @@ class TestJsonDualityViewDDL:
 
     def test_create_read_only_view(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        spec = DualityObjectSpec(
-            columns=[
-                DualityColumnMapping("_id", "`dv_products`.`id`"),
-                DualityColumnMapping("name", "`dv_products`.`name`"),
-                DualityColumnMapping("price", "`dv_products`.`price`"),
-            ],
-            from_table="dv_products",
-        )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        sql, params = expr.to_sql()
-        backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
+        _create_products_view(backend, _product_spec("_id", "name", "price"))
 
-        result = backend.execute(
-            "SELECT * FROM information_schema.JSON_DUALITY_VIEWS "
-            "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv'", ()
-        )
+        result = _select_products_view_metadata(backend)
         assert len(result.data) > 0
 
     def test_create_writable_view(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        spec = DualityObjectSpec(
-            tags=[DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE],
-            columns=[
-                DualityColumnMapping("_id", "`dv_products`.`id`"),
-                DualityColumnMapping("name", "`dv_products`.`name`"),
-                DualityColumnMapping("price", "`dv_products`.`price`"),
-            ],
-            from_table="dv_products",
-        )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        sql, params = expr.to_sql()
-        backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
+        tags = (DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE)
+        _create_products_view(backend, _product_spec("_id", "name", "price", tags=tags))
 
         result = backend.execute(
             "SELECT ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE "
@@ -126,52 +136,24 @@ class TestJsonDualityViewDDL:
 
     def test_create_or_replace(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        ddl_opts = ExecutionOptions(stmt_type=StatementType.DDL)
-
-        spec = DualityObjectSpec(
-            columns=[DualityColumnMapping("_id", "`dv_products`.`id`")],
-            from_table="dv_products",
+        _create_products_view(backend, _product_spec("_id"))
+        _create_products_view(
+            backend,
+            _product_spec("_id", "name", tags=(DualityViewDMLTag.INSERT,)),
+            replace=True,
         )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        backend.execute(*expr.to_sql(), options=ddl_opts)
 
-        spec2 = DualityObjectSpec(
-            tags=[DualityViewDMLTag.INSERT],
-            columns=[
-                DualityColumnMapping("_id", "`dv_products`.`id`"),
-                DualityColumnMapping("name", "`dv_products`.`name`"),
-            ],
-            from_table="dv_products",
-        )
-        expr2 = CreateJsonDualityViewExpression(dialect, "products_dv", spec2, replace=True)
-        backend.execute(*expr2.to_sql(), options=ddl_opts)
-
-        result = backend.execute(
-            "SELECT * FROM information_schema.JSON_DUALITY_VIEWS "
-            "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv'", ()
-        )
+        result = _select_products_view_metadata(backend)
         assert len(result.data) > 0
 
     def test_drop_view(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        ddl_opts = ExecutionOptions(stmt_type=StatementType.DDL)
+        _create_products_view(backend, _product_spec("_id"))
 
-        spec = DualityObjectSpec(
-            columns=[DualityColumnMapping("_id", "`dv_products`.`id`")],
-            from_table="dv_products",
-        )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        backend.execute(*expr.to_sql(), options=ddl_opts)
+        drop_expr = DropJsonDualityViewExpression(backend.dialect, "products_dv")
+        backend.execute(*drop_expr.to_sql(), options=ExecutionOptions(stmt_type=StatementType.DDL))
 
-        drop_expr = DropJsonDualityViewExpression(dialect, "products_dv")
-        backend.execute(*drop_expr.to_sql(), options=ddl_opts)
-
-        result = backend.execute(
-            "SELECT * FROM information_schema.JSON_DUALITY_VIEWS "
-            "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv'", ()
-        )
+        result = _select_products_view_metadata(backend)
         assert len(result.data) == 0
 
 
@@ -180,20 +162,8 @@ class TestJsonDualityViewDML:
 
     def test_insert_and_select(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        ddl_opts = ExecutionOptions(stmt_type=StatementType.DDL)
-
-        spec = DualityObjectSpec(
-            tags=[DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE],
-            columns=[
-                DualityColumnMapping("_id", "`dv_products`.`id`"),
-                DualityColumnMapping("name", "`dv_products`.`name`"),
-                DualityColumnMapping("price", "`dv_products`.`price`"),
-            ],
-            from_table="dv_products",
-        )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        backend.execute(*expr.to_sql(), options=ddl_opts)
+        tags = (DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE)
+        _create_products_view(backend, _product_spec("_id", "name", "price", tags=tags))
 
         backend.execute(
             "INSERT INTO products_dv VALUES (%s)",
@@ -205,20 +175,8 @@ class TestJsonDualityViewDML:
 
     def test_insert_auto_increment(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        ddl_opts = ExecutionOptions(stmt_type=StatementType.DDL)
-
-        spec = DualityObjectSpec(
-            tags=[DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE],
-            columns=[
-                DualityColumnMapping("_id", "`dv_products`.`id`"),
-                DualityColumnMapping("name", "`dv_products`.`name`"),
-                DualityColumnMapping("price", "`dv_products`.`price`"),
-            ],
-            from_table="dv_products",
-        )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        backend.execute(*expr.to_sql(), options=ddl_opts)
+        tags = (DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE)
+        _create_products_view(backend, _product_spec("_id", "name", "price", tags=tags))
 
         backend.execute(
             "INSERT INTO products_dv VALUES (%s)",
@@ -230,20 +188,8 @@ class TestJsonDualityViewDML:
 
     def test_delete(self, duality_backend):
         backend = duality_backend
-        dialect = backend.dialect
-        ddl_opts = ExecutionOptions(stmt_type=StatementType.DDL)
-
-        spec = DualityObjectSpec(
-            tags=[DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE],
-            columns=[
-                DualityColumnMapping("_id", "`dv_products`.`id`"),
-                DualityColumnMapping("name", "`dv_products`.`name`"),
-                DualityColumnMapping("price", "`dv_products`.`price`"),
-            ],
-            from_table="dv_products",
-        )
-        expr = CreateJsonDualityViewExpression(dialect, "products_dv", spec)
-        backend.execute(*expr.to_sql(), options=ddl_opts)
+        tags = (DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE, DualityViewDMLTag.DELETE)
+        _create_products_view(backend, _product_spec("_id", "name", "price", tags=tags))
 
         backend.execute(
             "INSERT INTO products_dv VALUES (%s)",
