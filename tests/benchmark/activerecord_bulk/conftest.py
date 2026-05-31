@@ -20,3 +20,11 @@ def pytest_addoption(parser):
         )
     except ValueError:
         pass
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "benchmark: Mark tests as performance benchmarks")
+    config.addinivalue_line("markers", "benchmark_crud: Mark CRUD benchmark tests")
+    config.addinivalue_line("markers", "benchmark_sync: Mark synchronous benchmark tests")
+    config.addinivalue_line("markers", "benchmark_async: Mark asynchronous benchmark tests")
+    config.addinivalue_line("markers", "benchmark_write: Mark write-oriented benchmark tests")

@@ -119,6 +119,7 @@ jobs:
             -m benchmark \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee benchmark-output.txt
           python -m pytest \
             --rootdir=. \
@@ -127,6 +128,7 @@ jobs:
             -m benchmark \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee -a benchmark-output.txt
           python -m pytest \
             --rootdir=. \
@@ -135,6 +137,7 @@ jobs:
             -m benchmark \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee -a benchmark-output.txt
 
       - name: Run FastAPI benchmark suite
@@ -155,6 +158,7 @@ jobs:
             -m benchmark_fastapi \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee fastapi-benchmark-output.txt
 
       - name: Write benchmark conclusion
