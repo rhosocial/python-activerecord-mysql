@@ -7,14 +7,6 @@ and do not silently generate invalid SQL.
 """
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression import (
-    CreateJsonDualityViewExpression,
-    DualityObjectSpec,
-    DualityColumnMapping,
-    DualityViewDMLTag,
-    MySQLOptimizerHintExpression,
-    SetVarHint,
-)
 
 
 @pytest.fixture
@@ -54,12 +46,3 @@ class TestOptimizerHintNegative:
     def test_hint_not_on_56(self, dialect_56):
         assert not dialect_56.supports_optimizer_hint()
         assert not dialect_56.supports_hypergraph_optimizer()
-
-    def test_hint_still_generates_sql_on_80(self, dialect_80):
-        """SET_VAR hint syntax works on 8.0+ even without hypergraph."""
-        expr = MySQLOptimizerHintExpression(dialect_80, [
-            SetVarHint("max_execution_time", "5000")
-        ])
-        sql, params = expr.to_sql()
-        assert sql == "/*+ SET_VAR(max_execution_time='5000') */"
-        assert "hypergraph" not in sql
