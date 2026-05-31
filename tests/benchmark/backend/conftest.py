@@ -40,13 +40,16 @@ SCENARIO_PARAMS = list(get_enabled_scenarios().keys()) or [
 
 
 def pytest_addoption(parser):
-    parser.addoption(
-        "--benchmark-size",
-        action="store",
-        default="small",
-        choices=("small", "medium", "large"),
-        help="Data size for MySQL backend benchmark scenarios.",
-    )
+    try:
+        parser.addoption(
+            "--benchmark-size",
+            action="store",
+            default="small",
+            choices=("small", "medium", "large"),
+            help="Data size for MySQL backend benchmark scenarios.",
+        )
+    except ValueError:
+        pass
 
 
 @pytest.fixture(scope="function")
