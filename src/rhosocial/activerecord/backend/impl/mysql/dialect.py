@@ -1168,8 +1168,8 @@ class MySQLDialect(
     # max_version: maximum supported version (inclusive), None = no upper limit
     # Reference: https://dev.mysql.com/doc/refman/en/inline-functions.html
     _MYSQL_FUNCTION_VERSIONS = {
-        # Core JSONExpression factories use -> / ->> operators, available since MySQL 5.7.13.
-        "json_extract": ((5, 7, 13), None),
+        # JSON functions are available since MySQL 5.7.8.
+        "json_extract": ((5, 7, 8), None),
         "json_extract_text": ((5, 7, 13), None),
         "json_build_object": (None, (0, 0, 0)),
         "json_array_elements": (None, (0, 0, 0)),
