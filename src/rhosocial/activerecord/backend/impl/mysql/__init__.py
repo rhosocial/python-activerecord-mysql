@@ -21,6 +21,7 @@ Architecture:
 from .backend import MySQLBackend
 from .async_backend import AsyncMySQLBackend
 from .config import MySQLConnectionConfig
+from .collation import MySQLCollation, MySQLCollationValidator
 from .dialect import MySQLDialect
 from .transaction import MySQLTransactionManager
 from .async_transaction import AsyncMySQLTransactionManager
@@ -130,6 +131,8 @@ __all__ = [
 
     # Dialect related
     'MySQLDialect',
+    'MySQLCollation',
+    'MySQLCollationValidator',
 
     # Transaction - Sync and Async
     'MySQLTransactionManager',
