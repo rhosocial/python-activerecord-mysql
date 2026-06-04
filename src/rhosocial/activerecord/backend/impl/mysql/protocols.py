@@ -1042,3 +1042,92 @@ class MySQLModifyColumnSupport(Protocol):
             Tuple of (SQL string, parameters tuple)
         """
         ...
+
+
+@runtime_checkable
+class MySQLJsonDualityViewSupport(Protocol):
+    """MySQL JSON Duality View protocol (MySQL 9.7+).
+
+    Feature Source: MySQL 9.7.0 (2026-04-21)
+
+    JSON Duality Views provide a document-relational duality layer:
+    - CREATE JSON RELATIONAL DUALITY VIEW with JSON_DUALITY_OBJECT
+    - WITH(INSERT,UPDATE,DELETE) annotations per object level
+    - DML via single JSON `data` column
+    - Optimistic locking via _metadata.etag on UPDATE
+
+    Official Documentation:
+    - JSON Duality Views: https://dev.mysql.com/doc/refman/9.7/en/json-duality-views.html
+
+    Version Requirements:
+    - JSON Duality Views: MySQL 9.7.0+
+    """
+
+    def supports_json_duality_view(self) -> bool:
+        """Whether JSON Duality Views are supported (MySQL 9.7+)."""
+        ...
+
+    def supports_json_duality_view_dml(self) -> bool:
+        """Whether DML on JSON Duality Views is supported (MySQL 9.7+)."""
+        ...
+
+    def format_create_json_duality_view_statement(self, expr: Any) -> Tuple[str, tuple]:
+        """Format CREATE JSON RELATIONAL DUALITY VIEW statement.
+
+        Args:
+            expr: CreateJsonDualityViewExpression instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_drop_json_duality_view_statement(self, expr: Any) -> Tuple[str, tuple]:
+        """Format DROP VIEW statement for a JSON Duality View.
+
+        Args:
+            expr: DropJsonDualityViewExpression instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+
+@runtime_checkable
+class MySQLOptimizerHintSupport(Protocol):
+    """MySQL optimizer hint protocol.
+
+    Feature Source: MySQL 5.7+ (hint syntax), MySQL 9.7+ (hypergraph optimizer)
+
+    Supports per-statement optimizer hints using /*+ ... */ syntax,
+    including SET_VAR hints for controlling optimizer switches.
+
+    Official Documentation:
+    - Optimizer Hints: https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html
+    - SET_VAR: https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html#optimizer-hints-set-var
+
+    Version Requirements:
+    - Optimizer hints: MySQL 5.7+
+    - SET_VAR hint: MySQL 8.0+
+    - Hypergraph optimizer: MySQL 9.7+ (Community Edition)
+    """
+
+    def supports_optimizer_hint(self) -> bool:
+        """Whether optimizer hints (/*+ ... */) are supported."""
+        ...
+
+    def supports_hypergraph_optimizer(self) -> bool:
+        """Whether the hypergraph optimizer is available (MySQL 9.7+)."""
+        ...
+
+    def format_optimizer_hint(self, expr: Any) -> Tuple[str, tuple]:
+        """Format optimizer hint expression.
+
+        Args:
+            expr: MySQLOptimizerHintExpression instance
+
+        Returns:
+            Tuple of (SQL hint string, parameters tuple)
+        """
+        ...

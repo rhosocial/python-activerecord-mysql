@@ -77,6 +77,8 @@ from .protocols import (
     MySQLFullTextSearchSupport,
     MySQLLockingSupport,
     MySQLModifyColumnSupport,
+    MySQLJsonDualityViewSupport,
+    MySQLOptimizerHintSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -91,6 +93,8 @@ from .mixins import (
     MySQLIntrospectionMixin,
     MySQLLockingMixin,
     MySQLModifyColumnMixin,
+    MySQLJsonDualityViewMixin,
+    MySQLOptimizerHintMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -149,6 +153,8 @@ class MySQLDialect(
     MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
     MySQLShowDialectMixin,  # MySQL SHOW commands
     MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
+    MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
+    MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
     IntrospectionMixin,
     # Protocols for type checking
     # Note: MySQL-specific protocols extend generic protocols,
@@ -188,6 +194,8 @@ class MySQLDialect(
     MySQLVectorSupport,  # MySQL 9.0+ VECTOR type support
     MySQLFullTextSearchSupport,  # MySQL full-text search
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
+    MySQLJsonDualityViewSupport,  # MySQL 9.7+ JSON Duality Views
+    MySQLOptimizerHintSupport,  # MySQL optimizer hints
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
@@ -1160,8 +1168,14 @@ class MySQLDialect(
     # max_version: maximum supported version (inclusive), None = no upper limit
     # Reference: https://dev.mysql.com/doc/refman/en/inline-functions.html
     _MYSQL_FUNCTION_VERSIONS = {
-        # JSON functions: MySQL 5.7.8+
+        # JSON functions are available since MySQL 5.7.8.
         "json_extract": ((5, 7, 8), None),
+        "json_extract_text": ((5, 7, 13), None),
+        "json_build_object": (None, (0, 0, 0)),
+        "json_array_elements": (None, (0, 0, 0)),
+        "json_objectagg": ((5, 7, 22), None),
+        "json_arrayagg": ((5, 7, 22), None),
+        # MySQL-specific JSON function wrappers use JSON_* functions from MySQL 5.7.8.
         "json_unquote": ((5, 7, 8), None),
         "json_object": ((5, 7, 8), None),
         "json_array": ((5, 7, 8), None),

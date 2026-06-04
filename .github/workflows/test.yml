@@ -105,14 +105,31 @@ jobs:
           python -m pytest \
             --rootdir=. \
             --confcutdir=. \
-            "$TESTSUITE_DIR/benchmark/crud" \
+            "$TESTSUITE_DIR/benchmark/crud/test_delete_async.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_delete_sync.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_insert_async.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_insert_sync.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_query_async.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_query_sync.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_update_async.py" \
+            "$TESTSUITE_DIR/benchmark/crud/test_update_sync.py" \
             "$TESTSUITE_DIR/benchmark/query" \
             "$TESTSUITE_DIR/benchmark/transaction" \
             "$TESTSUITE_DIR/benchmark/mixin" \
             -m benchmark \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee benchmark-output.txt
+          python -m pytest \
+            --rootdir=. \
+            --confcutdir=. \
+            tests/benchmark/activerecord_bulk \
+            -m benchmark \
+            --benchmark-size=small \
+            --benchmark-sort=mean \
+            --strict-markers \
+            --tb=short | tee -a benchmark-output.txt
           python -m pytest \
             --rootdir=. \
             --confcutdir=. \
@@ -120,6 +137,7 @@ jobs:
             -m benchmark \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee -a benchmark-output.txt
 
       - name: Run FastAPI benchmark suite
@@ -140,6 +158,7 @@ jobs:
             -m benchmark_fastapi \
             --benchmark-size=small \
             --benchmark-sort=mean \
+            --strict-markers \
             --tb=short | tee fastapi-benchmark-output.txt
 
       - name: Write benchmark conclusion
@@ -150,7 +169,7 @@ jobs:
             echo
             echo "- Python: 3.14"
             echo "- MySQL: 9.7"
-            echo "- Scope: testsuite generic benchmarks + MySQL backend direct benchmarks"
+            echo "- Scope: testsuite generic benchmarks + ActiveRecord bulk benchmarks + MySQL backend direct benchmarks"
             echo "- Size: small"
             echo "- Result: benchmark job fails only when benchmark execution or correctness checks fail."
             echo

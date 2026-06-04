@@ -33,6 +33,9 @@ from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (
     ColumnMappingModel as ColumnMappingModelBase, MixedAnnotationModel as MixedAnnotationModelBase,
     BulkUser as BulkUserBase
 )
+from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (
+    BulkUser as BulkUserBase, AsyncBulkUser as AsyncBulkUserBase
+)
 # Import async base models
 from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (
     AsyncUser as AsyncUserBase, AsyncTypeCase as AsyncTypeCaseBase,
@@ -177,6 +180,9 @@ AsyncMappedComment = _select_model_class(AsyncMappedCommentBase, AsyncMappedComm
 AsyncColumnMappingModel = _select_model_class(AsyncColumnMappingModelBase, AsyncColumnMappingModel312, AsyncColumnMappingModel311, AsyncColumnMappingModel310, "AsyncColumnMappingModel")
 AsyncMixedAnnotationModel = _select_model_class(AsyncMixedAnnotationModelBase, AsyncMixedAnnotationModel312, AsyncMixedAnnotationModel311, AsyncMixedAnnotationModel310, "AsyncMixedAnnotationModel")
 AsyncBulkUser = _select_model_class(AsyncBulkUserBase, AsyncBulkUser312, AsyncBulkUser311, AsyncBulkUser310, "AsyncBulkUser")
+
+BulkUser = BulkUserBase
+AsyncBulkUser = AsyncBulkUserBase
 
 from rhosocial.activerecord.testsuite.feature.basic.interfaces import IBasicProvider
 from rhosocial.activerecord.testsuite.core.protocols import WorkerTestProtocol
