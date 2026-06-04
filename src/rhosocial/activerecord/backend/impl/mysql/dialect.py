@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
 from rhosocial.activerecord.backend.dialect.protocols import (
+    CollationSupport,
     CTESupport,
     FilterClauseSupport,
     WindowFunctionSupport,
@@ -38,6 +39,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     SQLFunctionSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
+    CollationMixin,
     CTEMixin,
     FilterClauseMixin,
     WindowFunctionMixin,
@@ -90,9 +92,11 @@ from .mixins import (
     MySQLLockingMixin,
     MySQLModifyColumnMixin,
 )
+from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.collation import CollateExpression
     from rhosocial.activerecord.backend.expression.statements import (
         CreateTableExpression, CreateViewExpression, DropViewExpression,
         ColumnDefinition, TableConstraint, IndexDefinition,
@@ -107,6 +111,7 @@ if TYPE_CHECKING:
 class MySQLDialect(
     SQLDialectBase,
     # Include mixins for features that MySQL supports (with version-dependent implementations)
+    CollationMixin,
     CTEMixin,
     FilterClauseMixin,
     WindowFunctionMixin,
@@ -148,6 +153,7 @@ class MySQLDialect(
     # Protocols for type checking
     # Note: MySQL-specific protocols extend generic protocols,
     # so only MySQL-specific protocols are needed for isinstance checks
+    CollationSupport,
     CTESupport,
     FilterClauseSupport,
     WindowFunctionSupport,
@@ -222,6 +228,17 @@ class MySQLDialect(
     def get_server_version(self) -> Tuple[int, int, int]:
         """Return the MySQL version this dialect is configured for."""
         return self.version
+
+    def supports_collate_expression(self) -> bool:
+        """MySQL supports expression-level COLLATE."""
+        return True
+
+    def validate_collation_name(self, expr: "CollateExpression") -> str:
+        """Validate MySQL collation names and return their SQL representation."""
+        if expr.collation_options:
+            unsupported = ", ".join(sorted(expr.collation_options))
+            raise UnsupportedFeatureError(self.name, f"COLLATE options: {unsupported}")
+        return validate_mysql_collation_name(expr.collation_name, getattr(self, "version", None))
 
     @staticmethod
     def _escape_sql_string(value: str) -> str:
