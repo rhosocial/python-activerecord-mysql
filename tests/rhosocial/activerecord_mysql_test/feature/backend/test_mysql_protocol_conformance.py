@@ -109,6 +109,8 @@ MYSQL_PROTOCOLS = [
     mysql_protocols.MySQLFullTextSearchSupport,
     mysql_protocols.MySQLLockingSupport,
     mysql_protocols.MySQLModifyColumnSupport,
+    mysql_protocols.MySQLJsonDualityViewSupport,
+    mysql_protocols.MySQLOptimizerHintSupport,
 ]
 
 
@@ -230,6 +232,7 @@ class TestMySQLExpressionDialectSeparation:
         ("MySQLDistanceCosineExpression", "format_distance_cosine"),
         ("MySQLDistanceDotExpression", "format_distance_dot"),
         ("MySQLMatchAgainstExpression", "format_match_against"),
+        ("MySQLOptimizerHintExpression", "format_optimizer_hint"),
     ]
 
     @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)
@@ -275,6 +278,8 @@ MYSQL_PROTOCOL_MIXIN_PAIRS = [
     (mysql_protocols.MySQLFullTextSearchSupport, mysql_mixins.MySQLFullTextSearchMixin),
     (mysql_protocols.MySQLLockingSupport, mysql_mixins.MySQLLockingMixin),
     (mysql_protocols.MySQLModifyColumnSupport, mysql_mixins.MySQLModifyColumnMixin),
+    (mysql_protocols.MySQLJsonDualityViewSupport, mysql_mixins.MySQLJsonDualityViewMixin),
+    (mysql_protocols.MySQLOptimizerHintSupport, mysql_mixins.MySQLOptimizerHintMixin),
 ]
 
 
