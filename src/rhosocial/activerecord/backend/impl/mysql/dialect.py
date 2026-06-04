@@ -1229,9 +1229,25 @@ class MySQLDialect(
         )
         from rhosocial.activerecord.backend.impl.mysql import functions as mysql_functions
 
+        expression_constructors = {
+            "xmlagg",
+            "xmlattributes",
+            "xmlcomment",
+            "xmlconcat",
+            "xmlelement",
+            "xmlexists",
+            "xmlforest",
+            "xmlparse",
+            "xmlpi",
+            "xmlquery",
+            "xmlroot",
+            "xmlserialize",
+            "xmltable",
+        }
         result = {}
         for func_name in core_functions:
-            result[func_name] = self._is_mysql_function_supported(func_name)
+            if func_name not in expression_constructors:
+                result[func_name] = self._is_mysql_function_supported(func_name)
 
         mysql_funcs = getattr(mysql_functions, "__all__", [])
         for func_name in mysql_funcs:
