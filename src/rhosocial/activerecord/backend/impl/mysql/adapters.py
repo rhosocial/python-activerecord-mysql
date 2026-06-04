@@ -23,7 +23,13 @@ class MySQLBlobAdapter(SQLTypeAdapter):
             return None
         return value
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[bytes]:
+    def from_database(
+        self,
+        value: Any,
+        target_type: Type,
+        options: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Optional[bytes]:
         if value is None:
             return None
         # MySQL connector usually returns bytes directly for BLOB types
@@ -46,7 +52,7 @@ class MySQLJSONAdapter(SQLTypeAdapter):
         return json.dumps(value, ensure_ascii=False)
 
     def from_database(
-        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
     ) -> Optional[Union[dict, list]]:
         if value is None:
             return None
@@ -70,7 +76,7 @@ class MySQLUUIDAdapter(SQLTypeAdapter):
         return str(value)
 
     def from_database(
-        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
     ) -> Optional[uuid.UUID]:
         if value is None:
             return None
@@ -92,7 +98,13 @@ class MySQLBooleanAdapter(SQLTypeAdapter):
             return None
         return 1 if value else 0
 
-    def from_database(self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Optional[bool]:
+    def from_database(
+        self,
+        value: Any,
+        target_type: Type,
+        options: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Optional[bool]:
         if value is None:
             return None
         # MySQL returns int (0 or 1) for TINYINT(1)
@@ -119,7 +131,7 @@ class MySQLDecimalAdapter(SQLTypeAdapter):
         raise TypeError(f"Cannot convert {type(value).__name__} to {target_type.__name__}")
 
     def from_database(
-        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
     ) -> Optional[Decimal]:
         if value is None:
             return None
@@ -143,7 +155,7 @@ class MySQLDateAdapter(SQLTypeAdapter):
         return value.isoformat() # "YYYY-MM-DD"
 
     def from_database(
-        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
     ) -> Optional[datetime.date]:
         if value is None:
             return None
@@ -169,7 +181,7 @@ class MySQLTimeAdapter(SQLTypeAdapter):
         return value.isoformat(timespec='microseconds') # "HH:MM:SS.ffffff"
 
     def from_database(
-        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
     ) -> Optional[datetime.time]:
         if value is None:
             return None
@@ -217,7 +229,7 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
         return value
 
     def from_database(
-        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
     ) -> Optional[datetime.datetime]:
         if value is None:
             return None
@@ -334,7 +346,8 @@ class MySQLEnumAdapter(SQLTypeAdapter):
         )
 
     def from_database(
-        self, value: Any, target_type: Type[Enum], options: Optional[Dict[str, Any]] = None
+        self, value: Any, target_type: Type[Enum], options: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Optional[Enum]:
         """
         Convert database value to Python Enum.
@@ -527,7 +540,8 @@ class MySQLSetAdapter(SQLTypeAdapter):
         self,
         value: Any,
         target_type: Type,
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Optional[Union[set, frozenset]]:
         """
         Convert MySQL SET string to Python set/frozenset.
@@ -708,7 +722,8 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         self,
         value: Any,
         target_type: Type,
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Optional[List[float]]:
         """
         Convert MySQL VECTOR to Python list of floats.
