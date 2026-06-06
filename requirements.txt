@@ -1,2 +1,6 @@
-mysql-connector-python
-pydantic[email]
+# requirements.txt
+# Core dependency
+rhosocial-activerecord>=0.9.0,<2.0.0
+
+# MySQL driver
+mysql-connector-python>=9.0.0
