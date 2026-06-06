@@ -32,7 +32,7 @@ async def test_insert_success(async_mysql_backend, setup_test_table):
 @pytest.mark.asyncio
 async def test_insert_with_invalid_data(async_mysql_backend, setup_test_table):
     """Test inserting invalid data"""
-    with pytest.raises(Exception):  # Specific exception type depends on implementation
+    with pytest.raises(Exception):  # Specific exception type depends on implementation  # noqa: B017
         sql = "INSERT INTO test_table (invalid_column) VALUES (%s)"
         params = ("value",)
         await async_mysql_backend.execute(sql, params)
@@ -99,15 +99,8 @@ async def test_delete(async_mysql_backend, setup_test_table):
 @pytest.mark.asyncio
 async def test_execute_many(async_mysql_backend, setup_test_table):
     """Test batch insertion"""
-    data = [
-        ("name1", 20),
-        ("name2", 30),
-        ("name3", 40)
-    ]
-    result = await async_mysql_backend.execute_many(
-        "INSERT INTO test_table (name, age) VALUES (%s, %s)",
-        data
-    )
+    data = [("name1", 20), ("name2", 30), ("name3", 40)]
+    result = await async_mysql_backend.execute_many("INSERT INTO test_table (name, age) VALUES (%s, %s)", data)
     assert result.affected_rows == 3
     rows = await async_mysql_backend.fetch_all("SELECT * FROM test_table ORDER BY age")
     assert len(rows) == 3

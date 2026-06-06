@@ -2,6 +2,7 @@
 """
 Test fixtures for MySQL named connection tests.
 """
+
 import types
 from unittest.mock import MagicMock
 import pytest

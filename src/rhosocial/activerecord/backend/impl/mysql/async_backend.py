@@ -7,9 +7,10 @@ handling connections, queries, transactions, and type adaptations tailored for M
 specific behaviors and SQL dialect. The async backend mirrors the functionality of
 the synchronous backend but uses async/await for I/O operations.
 """
+
 import datetime
 import logging
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import mysql.connector.aio as mysql_async
 from mysql.connector.errors import (
@@ -25,6 +26,7 @@ from rhosocial.activerecord.backend.errors import (
     IntegrityError,
     QueryError,
 )
+from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from rhosocial.activerecord.backend.explain import AsyncExplainBackendMixin
@@ -34,10 +36,16 @@ from .async_transaction import AsyncMySQLTransactionManager
 from .mixins import MySQLBackendMixin, AsyncMySQLConcurrencyMixin
 
 
-class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQLBackendMixin, AsyncMySQLConcurrencyMixin, AsyncStorageBackend):
+class AsyncMySQLBackend(
+    AsyncExplainBackendMixin,
+    IntrospectorBackendMixin,
+    MySQLBackendMixin,
+    AsyncMySQLConcurrencyMixin,
+    AsyncStorageBackend,
+):
     """Asynchronous MySQL-specific backend implementation."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize async MySQL backend with connection configuration.
 
         Args:
@@ -47,27 +55,63 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                     Can be passed as 'version' in kwargs.
         """
         # Extract version from kwargs if provided
-        version = kwargs.pop('version', None)
+        version = kwargs.pop("version", None)
 
         # Ensure we have proper MySQL configuration
-        connection_config = kwargs.get('connection_config')
+        connection_config = kwargs.get("connection_config")
 
         if connection_config is None:
             # Extract MySQL-specific parameters from kwargs
             config_params = {}
             mysql_specific_params = [
-                'host', 'port', 'database', 'username', 'password',
-                'charset', 'collation', 'timezone', 'version',
-                'pool_size', 'pool_timeout', 'pool_name', 'pool_reset_session', 'pool_pre_ping',
-                'ssl_ca', 'ssl_cert', 'ssl_key', 'ssl_verify_cert', 'ssl_verify_identity',
-                'log_queries', 'log_level',
-                'auth_plugin', 'autocommit', 'init_command', 'connect_timeout',
-                'read_timeout', 'write_timeout', 'use_pure', 'get_warnings',
-                'raise_on_warnings', 'buffered', 'raw', 'consume_results',
-                'force_ipv6', 'option_files', 'option_groups', 'use_unicode',
-                'sql_mode', 'time_zone', 'sql_log_off',
-                'compress', 'allow_local_infile', 'conn_attrs', 'client_flags',
-                'unix_socket', 'auth_plugin', 'allow_local_infile_in_path', 'dsn'
+                "host",
+                "port",
+                "database",
+                "username",
+                "password",
+                "charset",
+                "collation",
+                "timezone",
+                "version",
+                "pool_size",
+                "pool_timeout",
+                "pool_name",
+                "pool_reset_session",
+                "pool_pre_ping",
+                "ssl_ca",
+                "ssl_cert",
+                "ssl_key",
+                "ssl_verify_cert",
+                "ssl_verify_identity",
+                "log_queries",
+                "log_level",
+                "auth_plugin",
+                "autocommit",
+                "init_command",
+                "connect_timeout",
+                "read_timeout",
+                "write_timeout",
+                "use_pure",
+                "get_warnings",
+                "raise_on_warnings",
+                "buffered",
+                "raw",
+                "consume_results",
+                "force_ipv6",
+                "option_files",
+                "option_groups",
+                "use_unicode",
+                "sql_mode",
+                "time_zone",
+                "sql_log_off",
+                "compress",
+                "allow_local_infile",
+                "conn_attrs",
+                "client_flags",
+                "unix_socket",
+                "auth_plugin",
+                "allow_local_infile_in_path",
+                "dsn",
             ]
 
             for param in mysql_specific_params:
@@ -75,16 +119,16 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                     config_params[param] = kwargs[param]
 
             # Set defaults if not provided
-            if 'charset' not in config_params:
-                config_params['charset'] = 'utf8mb4'
-            if 'autocommit' not in config_params:
-                config_params['autocommit'] = True
-            if 'host' not in config_params:
-                config_params['host'] = 'localhost'
-            if 'port' not in config_params:
-                config_params['port'] = 3306
+            if "charset" not in config_params:
+                config_params["charset"] = "utf8mb4"
+            if "autocommit" not in config_params:
+                config_params["autocommit"] = True
+            if "host" not in config_params:
+                config_params["host"] = "localhost"
+            if "port" not in config_params:
+                config_params["port"] = 3306
 
-            kwargs['connection_config'] = MySQLConnectionConfig(**config_params)
+            kwargs["connection_config"] = MySQLConnectionConfig(**config_params)
 
         super().__init__(**kwargs)
 
@@ -100,10 +144,11 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
 
         self.log(logging.INFO, "AsyncMySQLBackend initialized")
 
-    def _create_introspector(self):
+    def _create_introspector(self) -> Any:
         """Create an AsyncMySQLIntrospector backed by an AsyncIntrospectorExecutor."""
         from rhosocial.activerecord.backend.introspection.executor import AsyncIntrospectorExecutor
         from .introspection import AsyncMySQLIntrospector
+
         return AsyncMySQLIntrospector(self, AsyncIntrospectorExecutor(self))
 
     async def introspect_and_adapt(self) -> None:
@@ -122,43 +167,54 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             self._register_mysql_adapters()
             self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
 
-    async def connect(self):
+    async def connect(self) -> None:
         """Establish async connection to MySQL database."""
         try:
             # Prepare connection parameters from config
             conn_params = {
-                'host': self.config.host,
-                'port': self.config.port,
-                'database': self.config.database,
-                'user': self.config.username,
-                'password': self.config.password,
-                'charset': getattr(self.config, 'charset', 'utf8mb4'),
-                'autocommit': getattr(self.config, 'autocommit', True),
-                'use_unicode': getattr(self.config, 'use_unicode', True),
-                'raise_on_warnings': getattr(self.config, 'raise_on_warnings', False),
-                'connection_timeout': getattr(self.config, 'connect_timeout', 10),
-                'sql_mode': getattr(self.config, 'sql_mode', 'STRICT_TRANS_TABLES'),
+                "host": self.config.host,
+                "port": self.config.port,
+                "database": self.config.database,
+                "user": self.config.username,
+                "password": self.config.password,
+                "charset": getattr(self.config, "charset", "utf8mb4"),
+                "autocommit": getattr(self.config, "autocommit", True),
+                "use_unicode": getattr(self.config, "use_unicode", True),
+                "raise_on_warnings": getattr(self.config, "raise_on_warnings", False),
+                "connection_timeout": getattr(self.config, "connect_timeout", 10),
+                "sql_mode": getattr(self.config, "sql_mode", "STRICT_TRANS_TABLES"),
             }
 
             # Add SSL parameters if provided
-            if hasattr(self.config, 'ssl_ca'):
-                conn_params['ssl_ca'] = self.config.ssl_ca
-            if hasattr(self.config, 'ssl_cert'):
-                conn_params['ssl_cert'] = self.config.ssl_cert
-            if hasattr(self.config, 'ssl_key'):
-                conn_params['ssl_key'] = self.config.ssl_key
-            if hasattr(self.config, 'ssl_verify_cert'):
-                conn_params['ssl_verify_cert'] = self.config.ssl_verify_cert
-            if hasattr(self.config, 'ssl_verify_identity'):
-                conn_params['ssl_verify_identity'] = self.config.ssl_verify_identity
+            if hasattr(self.config, "ssl_ca"):
+                conn_params["ssl_ca"] = self.config.ssl_ca
+            if hasattr(self.config, "ssl_cert"):
+                conn_params["ssl_cert"] = self.config.ssl_cert
+            if hasattr(self.config, "ssl_key"):
+                conn_params["ssl_key"] = self.config.ssl_key
+            if hasattr(self.config, "ssl_verify_cert"):
+                conn_params["ssl_verify_cert"] = self.config.ssl_verify_cert
+            if hasattr(self.config, "ssl_verify_identity"):
+                conn_params["ssl_verify_identity"] = self.config.ssl_verify_identity
 
             # Add additional parameters if they exist in config
             # Only include parameters that are supported by mysql-connector-python aio
             additional_params = [
-                'auth_plugin', 'init_command', 'connect_timeout',
-                'read_timeout', 'write_timeout', 'use_pure', 'get_warnings',
-                'buffered', 'raw', 'compress', 'allow_local_infile', 'conn_attrs',
-                'client_flags', 'unix_socket', 'ssl_disabled'
+                "auth_plugin",
+                "init_command",
+                "connect_timeout",
+                "read_timeout",
+                "write_timeout",
+                "use_pure",
+                "get_warnings",
+                "buffered",
+                "raw",
+                "compress",
+                "allow_local_infile",
+                "conn_attrs",
+                "client_flags",
+                "unix_socket",
+                "ssl_disabled",
                 # Note: Connection pool parameters (pool_name, pool_size,
                 # pool_pre_ping, etc.) are not supported by async connector
             ]
@@ -166,7 +222,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             for param in additional_params:
                 if hasattr(self.config, param):
                     # Skip pool-related parameters as they're not supported by async connector
-                    if param.startswith('pool_'):
+                    if param.startswith("pool_"):
                         continue
                     value = getattr(self.config, param)
                     # Only add the parameter if it's not None
@@ -176,7 +232,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             self._connection = await mysql_async.connect(**conn_params)
 
             # Set additional session settings if specified
-            init_command = getattr(self.config, 'init_command', None)
+            init_command = getattr(self.config, "init_command", None)
             if init_command:
                 cursor = await self._connection.cursor()
                 await cursor.execute(init_command)
@@ -184,15 +240,14 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
 
             self.log(
                 logging.INFO,
-                f"Connected to MySQL database: "
-                f"{self.config.host}:{self.config.port}/{self.config.database}"
+                f"Connected to MySQL database: {self.config.host}:{self.config.port}/{self.config.database}",
             )
             await self._fetch_concurrency_hint()
         except MySQLError as e:
             self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Close async connection to MySQL database."""
         if self._connection:
             conn = self._connection
@@ -225,7 +280,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
                     # Re-raise other RuntimeError instances
                     raise
 
-    async def _get_cursor(self):
+    async def _get_cursor(self) -> Any:
         """Get a database cursor, ensuring connection is active.
 
         This method implements automatic connection health checking (Plan A):
@@ -250,7 +305,6 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
 
         return await self._connection.cursor()
 
-
     async def execute_many(self, sql: str, params_list: List[Tuple]) -> QueryResult:
         """Execute the same SQL statement multiple times with different parameters asynchronously."""
         if not self._connection:
@@ -263,7 +317,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             cursor = await self._get_cursor()
 
             # Log the batch operation if logging is enabled
-            if getattr(self.config, 'log_queries', False):
+            if getattr(self.config, "log_queries", False):
                 self.log(logging.DEBUG, f"Executing batch operation: {sql}")
                 self.log(logging.DEBUG, f"With {len(params_list)} parameter sets")
 
@@ -275,16 +329,10 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
 
             duration = (datetime.datetime.now() - start_time).total_seconds()
 
-            result = QueryResult(
-                affected_rows=affected_rows,
-                data=None,
-                duration=duration
-            )
+            result = QueryResult(affected_rows=affected_rows, data=None, duration=duration)
 
             self.log(
-                logging.INFO,
-                f"Batch operation completed, affected {affected_rows} rows, "
-                f"duration={duration:.3f}s"
+                logging.INFO, f"Batch operation completed, affected {affected_rows} rows, duration={duration:.3f}s"
             )
             return result
 
@@ -301,7 +349,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             if cursor:
                 await cursor.close()
 
-    async def get_server_version(self) -> tuple:
+    async def get_server_version(self) -> Tuple[int, int, int]:
         """Get MySQL server version asynchronously."""
         if self._version and self._version != (0, 0, 0):
             return self._version
@@ -316,8 +364,8 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             version_str = version_row[0] if version_row else "8.0.0"
 
             # Parse version string (e.g., "8.0.26" or "8.0.26-log")
-            version_clean = version_str.split('-')[0]  # Remove suffix like "-log"
-            version_parts = version_clean.split('.')
+            version_clean = version_str.split("-")[0]  # Remove suffix like "-log"
+            version_parts = version_clean.split(".")
 
             major = int(version_parts[0]) if len(version_parts) > 0 else 0
             minor = int(version_parts[1]) if len(version_parts) > 1 else 0
@@ -441,7 +489,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
             # Check if we're not in an active transaction
             if not self.in_transaction:
                 # For MySQL, if autocommit is disabled, we need to commit explicitly
-                if not getattr(self.config, 'autocommit', True):
+                if not getattr(self.config, "autocommit", True):
                     await self._connection.commit()
                     self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
         except Exception as e:
@@ -455,12 +503,19 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         MySQL respects the autocommit setting, but we also need to handle explicit commits.
         """
         if not self.in_transaction and self._connection:
-            if not getattr(self.config, 'autocommit', True):
+            if not getattr(self.config, "autocommit", True):
                 await self._connection.commit()
                 self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
 
-    async def execute(self, sql: str, params: Optional[Tuple] = None, *,
-                      options=None, max_retries: int = 2, **kwargs) -> QueryResult:
+    async def execute(
+        self,
+        sql: str,
+        params: Optional[Tuple] = None,
+        *,
+        options: Optional[ExecutionOptions] = None,
+        max_retries: int = 2,
+        **kwargs: Any,
+    ) -> QueryResult:
         """Execute a SQL statement with automatic reconnection and options construction.
 
         This method combines:
@@ -483,36 +538,36 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         Raises:
             DatabaseError: If execution fails after all retries
         """
-        from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
+        from rhosocial.activerecord.backend.options import StatementType
 
         # If no options provided, create default options from kwargs
         if options is None:
             # Determine statement type based on SQL
             sql_upper = sql.strip().upper()
-            if sql_upper.startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'PRAGMA', 'EXPLAIN')):
+            if sql_upper.startswith(("SELECT", "WITH", "SHOW", "DESCRIBE", "PRAGMA", "EXPLAIN")):
                 stmt_type = StatementType.DQL
-            elif sql_upper.startswith(('INSERT', 'UPDATE', 'DELETE', 'REPLACE')):
+            elif sql_upper.startswith(("INSERT", "UPDATE", "DELETE", "REPLACE")):
                 stmt_type = StatementType.DML
             else:
                 stmt_type = StatementType.DDL
 
             # Extract column_mapping and column_adapters from kwargs if present
-            column_mapping = kwargs.get('column_mapping')
-            column_adapters = kwargs.get('column_adapters')
+            column_mapping = kwargs.get("column_mapping")
+            column_adapters = kwargs.get("column_adapters")
 
             options = ExecutionOptions(
                 stmt_type=stmt_type,
                 process_result_set=None,  # Let the base logic determine this based on stmt_type
                 column_adapters=column_adapters,
-                column_mapping=column_mapping
+                column_mapping=column_mapping,
             )
         else:
             # If options is provided but column_mapping or column_adapters are explicitly passed in kwargs,
             # update the options with these values
-            if 'column_mapping' in kwargs:
-                options.column_mapping = kwargs['column_mapping']
-            if 'column_adapters' in kwargs:
-                options.column_adapters = kwargs['column_adapters']
+            if "column_mapping" in kwargs:
+                options.column_mapping = kwargs["column_mapping"]
+            if "column_adapters" in kwargs:
+                options.column_adapters = kwargs["column_adapters"]
 
         # Execute with retry logic for connection errors
         last_error = None
@@ -525,10 +580,7 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
 
                 # Check if this is a connection error that warrants retry
                 if self._is_connection_error(e) and attempt < max_retries:
-                    self.log(
-                        logging.WARNING,
-                        f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}"
-                    )
+                    self.log(logging.WARNING, f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}")
 
                     # Attempt to reconnect
                     if await self._reconnect():
@@ -596,5 +648,6 @@ class AsyncMySQLBackend(AsyncExplainBackendMixin, IntrospectorBackendMixin, MySQ
         and would otherwise take precedence.
         """
         from .explain import MySQLExplainResult, MySQLExplainRow
+
         rows = [MySQLExplainRow(**r) for r in raw_rows]
         return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)

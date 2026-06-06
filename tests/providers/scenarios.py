@@ -48,7 +48,7 @@ def _load_scenarios_from_config():
     If no valid configuration file is found, terminate with an error.
     """
     import yaml
-    
+
     # First, try to load from path specified in environment variable
     env_config_path = os.getenv("MYSQL_SCENARIOS_CONFIG_PATH")
     if env_config_path and os.path.exists(env_config_path):
@@ -64,19 +64,19 @@ def _load_scenarios_from_config():
                 "or place mysql_scenarios.yaml in the tests/config directory."
             )
         print(f"Loading MySQL scenarios from default path: {config_path}")
-    
+
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
-        
-        if 'scenarios' not in config_data:
+
+        if "scenarios" not in config_data:
             raise ValueError(f"Configuration file {config_path} does not contain 'scenarios' key")
-        
-        for scenario_name, config in config_data['scenarios'].items():
+
+        for scenario_name, config in config_data["scenarios"].items():
             register_scenario(scenario_name, config)
-            
+
     except ImportError:
-        raise ImportError("PyYAML is required to load MySQL scenario configuration files")
+        raise ImportError("PyYAML is required to load MySQL scenario configuration files")  # noqa: B904
 
 
 def _register_default_scenarios():

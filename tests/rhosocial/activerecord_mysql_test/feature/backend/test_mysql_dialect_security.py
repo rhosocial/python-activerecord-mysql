@@ -6,10 +6,10 @@ This test module verifies that string escaping and validation
 methods properly sanitize user input to prevent SQL injection.
 Tests are run against the actual MySQL dialect.
 """
+
 import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnConstraint,
@@ -184,7 +184,7 @@ class TestMySQLEscapeSqlStringBackslash:
     def test_escape_sql_string_preserves_others(self, dialect):
         """Test other characters are preserved."""
         result = dialect._escape_sql_string('test"double"value')
-        assert "test\"double\"value" in result
+        assert 'test"double"value' in result
 
 
 class TestMySQLJSONTableTypeValidation:
@@ -451,6 +451,7 @@ class TestMySQLCreateTableCommentEscaping:
 # _format_storage_options_mysql — key quoting and value escaping
 # ============================================================
 
+
 def test_storage_options_normal_key_and_value(dialect):
     """Normal storage option key is plain, string value is quoted and escaped."""
     sql = dialect._format_storage_options_mysql({"ENGINE": "InnoDB"})
@@ -481,6 +482,7 @@ def test_storage_options_string_injection_value_escaped(dialect):
 # format_identifier — identifier quoting equivalence and injection immunity
 # ============================================================
 
+
 def test_format_identifier_normal(dialect):
     """Normal identifier is backtick-quoted."""
     result = dialect.format_identifier("users")
@@ -497,7 +499,7 @@ def test_format_identifier_injection_payload(dialect):
     """Identifier with injection payload is safely contained (balanced backticks)."""
     payload = "users`; DROP TABLE users--"
     result = dialect.format_identifier(payload)
-    assert result.count('`') % 2 == 0, f"Unbalanced backticks: {result}"
+    assert result.count("`") % 2 == 0, f"Unbalanced backticks: {result}"
     assert result == "`users``; DROP TABLE users--`"
 
 
@@ -513,18 +515,16 @@ def test_format_identifier_naive_vs_proper_safe(dialect):
 def test_format_identifier_naive_vs_proper_malicious(dialect):
     """For malicious input, proper quoting prevents breakout that naive allows."""
     payloads = [
-        'x`; DROP TABLE users--',
-        'y`; DELETE FROM t--',
-        'z`; UPDATE t SET a=1--',
+        "x`; DROP TABLE users--",
+        "y`; DELETE FROM t--",
+        "z`; UPDATE t SET a=1--",
     ]
     for payload in payloads:
         naive = f"`{payload}`"
         proper = dialect.format_identifier(payload)
 
-        assert naive.count('`') % 2 != 0, \
-            f"Naive should unbalance backticks for '{payload}': {naive}"
-        assert proper.count('`') % 2 == 0, \
-            f"Proper should balance backticks for '{payload}': {proper}"
+        assert naive.count("`") % 2 != 0, f"Naive should unbalance backticks for '{payload}': {naive}"
+        assert proper.count("`") % 2 == 0, f"Proper should balance backticks for '{payload}': {proper}"
 
 
 def test_format_identifier_empty_string(dialect):

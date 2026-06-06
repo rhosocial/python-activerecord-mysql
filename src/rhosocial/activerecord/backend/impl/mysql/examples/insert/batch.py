@@ -22,39 +22,39 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name='logs', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="logs", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='logs',
+    table_name="logs",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
-        ColumnDefinition('level', 'VARCHAR(20)'),
-        ColumnDefinition('message', 'TEXT'),
+        ColumnDefinition("level", "VARCHAR(20)"),
+        ColumnDefinition("message", "TEXT"),
         ColumnDefinition(
-            'created_at',
-            'TIMESTAMP',
+            "created_at",
+            "TIMESTAMP",
             constraints=[
                 ColumnConstraint(
                     ColumnConstraintType.DEFAULT,
@@ -71,28 +71,28 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     InsertExpression,
     ValuesSource,
     TableExpression,
     QueryExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, WildcardExpression, Column
-from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause
+from rhosocial.activerecord.backend.expression.core import Literal, WildcardExpression, Column  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause  # noqa: E402
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    into=TableExpression(dialect, 'logs'),
+    into=TableExpression(dialect, "logs"),
     source=ValuesSource(
         dialect,
         [
-            [Literal(dialect, 'INFO'), Literal(dialect, 'System started')],
-            [Literal(dialect, 'DEBUG'), Literal(dialect, 'Loading configuration')],
-            [Literal(dialect, 'INFO'), Literal(dialect, 'Application ready')],
-            [Literal(dialect, 'WARNING'), Literal(dialect, 'Memory usage high')],
+            [Literal(dialect, "INFO"), Literal(dialect, "System started")],
+            [Literal(dialect, "DEBUG"), Literal(dialect, "Loading configuration")],
+            [Literal(dialect, "INFO"), Literal(dialect, "Application ready")],
+            [Literal(dialect, "WARNING"), Literal(dialect, "Memory usage high")],
         ],
     ),
-    columns=['level', 'message'],
+    columns=["level", "message"],
 )
 
 sql, params = insert_expr.to_sql()
@@ -108,8 +108,8 @@ print(f"Affected rows: {result.affected_rows}")
 verify_query = QueryExpression(
     dialect=dialect,
     select=[WildcardExpression(dialect)],
-    from_=TableExpression(dialect, 'logs'),
-    order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
+    from_=TableExpression(dialect, "logs"),
+    order_by=OrderByClause(dialect, [Column(dialect, "id")]),
 )
 options = ExecutionOptions(stmt_type=StatementType.DQL)
 sql, params = verify_query.to_sql()

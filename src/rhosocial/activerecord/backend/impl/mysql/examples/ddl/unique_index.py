@@ -14,41 +14,45 @@ from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', 3306)),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", 3306)),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression, DropTableExpression
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression import CreateTableExpression, DropTableExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
 
 # Drop dependent tables first for clean setup
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
-        ColumnDefinition('id', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-        ]),
-        ColumnDefinition('email', 'VARCHAR(100)'),
-        ColumnDefinition('name', 'VARCHAR(100)'),
+        ColumnDefinition(
+            "id",
+            "INT",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+            ],
+        ),
+        ColumnDefinition("email", "VARCHAR(100)"),
+        ColumnDefinition("name", "VARCHAR(100)"),
     ],
     if_not_exists=True,
 )
@@ -59,11 +63,11 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: CREATE UNIQUE INDEX
 # ============================================================
-from rhosocial.activerecord.backend.expression import CreateIndexExpression, DropIndexExpression
+from rhosocial.activerecord.backend.expression import CreateIndexExpression, DropIndexExpression  # noqa: E402
 
 # Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
 try:
-    drop_idx = DropIndexExpression(dialect=dialect, index_name='idx_users_email_unique')
+    drop_idx = DropIndexExpression(dialect=dialect, index_name="idx_users_email_unique")
     sql, params = drop_idx.to_sql()
     backend.execute(sql, params)
 except Exception:
@@ -71,9 +75,9 @@ except Exception:
 
 unique_idx = CreateIndexExpression(
     dialect=dialect,
-    index_name='idx_users_email_unique',
-    table_name='users',
-    columns=['email'],
+    index_name="idx_users_email_unique",
+    table_name="users",
+    columns=["email"],
     unique=True,
 )
 sql, params = unique_idx.to_sql()
@@ -86,7 +90,7 @@ backend.execute(sql, params)
 # ============================================================
 # Drop composite index first if exists
 try:
-    drop_idx2 = DropIndexExpression(dialect=dialect, index_name='idx_users_name_email')
+    drop_idx2 = DropIndexExpression(dialect=dialect, index_name="idx_users_name_email")
     sql, params = drop_idx2.to_sql()
     backend.execute(sql, params)
 except Exception:
@@ -94,9 +98,9 @@ except Exception:
 
 composite_idx = CreateIndexExpression(
     dialect=dialect,
-    index_name='idx_users_name_email',
-    table_name='users',
-    columns=['name', 'email'],
+    index_name="idx_users_name_email",
+    table_name="users",
+    columns=["name", "email"],
 )
 sql, params = composite_idx.to_sql()
 print(f"CREATE INDEX multi-col SQL: {sql}")
@@ -105,11 +109,11 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Teardown
 # ============================================================
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

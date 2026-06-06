@@ -4,6 +4,7 @@ Tests for MySQL-specific enhanced math functions.
 
 These include additional mathematical functions beyond the basic math module.
 """
+
 from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.functions.math_enhanced import (
@@ -51,11 +52,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_pow_both_columns(self, mysql_dialect: MySQLDialect):
         """Test pow() with both column references."""
-        result = pow(
-            mysql_dialect,
-            Column(mysql_dialect, "x"),
-            Column(mysql_dialect, "y")
-        )
+        result = pow(mysql_dialect, Column(mysql_dialect, "x"), Column(mysql_dialect, "y"))
         sql, _ = result.to_sql()
         assert "POW(" in sql
 
@@ -86,11 +83,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_mod_both_columns(self, mysql_dialect: MySQLDialect):
         """Test mod() with both column references."""
-        result = mod(
-            mysql_dialect,
-            Column(mysql_dialect, "dividend"),
-            Column(mysql_dialect, "divisor")
-        )
+        result = mod(mysql_dialect, Column(mysql_dialect, "dividend"), Column(mysql_dialect, "divisor"))
         sql, _ = result.to_sql()
         assert "MOD(" in sql
 
@@ -147,12 +140,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_max__multiple_args(self, mysql_dialect: MySQLDialect):
         """Test max_() with multiple arguments (uses GREATEST)."""
-        result = max_(
-            mysql_dialect,
-            Column(mysql_dialect, "a"),
-            Column(mysql_dialect, "b"),
-            Column(mysql_dialect, "c")
-        )
+        result = max_(mysql_dialect, Column(mysql_dialect, "a"), Column(mysql_dialect, "b"), Column(mysql_dialect, "c"))
         sql, _ = result.to_sql()
         assert "GREATEST(" in sql
 
@@ -176,12 +164,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_min__multiple_args(self, mysql_dialect: MySQLDialect):
         """Test min_() with multiple arguments (uses LEAST)."""
-        result = min_(
-            mysql_dialect,
-            Column(mysql_dialect, "a"),
-            Column(mysql_dialect, "b"),
-            Column(mysql_dialect, "c")
-        )
+        result = min_(mysql_dialect, Column(mysql_dialect, "a"), Column(mysql_dialect, "b"), Column(mysql_dialect, "c"))
         sql, _ = result.to_sql()
         assert "LEAST(" in sql
 

@@ -68,18 +68,16 @@ class TestInvalidateIntrospectionCache:
     def test_invalidate_specific_scope(self, backend_with_tables):
         """Test invalidating specific scope."""
         # Populate caches
-        db_info = backend_with_tables.introspector.get_database_info()
+        backend_with_tables.introspector.get_database_info()
         tables = backend_with_tables.introspector.list_tables()
 
         # Invalidate only database scope
-        backend_with_tables.introspector.invalidate_cache(
-            scope=IntrospectionScope.DATABASE
-        )
+        backend_with_tables.introspector.invalidate_cache(scope=IntrospectionScope.DATABASE)
 
         # Database cache should be cleared
         db_info2 = backend_with_tables.introspector.get_database_info()
         # Check internal cache was cleared for database scope
-        db_cache_key = backend_with_tables.introspector._make_cache_key(IntrospectionScope.DATABASE)
+        backend_with_tables.introspector._make_cache_key(IntrospectionScope.DATABASE)
         # The new result should be cached now
         assert db_info2 is not None
 
@@ -94,9 +92,7 @@ class TestInvalidateIntrospectionCache:
         columns = backend_with_tables.introspector.list_columns("users")
 
         # Invalidate table scope
-        backend_with_tables.introspector.invalidate_cache(
-            scope=IntrospectionScope.TABLE
-        )
+        backend_with_tables.introspector.invalidate_cache(scope=IntrospectionScope.TABLE)
 
         # Table cache should be cleared
         tables2 = backend_with_tables.introspector.list_tables()
@@ -113,10 +109,7 @@ class TestInvalidateIntrospectionCache:
         posts_info = backend_with_tables.introspector.get_table_info("posts")
 
         # Invalidate only users table
-        backend_with_tables.introspector.invalidate_cache(
-            scope=IntrospectionScope.TABLE,
-            name="users"
-        )
+        backend_with_tables.introspector.invalidate_cache(scope=IntrospectionScope.TABLE, name="users")
 
         # Users table cache should be cleared
         users_info2 = backend_with_tables.introspector.get_table_info("users")
@@ -161,7 +154,9 @@ class TestCacheThreadSafety:
         """Test that cache lock exists."""
         assert hasattr(backend_with_tables.introspector, "_cache_lock")
 
-    @pytest.mark.skip(reason="MySQL connections are not thread-safe; concurrent DB access on a single connection is expected to fail")
+    @pytest.mark.skip(
+        reason="MySQL connections are not thread-safe; concurrent DB access on a single connection is expected to fail"
+    )
     def test_concurrent_cache_access(self, backend_with_tables):
         """Test concurrent cache access."""
         import threading
@@ -185,10 +180,7 @@ class TestCacheThreadSafety:
             except Exception as e:
                 errors.append(e)
 
-        threads = [
-            threading.Thread(target=read_cache)
-            for _ in range(3)
-        ]
+        threads = [threading.Thread(target=read_cache) for _ in range(3)]
         threads.append(threading.Thread(target=clear_cache))
 
         for t in threads:
@@ -207,9 +199,7 @@ class TestCacheKeys:
     def test_cache_key_generation(self, mysql_backend_single):
         """Test that cache keys are generated correctly."""
         key = mysql_backend_single.introspector._make_cache_key(
-            IntrospectionScope.TABLE,
-            "users",
-            schema=mysql_backend_single.config.database
+            IntrospectionScope.TABLE, "users", schema=mysql_backend_single.config.database
         )
 
         assert "table" in key
@@ -218,9 +208,7 @@ class TestCacheKeys:
     def test_cache_key_with_extra(self, mysql_backend_single):
         """Test cache key with extra component."""
         key = mysql_backend_single.introspector._make_cache_key(
-            IntrospectionScope.TABLE,
-            schema=mysql_backend_single.config.database,
-            extra="True"
+            IntrospectionScope.TABLE, schema=mysql_backend_single.config.database, extra="True"
         )
 
         assert "table" in key
@@ -228,18 +216,9 @@ class TestCacheKeys:
 
     def test_cache_key_uniqueness(self, mysql_backend_single):
         """Test that different parameters produce different keys."""
-        key1 = mysql_backend_single.introspector._make_cache_key(
-            IntrospectionScope.TABLE,
-            "users"
-        )
-        key2 = mysql_backend_single.introspector._make_cache_key(
-            IntrospectionScope.TABLE,
-            "posts"
-        )
-        key3 = mysql_backend_single.introspector._make_cache_key(
-            IntrospectionScope.COLUMN,
-            "users"
-        )
+        key1 = mysql_backend_single.introspector._make_cache_key(IntrospectionScope.TABLE, "users")
+        key2 = mysql_backend_single.introspector._make_cache_key(IntrospectionScope.TABLE, "posts")
+        key3 = mysql_backend_single.introspector._make_cache_key(IntrospectionScope.COLUMN, "users")
 
         assert key1 != key2
         assert key1 != key3
@@ -299,13 +278,11 @@ class TestAsyncCacheManagement:
     async def test_async_invalidate_specific_scope(self, async_backend_with_tables):
         """Test async invalidating specific scope."""
         # Populate caches
-        db_info = await async_backend_with_tables.introspector.get_database_info()
+        await async_backend_with_tables.introspector.get_database_info()
         tables = await async_backend_with_tables.introspector.list_tables()
 
         # Invalidate only database scope
-        async_backend_with_tables.introspector.invalidate_cache(
-            scope=IntrospectionScope.DATABASE
-        )
+        async_backend_with_tables.introspector.invalidate_cache(scope=IntrospectionScope.DATABASE)
 
         # Database cache should be cleared
         db_info2 = await async_backend_with_tables.introspector.get_database_info()

@@ -33,7 +33,7 @@ def test_insert_with_mapping(mysql_backend, setup_mapped_users_table):
     """
     backend = mysql_backend
     now = datetime.now()
-    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
     # Data for insertion must use database column names and compatible types
     sql = "INSERT INTO mapped_users (name, email, created_at, user_uuid, is_active) VALUES (%s, %s, %s, %s, %s)"
@@ -50,10 +50,12 @@ def test_update_with_backend(mysql_backend, setup_mapped_users_table):
     Tests that an update operation via execute() works correctly.
     """
     backend = mysql_backend
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    backend.execute("INSERT INTO mapped_users (name, email, created_at, user_uuid, is_active) VALUES (%s, %s, %s, %s, %s)",
-                    ("Jane Doe", "jane.doe@example.com", now_str, str(uuid.uuid4()), 1))
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    backend.execute(
+        "INSERT INTO mapped_users (name, email, created_at, user_uuid, is_active) VALUES (%s, %s, %s, %s, %s)",
+        ("Jane Doe", "jane.doe@example.com", now_str, str(uuid.uuid4()), 1),
+    )
 
     sql = "UPDATE mapped_users SET name = %s WHERE user_id = %s"
     params = ("Jane Smith", 1)
@@ -73,34 +75,26 @@ def test_fetch_with_combined_mapping_and_adapters(mysql_backend, setup_mapped_us
     """
     backend = mysql_backend
     now = datetime.now()
-    now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
     test_uuid = uuid.uuid4()
 
     # Define mappings and adapters
-    column_to_field_mapping = {
-        "user_id": "pk",
-        "name": "full_name",
-        "user_uuid": "uuid",
-        "is_active": "active"
-    }
-    
+    column_to_field_mapping = {"user_id": "pk", "name": "full_name", "user_uuid": "uuid", "is_active": "active"}
+
     # Adapters can be instantiated directly for testing purposes
-    column_adapters = {
-        "user_uuid": (UUIDAdapter(), uuid.UUID),
-        "is_active": (BooleanAdapter(), bool)
-    }
+    column_adapters = {"user_uuid": (UUIDAdapter(), uuid.UUID), "is_active": (BooleanAdapter(), bool)}
 
     # Insert data in DB-compatible format
     backend.execute(
         "INSERT INTO mapped_users (name, email, created_at, user_uuid, is_active) VALUES (%s, %s, %s, %s, %s)",
-        ("Combined Test", "combined@example.com", now_str, str(test_uuid), 1)
+        ("Combined Test", "combined@example.com", now_str, str(test_uuid), 1),
     )
 
     # Execute SELECT with both mapping and adapters
     result = backend.execute(
         "SELECT * FROM mapped_users WHERE user_id = 1",
         column_mapping=column_to_field_mapping,
-        column_adapters=column_adapters
+        column_adapters=column_adapters,
     )
 
     fetched_row = result.data[0] if result.data else None

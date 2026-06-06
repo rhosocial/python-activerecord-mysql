@@ -169,11 +169,7 @@ INSERT INTO benchmark_users (
 ) VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 """,
         "find_one": "SELECT * FROM benchmark_users WHERE id = %s",
-        "update": (
-            "UPDATE benchmark_users "
-            "SET username = %s, updated_at = CURRENT_TIMESTAMP "
-            "WHERE id = %s"
-        ),
+        "update": ("UPDATE benchmark_users SET username = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s"),
         "delete": "DELETE FROM benchmark_users WHERE id = %s",
     }
 

@@ -7,6 +7,7 @@ This example demonstrates:
 3. SERIALIZABLE isolation level
 4. How to set isolation level on a transaction
 """
+
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
@@ -32,11 +33,11 @@ from rhosocial.activerecord.backend.schema import StatementType
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', 3306)),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", 3306)),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
@@ -45,39 +46,54 @@ dialect = backend.dialect
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='accounts', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="accounts", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='accounts',
+    table_name="accounts",
     columns=[
-        ColumnDefinition('id', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
-        ]),
-        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
-        ]),
-        ColumnDefinition('balance', 'DECIMAL(10,2)', constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
-        ]),
+        ColumnDefinition(
+            "id",
+            "INT",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition(
+            "name",
+            "VARCHAR(100)",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ],
+        ),
+        ColumnDefinition(
+            "balance",
+            "DECIMAL(10,2)",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
+            ],
+        ),
     ],
     if_not_exists=True,
-    dialect_options={'engine': 'InnoDB'},
+    dialect_options={"engine": "InnoDB"},
 )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    into='accounts',
-    columns=['name', 'balance'],
-    source=ValuesSource(dialect, [
-        [Literal(dialect, 'Alice'), Literal(dialect, 1000)],
-        [Literal(dialect, 'Bob'), Literal(dialect, 500)],
-    ]),
+    into="accounts",
+    columns=["name", "balance"],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, "Alice"), Literal(dialect, 1000)],
+            [Literal(dialect, "Bob"), Literal(dialect, 500)],
+        ],
+    ),
 )
 sql, params = insert_expr.to_sql()
 backend.execute(sql, params)
@@ -94,9 +110,9 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ
     # Read Alice's balance
     query = QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'name'), Column(dialect, 'balance')],
-        from_=TableExpression(dialect, 'accounts'),
-        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        select=[Column(dialect, "name"), Column(dialect, "balance")],
+        from_=TableExpression(dialect, "accounts"),
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -105,9 +121,9 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ
     # Update within the transaction
     update_expr = UpdateExpression(
         dialect=dialect,
-        table='accounts',
-        assignments={'balance': Literal(dialect, 1100)},
-        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        table="accounts",
+        assignments={"balance": Literal(dialect, 1100)},
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
     sql, params = update_expr.to_sql()
     backend.execute(sql, params, options=dml_options)
@@ -115,9 +131,9 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ
 # After commit, the change is visible to all subsequent transactions
 query = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, 'name'), Column(dialect, 'balance')],
-    from_=TableExpression(dialect, 'accounts'),
-    where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+    select=[Column(dialect, "name"), Column(dialect, "balance")],
+    from_=TableExpression(dialect, "accounts"),
+    where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
 )
 sql, params = query.to_sql()
 result = backend.execute(sql, params, options=dql_options)
@@ -131,19 +147,19 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.REPE
     # First read
     query = QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'name'), Column(dialect, 'balance')],
-        from_=TableExpression(dialect, 'accounts'),
-        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        select=[Column(dialect, "name"), Column(dialect, "balance")],
+        from_=TableExpression(dialect, "accounts"),
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
-    first_read = result.data[0]['balance']
+    first_read = result.data[0]["balance"]
 
     # Second read in the same transaction returns the same result
     # even if another transaction committed changes in between
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
-    second_read = result.data[0]['balance']
+    second_read = result.data[0]["balance"]
 
     print(f"First read: {first_read}, Second read: {second_read}")
     print(f"Consistent reads: {first_read == second_read}")
@@ -156,9 +172,9 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERI
     # Read all accounts
     query = QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'name'), Column(dialect, 'balance')],
-        from_=TableExpression(dialect, 'accounts'),
-        order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
+        select=[Column(dialect, "name"), Column(dialect, "balance")],
+        from_=TableExpression(dialect, "accounts"),
+        order_by=OrderByClause(dialect, [Column(dialect, "id")]),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -167,9 +183,9 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERI
     # Update Bob's balance
     update_expr = UpdateExpression(
         dialect=dialect,
-        table='accounts',
-        assignments={'balance': Literal(dialect, 600)},
-        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Bob')),
+        table="accounts",
+        assignments={"balance": Literal(dialect, 600)},
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Bob")),
     )
     sql, params = update_expr.to_sql()
     backend.execute(sql, params, options=dml_options)
@@ -184,9 +200,9 @@ print("\n--- Per-transaction isolation level ---")
 with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
     update_expr = UpdateExpression(
         dialect=dialect,
-        table='accounts',
-        assignments={'balance': Literal(dialect, 1200)},
-        where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+        table="accounts",
+        assignments={"balance": Literal(dialect, 1200)},
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
     sql, params = update_expr.to_sql()
     backend.execute(sql, params, options=dml_options)
@@ -195,9 +211,9 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERI
 with backend.transaction():
     query = QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'name'), Column(dialect, 'balance')],
-        from_=TableExpression(dialect, 'accounts'),
-        order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
+        select=[Column(dialect, "name"), Column(dialect, "balance")],
+        from_=TableExpression(dialect, "accounts"),
+        order_by=OrderByClause(dialect, [Column(dialect, "id")]),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -206,7 +222,7 @@ with backend.transaction():
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name='accounts', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="accounts", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

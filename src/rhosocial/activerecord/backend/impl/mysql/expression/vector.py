@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 
 class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
     """MySQL vector literal expression.
-    
+
     Creates a vector value from array string.
-    
+
     Example:
         >>> expr = MySQLVectorExpression(dialect, '[1,2,3]')
     """
@@ -50,7 +50,7 @@ class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
 
 class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Euclidean distance expression.
-    
+
     Example:
         >>> expr = MySQLDistanceEuclideanExpression(dialect, 'vec1', 'vec2')
     """
@@ -75,7 +75,7 @@ class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue
 
 class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Cosine distance expression.
-    
+
     Example:
         >>> expr = MySQLDistanceCosineExpression(dialect, 'vec1', 'vec2')
     """
@@ -100,7 +100,7 @@ class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExp
 
 class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Dot product distance expression.
-    
+
     Example:
         >>> expr = MySQLDistanceDotExpression(dialect, 'vec1', 'vec2')
     """

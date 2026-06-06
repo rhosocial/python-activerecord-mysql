@@ -12,56 +12,56 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
     DropTableExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
 
-drop_customers = DropTableExpression(dialect=dialect, table_name='customers', if_exists=True)
+drop_customers = DropTableExpression(dialect=dialect, table_name="customers", if_exists=True)
 sql, params = drop_customers.to_sql()
 backend.execute(sql, params)
 
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
 create_customers = CreateTableExpression(
     dialect=dialect,
-    table_name='customers',
+    table_name="customers",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
         ColumnDefinition(
-            'name',
-            'VARCHAR(100)',
+            "name",
+            "VARCHAR(100)",
             constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
         ),
-        ColumnDefinition('email', 'VARCHAR(100)'),
+        ColumnDefinition("email", "VARCHAR(100)"),
     ],
     if_not_exists=True,
 )
@@ -70,19 +70,19 @@ backend.execute(sql, params)
 
 create_orders = CreateTableExpression(
     dialect=dialect,
-    table_name='orders',
+    table_name="orders",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
-        ColumnDefinition('customer_id', 'INT'),
-        ColumnDefinition('total', 'DECIMAL(10,2)'),
-        ColumnDefinition('status', 'VARCHAR(20)'),
+        ColumnDefinition("customer_id", "INT"),
+        ColumnDefinition("total", "DECIMAL(10,2)"),
+        ColumnDefinition("status", "VARCHAR(20)"),
     ],
     if_not_exists=True,
 )
@@ -91,13 +91,13 @@ backend.execute(sql, params)
 
 insert_customers = InsertExpression(
     dialect=dialect,
-    into='customers',
-    columns=['name', 'email'],
+    into="customers",
+    columns=["name", "email"],
     source=ValuesSource(
         dialect,
         [
-            [Literal(dialect, 'Alice'), Literal(dialect, 'alice@example.com')],
-            [Literal(dialect, 'Bob'), Literal(dialect, 'bob@example.com')],
+            [Literal(dialect, "Alice"), Literal(dialect, "alice@example.com")],
+            [Literal(dialect, "Bob"), Literal(dialect, "bob@example.com")],
         ],
     ),
 )
@@ -106,14 +106,14 @@ backend.execute(sql, params)
 
 insert_orders = InsertExpression(
     dialect=dialect,
-    into='orders',
-    columns=['customer_id', 'total', 'status'],
+    into="orders",
+    columns=["customer_id", "total", "status"],
     source=ValuesSource(
         dialect,
         [
-            [Literal(dialect, 1), Literal(dialect, 100.00), Literal(dialect, 'completed')],
-            [Literal(dialect, 1), Literal(dialect, 50.00), Literal(dialect, 'pending')],
-            [Literal(dialect, 2), Literal(dialect, 75.00), Literal(dialect, 'completed')],
+            [Literal(dialect, 1), Literal(dialect, 100.00), Literal(dialect, "completed")],
+            [Literal(dialect, 1), Literal(dialect, 50.00), Literal(dialect, "pending")],
+            [Literal(dialect, 2), Literal(dialect, 75.00), Literal(dialect, "completed")],
         ],
     ),
 )
@@ -123,23 +123,23 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
     TableExpression,
     Column,
     WhereClause,
 )
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
 
-customers = TableExpression(dialect, 'customers', alias='c')
-orders = TableExpression(dialect, 'orders', alias='o')
+customers = TableExpression(dialect, "customers", alias="c")
+orders = TableExpression(dialect, "orders", alias="o")
 
 query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'name', table='c'),
-        Column(dialect, 'total', table='o'),
-        Column(dialect, 'status', table='o'),
+        Column(dialect, "name", table="c"),
+        Column(dialect, "total", table="o"),
+        Column(dialect, "status", table="o"),
     ],
     from_=[
         customers,
@@ -149,18 +149,18 @@ query = QueryExpression(
         dialect,
         condition=ComparisonPredicate(
             dialect,
-            'AND',
+            "AND",
             ComparisonPredicate(
                 dialect,
-                '=',
-                Column(dialect, 'id', table='c'),
-                Column(dialect, 'customer_id', table='o'),
+                "=",
+                Column(dialect, "id", table="c"),
+                Column(dialect, "customer_id", table="o"),
             ),
             ComparisonPredicate(
                 dialect,
-                '=',
-                Column(dialect, 'status', table='o'),
-                Literal(dialect, 'completed'),
+                "=",
+                Column(dialect, "status", table="o"),
+                Literal(dialect, "completed"),
             ),
         ),
     ),

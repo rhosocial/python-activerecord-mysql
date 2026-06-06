@@ -9,10 +9,14 @@ Note: MySQL-specific protocols extend generic protocols to avoid interface overl
 When a MySQL protocol extends a generic protocol, dialects only need to implement
 the MySQL-specific protocol - isinstance checks for the generic protocol will still work.
 """
+
 from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass
+    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+        ModifyColumn,
+        ChangeColumn,
+    )
 
 from rhosocial.activerecord.backend.dialect.protocols import (
     JSONSupport,
@@ -239,9 +243,7 @@ class MySQLTableSupport(TableSupport, Protocol):
         ...
 
     def format_create_table_statement(
-        self,
-        expr,
-        dialect_options: Optional[Dict[str, Any]] = None
+        self, expr, dialect_options: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, tuple]:
         """Format CREATE TABLE statement.
 
@@ -285,11 +287,7 @@ class MySQLSetTypeSupport(Protocol):
         """Whether SET type is supported."""
         ...
 
-    def format_set_literal(
-        self,
-        values: List[str],
-        column_values: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
+    def format_set_literal(self, values: List[str], column_values: Optional[List[str]] = None) -> Tuple[str, tuple]:
         """Format SET type literal.
 
         Args:
@@ -301,11 +299,7 @@ class MySQLSetTypeSupport(Protocol):
         """
         ...
 
-    def format_find_in_set(
-        self,
-        value: str,
-        set_column: str
-    ) -> Tuple[str, tuple]:
+    def format_find_in_set(self, value: str, set_column: str) -> Tuple[str, tuple]:
         """Format FIND_IN_SET function call.
 
         Args:
@@ -317,11 +311,7 @@ class MySQLSetTypeSupport(Protocol):
         """
         ...
 
-    def format_set_contains(
-        self,
-        column: str,
-        values: List[str]
-    ) -> Tuple[str, tuple]:
+    def format_set_contains(self, column: str, values: List[str]) -> Tuple[str, tuple]:
         """Format SET contains check expression.
 
         Args:
@@ -376,12 +366,7 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """
         ...
 
-    def format_json_extract(
-        self,
-        json_doc: str,
-        path: str,
-        paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
+    def format_json_extract(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
         """Format JSON_EXTRACT function call.
 
         Args:
@@ -405,10 +390,7 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """
         ...
 
-    def format_json_object(
-        self,
-        key_value_pairs: List[Tuple[str, Any]]
-    ) -> Tuple[str, tuple]:
+    def format_json_object(self, key_value_pairs: List[Tuple[str, Any]]) -> Tuple[str, tuple]:
         """Format JSON_OBJECT function call.
 
         Args:
@@ -430,12 +412,7 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """
         ...
 
-    def format_json_contains(
-        self,
-        target: str,
-        candidate: str,
-        path: Optional[str] = None
-    ) -> Tuple[str, tuple]:
+    def format_json_contains(self, target: str, candidate: str, path: Optional[str] = None) -> Tuple[str, tuple]:
         """Format JSON_CONTAINS function call.
 
         Args:
@@ -449,11 +426,7 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         ...
 
     def format_json_set(
-        self,
-        json_doc: str,
-        path: str,
-        value: Any,
-        path_value_pairs: Optional[List[Tuple[str, Any]]] = None
+        self, json_doc: str, path: str, value: Any, path_value_pairs: Optional[List[Tuple[str, Any]]] = None
     ) -> Tuple[str, tuple]:
         """Format JSON_SET function call.
 
@@ -468,12 +441,7 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """
         ...
 
-    def format_json_remove(
-        self,
-        json_doc: str,
-        path: str,
-        paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
+    def format_json_remove(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
         """Format JSON_REMOVE function call.
 
         Args:
@@ -509,11 +477,7 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         ...
 
     def format_json_search(
-        self,
-        json_doc: str,
-        search_str: str,
-        path: Optional[str] = None,
-        all: bool = False
+        self, json_doc: str, search_str: str, path: Optional[str] = None, all: bool = False
     ) -> Tuple[str, tuple]:
         """Format JSON_SEARCH function call.
 
@@ -587,11 +551,7 @@ class MySQLSpatialSupport(Protocol):
         """Whether GEOMETRYCOLLECTION is supported."""
         ...
 
-    def format_spatial_literal(
-        self,
-        wkt: str,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
+    def format_spatial_literal(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format spatial literal from WKT.
 
         Args:
@@ -603,11 +563,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_geom_from_text(
-        self,
-        wkt: str,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
+    def format_st_geom_from_text(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format ST_GeomFromText function call.
 
         Args:
@@ -619,11 +575,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_geom_from_wkb(
-        self,
-        wkb: bytes,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
+    def format_st_geom_from_wkb(self, wkb: bytes, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format ST_GeomFromWKB function call.
 
         Args:
@@ -657,11 +609,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_distance(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
+    def format_st_distance(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         """Format ST_Distance function call.
 
         Args:
@@ -673,11 +621,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_within(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
+    def format_st_within(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         """Format ST_Within function call.
 
         Args:
@@ -689,11 +633,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_contains(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
+    def format_st_contains(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         """Format ST_Contains function call.
 
         Args:
@@ -705,12 +645,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_create_spatial_index(
-        self,
-        index_name: str,
-        table_name: str,
-        column: str
-    ) -> Tuple[str, tuple]:
+    def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE SPATIAL INDEX statement.
 
         Args:
@@ -801,11 +736,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_distance_euclidean(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
+    def format_distance_euclidean(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         """Format EUCLIDEAN_DISTANCE function call.
 
         Args:
@@ -817,11 +748,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_distance_cosine(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
+    def format_distance_cosine(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         """Format COSINE_DISTANCE function call.
 
         Args:
@@ -833,11 +760,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_distance_dot(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
+    def format_distance_dot(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         """Format DOT_PRODUCT function call.
 
         Args:
@@ -849,12 +772,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_create_vector_index(
-        self,
-        index_name: str,
-        table_name: str,
-        column: str
-    ) -> Tuple[str, tuple]:
+    def format_create_vector_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE VECTOR INDEX statement.
 
         Args:
@@ -907,10 +825,7 @@ class MySQLFullTextSearchSupport(Protocol):
         ...
 
     def format_match_against(
-        self,
-        columns: List[str],
-        search_string: str,
-        mode: Optional[str] = None
+        self, columns: List[str], search_string: str, mode: Optional[str] = None
     ) -> Tuple[str, tuple]:
         """Format MATCH ... AGAINST expression.
 
@@ -925,11 +840,7 @@ class MySQLFullTextSearchSupport(Protocol):
         ...
 
     def format_fulltext_index_options(
-        self,
-        index_name: str,
-        columns: List[str],
-        index_type: Optional[str] = None,
-        parser_name: Optional[str] = None
+        self, index_name: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
     ) -> Tuple[str, tuple]:
         """Format FULLTEXT index options.
 
@@ -1021,7 +932,7 @@ class MySQLModifyColumnSupport(Protocol):
         """Whether CHANGE COLUMN is supported."""
         ...
 
-    def format_modify_column_action(self, action) -> Tuple[str, tuple]:
+    def format_modify_column_action(self, action: "ModifyColumn") -> Tuple[str, tuple]:
         """Format MODIFY COLUMN action for ALTER TABLE.
 
         Args:
@@ -1032,7 +943,7 @@ class MySQLModifyColumnSupport(Protocol):
         """
         ...
 
-    def format_change_column_action(self, action) -> Tuple[str, tuple]:
+    def format_change_column_action(self, action: "ChangeColumn") -> Tuple[str, tuple]:
         """Format CHANGE COLUMN action for ALTER TABLE.
 
         Args:

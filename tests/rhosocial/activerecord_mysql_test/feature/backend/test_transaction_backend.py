@@ -5,6 +5,7 @@ MySQL backend transaction tests using real database connection.
 This module tests transaction handling using MySQL backend with real database.
 Each test has sync and async versions for complete coverage.
 """
+
 import pytest
 import pytest_asyncio
 from decimal import Decimal
@@ -31,8 +32,7 @@ class TestMySQLTransactionBackend:
         """Test transaction using context manager."""
         with mysql_backend.transaction():
             mysql_backend.execute(
-                "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
-                ("TxTest1", Decimal("100.00"))
+                "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)", ("TxTest1", Decimal("100.00"))
             )
 
         rows = mysql_backend.fetch_all("SELECT name FROM test_transaction_table")
@@ -45,7 +45,7 @@ class TestMySQLTransactionBackend:
             with mysql_backend.transaction():
                 mysql_backend.execute(
                     "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
-                    ("TxRollback", Decimal("200.00"))
+                    ("TxRollback", Decimal("200.00")),
                 )
                 raise Exception("Force rollback")
         except Exception:
@@ -76,8 +76,7 @@ class TestAsyncMySQLTransactionBackend:
         """Test transaction using context manager (async)."""
         async with async_mysql_backend.transaction():
             await async_mysql_backend.execute(
-                "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
-                ("TxTest1", Decimal("100.00"))
+                "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)", ("TxTest1", Decimal("100.00"))
             )
 
         rows = await async_mysql_backend.fetch_all("SELECT name FROM test_transaction_table")
@@ -90,7 +89,7 @@ class TestAsyncMySQLTransactionBackend:
             async with async_mysql_backend.transaction():
                 await async_mysql_backend.execute(
                     "INSERT INTO test_transaction_table (name, amount) VALUES (%s, %s)",
-                    ("TxRollback", Decimal("200.00"))
+                    ("TxRollback", Decimal("200.00")),
                 )
                 raise Exception("Force rollback")
         except Exception:

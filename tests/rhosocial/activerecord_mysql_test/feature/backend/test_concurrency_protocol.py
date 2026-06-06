@@ -6,6 +6,7 @@ This test verifies that MySQLBackend correctly implements the ConcurrencyAware
 protocol by fetching max_connections during connect and returning the appropriate
 concurrency hint.
 """
+
 import pytest
 
 from rhosocial.activerecord.backend.protocols import ConcurrencyAware, ConcurrencyHint
@@ -73,9 +74,7 @@ class TestAsyncMySQLConcurrencyAware:
         assert hint.max_concurrency > 0
 
     @pytest.mark.asyncio
-    async def test_async_mysql_concurrency_hint_not_none_after_connect(
-        self, async_mysql_backend_single
-    ):
+    async def test_async_mysql_concurrency_hint_not_none_after_connect(self, async_mysql_backend_single):
         """Test that async concurrency hint is populated after connect."""
         assert async_mysql_backend_single._connection is not None
         assert async_mysql_backend_single.get_concurrency_hint() is not None

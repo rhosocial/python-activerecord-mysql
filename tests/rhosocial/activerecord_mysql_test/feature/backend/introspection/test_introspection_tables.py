@@ -131,7 +131,7 @@ class TestTableInfoDetails:
     def test_table_comment(self, backend_with_tables):
         """Test that table comment can be retrieved."""
         # Create table with comment
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS test_comment;
             CREATE TABLE test_comment (
                 id INT PRIMARY KEY
@@ -144,7 +144,7 @@ class TestTableInfoDetails:
         assert table.comment == "Test table comment"
 
         # Cleanup
-        backend_with_tables.executescript( "DROP TABLE IF EXISTS test_comment;")
+        backend_with_tables.executescript("DROP TABLE IF EXISTS test_comment;")
 
     def test_table_row_count(self, backend_with_tables):
         """Test that row count can be retrieved."""

@@ -7,10 +7,10 @@ This test ensures:
 2. All protocols have at least one member
 3. No two protocols share the same method name (no overlap)
 """
+
 import inspect
 import sys
 from itertools import combinations
-from typing import Protocol
 
 if sys.version_info >= (3, 13):
     from typing import get_protocol_members
@@ -42,10 +42,7 @@ def get_all_protocol_methods(proto: type) -> set:
                 val = cls.__dict__[name]
                 if callable(val) or isinstance(val, (property, classmethod, staticmethod)):
                     members.add(name)
-            members.update(
-                k for k in getattr(cls, "__annotations__", {})
-                if not k.startswith("_")
-            )
+            members.update(k for k in getattr(cls, "__annotations__", {}) if not k.startswith("_"))
     return members
 
 
@@ -62,10 +59,7 @@ def get_own_protocol_methods(proto: type) -> set:
         val = proto.__dict__[name]
         if callable(val) or isinstance(val, (property, classmethod, staticmethod)):
             members.add(name)
-    members.update(
-        k for k in getattr(proto, "__annotations__", {})
-        if not k.startswith("_")
-    )
+    members.update(k for k in getattr(proto, "__annotations__", {}) if not k.startswith("_"))
     return members
 
 
@@ -136,28 +130,25 @@ class TestProtocolNonOverlap:
 
     def test_no_interface_overlap_between_protocols(self):
         """No two protocols should share the same method name."""
-        member_map = {
-            proto.__name__: get_all_protocol_methods(proto)
-            for proto in MYSQL_PROTOCOLS
-        }
+        member_map = {proto.__name__: get_all_protocol_methods(proto) for proto in MYSQL_PROTOCOLS}
 
         for name, members in member_map.items():
             assert len(members) > 0, f"Protocol {name} has no members defined"
 
         excluded_overlaps = {
             # MySQL-specific protocols extend generic protocols (intentional inheritance)
-            ('JSONSupport', 'MySQLJSONFunctionSupport'),
-            ('MySQLJSONFunctionSupport', 'JSONSupport'),
-            ('LockingSupport', 'MySQLLockingSupport'),
-            ('MySQLLockingSupport', 'LockingSupport'),
-            ('TableSupport', 'MySQLTableSupport'),
-            ('MySQLTableSupport', 'TableSupport'),
+            ("JSONSupport", "MySQLJSONFunctionSupport"),
+            ("MySQLJSONFunctionSupport", "JSONSupport"),
+            ("LockingSupport", "MySQLLockingSupport"),
+            ("MySQLLockingSupport", "LockingSupport"),
+            ("TableSupport", "MySQLTableSupport"),
+            ("MySQLTableSupport", "TableSupport"),
             # MySQL DML includes upsert capabilities (ON DUPLICATE KEY UPDATE)
-            ('UpsertSupport', 'MySQLDMLOperationSupport'),
-            ('MySQLDMLOperationSupport', 'UpsertSupport'),
+            ("UpsertSupport", "MySQLDMLOperationSupport"),
+            ("MySQLDMLOperationSupport", "UpsertSupport"),
             # MySQL fulltext search includes index capabilities
-            ('IndexSupport', 'MySQLFullTextSearchSupport'),
-            ('MySQLFullTextSearchSupport', 'IndexSupport'),
+            ("IndexSupport", "MySQLFullTextSearchSupport"),
+            ("MySQLFullTextSearchSupport", "IndexSupport"),
         }
 
         violations = []
@@ -192,9 +183,7 @@ class TestMySQLProtocolDerivation:
         """Backend-specific protocol should derive from its generic counterpart."""
         mysql_proto = getattr(mysql_protocols, mysql_name)
         generic_proto = getattr(dialect_protocols, generic_name)
-        assert issubclass(mysql_proto, generic_proto), (
-            f"{mysql_name} does not derive from {generic_name}"
-        )
+        assert issubclass(mysql_proto, generic_proto), f"{mysql_name} does not derive from {generic_name}"
 
     def test_dialect_satisfies_generic_protocols_via_derivation(self):
         """MySQLDialect should satisfy generic protocols through derived protocols."""
@@ -203,8 +192,7 @@ class TestMySQLProtocolDerivation:
             generic_proto = getattr(dialect_protocols, generic_name)
             if getattr(generic_proto, "_is_runtime_protocol", False):
                 assert isinstance(dialect, generic_proto), (
-                    f"MySQLDialect does not satisfy {generic_name} "
-                    f"(should be inherited via {mysql_name})"
+                    f"MySQLDialect does not satisfy {generic_name} (should be inherited via {mysql_name})"
                 )
 
 
@@ -257,8 +245,7 @@ class TestMySQLExpressionDialectSeparation:
         # Verify the dialect has the corresponding format method
         dialect = mysql_dialect.MySQLDialect()
         assert hasattr(dialect, format_method), (
-            f"MySQLDialect missing format method {format_method} "
-            f"for expression {expr_name}"
+            f"MySQLDialect missing format method {format_method} for expression {expr_name}"
         )
 
 
@@ -300,15 +287,15 @@ class TestProtocolMethodSignatureConformance:
     # These are pre-existing issues that require a broader refactoring to fix.
     _SIGNATURE_MISMATCH_EXCLUSIONS = {
         # JSONSupport: MySQL uses expr-based signatures instead of named params
-        ('JSONSupport', 'format_json_expression'),
-        ('JSONSupport', 'format_json_table_expression'),
+        ("JSONSupport", "format_json_expression"),
+        ("JSONSupport", "format_json_table_expression"),
         # MySQLJSONFunctionSupport inherits from JSONSupport, same signature issues
-        ('MySQLJSONFunctionSupport', 'format_json_expression'),
-        ('MySQLJSONFunctionSupport', 'format_json_table_expression'),
+        ("MySQLJSONFunctionSupport", "format_json_expression"),
+        ("MySQLJSONFunctionSupport", "format_json_table_expression"),
         # ArraySupport: MySQL doesn't support arrays natively
-        ('ArraySupport', 'format_array_expression'),
+        ("ArraySupport", "format_array_expression"),
         # ExplainSupport: MySQL uses **kwargs for explain options
-        ('ExplainSupport', 'format_explain_statement'),
+        ("ExplainSupport", "format_explain_statement"),
     }
 
     @pytest.mark.parametrize("protocol", MYSQL_PROTOCOLS)
@@ -339,20 +326,16 @@ class TestProtocolMethodSignatureConformance:
                     dialect_sig = inspect.signature(dialect_method)
 
                     # Compare parameter names (excluding 'self')
-                    proto_params = [
-                        p for p in proto_sig.parameters.values()
-                        if p.name != 'self'
-                    ]
-                    dialect_params = [
-                        p for p in dialect_sig.parameters.values()
-                        if p.name != 'self'
-                    ]
+                    proto_params = [p for p in proto_sig.parameters.values() if p.name != "self"]
+                    dialect_params = [p for p in dialect_sig.parameters.values() if p.name != "self"]
 
                     # Dialect must accept at least all required proto params
                     proto_required = [
-                        p for p in proto_params
+                        p
+                        for p in proto_params
                         if p.default is inspect.Parameter.empty
-                        and p.kind not in (
+                        and p.kind
+                        not in (
                             inspect.Parameter.VAR_POSITIONAL,
                             inspect.Parameter.VAR_KEYWORD,
                         )
@@ -362,18 +345,13 @@ class TestProtocolMethodSignatureConformance:
                     for req_param in proto_required:
                         if req_param.name not in dialect_param_names:
                             signature_mismatch.append(
-                                f"{method_name}: missing required param "
-                                f"'{req_param.name}' from protocol"
+                                f"{method_name}: missing required param '{req_param.name}' from protocol"
                             )
                 except (ValueError, TypeError):
                     pass  # Some protocol methods can't be inspected
 
-        assert not missing, (
-            f"MySQLDialect missing methods for {protocol.__name__}: {missing}"
-        )
-        assert not signature_mismatch, (
-            f"Signature mismatches for {protocol.__name__}: {signature_mismatch}"
-        )
+        assert not missing, f"MySQLDialect missing methods for {protocol.__name__}: {missing}"
+        assert not signature_mismatch, f"Signature mismatches for {protocol.__name__}: {signature_mismatch}"
 
 
 class TestProtocolMixinForwardCoverage:
@@ -392,11 +370,10 @@ class TestProtocolMixinForwardCoverage:
         implemented by generic mixins rather than the MySQL-specific one.
         """
         proto_methods = get_own_protocol_methods(protocol)
-        mixin_methods = {name for name in dir(mixin) if not name.startswith('_')}
+        mixin_methods = {name for name in dir(mixin) if not name.startswith("_")}
         missing = proto_methods - mixin_methods
         assert not missing, (
-            f"{mixin.__name__} does not implement these methods "
-            f"declared in {protocol.__name__}: {missing}"
+            f"{mixin.__name__} does not implement these methods declared in {protocol.__name__}: {missing}"
         )
 
 
@@ -422,10 +399,9 @@ class TestProtocolMixinReverseCoverage:
         # Collect Mixin's own public format_*, supports_*, get_* methods
         mixin_own_methods = set()
         for name in dir(mixin):
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
-            if not (name.startswith('format_') or name.startswith('supports_')
-                    or name.startswith('get_')):
+            if not (name.startswith("format_") or name.startswith("supports_") or name.startswith("get_")):
                 continue
             # Only include methods defined on the mixin itself, not inherited
             # from object or other generic bases
@@ -434,6 +410,5 @@ class TestProtocolMixinReverseCoverage:
 
         undeclared = mixin_own_methods - proto_methods
         assert not undeclared, (
-            f"{mixin.__name__} implements these methods not declared in "
-            f"{protocol.__name__}: {undeclared}"
+            f"{mixin.__name__} implements these methods not declared in {protocol.__name__}: {undeclared}"
         )

@@ -83,7 +83,7 @@ class TestTriggerDetails:
 
     def test_multiple_triggers(self, backend_with_trigger):
         """Test multiple triggers on same table."""
-        backend_with_trigger.executescript( """
+        backend_with_trigger.executescript("""
             CREATE TRIGGER before_user_insert
             BEFORE INSERT ON users
             FOR EACH ROW
@@ -102,7 +102,7 @@ class TestTriggerDetails:
         assert "before_user_insert" in trigger_names
         assert "after_user_delete" in trigger_names
 
-        backend_with_trigger.executescript( """
+        backend_with_trigger.executescript("""
             DROP TRIGGER IF EXISTS before_user_insert;
             DROP TRIGGER IF EXISTS after_user_delete;
             DROP TABLE IF EXISTS audit_log;
@@ -136,7 +136,7 @@ class TestTriggerDetails:
 
     def test_before_insert_trigger(self, backend_with_trigger):
         """Test BEFORE INSERT trigger."""
-        backend_with_trigger.executescript( """
+        backend_with_trigger.executescript("""
             CREATE TRIGGER validate_before_insert
             BEFORE INSERT ON users
             FOR EACH ROW
@@ -154,11 +154,11 @@ class TestTriggerDetails:
         assert trigger.timing == "BEFORE"
         assert "INSERT" in trigger.events
 
-        backend_with_trigger.executescript( "DROP TRIGGER IF EXISTS validate_before_insert;")
+        backend_with_trigger.executescript("DROP TRIGGER IF EXISTS validate_before_insert;")
 
     def test_after_delete_trigger(self, backend_with_trigger):
         """Test AFTER DELETE trigger."""
-        backend_with_trigger.executescript( """
+        backend_with_trigger.executescript("""
             CREATE TABLE audit_log (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 action VARCHAR(50),
@@ -178,7 +178,7 @@ class TestTriggerDetails:
         assert trigger.timing == "AFTER"
         assert "DELETE" in trigger.events
 
-        backend_with_trigger.executescript( """
+        backend_with_trigger.executescript("""
             DROP TRIGGER IF EXISTS after_delete_audit;
             DROP TABLE IF EXISTS audit_log;
         """)

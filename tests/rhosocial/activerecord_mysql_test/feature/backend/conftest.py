@@ -11,8 +11,10 @@ from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, AsyncMySQLBa
 
 SCENARIO_MAP: Dict[str, Dict[str, Any]] = {}
 
+
 def register_scenario(name: str, config: Dict[str, Any]):
     SCENARIO_MAP[name] = config
+
 
 def _load_scenarios_from_config():
     """
@@ -44,20 +46,21 @@ def _load_scenarios_from_config():
         )
 
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
 
-        if 'scenarios' not in config_data:
+        if "scenarios" not in config_data:
             raise ValueError(f"Configuration file {config_path} does not contain 'scenarios' key")
 
-        for scenario_name, config in config_data['scenarios'].items():
+        for scenario_name, config in config_data["scenarios"].items():
             register_scenario(scenario_name, config)
 
     except ImportError:
-        raise ImportError("PyYAML is required to load MySQL scenario configuration files")
+        raise ImportError("PyYAML is required to load MySQL scenario configuration files")  # noqa: B904
 
 
 _load_scenarios_from_config()
+
 
 def get_scenario(name: str) -> Tuple[Type[MySQLBackend], MySQLConnectionConfig]:
     if name not in SCENARIO_MAP:
@@ -67,17 +70,20 @@ def get_scenario(name: str) -> Tuple[Type[MySQLBackend], MySQLConnectionConfig]:
             raise ValueError("No scenarios registered")
     scenario_config = SCENARIO_MAP[name].copy()
     # Extract ssl_disabled if present, otherwise it will be None
-    ssl_disabled = scenario_config.pop('ssl_disabled', None)
+    ssl_disabled = scenario_config.pop("ssl_disabled", None)
     config = MySQLConnectionConfig(**scenario_config)
     # Re-add ssl_disabled to config if it was present
     if ssl_disabled is not None:
         config.ssl_disabled = ssl_disabled
     return MySQLBackend, config
 
+
 def get_enabled_scenarios() -> Dict[str, Any]:
     return SCENARIO_MAP
 
+
 # --- Provider Logic ---
+
 
 class BackendFeatureProvider:
     def __init__(self):
@@ -112,10 +118,13 @@ class BackendFeatureProvider:
             await self._async_backend.disconnect()
             self._async_backend = None
 
+
 # --- Fixtures ---
+
 
 def get_scenario_names():
     return list(get_enabled_scenarios().keys())
+
 
 @pytest.fixture(scope="function", params=get_scenario_names())
 def mysql_backend(request):
@@ -144,6 +153,7 @@ def mysql_backend_single():
     yield backend
     provider.cleanup()
 
+
 @pytest_asyncio.fixture(scope="function", params=get_scenario_names())
 async def async_mysql_backend(request):
     scenario_name = request.param
@@ -171,6 +181,7 @@ async def async_mysql_backend_single():
 
 
 # --- Control Backend for Session Modification Tests ---
+
 
 @pytest.fixture(scope="function")
 def mysql_control_backend(mysql_backend):
@@ -214,6 +225,7 @@ async def async_mysql_control_backend(async_mysql_backend):
 
 # --- Type Adapters ---
 
+
 @pytest.fixture(scope="module")
 def json_column_adapter():
     """
@@ -229,10 +241,12 @@ def json_column_adapter():
         )
     """
     from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLJSONAdapter
+
     return MySQLJSONAdapter()
 
 
 # --- Protocol Requirement Checking ---
+
 
 @pytest.fixture(scope="function", autouse=True)
 def check_protocol_requirements(request):
@@ -251,8 +265,8 @@ def check_protocol_requirements(request):
         required_protocol_info = requires_protocol_marker.args[0]
 
         # Check if we're running an async test
-        is_async = 'async_mysql_backend' in request.fixturenames
-        fixture_name = 'async_mysql_backend' if is_async else 'mysql_backend'
+        is_async = "async_mysql_backend" in request.fixturenames
+        fixture_name = "async_mysql_backend" if is_async else "mysql_backend"
 
         if fixture_name in request.fixturenames:
             try:
@@ -274,12 +288,10 @@ def check_protocol_requirements(request):
                             method = getattr(backend.dialect, method_name)
                             if callable(method):
                                 # For support checking methods that return bool
-                                if method_name.startswith('supports_'):
+                                if method_name.startswith("supports_"):
                                     if not method():
-                                        feature_name = method_name.replace('supports_', '')
-                                        pytest.skip(
-                                            f"Skipping test - backend dialect does not support {feature_name}"
-                                        )
+                                        feature_name = method_name.replace("supports_", "")
+                                        pytest.skip(f"Skipping test - backend dialect does not support {feature_name}")
             except Exception:
                 pass
 
@@ -288,6 +300,7 @@ def check_protocol_requirements(request):
 def mysql_dialect():
     """Fixture providing MySQLDialect instance for testing transaction expressions."""
     from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
     dialect = MySQLDialect()
     dialect.version = (8, 0, 0)
     return dialect

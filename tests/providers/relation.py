@@ -6,11 +6,24 @@ from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
 from rhosocial.activerecord.testsuite.feature.relation.interfaces import IRelationProvider
 from rhosocial.activerecord.testsuite.feature.relation.fixtures.models import (
-    Employee, Department, Author, Book, Chapter, Profile,
-    User, Post, Comment,
-    AsyncUser, AsyncPost, AsyncComment,
-    BoundaryOwner, BoundaryProfile, BoundaryPost,
-    AsyncBoundaryOwner, AsyncBoundaryProfile, AsyncBoundaryPost,
+    Employee,
+    Department,
+    Author,
+    Book,
+    Chapter,
+    Profile,
+    User,
+    Post,
+    Comment,
+    AsyncUser,
+    AsyncPost,
+    AsyncComment,
+    BoundaryOwner,
+    BoundaryProfile,
+    BoundaryPost,
+    AsyncBoundaryOwner,
+    AsyncBoundaryProfile,
+    AsyncBoundaryPost,
 )
 from .scenarios import get_enabled_scenarios, get_scenario
 
@@ -104,7 +117,6 @@ RELATION_BOUNDARY_SCHEMA = """
 
 
 class RelationProvider(IRelationProvider):
-
     def __init__(self):
         self._active_backends = []
         self._active_async_backends = []

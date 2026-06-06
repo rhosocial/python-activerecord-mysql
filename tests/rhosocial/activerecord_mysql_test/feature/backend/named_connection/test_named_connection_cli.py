@@ -4,11 +4,8 @@ Tests for MySQL CLI parameter resolution.
 
 This module tests the CLI parameter resolution priority for MySQL.
 """
-import os
-import tempfile
-import types
+
 from unittest.mock import MagicMock, patch
-import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
@@ -45,9 +42,7 @@ class TestMySQLConnectionConfigPriority:
         args = MockArgs()
         from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
-        with patch(
-            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver"
-        ):
+        with patch("rhosocial.activerecord.backend.named_connection.NamedConnectionResolver"):
             config = resolve_connection_config_from_args(args)
 
         assert config.host == "localhost"
@@ -64,9 +59,7 @@ class TestMySQLConnectionConfigPriority:
         )
         from rhosocial.activerecord.backend.impl.mysql.cli.connection import resolve_connection_config_from_args
 
-        with patch(
-            "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver"
-        ):
+        with patch("rhosocial.activerecord.backend.named_connection.NamedConnectionResolver"):
             config = resolve_connection_config_from_args(args)
 
         assert config.host == "myhost"
@@ -116,11 +109,9 @@ class TestMySQLConnectionConfigPriority:
             "rhosocial.activerecord.backend.named_connection.NamedConnectionResolver",
             return_value=mock_resolver,
         ):
-            config = resolve_connection_config_from_args(args)
+            resolve_connection_config_from_args(args)
 
-        mock_resolver.resolve.assert_called_once_with(
-            {"database": "custom_db", "charset": "utf8mb4"}
-        )
+        mock_resolver.resolve.assert_called_once_with({"database": "custom_db", "charset": "utf8mb4"})
 
     def test_explicit_params_override_named_connection(self):
         """Test explicit params should NOT override named connection (MySQL uses different approach).

@@ -5,6 +5,7 @@ Integration tests for MySQL dialect SQL injection security fixes.
 These tests verify that the security fixes work correctly when
 SQL is actually executed against a MySQL database.
 """
+
 import pytest
 
 from rhosocial.activerecord.backend.dialect.protocols import JSONSupport
@@ -12,7 +13,7 @@ from rhosocial.activerecord.backend.dialect.protocols import JSONSupport
 
 def requires_json_table():
     """Decorator for tests requiring JSON_TABLE support (MySQL 8.0.4+)."""
-    return pytest.mark.requires_protocol((JSONSupport, 'supports_json_table'))
+    return pytest.mark.requires_protocol((JSONSupport, "supports_json_table"))
 
 
 class TestMySQLDialectSecurityIntegration:
@@ -35,14 +36,10 @@ class TestMySQLDialectSecurityIntegration:
     def test_default_string_with_single_quote_insert_and_retrieve(self, mysql_backend, test_table_with_special_chars):
         """Test that single quotes in DEFAULT are properly escaped and retrieved correctly."""
         # Insert a row with special characters
-        mysql_backend.execute(
-            f"INSERT INTO {test_table_with_special_chars} (name) VALUES ('O''Brien')"
-        )
+        mysql_backend.execute(f"INSERT INTO {test_table_with_special_chars} (name) VALUES ('O''Brien')")
 
         # Retrieve and verify - use fetch_one and access by column name
-        row = mysql_backend.fetch_one(
-            f"SELECT name FROM {test_table_with_special_chars} WHERE id = 1"
-        )
+        row = mysql_backend.fetch_one(f"SELECT name FROM {test_table_with_special_chars} WHERE id = 1")
         # Access result by column name
         assert row["name"] == "O'Brien"
 

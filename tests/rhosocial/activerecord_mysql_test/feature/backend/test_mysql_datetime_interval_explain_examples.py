@@ -90,9 +90,7 @@ def _range_filter(dialect, column_name: str, start: str, end: str):
     return LogicalPredicate(
         dialect,
         "AND",
-        ComparisonPredicate(
-            dialect, ">=", Column(dialect, column_name), Literal(dialect, start)
-        ),
+        ComparisonPredicate(dialect, ">=", Column(dialect, column_name), Literal(dialect, start)),
         ComparisonPredicate(dialect, "<", Column(dialect, column_name), Literal(dialect, end)),
     )
 
@@ -101,9 +99,7 @@ def _category_created_filter(dialect):
     return LogicalPredicate(
         dialect,
         "AND",
-        ComparisonPredicate(
-            dialect, "=", Column(dialect, "category"), Literal(dialect, "deploy")
-        ),
+        ComparisonPredicate(dialect, "=", Column(dialect, "category"), Literal(dialect, "deploy")),
         _range_filter(
             dialect,
             "created_at",
@@ -118,18 +114,12 @@ def _datetime_expression_query(dialect):
         dialect,
         select=[
             Column(dialect, "id"),
-            extract(dialect, "year", Column(dialect, "created_at")).as_(
-                "created_year"
+            extract(dialect, "year", Column(dialect, "created_at")).as_("created_year"),
+            date_add(dialect, Column(dialect, "started_at"), 30, "minute").as_("starts_plus_30m"),
+            date_sub(dialect, Column(dialect, "ended_at"), 1, "hour").as_("ended_minus_1h"),
+            date_diff(dialect, "minute", Column(dialect, "started_at"), Column(dialect, "ended_at")).as_(
+                "duration_minutes"
             ),
-            date_add(dialect, Column(dialect, "started_at"), 30, "minute").as_(
-                "starts_plus_30m"
-            ),
-            date_sub(dialect, Column(dialect, "ended_at"), 1, "hour").as_(
-                "ended_minus_1h"
-            ),
-            date_diff(
-                dialect, "minute", Column(dialect, "started_at"), Column(dialect, "ended_at")
-            ).as_("duration_minutes"),
         ],
         from_=TableExpression(dialect, "explain_temporal_events"),
         where=_category_created_filter(dialect),
@@ -163,9 +153,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
         assert result.is_full_scan is False
         assert _row_keys(result) & {"idx_temporal_created_at", "idx_temporal_category_created"}
 
-    def test_category_created_range_uses_composite_datetime_index(
-        self, temporal_indexed_backend
-    ):
+    def test_category_created_range_uses_composite_datetime_index(self, temporal_indexed_backend):
         dialect = temporal_indexed_backend.dialect
         result = temporal_indexed_backend.explain(
             QueryExpression(
@@ -201,9 +189,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
         assert result.is_full_scan is False
         assert "idx_temporal_category_created" in _row_keys(result)
 
-    def test_datetime_interval_expressions_work_with_indexed_filter(
-        self, temporal_indexed_backend
-    ):
+    def test_datetime_interval_expressions_work_with_indexed_filter(self, temporal_indexed_backend):
         dialect = temporal_indexed_backend.dialect
         query = _datetime_expression_query(dialect)
 
@@ -228,9 +214,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
 
 class TestAsyncMySQLDateTimeIntervalExplainExamples:
     @pytest.mark.asyncio
-    async def test_category_created_range_uses_composite_datetime_index(
-        self, async_temporal_indexed_backend
-    ):
+    async def test_category_created_range_uses_composite_datetime_index(self, async_temporal_indexed_backend):
         dialect = async_temporal_indexed_backend.dialect
         result = await async_temporal_indexed_backend.explain(
             QueryExpression(
@@ -250,9 +234,7 @@ class TestAsyncMySQLDateTimeIntervalExplainExamples:
         assert "idx_temporal_category_created" in _row_keys(result)
 
     @pytest.mark.asyncio
-    async def test_datetime_interval_expressions_work_with_indexed_filter(
-        self, async_temporal_indexed_backend
-    ):
+    async def test_datetime_interval_expressions_work_with_indexed_filter(self, async_temporal_indexed_backend):
         dialect = async_temporal_indexed_backend.dialect
         query = _datetime_expression_query(dialect)
 

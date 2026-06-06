@@ -10,48 +10,48 @@ from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
     DropTableExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name='articles', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="articles", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='articles',
+    table_name="articles",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
-        ColumnDefinition('title', 'VARCHAR(200)'),
-        ColumnDefinition('content', 'TEXT'),
+        ColumnDefinition("title", "VARCHAR(200)"),
+        ColumnDefinition("content", "TEXT"),
     ],
     if_not_exists=True,
 )
@@ -60,20 +60,23 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into='articles',
-    columns=['title', 'content'],
+    into="articles",
+    columns=["title", "content"],
     source=ValuesSource(
         dialect,
         [
-            [Literal(dialect, 'MySQL Tutorial'),
-             Literal(dialect, 'This tutorial covers MySQL database basics '
-                             'and advanced features.')],
-            [Literal(dialect, 'PostgreSQL Guide'),
-             Literal(dialect, 'Learn PostgreSQL from beginner '
-                             'to advanced level.')],
-            [Literal(dialect, 'Database Design'),
-             Literal(dialect, 'Best practices for designing relational '
-                             'databases including MySQL and PostgreSQL.')],
+            [
+                Literal(dialect, "MySQL Tutorial"),
+                Literal(dialect, "This tutorial covers MySQL database basics and advanced features."),
+            ],
+            [
+                Literal(dialect, "PostgreSQL Guide"),
+                Literal(dialect, "Learn PostgreSQL from beginner to advanced level."),
+            ],
+            [
+                Literal(dialect, "Database Design"),
+                Literal(dialect, "Best practices for designing relational databases including MySQL and PostgreSQL."),
+            ],
         ],
     ),
 )
@@ -86,30 +89,30 @@ backend.execute(sql)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import QueryExpression, Column, TableExpression
-from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode
+from rhosocial.activerecord.backend.expression import QueryExpression, Column, TableExpression  # noqa: E402
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode  # noqa: E402
 
 # Use MySQLMatchAgainstExpression for full-text search
 match_expr = MySQLMatchAgainstExpression(
     dialect=dialect,
-    columns=['title', 'content'],
-    search_string='MySQL',
+    columns=["title", "content"],
+    search_string="MySQL",
     mode=MatchAgainstMode.NATURAL_LANGUAGE,
 )
 
 # Create separate instances - one for SELECT with alias, one for WHERE without alias
 match_with_alias = MySQLMatchAgainstExpression(
     dialect=dialect,
-    columns=['title', 'content'],
-    search_string='MySQL',
+    columns=["title", "content"],
+    search_string="MySQL",
     mode=MatchAgainstMode.NATURAL_LANGUAGE,
 )
-match_with_alias = match_with_alias.as_('relevance')
+match_with_alias = match_with_alias.as_("relevance")
 
 match_for_where = MySQLMatchAgainstExpression(
     dialect=dialect,
-    columns=['title', 'content'],
-    search_string='MySQL',
+    columns=["title", "content"],
+    search_string="MySQL",
     mode=MatchAgainstMode.NATURAL_LANGUAGE,
 )
 
@@ -117,11 +120,11 @@ match_for_where = MySQLMatchAgainstExpression(
 query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'id'),
-        Column(dialect, 'title'),
+        Column(dialect, "id"),
+        Column(dialect, "title"),
         match_with_alias,
     ],
-    from_=TableExpression(dialect, 'articles'),
+    from_=TableExpression(dialect, "articles"),
     where=(match_for_where > 0),
 )
 

@@ -5,6 +5,7 @@ MySQL JSON Duality View expressions (MySQL 9.7+).
 Provides expression classes for CREATE/DROP JSON RELATIONAL DUALITY VIEW
 and the JSON_DUALITY_OBJECT function used within them.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
 class DualityViewDMLTag(Enum):
     """DML permission tags for JSON_DUALITY_OBJECT."""
+
     INSERT = "INSERT"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
@@ -32,6 +34,7 @@ class DualityColumnMapping:
         json_key: JSON key name in the output document
         column_expr: Column expression (e.g., 'table.column')
     """
+
     json_key: str
     column_expr: str
 
@@ -44,6 +47,7 @@ class DualityNestedMapping:
         json_key: JSON key name for the nested data
         subquery: The nested SELECT ... JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery expression
     """
+
     json_key: str
     subquery: "DualityObjectSpec"
 
@@ -60,6 +64,7 @@ class DualityObjectSpec:
         from_alias: Optional table alias
         join_condition: WHERE clause for nested subqueries (e.g., 'child.fk = parent.pk')
     """
+
     tags: List[DualityViewDMLTag] = field(default_factory=list)
     columns: List[DualityColumnMapping] = field(default_factory=list)
     nested: List[DualityNestedMapping] = field(default_factory=list)

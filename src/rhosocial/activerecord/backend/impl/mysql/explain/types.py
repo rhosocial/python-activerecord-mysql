@@ -6,6 +6,7 @@ MySQL's default tabular EXPLAIN output has 12 fixed columns:
   id, select_type, table, partitions, type, possible_keys,
   key, key_len, ref, rows, filtered, Extra
 """
+
 from typing import List, Optional
 
 from pydantic import BaseModel, Field

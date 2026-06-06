@@ -15,14 +15,14 @@ from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 from .connection import add_connection_args, resolve_connection_config_from_args
 from .output import create_provider, RICH_AVAILABLE
 
-OUTPUT_CHOICES = ['table', 'json', 'csv', 'tsv']
+OUTPUT_CHOICES = ["table", "json", "csv", "tsv"]
 
 
 def create_parser(subparsers):
     """Create the query subcommand parser."""
     parser = subparsers.add_parser(
-        'query',
-        help='Execute SQL query',
+        "query",
+        help="Execute SQL query",
         epilog="""Examples:
   # Query a database
   %(prog)s --host localhost --database mydb "SELECT * FROM users"
@@ -42,10 +42,11 @@ def create_parser(subparsers):
 
     # Output format
     parser.add_argument(
-        '-o', '--output',
+        "-o",
+        "--output",
         choices=OUTPUT_CHOICES,
-        default='table',
-        help='Output format (default: table)',
+        default="table",
+        help="Output format (default: table)",
     )
 
     # Connection arguments
@@ -53,16 +54,16 @@ def create_parser(subparsers):
 
     # Log level (query only)
     parser.add_argument(
-        '--log-level',
-        default='INFO',
-        help='Set logging level (e.g., DEBUG, INFO)',
+        "--log-level",
+        default="INFO",
+        help="Set logging level (e.g., DEBUG, INFO)",
     )
 
     # Rich display options
     parser.add_argument(
-        '--rich-ascii',
-        action='store_true',
-        help='Use ASCII characters for rich table borders.',
+        "--rich-ascii",
+        action="store_true",
+        help="Use ASCII characters for rich table borders.",
     )
 
     # query-specific arguments
@@ -73,7 +74,8 @@ def create_parser(subparsers):
         help="SQL query to execute. If not provided, reads from --file or stdin.",
     )
     parser.add_argument(
-        "-f", "--file",
+        "-f",
+        "--file",
         default=None,
         help="Path to a file containing SQL to execute.",
     )
@@ -92,13 +94,17 @@ def handle(args):
 
     if RICH_AVAILABLE:
         from rhosocial.activerecord.backend.output_rich import RichOutputProvider
+
         if isinstance(provider, RichOutputProvider):
             from rich.console import Console
             from rich.logging import RichHandler
+
             handler = RichHandler(rich_tracebacks=True, show_path=False, console=Console(stderr=True))
             logging.basicConfig(level=numeric_level, format="%(message)s", datefmt="[%X]", handlers=[handler])
         else:
-            logging.basicConfig(level=numeric_level, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stderr)
+            logging.basicConfig(
+                level=numeric_level, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stderr
+            )
     else:
         logging.basicConfig(level=numeric_level, format="%(asctime)s - %(levelname)s - %(message)s", stream=sys.stderr)
 
@@ -142,6 +148,7 @@ def handle(args):
 # ---------------------------------------------------------------------------
 # Internal helper functions
 # ---------------------------------------------------------------------------
+
 
 def _execute_query_sync(sql_query: str, backend: MySQLBackend, provider, **kwargs):
     """Execute a SQL query synchronously."""

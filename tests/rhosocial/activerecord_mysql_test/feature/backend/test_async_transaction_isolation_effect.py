@@ -5,14 +5,13 @@ Async tests for MySQL transaction isolation level and mode effects.
 This module tests the actual behavior of different isolation levels and transaction modes
 with MySQL backend using async operations.
 """
+
 import pytest
 import pytest_asyncio
 import asyncio
 from decimal import Decimal
 
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
 from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
-from rhosocial.activerecord.backend.errors import TransactionError
 
 
 @pytest_asyncio.fixture
@@ -28,8 +27,7 @@ async def async_isolation_test_table(async_mysql_backend):
         )
     """)
     await async_mysql_backend.execute(
-        "insert into async_isolation_test (name, balance) values (%s, %s)",
-        ("user1", Decimal("100.00"))
+        "insert into async_isolation_test (name, balance) values (%s, %s)", ("user1", Decimal("100.00"))
     )
     yield "async_isolation_test"
     await async_mysql_backend.execute("drop table if exists async_isolation_test")
@@ -47,8 +45,7 @@ async def async_mode_test_table(async_mysql_backend):
         )
     """)
     await async_mysql_backend.execute(
-        "insert into async_mode_test (name, balance) values (%s, %s)",
-        ("account1", Decimal("1000.00"))
+        "insert into async_mode_test (name, balance) values (%s, %s)", ("account1", Decimal("1000.00"))
     )
     yield "async_mode_test"
     await async_mysql_backend.execute("drop table if exists async_mode_test")
@@ -66,8 +63,7 @@ async def async_combo_test_table(async_mysql_backend):
         )
     """)
     await async_mysql_backend.execute(
-        "insert into async_combo_test (name, balance) values (%s, %s)",
-        ("account1", Decimal("1000.00"))
+        "insert into async_combo_test (name, balance) values (%s, %s)", ("account1", Decimal("1000.00"))
     )
     yield "async_combo_test"
     await async_mysql_backend.execute("drop table if exists async_combo_test")
@@ -92,7 +88,9 @@ class TestAsyncIsolationLevelEffect:
     """Test actual isolation behavior for each isolation level."""
 
     @pytest.mark.asyncio
-    async def test_read_uncommitted_allows_dirty_reads(self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table):
+    async def test_read_uncommitted_allows_dirty_reads(
+        self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table
+    ):
         """Verify READ UNCOMMITTED isolation level allows dirty reads (async).
 
         A dirty read occurs when a transaction reads data written by another
@@ -107,8 +105,7 @@ class TestAsyncIsolationLevelEffect:
                 async with async_mysql_backend.transaction():
                     await asyncio.sleep(0.1)
                     rows = await async_mysql_backend.fetch_all(
-                        "select balance from async_isolation_test where name = %s",
-                        ("user1",)
+                        "select balance from async_isolation_test where name = %s", ("user1",)
                     )
                     if rows and rows[0]["balance"] == Decimal("200.00"):
                         dirty_read_detected.append(True)
@@ -121,8 +118,7 @@ class TestAsyncIsolationLevelEffect:
                 async_mysql_control_backend.transaction_manager.isolation_level = IsolationLevel.READ_UNCOMMITTED
                 async with async_mysql_control_backend.transaction():
                     await async_mysql_control_backend.execute(
-                        "update async_isolation_test set balance = %s where name = %s",
-                        (Decimal("200.00"), "user1")
+                        "update async_isolation_test set balance = %s where name = %s", (Decimal("200.00"), "user1")
                     )
                     await asyncio.sleep(0.3)
                     raise Exception("Force rollback for dirty read test")
@@ -133,7 +129,9 @@ class TestAsyncIsolationLevelEffect:
         assert True in dirty_read_detected, "READ UNCOMMITTED should allow dirty reads"
 
     @pytest.mark.asyncio
-    async def test_read_committed_prevents_dirty_reads(self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table):
+    async def test_read_committed_prevents_dirty_reads(
+        self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table
+    ):
         """Verify READ COMMITTED isolation level prevents dirty reads (async)."""
         dirty_read_occurred = []
 
@@ -144,8 +142,7 @@ class TestAsyncIsolationLevelEffect:
                 async with async_mysql_backend.transaction():
                     await asyncio.sleep(0.15)
                     rows = await async_mysql_backend.fetch_all(
-                        "select balance from async_isolation_test where name = %s",
-                        ("user1",)
+                        "select balance from async_isolation_test where name = %s", ("user1",)
                     )
                     if rows and rows[0]["balance"] != Decimal("200.00"):
                         dirty_read_occurred.append(False)  # Correct behavior - no dirty read
@@ -160,8 +157,7 @@ class TestAsyncIsolationLevelEffect:
                 async_mysql_control_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
                 async with async_mysql_control_backend.transaction():
                     await async_mysql_control_backend.execute(
-                        "update async_isolation_test set balance = %s where name = %s",
-                        (Decimal("200.00"), "user1")
+                        "update async_isolation_test set balance = %s where name = %s", (Decimal("200.00"), "user1")
                     )
                     await asyncio.sleep(0.2)
                     raise Exception("Force rollback")
@@ -172,7 +168,9 @@ class TestAsyncIsolationLevelEffect:
         assert True not in dirty_read_occurred, "READ COMMITTED should prevent dirty reads"
 
     @pytest.mark.asyncio
-    async def test_repeatable_read_consistency(self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table):
+    async def test_repeatable_read_consistency(
+        self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table
+    ):
         """Verify REPEATABLE READ provides consistent reads within a transaction (async).
 
         REPEATABLE READ should ensure that if a row is read twice in the same
@@ -188,8 +186,7 @@ class TestAsyncIsolationLevelEffect:
                 async with async_mysql_backend.transaction():
                     # First read
                     rows1 = await async_mysql_backend.fetch_all(
-                        "select balance from async_isolation_test where name = %s",
-                        ("user1",)
+                        "select balance from async_isolation_test where name = %s", ("user1",)
                     )
                     read_values.append(rows1[0]["balance"])
 
@@ -198,8 +195,7 @@ class TestAsyncIsolationLevelEffect:
 
                     # Second read (should be same as first)
                     rows2 = await async_mysql_backend.fetch_all(
-                        "select balance from async_isolation_test where name = %s",
-                        ("user1",)
+                        "select balance from async_isolation_test where name = %s", ("user1",)
                     )
                     read_values.append(rows2[0]["balance"])
             except Exception as e:
@@ -212,10 +208,9 @@ class TestAsyncIsolationLevelEffect:
                 async_mysql_control_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
                 async with async_mysql_control_backend.transaction():
                     await async_mysql_control_backend.execute(
-                        "update async_isolation_test set balance = %s where name = %s",
-                        (Decimal("200.00"), "user1")
+                        "update async_isolation_test set balance = %s where name = %s", (Decimal("200.00"), "user1")
                     )
-            except Exception as e:
+            except Exception:
                 pass
 
         await asyncio.gather(transaction1(), transaction2())
@@ -225,7 +220,9 @@ class TestAsyncIsolationLevelEffect:
         assert read_values[0] == read_values[1], f"REPEATABLE READ should provide consistent reads: {read_values}"
 
     @pytest.mark.asyncio
-    async def test_serializable_prevents_phantom_reads(self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table):
+    async def test_serializable_prevents_phantom_reads(
+        self, async_mysql_backend, async_mysql_control_backend, async_isolation_test_table
+    ):
         """Verify SERIALIZABLE prevents phantom reads (async).
 
         Phantom reads occur when a transaction reads rows matching a condition,
@@ -243,8 +240,7 @@ class TestAsyncIsolationLevelEffect:
                 async with async_mysql_backend.transaction():
                     # First count
                     rows1 = await async_mysql_backend.fetch_all(
-                        "select count(*) as cnt from async_isolation_test where balance > %s",
-                        (Decimal("50.00"),)
+                        "select count(*) as cnt from async_isolation_test where balance > %s", (Decimal("50.00"),)
                     )
                     initial_count.append(rows1[0]["cnt"])
 
@@ -253,8 +249,7 @@ class TestAsyncIsolationLevelEffect:
 
                     # Second count (should be same)
                     rows2 = await async_mysql_backend.fetch_all(
-                        "select count(*) as cnt from async_isolation_test where balance > %s",
-                        (Decimal("50.00"),)
+                        "select count(*) as cnt from async_isolation_test where balance > %s", (Decimal("50.00"),)
                     )
                     second_count.append(rows2[0]["cnt"])
             except Exception as e:
@@ -268,11 +263,10 @@ class TestAsyncIsolationLevelEffect:
                 async with async_mysql_control_backend.transaction():
                     # Try to insert a row that matches the condition
                     await async_mysql_control_backend.execute(
-                        "insert into async_isolation_test (name, balance) values (%s, %s)",
-                        ("user2", Decimal("75.00"))
+                        "insert into async_isolation_test (name, balance) values (%s, %s)", ("user2", Decimal("75.00"))
                     )
                 insert_blocked.append(False)
-            except Exception as e:
+            except Exception:
                 # May be blocked by SERIALIZABLE lock
                 insert_blocked.append(True)
 
@@ -281,8 +275,9 @@ class TestAsyncIsolationLevelEffect:
         # With SERIALIZABLE, the counts should be consistent
         # (insert may be blocked or delayed until transaction 1 commits)
         if len(initial_count) == 2 and isinstance(initial_count[0], int):
-            assert initial_count[0] == second_count[0], \
+            assert initial_count[0] == second_count[0], (
                 f"SERIALIZABLE should prevent phantom reads: {initial_count[0]} vs {second_count[0]}"
+            )
 
 
 class TestAsyncTransactionModeEffect:
@@ -308,11 +303,10 @@ class TestAsyncTransactionModeEffect:
 
         async_mysql_backend.transaction_manager.transaction_mode = TransactionMode.READ_ONLY
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             async with async_mysql_backend.transaction():
                 await async_mysql_backend.execute(
-                    "update async_mode_test set balance = %s where name = %s",
-                    (Decimal("500.00"), "account1")
+                    "update async_mode_test set balance = %s where name = %s", (Decimal("500.00"), "account1")
                 )
 
     @pytest.mark.asyncio
@@ -322,14 +316,10 @@ class TestAsyncTransactionModeEffect:
 
         async with async_mysql_backend.transaction():
             await async_mysql_backend.execute(
-                "update async_mode_test set balance = %s where name = %s",
-                (Decimal("500.00"), "account1")
+                "update async_mode_test set balance = %s where name = %s", (Decimal("500.00"), "account1")
             )
 
-        rows = await async_mysql_backend.fetch_all(
-            "select balance from async_mode_test where name = %s",
-            ("account1",)
-        )
+        rows = await async_mysql_backend.fetch_all("select balance from async_mode_test where name = %s", ("account1",))
         assert rows[0]["balance"] == Decimal("500.00")
 
 
@@ -346,8 +336,8 @@ class TestAsyncTransactionCombination:
         async_mysql_backend.transaction_manager.transaction_mode = TransactionMode.READ_ONLY
 
         async with async_mysql_backend.transaction():
-                rows = await async_mysql_backend.fetch_all("select * from async_combo_test")
-                assert len(rows) == 1
+            rows = await async_mysql_backend.fetch_all("select * from async_combo_test")
+            assert len(rows) == 1
 
     @pytest.mark.asyncio
     async def test_repeatable_read_with_read_only(self, async_mysql_backend, async_combo_test_table):
@@ -359,8 +349,8 @@ class TestAsyncTransactionCombination:
         async_mysql_backend.transaction_manager.transaction_mode = TransactionMode.READ_ONLY
 
         async with async_mysql_backend.transaction():
-                rows = await async_mysql_backend.fetch_all("select * from async_combo_test")
-                assert len(rows) == 1
+            rows = await async_mysql_backend.fetch_all("select * from async_combo_test")
+            assert len(rows) == 1
 
     @pytest.mark.asyncio
     async def test_default_isolation_is_repeatable_read(self, async_mysql_backend):
@@ -371,9 +361,7 @@ class TestAsyncTransactionCombination:
         isolation_var = "@@transaction_isolation" if version >= (5, 7, 0) else "@@tx_isolation"
 
         async with async_mysql_backend.transaction():
-            rows = await async_mysql_backend.fetch_all(
-                f"SELECT {isolation_var} as isolation"
-            )
+            rows = await async_mysql_backend.fetch_all(f"SELECT {isolation_var} as isolation")
             if rows and rows[0].get("isolation"):
                 isolation = rows[0]["isolation"]
                 assert "REPEATABLE READ" in isolation.upper() or "REPEATABLE-READ" in isolation.upper()
@@ -390,8 +378,9 @@ class TestAsyncTransactionCombination:
         from unittest.mock import patch
 
         # Verify initial state is None
-        assert async_mysql_backend.transaction_manager._isolation_level is None, \
+        assert async_mysql_backend.transaction_manager._isolation_level is None, (
             "Initial isolation level should be None (use database default)"
+        )
 
         # Track SQL statements executed
         executed_statements = []
@@ -402,24 +391,20 @@ class TestAsyncTransactionCombination:
             return await original_execute(sql, params, **kwargs)
 
         # Patch execute to track statements
-        with patch.object(async_mysql_backend, 'execute', side_effect=track_execute):
+        with patch.object(async_mysql_backend, "execute", side_effect=track_execute):
             async with async_mysql_backend.transaction():
                 # Execute a simple query inside the transaction
                 await async_mysql_backend.fetch_all("SELECT 1 as test")
 
         # Verify no SET TRANSACTION was sent
-        set_transaction_found = any(
-            'SET TRANSACTION' in stmt.upper() for stmt in executed_statements
-        )
-        assert not set_transaction_found, \
+        set_transaction_found = any("SET TRANSACTION" in stmt.upper() for stmt in executed_statements)
+        assert not set_transaction_found, (
             f"SET TRANSACTION should NOT be sent when isolation level not specified. Executed: {executed_statements}"
+        )
 
         # Verify START TRANSACTION was sent
-        start_transaction_found = any(
-            'START TRANSACTION' in stmt.upper() for stmt in executed_statements
-        )
-        assert start_transaction_found, \
-            f"START TRANSACTION should be sent. Executed: {executed_statements}"
+        start_transaction_found = any("START TRANSACTION" in stmt.upper() for stmt in executed_statements)
+        assert start_transaction_found, f"START TRANSACTION should be sent. Executed: {executed_statements}"
 
     @pytest.mark.asyncio
     async def test_explicit_isolation_level_sends_set_transaction(self, async_mysql_backend):
@@ -436,8 +421,9 @@ class TestAsyncTransactionCombination:
         async_mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
 
         # Verify internal state changed
-        assert async_mysql_backend.transaction_manager._isolation_level == IsolationLevel.READ_COMMITTED, \
+        assert async_mysql_backend.transaction_manager._isolation_level == IsolationLevel.READ_COMMITTED, (
             "Isolation level should be READ_COMMITTED after explicit setting"
+        )
 
         # Track SQL statements executed
         executed_statements = []
@@ -448,39 +434,37 @@ class TestAsyncTransactionCombination:
             return await original_execute(sql, params, **kwargs)
 
         # Patch execute to track statements
-        with patch.object(async_mysql_backend, 'execute', side_effect=track_execute):
+        with patch.object(async_mysql_backend, "execute", side_effect=track_execute):
             async with async_mysql_backend.transaction():
                 await async_mysql_backend.fetch_all("SELECT 1 as test")
 
         # Verify SET TRANSACTION was sent with correct level
         set_transaction_found = any(
-            'SET TRANSACTION' in stmt.upper() and 'READ COMMITTED' in stmt.upper()
-            for stmt in executed_statements
+            "SET TRANSACTION" in stmt.upper() and "READ COMMITTED" in stmt.upper() for stmt in executed_statements
         )
-        assert set_transaction_found, \
-            f"SET TRANSACTION READ COMMITTED should be sent. Executed: {executed_statements}"
+        assert set_transaction_found, f"SET TRANSACTION READ COMMITTED should be sent. Executed: {executed_statements}"
 
         # Verify SET TRANSACTION comes before START TRANSACTION
         set_transaction_idx = next(
-            (i for i, stmt in enumerate(executed_statements)
-             if 'SET TRANSACTION' in stmt.upper()),
-            None
+            (i for i, stmt in enumerate(executed_statements) if "SET TRANSACTION" in stmt.upper()), None
         )
         start_transaction_idx = next(
-            (i for i, stmt in enumerate(executed_statements)
-             if 'START TRANSACTION' in stmt.upper()),
-            None
+            (i for i, stmt in enumerate(executed_statements) if "START TRANSACTION" in stmt.upper()), None
         )
-        assert set_transaction_idx is not None and start_transaction_idx is not None, \
+        assert set_transaction_idx is not None and start_transaction_idx is not None, (
             "Both SET TRANSACTION and START TRANSACTION should be executed"
-        assert set_transaction_idx < start_transaction_idx, \
+        )
+        assert set_transaction_idx < start_transaction_idx, (
             f"SET TRANSACTION should come before START TRANSACTION. Order: {executed_statements}"
+        )
 
     @pytest.mark.asyncio
-    async def test_isolation_level_cannot_change_during_transaction(self, async_mysql_backend, async_isolation_test_table):
+    async def test_isolation_level_cannot_change_during_transaction(
+        self, async_mysql_backend, async_isolation_test_table
+    ):
         """Verify isolation level cannot be changed during active transaction (async)."""
         async with async_mysql_backend.transaction():
-            with pytest.raises(Exception):
+            with pytest.raises(Exception):  # noqa: B017
                 async_mysql_backend.transaction_manager.isolation_level = IsolationLevel.SERIALIZABLE
 
 
@@ -494,15 +478,13 @@ class TestAsyncNestedTransactionsWithIsolation:
 
         async with async_mysql_backend.transaction():
             await async_mysql_backend.execute(
-                "insert into async_nested_test (name, value) values (%s, %s)",
-                ("outer", 1)
+                "insert into async_nested_test (name, value) values (%s, %s)", ("outer", 1)
             )
 
             sp = await async_mysql_backend.transaction_manager.savepoint("sp1")
 
             await async_mysql_backend.execute(
-                "insert into async_nested_test (name, value) values (%s, %s)",
-                ("inner", 2)
+                "insert into async_nested_test (name, value) values (%s, %s)", ("inner", 2)
             )
 
             await async_mysql_backend.transaction_manager.rollback_to(sp)

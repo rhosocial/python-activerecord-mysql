@@ -10,6 +10,7 @@ Its main responsibilities are:
     - Dropping any old tables and creating the necessary table schema.
 3.  Cleaning up any resources (like temporary database files) after a test runs.
 """
+
 import os
 import sys
 import logging
@@ -21,12 +22,12 @@ from rhosocial.activerecord.model import ActiveRecord
 logger = logging.getLogger(__name__)
 
 # Import the fixture selector utility
-from rhosocial.activerecord.testsuite.utils import select_fixture
+from rhosocial.activerecord.testsuite.utils import select_fixture  # noqa: E402
 
 # Import base version models (Python 3.8+)
-from rhosocial.activerecord.testsuite.feature.events.fixtures.models import (
+from rhosocial.activerecord.testsuite.feature.events.fixtures.models import (  # noqa: E402
     EventTestModel as EventTestModelBase,
-    EventTrackingModel as EventTrackingModelBase
+    EventTrackingModel as EventTrackingModelBase,
 )
 
 # Conditionally import Python 3.10+ models
@@ -36,7 +37,7 @@ if sys.version_info >= (3, 10):
     try:
         from rhosocial.activerecord.testsuite.feature.events.fixtures.models_py310 import (
             EventTestModel as EventTestModel310,
-            EventTrackingModel as EventTrackingModel310
+            EventTrackingModel as EventTrackingModel310,
         )
     except ImportError as e:
         logger.warning(f"Failed to import Python 3.10+ fixtures: {e}")
@@ -48,7 +49,7 @@ if sys.version_info >= (3, 11):
     try:
         from rhosocial.activerecord.testsuite.feature.events.fixtures.models_py311 import (
             EventTestModel as EventTestModel311,
-            EventTrackingModel as EventTrackingModel311
+            EventTrackingModel as EventTrackingModel311,
         )
     except ImportError as e:
         logger.warning(f"Failed to import Python 3.11+ fixtures: {e}")
@@ -60,7 +61,7 @@ if sys.version_info >= (3, 12):
     try:
         from rhosocial.activerecord.testsuite.feature.events.fixtures.models_py312 import (
             EventTestModel as EventTestModel312,
-            EventTrackingModel as EventTrackingModel312
+            EventTrackingModel as EventTrackingModel312,
         )
     except ImportError as e:
         logger.warning(f"Failed to import Python 3.12+ fixtures: {e}")
@@ -76,12 +77,17 @@ def _select_model_class(base_cls, py312_cls, py311_cls, py310_cls, model_name: s
 
 
 # Select models
-EventTestModel = _select_model_class(EventTestModelBase, EventTestModel312, EventTestModel311, EventTestModel310, "EventTestModel")
-EventTrackingModel = _select_model_class(EventTrackingModelBase, EventTrackingModel312, EventTrackingModel311, EventTrackingModel310, "EventTrackingModel")
+EventTestModel = _select_model_class(
+    EventTestModelBase, EventTestModel312, EventTestModel311, EventTestModel310, "EventTestModel"
+)
+EventTrackingModel = _select_model_class(
+    EventTrackingModelBase, EventTrackingModel312, EventTrackingModel311, EventTrackingModel310, "EventTrackingModel"
+)
 
-from rhosocial.activerecord.testsuite.feature.events.interfaces import IEventsProvider
+from rhosocial.activerecord.testsuite.feature.events.interfaces import IEventsProvider  # noqa: E402
+
 # ...and the scenarios are defined specifically for this backend.
-from .scenarios import get_enabled_scenarios, get_scenario
+from .scenarios import get_enabled_scenarios, get_scenario  # noqa: E402
 
 
 class EventsProvider(IEventsProvider):
@@ -89,7 +95,7 @@ class EventsProvider(IEventsProvider):
     This is the MySQL backend's implementation for the events features test group.
     It connects the generic tests in the testsuite with the actual MySQL database.
     """
-    
+
     def __init__(self):
         # This list will track the backend instances created during the setup phase.
         self._active_backends = []
@@ -128,10 +134,10 @@ class EventsProvider(IEventsProvider):
             except Exception:
                 pass  # Ignore any errors when re-enabling foreign key checks
             # Continue anyway since the table might not exist
-        
+
         schema_sql = self._load_mysql_schema(f"{table_name}.sql")
         model_class.__backend__.execute(schema_sql)
-        
+
         return model_class
 
     # --- Implementation of the IEventsProvider interface ---
@@ -147,10 +153,12 @@ class EventsProvider(IEventsProvider):
     def _load_mysql_schema(self, filename: str) -> str:
         """Helper to load a SQL schema file from this project's fixtures."""
         # Schemas are stored in the centralized location for events feature.
-        schema_dir = os.path.join(os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "events", "schema")
+        schema_dir = os.path.join(
+            os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "events", "schema"
+        )
         schema_path = os.path.join(schema_dir, filename)
-        
-        with open(schema_path, 'r', encoding='utf-8') as f:
+
+        with open(schema_path, "r", encoding="utf-8") as f:
             return f.read()
 
     def cleanup_after_test(self, scenario_name: str):
@@ -163,7 +171,7 @@ class EventsProvider(IEventsProvider):
                 # Drop all tables that might have been created for events tests
                 # Disable foreign key checks to avoid constraint issues during cleanup
                 backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table_name in ['event_tests', 'event_tracking_models']:
+                for table_name in ["event_tests", "event_tracking_models"]:
                     try:
                         backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
                     except Exception:
@@ -184,6 +192,6 @@ class EventsProvider(IEventsProvider):
                 except Exception:
                     # Ignore errors during disconnect
                     pass
-        
+
         # Clear the list of active backends for the next test
         self._active_backends.clear()

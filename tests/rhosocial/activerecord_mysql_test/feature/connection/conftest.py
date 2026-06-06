@@ -51,11 +51,7 @@ def _load_scenarios_from_config():
     if env_config_path and os.path.exists(env_config_path):
         config_path = env_config_path
     else:
-        default_path = os.path.join(
-            os.path.dirname(__file__),
-            "../../../../config",
-            "mysql_scenarios.yaml"
-        )
+        default_path = os.path.join(os.path.dirname(__file__), "../../../../config", "mysql_scenarios.yaml")
         if os.path.exists(default_path):
             config_path = default_path
         elif env_config_path:
@@ -69,18 +65,18 @@ def _load_scenarios_from_config():
         )
 
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
 
-        if 'scenarios' not in config_data:
+        if "scenarios" not in config_data:
             raise ValueError(f"Configuration file {config_path} does not contain 'scenarios' key")
 
-        for scenario_name, config in config_data['scenarios'].items():
+        for scenario_name, config in config_data["scenarios"].items():
             if config:
                 register_scenario(scenario_name, config)
 
     except ImportError:
-        raise ImportError("PyYAML is required to load scenario configuration files")
+        raise ImportError("PyYAML is required to load scenario configuration files")  # noqa: B904
 
 
 _load_scenarios_from_config()
@@ -101,31 +97,36 @@ def get_scenario_names():
 
 # --- Pool Fixtures ---
 
+
 def create_mysql_backend_factory(config_dict: Dict[str, Any]):
     """Create a factory function that produces MySQLBackend instances."""
+
     def factory():
         config_copy = config_dict.copy()
-        ssl_disabled = config_copy.pop('ssl_disabled', None)
+        ssl_disabled = config_copy.pop("ssl_disabled", None)
         config = MySQLConnectionConfig(**config_copy)
         if ssl_disabled is not None:
             config.ssl_disabled = ssl_disabled
         backend = MySQLBackend(connection_config=config)
         backend.connect()
         return backend
+
     return factory
 
 
 def create_async_mysql_backend_factory(config_dict: Dict[str, Any]):
     """Create a factory function that produces AsyncMySQLBackend instances."""
+
     def factory():
         config_copy = config_dict.copy()
-        ssl_disabled = config_copy.pop('ssl_disabled', None)
+        ssl_disabled = config_copy.pop("ssl_disabled", None)
         config = MySQLConnectionConfig(**config_copy)
         if ssl_disabled is not None:
             config.ssl_disabled = ssl_disabled
         backend = AsyncMySQLBackend(connection_config=config)
         # Note: connect() will be called by the pool when needed
         return backend
+
     return factory
 
 
@@ -208,6 +209,7 @@ async def async_mysql_pool_large(request) -> AsyncBackendPool:
 
 
 # --- Table Setup Fixtures ---
+
 
 @pytest.fixture(scope="function")
 def mysql_pool_with_tables(mysql_pool: BackendPool) -> Generator[BackendPool, None, None]:

@@ -5,13 +5,13 @@ Tests for MySQL JSON Duality View functionality with actual MySQL 9.7 execution.
 These tests verify that generated DDL/DML statements execute correctly
 against an actual MySQL 9.7+ database.
 """
+
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     CreateJsonDualityViewExpression,
     DropJsonDualityViewExpression,
     DualityObjectSpec,
     DualityColumnMapping,
-    DualityNestedMapping,
     DualityViewDMLTag,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions
@@ -73,23 +73,32 @@ def duality_backend(mysql_backend):
     backend.execute("DROP TABLE IF EXISTS dv_orders", (), options=ddl_opts)
     backend.execute("DROP TABLE IF EXISTS dv_products", (), options=ddl_opts)
 
-    backend.execute("""
+    backend.execute(
+        """
         CREATE TABLE dv_products (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             price DECIMAL(10, 2) NOT NULL
         )
-    """, (), options=ddl_opts)
+    """,
+        (),
+        options=ddl_opts,
+    )
 
-    backend.execute("""
+    backend.execute(
+        """
         CREATE TABLE dv_orders (
             id INT AUTO_INCREMENT PRIMARY KEY,
             customer VARCHAR(100) NOT NULL,
             total DECIMAL(10, 2) DEFAULT 0
         )
-    """, (), options=ddl_opts)
+    """,
+        (),
+        options=ddl_opts,
+    )
 
-    backend.execute("""
+    backend.execute(
+        """
         CREATE TABLE order_lines (
             id INT AUTO_INCREMENT PRIMARY KEY,
             order_id INT NOT NULL,
@@ -97,7 +106,10 @@ def duality_backend(mysql_backend):
             qty INT DEFAULT 1,
             FOREIGN KEY (order_id) REFERENCES dv_orders(id)
         )
-    """, (), options=ddl_opts)
+    """,
+        (),
+        options=ddl_opts,
+    )
 
     yield backend
 
@@ -126,7 +138,8 @@ class TestJsonDualityViewDDL:
         result = backend.execute(
             "SELECT ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE "
             "FROM information_schema.JSON_DUALITY_VIEW_TABLES "
-            "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv' AND IS_ROOT_TABLE = 1", ()
+            "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv' AND IS_ROOT_TABLE = 1",
+            (),
         )
         assert len(result.data) > 0
         row = result.data[0]

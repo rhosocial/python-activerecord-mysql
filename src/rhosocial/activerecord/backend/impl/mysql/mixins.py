@@ -1,4 +1,5 @@
 """MySQL dialect-specific Mixin implementations."""
+
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
@@ -17,6 +18,10 @@ if TYPE_CHECKING:
         ViewListExpression,
         ViewInfoExpression,
         TriggerListExpression,
+    )
+    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+        ModifyColumn,
+        ChangeColumn,
     )
 
 
@@ -76,6 +81,7 @@ class MySQLIntrospectionMixin:
     def get_supported_introspection_scopes(self) -> List["IntrospectionScope"]:
         """Get list of supported introspection scopes."""
         from rhosocial.activerecord.backend.introspection.types import IntrospectionScope
+
         return [
             IntrospectionScope.DATABASE,
             IntrospectionScope.TABLE,
@@ -88,9 +94,7 @@ class MySQLIntrospectionMixin:
 
     # ========== Query Formatting ==========
 
-    def format_database_info_query(
-        self, expr: "DatabaseInfoExpression"
-    ) -> Tuple[str, tuple]:
+    def format_database_info_query(self, expr: "DatabaseInfoExpression") -> Tuple[str, tuple]:
         """Format database information query.
 
         Query information_schema.SCHEMATA for charset/collation.
@@ -111,9 +115,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, (schema,))
 
-    def format_table_list_query(
-        self, expr: "TableListExpression"
-    ) -> Tuple[str, tuple]:
+    def format_table_list_query(self, expr: "TableListExpression") -> Tuple[str, tuple]:
         """Format table list query.
 
         Query information_schema.TABLES for table metadata.
@@ -134,9 +136,7 @@ class MySQLIntrospectionMixin:
         sql_params: list = [schema]
 
         if not include_system:
-            conditions.append(
-                "TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')"
-            )
+            conditions.append("TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')")
         if not include_views:
             conditions.append("TABLE_TYPE = 'BASE TABLE'")
         if table_type:
@@ -151,9 +151,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, tuple(sql_params))
 
-    def format_column_info_query(
-        self, expr: "ColumnInfoExpression"
-    ) -> Tuple[str, tuple]:
+    def format_column_info_query(self, expr: "ColumnInfoExpression") -> Tuple[str, tuple]:
         """Format column information query.
 
         Query information_schema.COLUMNS for column metadata.
@@ -179,9 +177,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, (schema, table_name))
 
-    def format_index_info_query(
-        self, expr: "IndexInfoExpression"
-    ) -> Tuple[str, tuple]:
+    def format_index_info_query(self, expr: "IndexInfoExpression") -> Tuple[str, tuple]:
         """Format index information query.
 
         Query information_schema.STATISTICS for index metadata.
@@ -205,9 +201,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, (schema, table_name))
 
-    def format_foreign_key_query(
-        self, expr: "ForeignKeyExpression"
-    ) -> Tuple[str, tuple]:
+    def format_foreign_key_query(self, expr: "ForeignKeyExpression") -> Tuple[str, tuple]:
         """Format foreign key information query.
 
         Query information_schema.KEY_COLUMN_USAGE and REFERENTIAL_CONSTRAINTS
@@ -237,9 +231,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, (schema, table_name))
 
-    def format_view_list_query(
-        self, expr: "ViewListExpression"
-    ) -> Tuple[str, tuple]:
+    def format_view_list_query(self, expr: "ViewListExpression") -> Tuple[str, tuple]:
         """Format view list query.
 
         Query information_schema.VIEWS for view metadata.
@@ -258,9 +250,7 @@ class MySQLIntrospectionMixin:
         sql_params: list = [schema]
 
         if not include_system:
-            conditions.append(
-                "TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')"
-            )
+            conditions.append("TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')")
 
         where = " AND ".join(conditions)
         sql = (
@@ -270,9 +260,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, tuple(sql_params))
 
-    def format_view_info_query(
-        self, expr: "ViewInfoExpression"
-    ) -> Tuple[str, tuple]:
+    def format_view_info_query(self, expr: "ViewInfoExpression") -> Tuple[str, tuple]:
         """Format single view information query.
 
         Query information_schema.VIEWS for a specific view.
@@ -294,9 +282,7 @@ class MySQLIntrospectionMixin:
         )
         return (sql, (schema, view_name))
 
-    def format_trigger_list_query(
-        self, expr: "TriggerListExpression"
-    ) -> Tuple[str, tuple]:
+    def format_trigger_list_query(self, expr: "TriggerListExpression") -> Tuple[str, tuple]:
         """Format trigger list query.
 
         Query information_schema.TRIGGERS for trigger metadata.
@@ -339,7 +325,7 @@ class MySQLTransactionMixin:
         IsolationLevel.READ_UNCOMMITTED: "READ UNCOMMITTED",
         IsolationLevel.READ_COMMITTED: "READ COMMITTED",
         IsolationLevel.REPEATABLE_READ: "REPEATABLE READ",
-        IsolationLevel.SERIALIZABLE: "SERIALIZABLE"
+        IsolationLevel.SERIALIZABLE: "SERIALIZABLE",
     }
 
     @property
@@ -351,6 +337,7 @@ class MySQLTransactionMixin:
     def isolation_level(self, level: Optional[IsolationLevel]):
         """Set transaction isolation level."""
         from rhosocial.activerecord.backend.transaction import IsolationLevelError
+
         self.log(logging.DEBUG, f"Setting isolation level to {level}")
         if self.is_active:
             self.log(logging.ERROR, "Cannot change isolation level during active transaction")
@@ -377,6 +364,7 @@ class MySQLTransactionMixin:
             IsolationLevelError: If the isolation level is not supported.
         """
         from rhosocial.activerecord.backend.transaction import IsolationLevelError
+
         level_str = self._ISOLATION_LEVELS.get(level)
         if not level_str:
             raise IsolationLevelError(f"Unsupported isolation level: {level}")
@@ -437,6 +425,7 @@ class MySQLBackendMixin:
     def dialect(self):
         """Get the MySQL dialect instance (lazy loads with configured version)."""
         from .dialect import MySQLDialect
+
         if self._dialect is None:
             self._dialect = MySQLDialect(self._version)
         return self._dialect
@@ -457,11 +446,12 @@ class MySQLBackendMixin:
             1 (connections cannot be safely shared across threads)
         """
         import mysql.connector
+
         return mysql.connector.threadsafety
 
     def requires_manual_commit(self) -> bool:
         """Check if manual commit is required for this database."""
-        return not getattr(self.config, 'autocommit', True)
+        return not getattr(self.config, "autocommit", True)
 
     def _check_returning_compatibility(self, _returning_clause):
         """Check if RETURNING clause is compatible with this MySQL version.
@@ -470,6 +460,7 @@ class MySQLBackendMixin:
             _returning_clause: Unused parameter (MySQL doesn't support RETURNING).
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
         # MySQL does not support RETURNING clause
         if self.dialect.supports_returning_clause():
             return True
@@ -477,8 +468,7 @@ class MySQLBackendMixin:
             raise UnsupportedFeatureError(
                 self.name,
                 "RETURNING clause",
-                "MySQL does not support RETURNING clause. "
-                "Consider using LAST_INSERT_ID() or alternative approaches."
+                "MySQL does not support RETURNING clause. Consider using LAST_INSERT_ID() or alternative approaches.",
             )
 
     def get_default_adapter_suggestions(self) -> Dict[Type, Tuple[SQLTypeAdapter, Type]]:
@@ -518,19 +508,19 @@ class MySQLBackendMixin:
         # they would need to implement and register their own specialized adapter.
         # This backend's default suggestions do not cater to such advanced processing needs.
         type_mappings = [
-            (bool, int),        # Python bool -> DB driver int (MySQL TINYINT)
+            (bool, int),  # Python bool -> DB driver int (MySQL TINYINT)
             # Why str for date/time?
             # MySQL accepts string representations of dates/times and converts them appropriately.
-            (datetime, str),    # Python datetime -> DB driver str (MySQL DATETIME/TIMESTAMP)
-            (date, str),        # Python date -> DB driver str (MySQL DATE)
-            (time, str),        # Python time -> DB driver str (MySQL TIME)
-            (Decimal, float),   # Python Decimal -> DB driver float (MySQL DECIMAL)
-            (UUID, str),        # Python UUID -> DB driver str (MySQL CHAR/VARCHAR/BINARY)
-            (dict, str),        # Python dict -> DB driver str (MySQL TEXT for JSON)
-            (list, str),        # Python list -> DB driver str (MySQL TEXT for JSON)
-            (Enum, str),        # Python Enum -> DB driver str (MySQL TEXT/VARCHAR)
-            (set, str),         # Python set -> DB driver str (MySQL SET)
-            (frozenset, str),   # Python frozenset -> DB driver str (MySQL SET)
+            (datetime, str),  # Python datetime -> DB driver str (MySQL DATETIME/TIMESTAMP)
+            (date, str),  # Python date -> DB driver str (MySQL DATE)
+            (time, str),  # Python time -> DB driver str (MySQL TIME)
+            (Decimal, float),  # Python Decimal -> DB driver float (MySQL DECIMAL)
+            (UUID, str),  # Python UUID -> DB driver str (MySQL CHAR/VARCHAR/BINARY)
+            (dict, str),  # Python dict -> DB driver str (MySQL TEXT for JSON)
+            (list, str),  # Python list -> DB driver str (MySQL TEXT for JSON)
+            (Enum, str),  # Python Enum -> DB driver str (MySQL TEXT/VARCHAR)
+            (set, str),  # Python set -> DB driver str (MySQL SET)
+            (frozenset, str),  # Python frozenset -> DB driver str (MySQL SET)
         ]
 
         # Iterate through the defined mappings and retrieve adapters from the registry.
@@ -543,14 +533,14 @@ class MySQLBackendMixin:
                 self.log(
                     logging.DEBUG,
                     f"No adapter found for ({py_type.__name__}, {db_type.__name__}). "
-                    "Suggestion will not be provided for this type."
+                    "Suggestion will not be provided for this type.",
                 )
 
         return suggestions
 
     def log(self, level: int, message: str):
         """Log a message with the specified level."""
-        if hasattr(self, '_logger') and self._logger:
+        if hasattr(self, "_logger") and self._logger:
             self._logger.log(level, message)
         else:
             # Fallback logging
@@ -579,19 +569,19 @@ class MySQLBackendMixin:
             True if the error indicates a connection problem, False otherwise
         """
         # Check for MySQL error codes
-        if hasattr(error, 'errno'):
+        if hasattr(error, "errno"):
             if error.errno in self.CONNECTION_ERROR_CODES:
                 return True
 
         # Fallback to string matching for error messages
         error_str = str(error).lower()
         connection_error_patterns = [
-            'server has gone away',
-            'lost connection',
+            "server has gone away",
+            "lost connection",
             "can't connect to mysql server",
-            'connection refused',
-            'broken pipe',
-            'connection reset',
+            "connection refused",
+            "broken pipe",
+            "connection reset",
         ]
         return any(pattern in error_str for pattern in connection_error_patterns)
 
@@ -693,40 +683,24 @@ class MySQLTriggerMixin:
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
         if expr.timing.value == "INSTEAD OF":
-            raise UnsupportedFeatureError(
-                self.name,
-                "INSTEAD OF triggers (MySQL does not support this feature)"
-            )
+            raise UnsupportedFeatureError(self.name, "INSTEAD OF triggers (MySQL does not support this feature)")
 
         if expr.level and expr.level.value == "FOR EACH STATEMENT":
-            raise UnsupportedFeatureError(
-                self.name,
-                "FOR EACH STATEMENT triggers (MySQL only supports FOR EACH ROW)"
-            )
+            raise UnsupportedFeatureError(self.name, "FOR EACH STATEMENT triggers (MySQL only supports FOR EACH ROW)")
 
         if expr.condition:
-            raise UnsupportedFeatureError(
-                self.name,
-                "WHEN condition in triggers (MySQL does not support this feature)"
-            )
+            raise UnsupportedFeatureError(self.name, "WHEN condition in triggers (MySQL does not support this feature)")
 
         if expr.referencing:
             raise UnsupportedFeatureError(
-                self.name,
-                "REFERENCING clause in triggers (MySQL does not support this feature)"
+                self.name, "REFERENCING clause in triggers (MySQL does not support this feature)"
             )
 
         if len(expr.events) > 1:
-            raise UnsupportedFeatureError(
-                self.name,
-                "multiple trigger events (MySQL only supports single event)"
-            )
+            raise UnsupportedFeatureError(self.name, "multiple trigger events (MySQL only supports single event)")
 
         if expr.update_columns:
-            raise UnsupportedFeatureError(
-                self.name,
-                "UPDATE OF column_list (MySQL does not support this syntax)"
-            )
+            raise UnsupportedFeatureError(self.name, "UPDATE OF column_list (MySQL does not support this syntax)")
 
         parts = ["CREATE TRIGGER"]
 
@@ -801,12 +775,10 @@ class MySQLTableMixin:
         - Table-level comments
         - AUTO_INCREMENT in column definitions
         """
-        if 'like_table' in expr.dialect_options:
+        if "like_table" in expr.dialect_options:
             return self._format_create_table_like(expr)
 
-        from rhosocial.activerecord.backend.expression.statements import (
-            ColumnConstraintType, TableConstraintType
-        )
+        from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType, TableConstraintType
 
         all_params: List[Any] = []
 
@@ -839,15 +811,15 @@ class MySQLTableMixin:
             if storage_sql:
                 parts.append(storage_sql)
 
-        if 'comment' in expr.dialect_options:
-            escaped_comment = self._escape_sql_string(expr.dialect_options['comment'])
+        if "comment" in expr.dialect_options:
+            escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
             parts.append(f"COMMENT '{escaped_comment}'")
 
-        return ' '.join(parts), tuple(all_params)
+        return " ".join(parts), tuple(all_params)
 
     def _format_create_table_like(self, expr) -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement."""
-        like_table = expr.dialect_options['like_table']
+        like_table = expr.dialect_options["like_table"]
 
         parts = ["CREATE TABLE"]
         if expr.temporary:
@@ -863,13 +835,9 @@ class MySQLTableMixin:
             like_table_str = self.format_identifier(like_table)
 
         parts.append(f"LIKE {like_table_str}")
-        return ' '.join(parts), ()
+        return " ".join(parts), ()
 
-    def _format_column_definition_mysql(
-        self,
-        col_def,
-        ColumnConstraintType
-    ) -> Tuple[str, List[Any]]:
+    def _format_column_definition_mysql(self, col_def, ColumnConstraintType) -> Tuple[str, List[Any]]:
         """Format a single column definition with MySQL-specific syntax."""
         parts = [self.format_identifier(col_def.name), col_def.data_type]
         params: List[Any] = []
@@ -885,6 +853,7 @@ class MySQLTableMixin:
             elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
                 if constraint.default_value is not None:
                     from rhosocial.activerecord.backend.expression import bases
+
                     if isinstance(constraint.default_value, bases.BaseExpression):
                         default_sql, default_params = constraint.default_value.to_sql()
                         constraint_parts.append(f"DEFAULT {default_sql}")
@@ -901,19 +870,15 @@ class MySQLTableMixin:
                 constraint_parts.append("AUTO_INCREMENT")
 
         if constraint_parts:
-            parts.append(' '.join(constraint_parts))
+            parts.append(" ".join(constraint_parts))
 
         if col_def.comment:
             escaped_comment = self._escape_sql_string(col_def.comment)
             parts.append(f"COMMENT '{escaped_comment}'")
 
-        return ' '.join(parts), params
+        return " ".join(parts), params
 
-    def _format_table_constraint_mysql(
-        self,
-        t_const,
-        TableConstraintType
-    ) -> Tuple[str, List[Any]]:
+    def _format_table_constraint_mysql(self, t_const, TableConstraintType) -> Tuple[str, List[Any]]:
         """Format a table-level constraint."""
         parts = []
         params: List[Any] = []
@@ -923,24 +888,20 @@ class MySQLTableMixin:
 
         if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
             if t_const.columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
+                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
                 parts.append(f"PRIMARY KEY ({cols_str})")
         elif t_const.constraint_type == TableConstraintType.UNIQUE:
             if t_const.columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
+                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
                 parts.append(f"UNIQUE ({cols_str})")
         elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
             if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ', '.join(
-                    self.format_identifier(c) for c in t_const.foreign_key_columns
-                )
+                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
+                ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
                 ref_table = self.format_identifier(t_const.foreign_key_table)
-                parts.append(
-                    f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})"
-                )
+                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
 
-        return ' '.join(parts), params
+        return " ".join(parts), params
 
     def _format_inline_index_mysql(self, idx_def) -> str:
         """Format an inline index definition (MySQL-specific)."""
@@ -952,13 +913,13 @@ class MySQLTableMixin:
         parts.append("INDEX")
         parts.append(self.format_identifier(idx_def.name))
 
-        cols_str = ', '.join(self.format_identifier(c) for c in idx_def.columns)
+        cols_str = ", ".join(self.format_identifier(c) for c in idx_def.columns)
         parts.append(f"({cols_str})")
 
         if idx_def.type:
             parts.append(f"USING {idx_def.type}")
 
-        return ' '.join(parts)
+        return " ".join(parts)
 
     def _format_storage_options_mysql(self, storage_options: Dict[str, Any]) -> str:
         parts = []
@@ -967,7 +928,7 @@ class MySQLTableMixin:
                 parts.append(f"{key}='{self._escape_sql_string(value)}'")
             else:
                 parts.append(f"{key}={value}")
-        return ' '.join(parts)
+        return " ".join(parts)
 
 
 class MySQLSetTypeMixin:
@@ -988,11 +949,7 @@ class MySQLSetTypeMixin:
         """MySQL supports SET type in all versions."""
         return True
 
-    def format_set_literal(
-        self,
-        values: List[str],
-        column_values: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
+    def format_set_literal(self, values: List[str], column_values: Optional[List[str]] = None) -> Tuple[str, tuple]:
         """Format SET literal value.
 
         Args:
@@ -1011,23 +968,16 @@ class MySQLSetTypeMixin:
         if column_values is not None:
             invalid_values = [v for v in values if v not in column_values]
             if invalid_values:
-                raise ValueError(
-                    f"Invalid SET values: {invalid_values}. "
-                    f"Allowed values: {column_values}"
-                )
+                raise ValueError(f"Invalid SET values: {invalid_values}. Allowed values: {column_values}")
 
         if not values:
             return "'", ()
 
         sorted_values = sorted(values)
-        literal = ','.join(sorted_values)
+        literal = ",".join(sorted_values)
         return "%s", (literal,)
 
-    def format_find_in_set(
-        self,
-        value: str,
-        set_column: str
-    ) -> Tuple[str, tuple]:
+    def format_find_in_set(self, value: str, set_column: str) -> Tuple[str, tuple]:
         """Format FIND_IN_SET function.
 
         Args:
@@ -1039,11 +989,7 @@ class MySQLSetTypeMixin:
         """
         return f"FIND_IN_SET(%s, {self.format_identifier(set_column)}) > 0", (value,)
 
-    def format_set_contains(
-        self,
-        column: str,
-        values: List[str]
-    ) -> Tuple[str, tuple]:
+    def format_set_contains(self, column: str, values: List[str]) -> Tuple[str, tuple]:
         """Format SET contains check.
 
         Checks if all values are present in the SET column.
@@ -1091,10 +1037,10 @@ class MySQLJSONFunctionMixin:
 
     # Function version requirements
     _JSON_FUNCTION_VERSIONS = {
-        'JSON_TABLE': (8, 0, 4),
-        'JSON_VALUE': (8, 0, 21),
-        'JSON_SCHEMA_VALID': (8, 0, 17),
-        'JSON_MERGE_PATCH': (8, 0, 3),
+        "JSON_TABLE": (8, 0, 4),
+        "JSON_VALUE": (8, 0, 21),
+        "JSON_SCHEMA_VALID": (8, 0, 17),
+        "JSON_MERGE_PATCH": (8, 0, 3),
     }
 
     def supports_json_type(self) -> bool:
@@ -1116,28 +1062,20 @@ class MySQLJSONFunctionMixin:
         # Basic JSON functions are supported since 5.7.8
         return self.version >= (5, 7, 8)
 
-    def format_json_extract(
-        self,
-        json_doc: str,
-        path: str,
-        paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
+    def format_json_extract(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
         """Format JSON_EXTRACT function."""
         all_paths = [path]
         if paths:
             all_paths.extend(paths)
 
-        path_placeholders = ', '.join(['%s' for _ in all_paths])
+        path_placeholders = ", ".join(["%s" for _ in all_paths])
         return f"JSON_EXTRACT({json_doc}, {path_placeholders})", tuple(all_paths)
 
     def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
         """Format JSON_UNQUOTE function."""
         return f"JSON_UNQUOTE({json_val})", ()
 
-    def format_json_object(
-        self,
-        key_value_pairs: List[Tuple[str, Any]]
-    ) -> Tuple[str, tuple]:
+    def format_json_object(self, key_value_pairs: List[Tuple[str, Any]]) -> Tuple[str, tuple]:
         """Format JSON_OBJECT function."""
         if not key_value_pairs:
             return "JSON_OBJECT()", ()
@@ -1146,8 +1084,8 @@ class MySQLJSONFunctionMixin:
         params: List[Any] = []
 
         for key, value in key_value_pairs:
-            parts.append('%s')
-            parts.append('%s')
+            parts.append("%s")
+            parts.append("%s")
             params.append(key)
             params.append(value)
 
@@ -1158,26 +1096,17 @@ class MySQLJSONFunctionMixin:
         if not values:
             return "JSON_ARRAY()", ()
 
-        placeholders = ', '.join(['%s' for _ in values])
+        placeholders = ", ".join(["%s" for _ in values])
         return f"JSON_ARRAY({placeholders})", tuple(values)
 
-    def format_json_contains(
-        self,
-        target: str,
-        candidate: str,
-        path: Optional[str] = None
-    ) -> Tuple[str, tuple]:
+    def format_json_contains(self, target: str, candidate: str, path: Optional[str] = None) -> Tuple[str, tuple]:
         """Format JSON_CONTAINS function."""
         if path:
             return f"JSON_CONTAINS({target}, %s, %s)", (candidate, path)
         return f"JSON_CONTAINS({target}, %s)", (candidate,)
 
     def format_json_set(
-        self,
-        json_doc: str,
-        path: str,
-        value: Any,
-        path_value_pairs: Optional[List[Tuple[str, Any]]] = None
+        self, json_doc: str, path: str, value: Any, path_value_pairs: Optional[List[Tuple[str, Any]]] = None
     ) -> Tuple[str, tuple]:
         """Format JSON_SET function."""
         all_pairs = [(path, value)]
@@ -1188,25 +1117,20 @@ class MySQLJSONFunctionMixin:
         params: List[Any] = []
 
         for p, v in all_pairs:
-            parts.append('%s')
-            parts.append('%s')
+            parts.append("%s")
+            parts.append("%s")
             params.append(p)
             params.append(v)
 
         return f"JSON_SET({json_doc}, {', '.join(parts)})", tuple(params)
 
-    def format_json_remove(
-        self,
-        json_doc: str,
-        path: str,
-        paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
+    def format_json_remove(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
         """Format JSON_REMOVE function."""
         all_paths = [path]
         if paths:
             all_paths.extend(paths)
 
-        path_placeholders = ', '.join(['%s' for _ in all_paths])
+        path_placeholders = ", ".join(["%s" for _ in all_paths])
         return f"JSON_REMOVE({json_doc}, {path_placeholders})", tuple(all_paths)
 
     def format_json_type(self, json_val: str) -> Tuple[str, tuple]:
@@ -1218,11 +1142,7 @@ class MySQLJSONFunctionMixin:
         return f"JSON_VALID({json_val})", ()
 
     def format_json_search(
-        self,
-        json_doc: str,
-        search_str: str,
-        path: Optional[str] = None,
-        all: bool = False
+        self, json_doc: str, search_str: str, path: Optional[str] = None, all: bool = False
     ) -> Tuple[str, tuple]:
         """Format JSON_SEARCH function."""
         one_or_all = "'all'" if all else "'one'"
@@ -1245,15 +1165,13 @@ class MySQLJSONFunctionMixin:
             if col.ordinality:
                 column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
             elif col.exists:
-                column_parts.append(
-                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'"
-                )
+                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{col.path}'")
             else:
                 col_def = f"{self.format_identifier(col.name)} {col.type}"
                 if col.path:
                     col_def += f" PATH '{col.path}'"
                 if col.error_handling:
-                    if col.error_handling.upper() == 'DEFAULT':
+                    if col.error_handling.upper() == "DEFAULT":
                         col_def += f" DEFAULT {col.default_value} ON ERROR"
                     else:
                         col_def += f" {col.error_handling.upper()} ON ERROR"
@@ -1264,13 +1182,9 @@ class MySQLJSONFunctionMixin:
             nested_cols = []
             for col in nested.columns:
                 if col.ordinality:
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} FOR ORDINALITY"
-                    )
+                    nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
                 else:
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'"
-                    )
+                    nested_cols.append(f"{self.format_identifier(col.name)} {col.type} PATH '{col.path}'")
             nested_def += ", ".join(nested_cols) + ")"
             if nested.alias:
                 nested_def = f"{nested.alias} AS " + nested_def
@@ -1305,9 +1219,14 @@ class MySQLSpatialMixin:
     def supports_spatial_type(self, type_name: str) -> bool:
         """Check if specific spatial type is supported."""
         valid_types = {
-            'GEOMETRY', 'POINT', 'LINESTRING', 'POLYGON',
-            'MULTIPOINT', 'MULTILINESTRING', 'MULTIPOLYGON',
-            'GEOMETRYCOLLECTION'
+            "GEOMETRY",
+            "POINT",
+            "LINESTRING",
+            "POLYGON",
+            "MULTIPOINT",
+            "MULTILINESTRING",
+            "MULTIPOLYGON",
+            "GEOMETRYCOLLECTION",
         }
         if type_name.upper() not in valid_types:
             return False
@@ -1342,31 +1261,19 @@ class MySQLSpatialMixin:
         """Whether GEOMETRYCOLLECTION is supported."""
         return self.version >= (5, 7, 0)
 
-    def format_spatial_literal(
-        self,
-        wkt: str,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
+    def format_spatial_literal(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format spatial literal from WKT."""
         if srid is not None:
             return "ST_GeomFromText(%s, %s)", (wkt, srid)
         return "ST_GeomFromText(%s)", (wkt,)
 
-    def format_st_geom_from_text(
-        self,
-        wkt: str,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
+    def format_st_geom_from_text(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format ST_GeomFromText function."""
         if srid is not None:
             return "ST_GeomFromText(%s, %s)", (wkt, srid)
         return "ST_GeomFromText(%s)", (wkt,)
 
-    def format_st_geom_from_wkb(
-        self,
-        wkb: bytes,
-        srid: Optional[int] = None
-    ) -> Tuple[str, tuple]:
+    def format_st_geom_from_wkb(self, wkb: bytes, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format ST_GeomFromWKB function."""
         if srid is not None:
             return "ST_GeomFromWKB(%s, %s)", (wkb, srid)
@@ -1380,48 +1287,33 @@ class MySQLSpatialMixin:
         """Format ST_AsGeoJSON function (MySQL 5.7.5+)."""
         if not self.supports_geojson():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
             raise UnsupportedFeatureError(self.name, "GeoJSON functions (requires MySQL 5.7.5+)")
         return f"ST_AsGeoJSON({geom})", ()
 
-    def format_st_distance(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
+    def format_st_distance(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         """Format ST_Distance function."""
         return f"ST_Distance({geom1}, {geom2})", ()
 
-    def format_st_within(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
+    def format_st_within(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         """Format ST_Within function."""
         return f"ST_Within({geom1}, {geom2})", ()
 
-    def format_st_contains(
-        self,
-        geom1: str,
-        geom2: str
-    ) -> Tuple[str, tuple]:
+    def format_st_contains(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         """Format ST_Contains function."""
         return f"ST_Contains({geom1}, {geom2})", ()
 
-    def format_create_spatial_index(
-        self,
-        index_name: str,
-        table_name: str,
-        column: str
-    ) -> Tuple[str, tuple]:
+    def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE SPATIAL INDEX statement."""
         if not self.supports_spatial_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
             raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
         return (
             f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
             f"ON {self.format_identifier(table_name)} "
             f"({self.format_identifier(column)})",
-            ()
+            (),
         )
 
 
@@ -1455,10 +1347,7 @@ class MySQLVectorMixin:
         """Get maximum supported vector dimension."""
         return self.MAX_VECTOR_DIMENSION
 
-    def format_vector_literal(
-        self,
-        values: List[float]
-    ) -> Tuple[str, tuple]:
+    def format_vector_literal(self, values: List[float]) -> Tuple[str, tuple]:
         """Format VECTOR literal value.
 
         Args:
@@ -1469,17 +1358,13 @@ class MySQLVectorMixin:
         """
         if len(values) > self.MAX_VECTOR_DIMENSION:
             raise ValueError(
-                f"Vector dimension {len(values)} exceeds maximum "
-                f"supported dimension {self.MAX_VECTOR_DIMENSION}"
+                f"Vector dimension {len(values)} exceeds maximum supported dimension {self.MAX_VECTOR_DIMENSION}"
             )
         # Use STRING_TO_VECTOR for literal creation
-        vector_str = '[' + ','.join(str(v) for v in values) + ']'
+        vector_str = "[" + ",".join(str(v) for v in values) + "]"
         return "STRING_TO_VECTOR(%s)", (vector_str,)
 
-    def format_string_to_vector(
-        self,
-        vector_str: str
-    ) -> Tuple[str, tuple]:
+    def format_string_to_vector(self, vector_str: str) -> Tuple[str, tuple]:
         """Format STRING_TO_VECTOR function.
 
         Args:
@@ -1490,10 +1375,7 @@ class MySQLVectorMixin:
         """
         return "STRING_TO_VECTOR(%s)", (vector_str,)
 
-    def format_vector_to_string(
-        self,
-        vector_col: str
-    ) -> Tuple[str, tuple]:
+    def format_vector_to_string(self, vector_col: str) -> Tuple[str, tuple]:
         """Format VECTOR_TO_STRING function.
 
         Args:
@@ -1504,10 +1386,7 @@ class MySQLVectorMixin:
         """
         return f"VECTOR_TO_STRING({vector_col})", ()
 
-    def format_vector_dim(
-        self,
-        vector_col: str
-    ) -> Tuple[str, tuple]:
+    def format_vector_dim(self, vector_col: str) -> Tuple[str, tuple]:
         """Format VECTOR_DIM function.
 
         Args:
@@ -1518,11 +1397,7 @@ class MySQLVectorMixin:
         """
         return f"VECTOR_DIM({vector_col})", ()
 
-    def format_distance_euclidean(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
+    def format_distance_euclidean(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         """Format DISTANCE_EUCLIDEAN function.
 
         Args:
@@ -1534,11 +1409,7 @@ class MySQLVectorMixin:
         """
         return f"DISTANCE_EUCLIDEAN({vector1}, {vector2})", ()
 
-    def format_distance_cosine(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
+    def format_distance_cosine(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         """Format DISTANCE_COSINE function.
 
         Args:
@@ -1550,11 +1421,7 @@ class MySQLVectorMixin:
         """
         return f"DISTANCE_COSINE({vector1}, {vector2})", ()
 
-    def format_distance_dot(
-        self,
-        vector1: str,
-        vector2: str
-    ) -> Tuple[str, tuple]:
+    def format_distance_dot(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         """Format DISTANCE_DOT function.
 
         Args:
@@ -1566,12 +1433,7 @@ class MySQLVectorMixin:
         """
         return f"DISTANCE_DOT({vector1}, {vector2})", ()
 
-    def format_create_vector_index(
-        self,
-        index_name: str,
-        table_name: str,
-        column: str
-    ) -> Tuple[str, tuple]:
+    def format_create_vector_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE VECTOR INDEX statement.
 
         Note: MySQL uses CREATE INDEX with VECTOR keyword, not CREATE VECTOR INDEX.
@@ -1586,13 +1448,14 @@ class MySQLVectorMixin:
         """
         if not self.supports_vector_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
             raise UnsupportedFeatureError(self.name, "VECTOR indexes (requires MySQL 9.0.1+)")
         # MySQL 9.0.1+ syntax for vector index
         return (
             f"CREATE VECTOR INDEX {self.format_identifier(index_name)} "
             f"ON {self.format_identifier(table_name)} "
             f"({self.format_identifier(column)})",
-            ()
+            (),
         )
 
 
@@ -1645,9 +1508,7 @@ class MySQLDMLOperationMixin:
 
         field_parts = []
         if expr.options.fields_terminated_by is not None:
-            field_parts.append(
-                f"TERMINATED BY '{expr.options.fields_terminated_by}'"
-            )
+            field_parts.append(f"TERMINATED BY '{expr.options.fields_terminated_by}'")
         if expr.options.fields_enclosed_by is not None:
             field_parts.append(f"ENCLOSED BY '{expr.options.fields_enclosed_by}'")
         if expr.options.fields_escaped_by is not None:
@@ -1686,7 +1547,7 @@ class MySQLDMLOperationMixin:
         if expr.update_assignments:
             for col_name, value_expr in expr.update_assignments.items():
                 col_sql = self.format_identifier(col_name)
-                if hasattr(value_expr, 'to_sql'):
+                if hasattr(value_expr, "to_sql"):
                     val_sql, val_params = value_expr.to_sql()
                     all_params.extend(val_params)
                 else:
@@ -1727,11 +1588,7 @@ class MySQLFullTextSearchMixin:
         return True
 
     def format_fulltext_index_options(
-        self,
-        index_name: str,
-        columns: List[str],
-        index_type: Optional[str] = None,
-        parser_name: Optional[str] = None
+        self, index_name: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
     ) -> Tuple[str, tuple]:
         """Format FULLTEXT index options for CREATE TABLE / ALTER TABLE.
 
@@ -1751,10 +1608,7 @@ class MySQLFullTextSearchMixin:
         return sql, ()
 
     def format_match_against(
-        self,
-        columns: List[str],
-        search_string: str,
-        mode: Optional[str] = None
+        self, columns: List[str], search_string: str, mode: Optional[str] = None
     ) -> Tuple[str, tuple]:
         """Format MATCH ... AGAINST expression."""
         cols_sql = ", ".join(self.format_identifier(c) for c in columns)
@@ -1821,14 +1675,12 @@ class MySQLLockingMixin:
         all_params = []
 
         # Handle both base ForUpdateClause (no strength) and MySQLForUpdateClause
-        strength = getattr(clause, 'strength', MySQLLockStrength.UPDATE)
+        strength = getattr(clause, "strength", MySQLLockStrength.UPDATE)
 
         # Check version support for lock strength
         if strength == MySQLLockStrength.SHARE:
             if not self.supports_for_share():
-                raise UnsupportedFeatureError(
-                    self.name, "FOR SHARE (requires MySQL 8.0+)"
-                )
+                raise UnsupportedFeatureError(self.name, "FOR SHARE (requires MySQL 8.0+)")
 
         # Use the strength value directly (e.g., "FOR UPDATE", "FOR SHARE")
         sql_parts = [strength.value]
@@ -1850,15 +1702,11 @@ class MySQLLockingMixin:
         # Handle NOWAIT/SKIP LOCKED options
         if clause.nowait:
             if not self.supports_for_update_nowait():
-                raise UnsupportedFeatureError(
-                    self.name, "NOWAIT (requires MySQL 8.0+)"
-                )
+                raise UnsupportedFeatureError(self.name, "NOWAIT (requires MySQL 8.0+)")
             sql_parts.append("NOWAIT")
         elif clause.skip_locked:
             if not self.supports_for_update_skip_locked():
-                raise UnsupportedFeatureError(
-                    self.name, "SKIP LOCKED (requires MySQL 8.0+)"
-                )
+                raise UnsupportedFeatureError(self.name, "SKIP LOCKED (requires MySQL 8.0+)")
             sql_parts.append("SKIP LOCKED")
 
         return " ".join(sql_parts), tuple(all_params)
@@ -1885,7 +1733,7 @@ class MySQLModifyColumnMixin:
         """Whether CHANGE COLUMN is supported (all MySQL versions)."""
         return True
 
-    def format_modify_column_action(self, action) -> Tuple[str, tuple]:
+    def format_modify_column_action(self, action: "ModifyColumn") -> Tuple[str, tuple]:
         """Format MODIFY COLUMN action for ALTER TABLE.
 
         Args:
@@ -1902,7 +1750,7 @@ class MySQLModifyColumnMixin:
             sql += " FIRST"
         return sql, col_params
 
-    def format_change_column_action(self, action) -> Tuple[str, tuple]:
+    def format_change_column_action(self, action: "ChangeColumn") -> Tuple[str, tuple]:
         """Format CHANGE COLUMN action for ALTER TABLE.
 
         Args:
@@ -1955,7 +1803,7 @@ class MySQLConcurrencyMixin:
                 )
                 self.log(
                     logging.DEBUG,
-                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",
+                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",  # noqa: E501
                 )
         except Exception as e:
             self.log(logging.WARNING, f"Failed to fetch concurrency hint: {e}")
@@ -2001,7 +1849,7 @@ class AsyncMySQLConcurrencyMixin:
                 )
                 self.log(
                     logging.DEBUG,
-                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",
+                    f"Concurrency hint: max_concurrency={limit}, max_connections={max_connections}, pool_size={pool_size}",  # noqa: E501
                 )
         except Exception as e:
             self.log(logging.WARNING, f"Failed to fetch concurrency hint: {e}")

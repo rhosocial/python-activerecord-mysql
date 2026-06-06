@@ -18,12 +18,12 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
@@ -39,9 +39,9 @@ dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 # which is the SQL:2003 standard niladic form, valid in both DDL DEFAULT
 # and SELECT contexts. MySQL also accepts CURRENT_TIMESTAMP() with parentheses.
 
-from rhosocial.activerecord.backend.expression import QueryExpression
-from rhosocial.activerecord.backend.expression.core import FunctionCall
-from rhosocial.activerecord.backend.expression.functions.datetime import (
+from rhosocial.activerecord.backend.expression import QueryExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.core import FunctionCall  # noqa: E402
+from rhosocial.activerecord.backend.expression.functions.datetime import (  # noqa: E402
     current_timestamp,
     now,
     current_date,
@@ -87,15 +87,15 @@ print(f"Result: {result.data}")
 # ============================================================
 # SECTION: SELECT with multiple functions
 # ============================================================
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
 
 query_multi = QueryExpression(
     dialect=dialect,
     select=[
-        now(dialect).as_('current_time'),
-        current_date(dialect).as_('current_date'),
-        FunctionCall(dialect, 'DATABASE').as_('db_name'),
-        FunctionCall(dialect, 'VERSION').as_('db_version'),
+        now(dialect).as_("current_time"),
+        current_date(dialect).as_("current_date"),
+        FunctionCall(dialect, "DATABASE").as_("db_name"),
+        FunctionCall(dialect, "VERSION").as_("db_version"),
     ],
 )
 sql, params = query_multi.to_sql()
@@ -111,7 +111,7 @@ print(f"Result: {result.data}")
 query_format = QueryExpression(
     dialect=dialect,
     select=[
-        FunctionCall(dialect, 'DATE_FORMAT', now(dialect), Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
+        FunctionCall(dialect, "DATE_FORMAT", now(dialect), Literal(dialect, "%Y-%m-%d")).as_("formatted_date"),
     ],
 )
 sql, params = query_format.to_sql()
@@ -124,7 +124,7 @@ print(f"Result: {result.data}")
 # ============================================================
 query_uuid = QueryExpression(
     dialect=dialect,
-    select=[FunctionCall(dialect, 'UUID').as_('uuid_value')],
+    select=[FunctionCall(dialect, "UUID").as_("uuid_value")],
 )
 sql, params = query_uuid.to_sql()
 print(f"UUID() SQL: {sql}")

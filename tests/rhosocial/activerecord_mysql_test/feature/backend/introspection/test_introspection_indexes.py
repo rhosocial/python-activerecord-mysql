@@ -11,7 +11,6 @@ import pytest
 from rhosocial.activerecord.backend.introspection.types import (
     IndexInfo,
     IndexType,
-    IndexColumnInfo,
 )
 
 
@@ -182,7 +181,7 @@ class TestFulltextIndex:
 
     def test_fulltext_index_detection(self, backend_with_tables):
         """Test FULLTEXT index type detection."""
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS articles;
             CREATE TABLE articles (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -198,7 +197,7 @@ class TestFulltextIndex:
         assert fulltext_idx is not None
         assert fulltext_idx.index_type == IndexType.FULLTEXT
 
-        backend_with_tables.executescript( "DROP TABLE IF EXISTS articles;")
+        backend_with_tables.executescript("DROP TABLE IF EXISTS articles;")
 
 
 class TestAsyncIndexIntrospection:

@@ -24,12 +24,14 @@ capabilities property and use the appropriate checking methods. Tests that
 require specific capabilities will automatically be skipped on backends
 that don't support those features.
 """
+
 from rhosocial.activerecord.testsuite.core.registry import ProviderRegistry
 from .basic import BasicProvider
 from .events import EventsProvider
 from .mixins import MixinsProvider
 from .query import QueryProvider
 from .relation import RelationProvider
+from .partition import PartitionProvider
 from .basic_connection import BasicConnectionProvider
 from .query_connection import QueryConnectionProvider
 from .crud_benchmark import CrudBenchmarkProvider
@@ -62,6 +64,7 @@ provider_registry.register("feature.query.IQueryProvider", QueryProvider)
 # Register the concrete `RelationProvider` as the implementation for the
 # `feature.relation.IRelationProvider` interface defined in the testsuite.
 provider_registry.register("feature.relation.IRelationProvider", RelationProvider)
+provider_registry.register("feature.partition.IPartitionProvider", PartitionProvider)
 
 # Register the concrete `BasicConnectionProvider` as the implementation for the
 # `feature.basic.connection.IBasicConnectionProvider` interface defined in the testsuite.

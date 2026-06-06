@@ -26,6 +26,7 @@ from rhosocial.activerecord.connection.pool import (
 # Synchronous Concurrent Tests
 # ============================================================
 
+
 class TestBackendPoolConcurrent:
     """Tests for concurrent operations with BackendPool (MySQL)."""
 
@@ -75,8 +76,7 @@ class TestBackendPoolConcurrent:
         assert len(connection_ids) == num_threads
         unique_ids = set(conn_id for _, conn_id in connection_ids)
         assert len(unique_ids) == num_threads, (
-            f"Expected {num_threads} distinct connections, "
-            f"but got {len(unique_ids)}: {connection_ids}"
+            f"Expected {num_threads} distinct connections, but got {len(unique_ids)}: {connection_ids}"
         )
 
     def test_concurrent_operations_no_deadlock(self, mysql_pool_with_tables: BackendPool):
@@ -104,19 +104,18 @@ class TestBackendPoolConcurrent:
                     for i in range(10):
                         backend.execute(
                             "INSERT INTO concurrent_test_users (thread_id, name) VALUES (%s, %s)",
-                            [thread_id, f"user_{thread_id}_{i}"]
+                            [thread_id, f"user_{thread_id}_{i}"],
                         )
 
                     # Query back the data
                     query_result = backend.execute(
-                        "SELECT * FROM concurrent_test_users WHERE thread_id = %s",
-                        [thread_id]
+                        "SELECT * FROM concurrent_test_users WHERE thread_id = %s", [thread_id]
                     )
 
                     # Update some records
                     backend.execute(
                         "UPDATE concurrent_test_users SET name = %s WHERE thread_id = %s AND id <= %s",
-                        [f"updated_{thread_id}", thread_id, thread_id + 5]
+                        [f"updated_{thread_id}", thread_id, thread_id + 5],
                     )
 
                     with results_lock:
@@ -140,14 +139,10 @@ class TestBackendPoolConcurrent:
         # Verify each thread got correct results
         for thread_id in range(num_threads):
             assert thread_id in results, f"Thread {thread_id} has no results"
-            assert len(results[thread_id]) == 10, (
-                f"Thread {thread_id} expected 10 rows, got {len(results[thread_id])}"
-            )
+            assert len(results[thread_id]) == 10, f"Thread {thread_id} expected 10 rows, got {len(results[thread_id])}"
             # Verify all rows belong to this thread
             for row in results[thread_id]:
-                assert row['thread_id'] == thread_id, (
-                    f"Thread {thread_id} got wrong data: {row}"
-                )
+                assert row["thread_id"] == thread_id, f"Thread {thread_id} got wrong data: {row}"
 
     def test_concurrent_query_results_not_mixed(self, mysql_pool_with_tables: BackendPool):
         """Verify that concurrent queries on different connections don't mix results.
@@ -166,7 +161,7 @@ class TestBackendPoolConcurrent:
                 for i in range(records_per_thread):
                     backend.execute(
                         "INSERT INTO concurrent_test_posts (thread_id, title, content) VALUES (%s, %s, %s)",
-                        [thread_id, f"title_{thread_id}_{i}", f"content_{thread_id}_{i}"]
+                        [thread_id, f"title_{thread_id}_{i}", f"content_{thread_id}_{i}"],
                     )
 
         # Now run concurrent reads
@@ -186,8 +181,7 @@ class TestBackendPoolConcurrent:
                     time.sleep(0.05)  # Simulate processing
 
                     result = backend.execute(
-                        "SELECT * FROM concurrent_test_posts WHERE thread_id = %s ORDER BY id",
-                        [thread_id]
+                        "SELECT * FROM concurrent_test_posts WHERE thread_id = %s ORDER BY id", [thread_id]
                     )
 
                     time.sleep(0.05)  # More processing
@@ -212,16 +206,13 @@ class TestBackendPoolConcurrent:
             assert thread_id in results
             data = results[thread_id]
             assert len(data) == records_per_thread, (
-                f"Thread {thread_id}: expected {records_per_thread} records, "
-                f"got {len(data)}"
+                f"Thread {thread_id}: expected {records_per_thread} records, got {len(data)}"
             )
 
             # Verify all records belong to this thread's group
             for row in data:
-                assert row['thread_id'] == thread_id, (
-                    f"Thread {thread_id} got data from group {row['thread_id']}!"
-                )
-                assert row['title'].startswith(f"title_{thread_id}_"), (
+                assert row["thread_id"] == thread_id, f"Thread {thread_id} got data from group {row['thread_id']}!"
+                assert row["title"].startswith(f"title_{thread_id}_"), (
                     f"Thread {thread_id} got wrong title: {row['title']}"
                 )
 
@@ -237,10 +228,7 @@ class TestBackendPoolConcurrent:
         # Insert initial data
         with pool.transaction() as backend:
             for i in range(num_threads):
-                backend.execute(
-                    "INSERT INTO concurrent_test_users (thread_id, name) VALUES (%s, 'initial')",
-                    [i]
-                )
+                backend.execute("INSERT INTO concurrent_test_users (thread_id, name) VALUES (%s, 'initial')", [i])
 
         results: Dict[int, Dict] = {}
         results_lock = threading.Lock()
@@ -256,27 +244,19 @@ class TestBackendPoolConcurrent:
                     # Update own row
                     backend.execute(
                         "UPDATE concurrent_test_users SET name = %s WHERE thread_id = %s",
-                        [f'modified_by_{thread_id}', thread_id]
+                        [f"modified_by_{thread_id}", thread_id],
                     )
 
                     # Read all rows - should only see committed data
                     # from other threads, not their uncommitted changes
                     time.sleep(0.2)  # Allow other threads to make changes
 
-                    all_rows = backend.execute(
-                        "SELECT * FROM concurrent_test_users ORDER BY thread_id"
-                    )
+                    all_rows = backend.execute("SELECT * FROM concurrent_test_users ORDER BY thread_id")
 
-                    own_row = backend.execute(
-                        "SELECT * FROM concurrent_test_users WHERE thread_id = %s",
-                        [thread_id]
-                    )
+                    own_row = backend.execute("SELECT * FROM concurrent_test_users WHERE thread_id = %s", [thread_id])
 
                     with results_lock:
-                        results[thread_id] = {
-                            'all_rows': all_rows.data,
-                            'own_row': own_row.data
-                        }
+                        results[thread_id] = {"all_rows": all_rows.data, "own_row": own_row.data}
 
             except Exception as e:
                 with errors_lock:
@@ -293,10 +273,10 @@ class TestBackendPoolConcurrent:
         # Verify each transaction saw its own changes
         for thread_id in range(num_threads):
             assert thread_id in results
-            own_row = results[thread_id]['own_row']
+            own_row = results[thread_id]["own_row"]
             assert len(own_row) == 1
             # Own row should show the modification
-            assert own_row[0]['name'] == f'modified_by_{thread_id}'
+            assert own_row[0]["name"] == f"modified_by_{thread_id}"
 
     def test_pool_stress_concurrent_acquire_release(self, mysql_pool_large: BackendPool):
         """Stress test: rapidly acquire and release connections concurrently.
@@ -336,8 +316,7 @@ class TestBackendPoolConcurrent:
         expected = num_threads * operations_per_thread
         success_rate = success_count / expected
         assert success_rate >= 0.95, (
-            f"Success rate too low: {success_rate:.2%} "
-            f"({success_count}/{expected}), errors: {errors[:5]}"
+            f"Success rate too low: {success_rate:.2%} ({success_count}/{expected}), errors: {errors[:5]}"
         )
 
         # Verify pool is still healthy
@@ -348,6 +327,7 @@ class TestBackendPoolConcurrent:
 # ============================================================
 # Asynchronous Concurrent Tests
 # ============================================================
+
 
 class TestAsyncBackendPoolConcurrent:
     """Tests for concurrent operations with AsyncBackendPool (MySQL)."""
@@ -381,8 +361,7 @@ class TestAsyncBackendPoolConcurrent:
         assert len(connection_ids) == num_concurrent
         unique_ids = set(conn_id for _, conn_id in connection_ids)
         assert len(unique_ids) == num_concurrent, (
-            f"Expected {num_concurrent} distinct connections, "
-            f"but got {len(unique_ids)}"
+            f"Expected {num_concurrent} distinct connections, but got {len(unique_ids)}"
         )
 
     @pytest.mark.asyncio
@@ -402,13 +381,12 @@ class TestAsyncBackendPoolConcurrent:
                 for i in range(10):
                     await backend.execute(
                         "INSERT INTO concurrent_test_users (task_id, name) VALUES (%s, %s)",
-                        [task_id, f"user_{task_id}_{i}"]
+                        [task_id, f"user_{task_id}_{i}"],
                     )
 
                 # Query back
                 query_result = await backend.execute(
-                    "SELECT * FROM concurrent_test_users WHERE task_id = %s",
-                    [task_id]
+                    "SELECT * FROM concurrent_test_users WHERE task_id = %s", [task_id]
                 )
 
                 async with results_lock:
@@ -424,7 +402,7 @@ class TestAsyncBackendPoolConcurrent:
             assert task_id in results
             assert len(results[task_id]) == 10
             for row in results[task_id]:
-                assert row['task_id'] == task_id
+                assert row["task_id"] == task_id
 
     @pytest.mark.asyncio
     async def test_concurrent_query_results_not_mixed(self, async_mysql_pool_with_tables: AsyncBackendPool):
@@ -439,7 +417,7 @@ class TestAsyncBackendPoolConcurrent:
                 for i in range(records_per_task):
                     await backend.execute(
                         "INSERT INTO concurrent_test_posts (task_id, title, content) VALUES (%s, %s, %s)",
-                        [task_id, f"title_{task_id}_{i}", f"content_{task_id}_{i}"]
+                        [task_id, f"title_{task_id}_{i}", f"content_{task_id}_{i}"],
                     )
 
         # Concurrent reads
@@ -453,8 +431,7 @@ class TestAsyncBackendPoolConcurrent:
             async with pool.connection() as backend:
                 await asyncio.sleep(0.05)
                 result = await backend.execute(
-                    "SELECT * FROM concurrent_test_posts WHERE task_id = %s ORDER BY id",
-                    [task_id]
+                    "SELECT * FROM concurrent_test_posts WHERE task_id = %s ORDER BY id", [task_id]
                 )
                 await asyncio.sleep(0.05)
 
@@ -471,8 +448,8 @@ class TestAsyncBackendPoolConcurrent:
             data = results[task_id]
             assert len(data) == records_per_task
             for row in data:
-                assert row['task_id'] == task_id
-                assert row['title'].startswith(f"title_{task_id}_")
+                assert row["task_id"] == task_id
+                assert row["title"].startswith(f"title_{task_id}_")
 
     @pytest.mark.asyncio
     async def test_pool_stress_concurrent_acquire_release(self, async_mysql_pool_large: AsyncBackendPool):
@@ -505,9 +482,7 @@ class TestAsyncBackendPoolConcurrent:
 
         expected = num_tasks * operations_per_task
         success_rate = success_count / expected
-        assert success_rate >= 0.95, (
-            f"Success rate too low: {success_rate:.2%}, errors: {errors[:5]}"
-        )
+        assert success_rate >= 0.95, f"Success rate too low: {success_rate:.2%}, errors: {errors[:5]}"
 
         stats = pool.get_stats()
         assert stats.current_in_use == 0
@@ -559,9 +534,7 @@ class TestAsyncBackendPoolConcurrent:
         assert len(completed) == num_tasks
 
         # Verify max concurrent didn't exceed pool size
-        assert max_concurrent <= max_pool_size, (
-            f"Max concurrent {max_concurrent} exceeded pool size {max_pool_size}"
-        )
+        assert max_concurrent <= max_pool_size, f"Max concurrent {max_concurrent} exceeded pool size {max_pool_size}"
 
         # Verify some waiting occurred (proves semaphore works)
         assert max_concurrent > 0

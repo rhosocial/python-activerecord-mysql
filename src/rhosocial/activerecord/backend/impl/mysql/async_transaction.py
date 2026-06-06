@@ -7,8 +7,9 @@ MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
 START TRANSACTION as separate statements. This class overrides _do_begin()
 to handle this sequencing properly.
 """
+
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from rhosocial.activerecord.backend.transaction import (
     AsyncTransactionManager,
@@ -34,7 +35,11 @@ class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManage
     are inherited from MySQLTransactionMixin.
     """
 
-    def __init__(self, backend: "AsyncMySQLBackend", logger=None):
+    def __init__(
+        self,
+        backend: "AsyncMySQLBackend",
+        logger: Optional[logging.Logger] = None,
+    ) -> None:
         """Initialize async MySQL transaction manager.
 
         Args:
