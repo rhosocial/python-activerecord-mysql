@@ -195,6 +195,93 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  test-experimental-python-315:
+    name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }} (experimental)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python-version: '3.15.0-beta.2', mysql-version: '9.7', port: 3320, freethreaded: false }
+          - { python-version: '3.15.0-beta.2', mysql-version: '9.7', port: 3321, freethreaded: true }
+
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql-version }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -ppassword"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - ${{ matrix.port }}:3306
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}${{ matrix.freethreaded && ' free-threaded' || '' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          freethreaded: ${{ matrix.freethreaded }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install activerecord and testsuite
+        run: |
+          pip install git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev28#egg=rhosocial-activerecord
+          pip install git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev15#egg=rhosocial-activerecord-testsuite
+
+      - name: Create and test database
+        run: |
+          pip install mysql-connector-python
+          python -c "
+          import mysql.connector
+          conn = mysql.connector.connect(
+              host='127.0.0.1',
+              port=${{ matrix.port }},
+              user='root',
+              password='password',
+              ssl_disabled=True
+          )
+          cursor = conn.cursor()
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('SELECT NOW()')
+          result = cursor.fetchone()
+          print('MySQL ${{ matrix.mysql-version }} connectivity test passed - Current time:', result[0])
+          cursor.close()
+          conn.close()
+          "
+
+      - name: Create MySQL scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: ${{ matrix.port }}
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: |
+          export PYTHONPATH=src:tests
+          python -m pytest tests/ --tb=short
+
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
     runs-on: ubuntu-latest
