@@ -37,6 +37,7 @@ if TYPE_CHECKING:
         MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
         MySQLPartitionValue,
+        MySQLExchangePartitionExpression,
         MySQLReorganizePartitionExpression,
         MySQLTruncatePartitionExpression,
     )
@@ -847,7 +848,7 @@ class MySQLPartitionMixin:
 
     def supports_exchange_partition(self) -> bool:
         """Whether ALTER TABLE ... EXCHANGE PARTITION is supported."""
-        return False
+        return True
 
     def supports_analyze_partition(self) -> bool:
         """Whether ALTER TABLE ... ANALYZE PARTITION is supported."""
@@ -1148,6 +1149,22 @@ class MySQLPartitionMixin:
             f"{self.format_identifier(expr.partition)} INTO ({', '.join(into_sql_parts)})"
         )
         return sql, tuple(params)
+
+    def format_exchange_partition_statement(
+        self,
+        expr: "MySQLExchangePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... EXCHANGE PARTITION."""
+        if not self.supports_exchange_partition():
+            raise UnsupportedFeatureError(self.name, "EXCHANGE PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        exchange_table_sql, exchange_table_params = expr.exchange_table.to_sql()
+        validation = "WITH VALIDATION" if expr.with_validation else "WITHOUT VALIDATION"
+        sql = (
+            f"ALTER TABLE {table_sql} EXCHANGE PARTITION "
+            f"{self.format_identifier(expr.partition)} WITH TABLE {exchange_table_sql} {validation}"
+        )
+        return sql, tuple(table_params) + tuple(exchange_table_params)
 
 
 

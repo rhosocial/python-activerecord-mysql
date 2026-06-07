@@ -2,7 +2,7 @@
 """Real MySQL partition operation tests."""
 
 from datetime import datetime
-from typing import Any, List, Sequence
+from typing import Any, List, Optional, Sequence
 
 import pytest
 
@@ -18,14 +18,18 @@ from rhosocial.activerecord.backend.expression import (
     LogicalPredicate,
     OrderByClause,
     QueryExpression,
+    TableConstraint,
+    TableConstraintType,
     TableExpression,
     ValuesSource,
+    WildcardExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql import ShowCreateTableExpression
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLAddPartitionExpression,
     MySQLDropPartitionExpression,
+    MySQLExchangePartitionExpression,
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,
     MySQLPartitionValue,
@@ -261,6 +265,233 @@ def _assert_show_create_table_includes_partition_definition(create_sql):
     assert "2026-03-01" in create_sql
 
 
+PRODUCTION_PARTITION_TABLE = "ar_mysql_partition_ops_events"
+PRODUCTION_ARCHIVE_TABLE = "ar_mysql_partition_ops_events_archive_2026"
+PRODUCTION_PARTITIONS = (
+    ("p2026", "2027-01-01 00:00:00.000000"),
+    ("p2027_q1", "2027-04-01 00:00:00.000000"),
+    ("p2027_04", "2027-05-01 00:00:00.000000"),
+    ("p2027_w18", "2027-05-08 00:00:00.000000"),
+)
+
+
+def _drop_named_table_expression(dialect, table_name: str):
+    return DropTableExpression(dialect=dialect, table=table_name, if_exists=True)
+
+
+def _production_columns():
+    return [
+        ColumnDefinition("id", "BIGINT NOT NULL"),
+        ColumnDefinition("created_at", "DATETIME(6) NOT NULL"),
+        ColumnDefinition("tenant_id", "BIGINT NOT NULL"),
+        ColumnDefinition("payload", "VARCHAR(255) NOT NULL"),
+    ]
+
+
+def _production_indexes():
+    return [
+        IndexDefinition(name="idx_created_at", columns=["created_at"]),
+        IndexDefinition(name="idx_tenant_created_at", columns=["tenant_id", "created_at"]),
+    ]
+
+
+def _production_table_constraints():
+    return [
+        TableConstraint(
+            TableConstraintType.PRIMARY_KEY,
+            columns=["id", "created_at"],
+        ),
+    ]
+
+
+def _partition_definition(dialect, name: str, upper_bound: str):
+    return MySQLPartitionDefinition(
+        name=name,
+        less_than=[MySQLPartitionValue(dialect, upper_bound)],
+    )
+
+
+def _create_production_partitioned_table_expression(dialect, partitions):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=PRODUCTION_PARTITION_TABLE,
+        columns=_production_columns(),
+        indexes=_production_indexes(),
+        table_constraints=_production_table_constraints(),
+        partition=MySQLPartitionByRangeColumns(
+            dialect=dialect,
+            keys=[Column(dialect, "created_at")],
+            partitions=[
+                _partition_definition(dialect, name, upper_bound)
+                for name, upper_bound in partitions
+            ],
+        ),
+    )
+
+
+def _create_production_archive_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=PRODUCTION_ARCHIVE_TABLE,
+        columns=_production_columns(),
+        indexes=_production_indexes(),
+        table_constraints=_production_table_constraints(),
+    )
+
+
+def _insert_production_events_expression(dialect, rows):
+    return InsertExpression(
+        dialect=dialect,
+        into=PRODUCTION_PARTITION_TABLE,
+        columns=["id", "created_at", "tenant_id", "payload"],
+        source=ValuesSource(
+            dialect,
+            [[Literal(dialect, value) for value in row] for row in rows],
+        ),
+    )
+
+
+def _select_production_payloads_expression(dialect, start, end, *, tenant_id: Optional[int] = None):
+    predicate = (Column(dialect, "created_at") >= Literal(dialect, start)) & (
+        Column(dialect, "created_at") < Literal(dialect, end)
+    )
+    if tenant_id is not None:
+        predicate = LogicalPredicate(
+            dialect,
+            "AND",
+            Column(dialect, "tenant_id") == Literal(dialect, tenant_id),
+            predicate,
+        )
+    return QueryExpression(
+        dialect,
+        select=[Column(dialect, "payload")],
+        from_=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
+        where=predicate,
+        order_by=OrderByClause(dialect, [(Column(dialect, "id"), "ASC")]),
+    )
+
+
+def _select_production_count_expression(dialect):
+    return QueryExpression(
+        dialect,
+        select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
+        from_=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
+    )
+
+
+def _select_archive_count_expression(dialect):
+    return QueryExpression(
+        dialect,
+        select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
+        from_=TableExpression(dialect, PRODUCTION_ARCHIVE_TABLE),
+    )
+
+
+def _partition_metadata_expression_for_table(dialect, table_name: str):
+    partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
+    return QueryExpression(
+        dialect,
+        select=[
+            Column(dialect, "PARTITION_NAME", alias="name"),
+            Column(dialect, "PARTITION_METHOD", alias="method"),
+            Column(dialect, "PARTITION_EXPRESSION", alias="expression"),
+            Column(dialect, "PARTITION_DESCRIPTION", alias="description"),
+            Column(dialect, "TABLE_ROWS", alias="table_rows"),
+            Column(dialect, "DATA_LENGTH", alias="data_length"),
+            Column(dialect, "INDEX_LENGTH", alias="index_length"),
+        ],
+        from_=partitions,
+        where=LogicalPredicate(
+            dialect,
+            "AND",
+            Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
+            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
+            Column(dialect, "PARTITION_NAME").is_not_null(),
+        ),
+        order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
+    )
+
+
+def _production_partition_metadata(backend):
+    expr = _partition_metadata_expression_for_table(backend.dialect, PRODUCTION_PARTITION_TABLE)
+    return backend.fetch_all(*expr.to_sql())
+
+
+async def _async_production_partition_metadata(backend):
+    expr = _partition_metadata_expression_for_table(backend.dialect, PRODUCTION_PARTITION_TABLE)
+    return await backend.fetch_all(*expr.to_sql())
+
+
+def _add_production_partition_expression(dialect, name: str, upper_bound: str):
+    return MySQLAddPartitionExpression(
+        dialect=dialect,
+        table=PRODUCTION_PARTITION_TABLE,
+        partitions=[_partition_definition(dialect, name, upper_bound)],
+    )
+
+
+def _production_range_query_expression(dialect, start, end, *, tenant_id: int):
+    return QueryExpression(
+        dialect,
+        select=[WildcardExpression(dialect)],
+        from_=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
+        where=LogicalPredicate(
+            dialect,
+            "AND",
+            Column(dialect, "tenant_id") == Literal(dialect, tenant_id),
+            (Column(dialect, "created_at") >= Literal(dialect, start))
+            & (Column(dialect, "created_at") < Literal(dialect, end)),
+        ),
+    )
+
+
+def _collect_explain_partitions(result) -> List[str]:
+    partitions: List[str] = []
+    for row in result.rows:
+        if row.partitions:
+            partitions.extend(part.strip() for part in str(row.partitions).split(","))
+    return [partition for partition in partitions if partition]
+
+
+def _assert_partition_metadata(rows, expected_names: Sequence[str]):
+    assert {row["name"] for row in rows} == set(expected_names)
+    by_name = {row["name"]: row for row in rows}
+    for name in expected_names:
+        row = by_name[name]
+        assert "RANGE" in str(row["method"]).upper()
+        assert "created_at" in str(row["expression"]).lower()
+        assert "table_rows" in row
+        assert "data_length" in row
+        assert "index_length" in row
+
+
+def _create_production_partitioned_table(backend, partitions):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+        backend.execute(*_drop_named_table_expression(backend.dialect, table_name).to_sql())
+    backend.execute(
+        *_create_production_partitioned_table_expression(backend.dialect, partitions).to_sql()
+    )
+
+
+async def _async_create_production_partitioned_table(backend, partitions):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+        expr = _drop_named_table_expression(backend.dialect, table_name)
+        await backend.execute(*expr.to_sql())
+    expr = _create_production_partitioned_table_expression(backend.dialect, partitions)
+    await backend.execute(*expr.to_sql())
+
+
+def _drop_production_tables(backend):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+        backend.execute(*_drop_named_table_expression(backend.dialect, table_name).to_sql())
+
+
+async def _async_drop_production_tables(backend):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+        expr = _drop_named_table_expression(backend.dialect, table_name)
+        await backend.execute(*expr.to_sql())
+
+
 @pytest.fixture
 def mysql_partitioned_table(mysql_backend):
     """Create a real RANGE-partitioned MySQL table."""
@@ -275,6 +506,44 @@ async def async_mysql_partitioned_table(async_mysql_backend):
     await _async_create_partitioned_table(async_mysql_backend)
     yield PARTITION_TABLE
     await _async_drop_table(async_mysql_backend)
+
+
+@pytest.fixture
+def mysql_production_year_partition_table(mysql_backend):
+    """Create a production-like table with only the 2026 year partition."""
+    _create_production_partitioned_table(mysql_backend, [PRODUCTION_PARTITIONS[0]])
+    yield PRODUCTION_PARTITION_TABLE
+    _drop_production_tables(mysql_backend)
+
+
+@pytest.fixture
+async def async_mysql_production_year_partition_table(async_mysql_backend):
+    """Create the async production-like table with only the 2026 year partition."""
+    await _async_create_production_partitioned_table(
+        async_mysql_backend,
+        [PRODUCTION_PARTITIONS[0]],
+    )
+    yield PRODUCTION_PARTITION_TABLE
+    await _async_drop_production_tables(async_mysql_backend)
+
+
+@pytest.fixture
+def mysql_production_partition_table(mysql_backend):
+    """Create a production-like table with year, quarter, month, and week partitions."""
+    _create_production_partitioned_table(mysql_backend, PRODUCTION_PARTITIONS)
+    yield PRODUCTION_PARTITION_TABLE
+    _drop_production_tables(mysql_backend)
+
+
+@pytest.fixture
+async def async_mysql_production_partition_table(async_mysql_backend):
+    """Create the async production-like table with multiple future partitions."""
+    await _async_create_production_partitioned_table(
+        async_mysql_backend,
+        PRODUCTION_PARTITIONS,
+    )
+    yield PRODUCTION_PARTITION_TABLE
+    await _async_drop_production_tables(async_mysql_backend)
 
 
 class TestMySQLPartitionOperations:
@@ -359,6 +628,475 @@ class TestMySQLPartitionOperations:
         mysql_backend.execute(*_reorganize_partition_expression(mysql_backend.dialect).to_sql())
 
         assert _partition_names(mysql_backend) == ["p2026_01", "p2026_02a", "p2026_02b"]
+
+
+class TestMySQLProductionTimePartitionOperations:
+    """Synchronous production-style time partition operation scenarios."""
+
+    def test_initial_year_partition_uses_microsecond_boundaries(
+        self,
+        mysql_backend,
+        mysql_production_year_partition_table,
+    ):
+        """Validate the initial annual partition used during table rollout.
+        
+                Scenario: the production table starts with only the 2026 calendar-year
+                partition. The partition key is `created_at DATETIME(6)`, and the
+                primary key includes `(id, created_at)` to satisfy MySQL partitioned
+                unique-key rules.
+        
+                Steps: create the parent table with only `p2026`, insert the 2026 lower
+                bound and the last microsecond before 2027, then try to insert the first
+                timestamp of 2027 before a future partition exists.
+        
+                Assertions: metadata lists only `p2026`; microsecond boundary rows are
+                queryable through the parent table; out-of-range future data is rejected
+                by the database.
+        
+                Production value: this proves the annual rollout can cover a complete
+                calendar year while exposing a missing future partition as an operational
+                failure instead of silently losing data.
+        """
+        assert mysql_production_year_partition_table == PRODUCTION_PARTITION_TABLE
+        _assert_partition_metadata(_production_partition_metadata(mysql_backend), ["p2026"])
+
+        mysql_backend.execute(
+            *_insert_production_events_expression(
+                mysql_backend.dialect,
+                [
+                    [1, datetime(2026, 1, 1, 0, 0, 0, 0), 10, "year-start"],
+                    [2, datetime(2026, 12, 31, 23, 59, 59, 999999), 10, "year-end"],
+                ],
+            ).to_sql()
+        )
+
+        rows = mysql_backend.fetch_all(
+            *_select_production_payloads_expression(
+                mysql_backend.dialect,
+                datetime(2026, 1, 1),
+                datetime(2027, 1, 1),
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["year-start", "year-end"]
+
+        with pytest.raises(Exception):
+            mysql_backend.execute(
+                *_insert_production_events_expression(
+                    mysql_backend.dialect,
+                    [[3, datetime(2027, 1, 1, 0, 0, 0, 0), 10, "missing-partition"]],
+                ).to_sql()
+            )
+
+    def test_precreate_future_partitions_before_traffic_arrives(
+        self,
+        mysql_backend,
+        mysql_production_year_partition_table,
+    ):
+        """Pre-create future partitions with mixed operational granularities.
+        
+                Scenario: operators prepare future partitions before traffic arrives,
+                and the future granularity may shift from yearly to quarterly, monthly,
+                or weekly partitions.
+        
+                Steps: start from the initial `p2026` table, add `p2027_q1`,
+                `p2027_04`, and `p2027_w18`, then insert rows into each future window.
+        
+                Assertions: metadata reflects all newly added partitions; future rows
+                are accepted; parent-table queries can read the full pre-created range.
+        
+                Production value: this verifies rolling partition pre-creation so the
+                database can cross time boundaries without emergency DDL during traffic.
+        """
+        for name, upper_bound in PRODUCTION_PARTITIONS[1:]:
+            mysql_backend.execute(
+                *_add_production_partition_expression(
+                    mysql_backend.dialect,
+                    name,
+                    upper_bound,
+                ).to_sql()
+            )
+
+        _assert_partition_metadata(
+            _production_partition_metadata(mysql_backend),
+            [name for name, _ in PRODUCTION_PARTITIONS],
+        )
+        mysql_backend.execute(
+            *_insert_production_events_expression(
+                mysql_backend.dialect,
+                [
+                    [11, datetime(2027, 2, 15, 8, 0, 0, 123456), 10, "q1"],
+                    [12, datetime(2027, 4, 15, 8, 0, 0, 123456), 10, "month"],
+                    [13, datetime(2027, 5, 3, 8, 0, 0, 123456), 10, "week"],
+                ],
+            ).to_sql()
+        )
+
+        rows = mysql_backend.fetch_all(
+            *_select_production_payloads_expression(
+                mysql_backend.dialect,
+                datetime(2027, 1, 1),
+                datetime(2027, 5, 8),
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["q1", "month", "week"]
+
+    def test_query_continuous_partitions_and_explain_uses_index(
+        self,
+        mysql_backend,
+        mysql_production_partition_table,
+    ):
+        """Query a continuous time range and inspect pruning/index candidates.
+        
+                Scenario: production searches often span several continuous partitions
+                while filtering by tenant and time range.
+        
+                Steps: insert rows across yearly, quarterly, monthly, and weekly
+                partitions, query `[2027-02-01, 2027-05-08)` for `tenant_id=10`, and run
+                MySQL EXPLAIN for the same expression.
+        
+                Assertions: the query returns only target-tenant rows in the continuous
+                range; EXPLAIN reports only the target partitions when partition data is
+                available; `possible_keys` or `key` exposes the `(tenant_id, created_at)`
+                composite index.
+        
+                Production value: this demonstrates that partition pruning and business
+                indexes work together, and that partitioning does not replace the need
+                for query indexes.
+        """
+        mysql_backend.execute(
+            *_insert_production_events_expression(
+                mysql_backend.dialect,
+                [
+                    [21, datetime(2026, 6, 1), 10, "old-year"],
+                    [22, datetime(2027, 2, 15), 10, "q1"],
+                    [23, datetime(2027, 4, 15), 10, "month"],
+                    [24, datetime(2027, 5, 3), 10, "week"],
+                    [25, datetime(2027, 5, 3), 20, "other-tenant"],
+                ],
+            ).to_sql()
+        )
+
+        rows = mysql_backend.fetch_all(
+            *_select_production_payloads_expression(
+                mysql_backend.dialect,
+                datetime(2027, 2, 1),
+                datetime(2027, 5, 8),
+                tenant_id=10,
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["q1", "month", "week"]
+
+        result = mysql_backend.explain(
+            _production_range_query_expression(
+                mysql_backend.dialect,
+                datetime(2027, 2, 1),
+                datetime(2027, 5, 8),
+                tenant_id=10,
+            )
+        )
+        partitions = set(_collect_explain_partitions(result))
+        if partitions:
+            assert partitions <= {"p2027_q1", "p2027_04", "p2027_w18"}
+            assert {"p2027_q1", "p2027_04", "p2027_w18"}.issubset(partitions)
+        key_names = {
+            key
+            for row in result.rows
+            for key in (row.key, row.possible_keys)
+            if key
+        }
+        assert any("idx_tenant_created_at" in key for key in key_names)
+
+    def test_exchange_expired_year_partition_for_cold_archive(
+        self,
+        mysql_backend,
+        mysql_production_partition_table,
+    ):
+        """Cold-archive an expired year partition with EXCHANGE PARTITION.
+        
+                Scenario: MySQL has no PostgreSQL-style `DETACH PARTITION`; `DROP
+                PARTITION` and `TRUNCATE PARTITION` must not be used as cold archival
+                operations because they delete or clear data.
+        
+                Steps: create a structurally identical archive table, insert cold 2026
+                data and hot 2027 data, then exchange `p2026` with the archive table.
+        
+                Assertions: parent metadata still keeps the `p2026` partition; the
+                parent table no longer returns cold data but still returns hot data; the
+                archive table keeps the exchanged cold data.
+        
+                Production value: this documents the safe MySQL cold-archive path that
+                preserves data instead of using destructive partition maintenance.
+        """
+        if not mysql_backend.dialect.supports_exchange_partition():
+            pytest.skip("MySQL scenario does not support EXCHANGE PARTITION")
+
+        mysql_backend.execute(*_create_production_archive_table_expression(mysql_backend.dialect).to_sql())
+        mysql_backend.execute(
+            *_insert_production_events_expression(
+                mysql_backend.dialect,
+                [
+                    [31, datetime(2026, 6, 1), 10, "cold-year"],
+                    [32, datetime(2027, 2, 1), 10, "hot-quarter"],
+                ],
+            ).to_sql()
+        )
+        mysql_backend.execute(
+            *MySQLExchangePartitionExpression(
+                mysql_backend.dialect,
+                PRODUCTION_PARTITION_TABLE,
+                "p2026",
+                PRODUCTION_ARCHIVE_TABLE,
+            ).to_sql()
+        )
+
+        parent_count = mysql_backend.fetch_one(
+            *_select_production_count_expression(mysql_backend.dialect).to_sql()
+        )["count"]
+        archive_count = mysql_backend.fetch_one(
+            *_select_archive_count_expression(mysql_backend.dialect).to_sql()
+        )["count"]
+        assert parent_count == 1
+        assert archive_count == 1
+        _assert_partition_metadata(
+            _production_partition_metadata(mysql_backend),
+            [name for name, _ in PRODUCTION_PARTITIONS],
+        )
+
+
+class TestAsyncMySQLProductionTimePartitionOperations:
+    """Asynchronous production-style time partition operation scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_initial_year_partition_uses_microsecond_boundaries(
+        self,
+        async_mysql_backend,
+        async_mysql_production_year_partition_table,
+    ):
+        """Validate the initial annual partition used during table rollout.
+        
+                Scenario: the production table starts with only the 2026 calendar-year
+                partition. The partition key is `created_at DATETIME(6)`, and the
+                primary key includes `(id, created_at)` to satisfy MySQL partitioned
+                unique-key rules.
+        
+                Steps: create the parent table with only `p2026`, insert the 2026 lower
+                bound and the last microsecond before 2027, then try to insert the first
+                timestamp of 2027 before a future partition exists.
+        
+                Assertions: metadata lists only `p2026`; microsecond boundary rows are
+                queryable through the parent table; out-of-range future data is rejected
+                by the database.
+        
+                Production value: this proves the annual rollout can cover a complete
+                calendar year while exposing a missing future partition as an operational
+                failure instead of silently losing data.
+        """
+        assert async_mysql_production_year_partition_table == PRODUCTION_PARTITION_TABLE
+        rows = await _async_production_partition_metadata(async_mysql_backend)
+        _assert_partition_metadata(rows, ["p2026"])
+
+        await async_mysql_backend.execute(
+            *_insert_production_events_expression(
+                async_mysql_backend.dialect,
+                [
+                    [1, datetime(2026, 1, 1, 0, 0, 0, 0), 10, "year-start"],
+                    [2, datetime(2026, 12, 31, 23, 59, 59, 999999), 10, "year-end"],
+                ],
+            ).to_sql()
+        )
+
+        rows = await async_mysql_backend.fetch_all(
+            *_select_production_payloads_expression(
+                async_mysql_backend.dialect,
+                datetime(2026, 1, 1),
+                datetime(2027, 1, 1),
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["year-start", "year-end"]
+
+        with pytest.raises(Exception):
+            await async_mysql_backend.execute(
+                *_insert_production_events_expression(
+                    async_mysql_backend.dialect,
+                    [[3, datetime(2027, 1, 1, 0, 0, 0, 0), 10, "missing-partition"]],
+                ).to_sql()
+            )
+
+    @pytest.mark.asyncio
+    async def test_precreate_future_partitions_before_traffic_arrives(
+        self,
+        async_mysql_backend,
+        async_mysql_production_year_partition_table,
+    ):
+        """Pre-create future partitions with mixed operational granularities.
+        
+                Scenario: operators prepare future partitions before traffic arrives,
+                and the future granularity may shift from yearly to quarterly, monthly,
+                or weekly partitions.
+        
+                Steps: start from the initial `p2026` table, add `p2027_q1`,
+                `p2027_04`, and `p2027_w18`, then insert rows into each future window.
+        
+                Assertions: metadata reflects all newly added partitions; future rows
+                are accepted; parent-table queries can read the full pre-created range.
+        
+                Production value: this verifies rolling partition pre-creation so the
+                database can cross time boundaries without emergency DDL during traffic.
+        """
+        for name, upper_bound in PRODUCTION_PARTITIONS[1:]:
+            await async_mysql_backend.execute(
+                *_add_production_partition_expression(
+                    async_mysql_backend.dialect,
+                    name,
+                    upper_bound,
+                ).to_sql()
+            )
+
+        rows = await _async_production_partition_metadata(async_mysql_backend)
+        _assert_partition_metadata(rows, [name for name, _ in PRODUCTION_PARTITIONS])
+        await async_mysql_backend.execute(
+            *_insert_production_events_expression(
+                async_mysql_backend.dialect,
+                [
+                    [11, datetime(2027, 2, 15, 8, 0, 0, 123456), 10, "q1"],
+                    [12, datetime(2027, 4, 15, 8, 0, 0, 123456), 10, "month"],
+                    [13, datetime(2027, 5, 3, 8, 0, 0, 123456), 10, "week"],
+                ],
+            ).to_sql()
+        )
+
+        rows = await async_mysql_backend.fetch_all(
+            *_select_production_payloads_expression(
+                async_mysql_backend.dialect,
+                datetime(2027, 1, 1),
+                datetime(2027, 5, 8),
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["q1", "month", "week"]
+
+    @pytest.mark.asyncio
+    async def test_query_continuous_partitions_and_explain_uses_index(
+        self,
+        async_mysql_backend,
+        async_mysql_production_partition_table,
+    ):
+        """Query a continuous time range and inspect pruning/index candidates.
+        
+                Scenario: production searches often span several continuous partitions
+                while filtering by tenant and time range.
+        
+                Steps: insert rows across yearly, quarterly, monthly, and weekly
+                partitions, query `[2027-02-01, 2027-05-08)` for `tenant_id=10`, and run
+                MySQL EXPLAIN for the same expression.
+        
+                Assertions: the query returns only target-tenant rows in the continuous
+                range; EXPLAIN reports only the target partitions when partition data is
+                available; `possible_keys` or `key` exposes the `(tenant_id, created_at)`
+                composite index.
+        
+                Production value: this demonstrates that partition pruning and business
+                indexes work together, and that partitioning does not replace the need
+                for query indexes.
+        """
+        await async_mysql_backend.execute(
+            *_insert_production_events_expression(
+                async_mysql_backend.dialect,
+                [
+                    [21, datetime(2026, 6, 1), 10, "old-year"],
+                    [22, datetime(2027, 2, 15), 10, "q1"],
+                    [23, datetime(2027, 4, 15), 10, "month"],
+                    [24, datetime(2027, 5, 3), 10, "week"],
+                    [25, datetime(2027, 5, 3), 20, "other-tenant"],
+                ],
+            ).to_sql()
+        )
+
+        rows = await async_mysql_backend.fetch_all(
+            *_select_production_payloads_expression(
+                async_mysql_backend.dialect,
+                datetime(2027, 2, 1),
+                datetime(2027, 5, 8),
+                tenant_id=10,
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["q1", "month", "week"]
+
+        result = await async_mysql_backend.explain(
+            _production_range_query_expression(
+                async_mysql_backend.dialect,
+                datetime(2027, 2, 1),
+                datetime(2027, 5, 8),
+                tenant_id=10,
+            )
+        )
+        partitions = set(_collect_explain_partitions(result))
+        if partitions:
+            assert partitions <= {"p2027_q1", "p2027_04", "p2027_w18"}
+            assert {"p2027_q1", "p2027_04", "p2027_w18"}.issubset(partitions)
+        key_names = {
+            key
+            for row in result.rows
+            for key in (row.key, row.possible_keys)
+            if key
+        }
+        assert any("idx_tenant_created_at" in key for key in key_names)
+
+    @pytest.mark.asyncio
+    async def test_exchange_expired_year_partition_for_cold_archive(
+        self,
+        async_mysql_backend,
+        async_mysql_production_partition_table,
+    ):
+        """Cold-archive an expired year partition with EXCHANGE PARTITION.
+        
+                Scenario: MySQL has no PostgreSQL-style `DETACH PARTITION`; `DROP
+                PARTITION` and `TRUNCATE PARTITION` must not be used as cold archival
+                operations because they delete or clear data.
+        
+                Steps: create a structurally identical archive table, insert cold 2026
+                data and hot 2027 data, then exchange `p2026` with the archive table.
+        
+                Assertions: parent metadata still keeps the `p2026` partition; the
+                parent table no longer returns cold data but still returns hot data; the
+                archive table keeps the exchanged cold data.
+        
+                Production value: this documents the safe MySQL cold-archive path that
+                preserves data instead of using destructive partition maintenance.
+        """
+        if not async_mysql_backend.dialect.supports_exchange_partition():
+            pytest.skip("MySQL scenario does not support EXCHANGE PARTITION")
+
+        await async_mysql_backend.execute(
+            *_create_production_archive_table_expression(async_mysql_backend.dialect).to_sql()
+        )
+        await async_mysql_backend.execute(
+            *_insert_production_events_expression(
+                async_mysql_backend.dialect,
+                [
+                    [31, datetime(2026, 6, 1), 10, "cold-year"],
+                    [32, datetime(2027, 2, 1), 10, "hot-quarter"],
+                ],
+            ).to_sql()
+        )
+        await async_mysql_backend.execute(
+            *MySQLExchangePartitionExpression(
+                async_mysql_backend.dialect,
+                PRODUCTION_PARTITION_TABLE,
+                "p2026",
+                PRODUCTION_ARCHIVE_TABLE,
+            ).to_sql()
+        )
+
+        parent_count = (await async_mysql_backend.fetch_one(
+            *_select_production_count_expression(async_mysql_backend.dialect).to_sql()
+        ))["count"]
+        archive_count = (await async_mysql_backend.fetch_one(
+            *_select_archive_count_expression(async_mysql_backend.dialect).to_sql()
+        ))["count"]
+        assert parent_count == 1
+        assert archive_count == 1
+        rows = await _async_production_partition_metadata(async_mysql_backend)
+        _assert_partition_metadata(rows, [name for name, _ in PRODUCTION_PARTITIONS])
 
 
 class TestAsyncMySQLPartitionOperations:

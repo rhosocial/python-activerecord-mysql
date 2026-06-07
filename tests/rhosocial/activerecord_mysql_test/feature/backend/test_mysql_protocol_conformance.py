@@ -235,6 +235,7 @@ class TestMySQLExpressionDialectSeparation:
         ("MySQLDropPartitionExpression", "format_drop_partition_statement"),
         ("MySQLTruncatePartitionExpression", "format_truncate_partition_statement"),
         ("MySQLReorganizePartitionExpression", "format_reorganize_partition_statement"),
+        ("MySQLExchangePartitionExpression", "format_exchange_partition_statement"),
     ]
 
     @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)

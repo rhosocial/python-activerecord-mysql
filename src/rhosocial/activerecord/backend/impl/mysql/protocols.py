@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
         MySQLDropPartitionExpression,
+        MySQLExchangePartitionExpression,
         MySQLPartitionByHash,
         MySQLPartitionByKey,
         MySQLPartitionByList,
@@ -401,6 +402,13 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         expr: "MySQLReorganizePartitionExpression",
     ) -> Tuple[str, tuple]:
         """Format ALTER TABLE ... REORGANIZE PARTITION."""
+        ...
+
+    def format_exchange_partition_statement(
+        self,
+        expr: "MySQLExchangePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... EXCHANGE PARTITION."""
         ...
 
 

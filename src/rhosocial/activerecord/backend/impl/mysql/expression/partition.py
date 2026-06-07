@@ -231,3 +231,25 @@ class MySQLReorganizePartitionExpression(BaseExpression):
 
     def to_sql(self) -> SQLQueryAndParams:
         return self.dialect.format_reorganize_partition_statement(self)
+
+
+class MySQLExchangePartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... EXCHANGE PARTITION``."""
+
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: str,
+        partition: str,
+        exchange_table: str,
+        *,
+        with_validation: bool = True,
+    ):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+        self.partition = partition
+        self.exchange_table = TableExpression(dialect, exchange_table)
+        self.with_validation = with_validation
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_exchange_partition_statement(self)

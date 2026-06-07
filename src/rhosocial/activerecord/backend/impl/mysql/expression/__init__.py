@@ -69,6 +69,7 @@ from .partition import (
     MySQLDropPartitionExpression,
     MySQLTruncatePartitionExpression,
     MySQLReorganizePartitionExpression,
+    MySQLExchangePartitionExpression,
 )
 
 __all__ = [
@@ -117,4 +118,5 @@ __all__ = [
     "MySQLDropPartitionExpression",
     "MySQLTruncatePartitionExpression",
     "MySQLReorganizePartitionExpression",
+    "MySQLExchangePartitionExpression",
 ]
