@@ -32,6 +32,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLExchangePartitionExpression,
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,
+    MySQLPartitionMaxValue,
     MySQLPartitionValue,
     MySQLReorganizePartitionExpression,
     MySQLTruncatePartitionExpression,
@@ -266,6 +267,7 @@ def _assert_show_create_table_includes_partition_definition(create_sql):
 
 
 PRODUCTION_PARTITION_TABLE = "ar_mysql_partition_ops_events"
+PRODUCTION_MAXVALUE_TABLE = "ar_mysql_partition_ops_events_maxvalue"
 PRODUCTION_ARCHIVE_TABLE = "ar_mysql_partition_ops_events_archive_2026"
 PRODUCTION_PARTITIONS = (
     ("p2026", "2027-01-01 00:00:00.000000"),
@@ -339,10 +341,31 @@ def _create_production_archive_table_expression(dialect):
     )
 
 
-def _insert_production_events_expression(dialect, rows):
+def _create_production_maxvalue_partitioned_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=PRODUCTION_MAXVALUE_TABLE,
+        columns=_production_columns(),
+        indexes=_production_indexes(),
+        table_constraints=_production_table_constraints(),
+        partition=MySQLPartitionByRangeColumns(
+            dialect=dialect,
+            keys=[Column(dialect, "created_at")],
+            partitions=[
+                _partition_definition(dialect, "p2026", "2027-01-01 00:00:00.000000"),
+                MySQLPartitionDefinition(
+                    name="pmax",
+                    less_than=[MySQLPartitionMaxValue(dialect)],
+                ),
+            ],
+        ),
+    )
+
+
+def _insert_production_events_into_expression(dialect, table_name: str, rows):
     return InsertExpression(
         dialect=dialect,
-        into=PRODUCTION_PARTITION_TABLE,
+        into=table_name,
         columns=["id", "created_at", "tenant_id", "payload"],
         source=ValuesSource(
             dialect,
@@ -351,7 +374,18 @@ def _insert_production_events_expression(dialect, rows):
     )
 
 
-def _select_production_payloads_expression(dialect, start, end, *, tenant_id: Optional[int] = None):
+def _insert_production_events_expression(dialect, rows):
+    return _insert_production_events_into_expression(dialect, PRODUCTION_PARTITION_TABLE, rows)
+
+
+def _select_production_payloads_from_expression(
+    dialect,
+    table_name: str,
+    start,
+    end,
+    *,
+    tenant_id: Optional[int] = None,
+):
     predicate = (Column(dialect, "created_at") >= Literal(dialect, start)) & (
         Column(dialect, "created_at") < Literal(dialect, end)
     )
@@ -365,9 +399,19 @@ def _select_production_payloads_expression(dialect, start, end, *, tenant_id: Op
     return QueryExpression(
         dialect,
         select=[Column(dialect, "payload")],
-        from_=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
+        from_=TableExpression(dialect, table_name),
         where=predicate,
         order_by=OrderByClause(dialect, [(Column(dialect, "id"), "ASC")]),
+    )
+
+
+def _select_production_payloads_expression(dialect, start, end, *, tenant_id: Optional[int] = None):
+    return _select_production_payloads_from_expression(
+        dialect,
+        PRODUCTION_PARTITION_TABLE,
+        start,
+        end,
+        tenant_id=tenant_id,
     )
 
 
@@ -430,11 +474,26 @@ def _add_production_partition_expression(dialect, name: str, upper_bound: str):
     )
 
 
-def _production_range_query_expression(dialect, start, end, *, tenant_id: int):
+def _reorganize_maxvalue_partition_expression(dialect):
+    return MySQLReorganizePartitionExpression(
+        dialect=dialect,
+        table=PRODUCTION_MAXVALUE_TABLE,
+        partition="pmax",
+        into=[
+            _partition_definition(dialect, "p2027", "2028-01-01 00:00:00.000000"),
+            MySQLPartitionDefinition(
+                name="pmax",
+                less_than=[MySQLPartitionMaxValue(dialect)],
+            ),
+        ],
+    )
+
+
+def _production_range_query_for_table_expression(dialect, table_name: str, start, end, *, tenant_id: int):
     return QueryExpression(
         dialect,
         select=[WildcardExpression(dialect)],
-        from_=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
+        from_=TableExpression(dialect, table_name),
         where=LogicalPredicate(
             dialect,
             "AND",
@@ -442,6 +501,16 @@ def _production_range_query_expression(dialect, start, end, *, tenant_id: int):
             (Column(dialect, "created_at") >= Literal(dialect, start))
             & (Column(dialect, "created_at") < Literal(dialect, end)),
         ),
+    )
+
+
+def _production_range_query_expression(dialect, start, end, *, tenant_id: int):
+    return _production_range_query_for_table_expression(
+        dialect,
+        PRODUCTION_PARTITION_TABLE,
+        start,
+        end,
+        tenant_id=tenant_id,
     )
 
 
@@ -466,7 +535,7 @@ def _assert_partition_metadata(rows, expected_names: Sequence[str]):
 
 
 def _create_production_partitioned_table(backend, partitions):
-    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_MAXVALUE_TABLE, PRODUCTION_PARTITION_TABLE):
         backend.execute(*_drop_named_table_expression(backend.dialect, table_name).to_sql())
     backend.execute(
         *_create_production_partitioned_table_expression(backend.dialect, partitions).to_sql()
@@ -474,20 +543,34 @@ def _create_production_partitioned_table(backend, partitions):
 
 
 async def _async_create_production_partitioned_table(backend, partitions):
-    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_MAXVALUE_TABLE, PRODUCTION_PARTITION_TABLE):
         expr = _drop_named_table_expression(backend.dialect, table_name)
         await backend.execute(*expr.to_sql())
     expr = _create_production_partitioned_table_expression(backend.dialect, partitions)
     await backend.execute(*expr.to_sql())
 
 
+def _create_production_maxvalue_partitioned_table(backend):
+    for table_name in (PRODUCTION_MAXVALUE_TABLE, PRODUCTION_PARTITION_TABLE):
+        backend.execute(*_drop_named_table_expression(backend.dialect, table_name).to_sql())
+    backend.execute(*_create_production_maxvalue_partitioned_table_expression(backend.dialect).to_sql())
+
+
+async def _async_create_production_maxvalue_partitioned_table(backend):
+    for table_name in (PRODUCTION_MAXVALUE_TABLE, PRODUCTION_PARTITION_TABLE):
+        expr = _drop_named_table_expression(backend.dialect, table_name)
+        await backend.execute(*expr.to_sql())
+    expr = _create_production_maxvalue_partitioned_table_expression(backend.dialect)
+    await backend.execute(*expr.to_sql())
+
+
 def _drop_production_tables(backend):
-    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_MAXVALUE_TABLE, PRODUCTION_PARTITION_TABLE):
         backend.execute(*_drop_named_table_expression(backend.dialect, table_name).to_sql())
 
 
 async def _async_drop_production_tables(backend):
-    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_PARTITION_TABLE):
+    for table_name in (PRODUCTION_ARCHIVE_TABLE, PRODUCTION_MAXVALUE_TABLE, PRODUCTION_PARTITION_TABLE):
         expr = _drop_named_table_expression(backend.dialect, table_name)
         await backend.execute(*expr.to_sql())
 
@@ -543,6 +626,22 @@ async def async_mysql_production_partition_table(async_mysql_backend):
         PRODUCTION_PARTITIONS,
     )
     yield PRODUCTION_PARTITION_TABLE
+    await _async_drop_production_tables(async_mysql_backend)
+
+
+@pytest.fixture
+def mysql_production_maxvalue_partition_table(mysql_backend):
+    """Create a production-like table with a MAXVALUE catch-all partition."""
+    _create_production_maxvalue_partitioned_table(mysql_backend)
+    yield PRODUCTION_MAXVALUE_TABLE
+    _drop_production_tables(mysql_backend)
+
+
+@pytest.fixture
+async def async_mysql_production_maxvalue_partition_table(async_mysql_backend):
+    """Create the async production-like table with a MAXVALUE catch-all partition."""
+    await _async_create_production_maxvalue_partitioned_table(async_mysql_backend)
+    yield PRODUCTION_MAXVALUE_TABLE
     await _async_drop_production_tables(async_mysql_backend)
 
 
@@ -632,6 +731,99 @@ class TestMySQLPartitionOperations:
 
 class TestMySQLProductionTimePartitionOperations:
     """Synchronous production-style time partition operation scenarios."""
+
+    def test_maxvalue_catch_all_partition_can_be_split_for_future_traffic(
+        self,
+        mysql_backend,
+        mysql_production_maxvalue_partition_table,
+    ):
+        """Use MAXVALUE as a catch-all partition and split it later.
+
+                Scenario: operators keep a `pmax` catch-all partition so unexpected future
+                timestamps remain writable while alerting metadata still exposes the
+                operational debt.
+
+                Steps: create `p2026` plus `pmax`, insert one 2026 row and one far-future
+                row, inspect EXPLAIN partition pruning for the future row, then reorganize
+                `pmax` into `p2027` plus a new `pmax`.
+
+                Assertions: metadata includes `MAXVALUE`; far-future data routes through
+                `pmax` before the split; after reorganization, 2027 data moves to `p2027`
+                while future rows beyond 2027 remain queryable through the catch-all.
+
+                Production value: this documents the safer MySQL runbook for catch-all
+                traffic and the follow-up maintenance path that turns emergency overflow
+                into explicit future ranges.
+        """
+        assert mysql_production_maxvalue_partition_table == PRODUCTION_MAXVALUE_TABLE
+        metadata = mysql_backend.fetch_all(
+            *_partition_metadata_expression_for_table(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+            ).to_sql()
+        )
+        _assert_partition_metadata(metadata, ["p2026", "pmax"])
+        assert any("MAXVALUE" in str(row["description"]).upper() for row in metadata)
+
+        mysql_backend.execute(
+            *_insert_production_events_into_expression(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                [
+                    [101, datetime(2026, 6, 1), 10, "regular-year"],
+                    [102, datetime(2035, 1, 1), 10, "catch-all"],
+                ],
+            ).to_sql()
+        )
+        future_rows = mysql_backend.fetch_all(
+            *_select_production_payloads_from_expression(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                datetime(2030, 1, 1),
+                datetime(2040, 1, 1),
+                tenant_id=10,
+            ).to_sql()
+        )
+        assert [row["payload"] for row in future_rows] == ["catch-all"]
+
+        result = mysql_backend.explain(
+            _production_range_query_for_table_expression(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                datetime(2030, 1, 1),
+                datetime(2040, 1, 1),
+                tenant_id=10,
+            )
+        )
+        partitions = set(_collect_explain_partitions(result))
+        if partitions:
+            assert partitions == {"pmax"}
+
+        mysql_backend.execute(*_reorganize_maxvalue_partition_expression(mysql_backend.dialect).to_sql())
+        metadata = mysql_backend.fetch_all(
+            *_partition_metadata_expression_for_table(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+            ).to_sql()
+        )
+        _assert_partition_metadata(metadata, ["p2026", "p2027", "pmax"])
+        mysql_backend.execute(
+            *_insert_production_events_into_expression(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                [[103, datetime(2027, 6, 1), 10, "split-year"]],
+            ).to_sql()
+        )
+        rows = mysql_backend.fetch_all(
+            *_select_production_payloads_from_expression(
+                mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                datetime(2027, 1, 1),
+                datetime(2040, 1, 1),
+                tenant_id=10,
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["catch-all", "split-year"]
 
     def test_initial_year_partition_uses_microsecond_boundaries(
         self,
@@ -865,6 +1057,102 @@ class TestMySQLProductionTimePartitionOperations:
 
 class TestAsyncMySQLProductionTimePartitionOperations:
     """Asynchronous production-style time partition operation scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_maxvalue_catch_all_partition_can_be_split_for_future_traffic(
+        self,
+        async_mysql_backend,
+        async_mysql_production_maxvalue_partition_table,
+    ):
+        """Use MAXVALUE as a catch-all partition and split it later.
+
+                Scenario: operators keep a `pmax` catch-all partition so unexpected future
+                timestamps remain writable while alerting metadata still exposes the
+                operational debt.
+
+                Steps: create `p2026` plus `pmax`, insert one 2026 row and one far-future
+                row, inspect EXPLAIN partition pruning for the future row, then reorganize
+                `pmax` into `p2027` plus a new `pmax`.
+
+                Assertions: metadata includes `MAXVALUE`; far-future data routes through
+                `pmax` before the split; after reorganization, 2027 data moves to `p2027`
+                while future rows beyond 2027 remain queryable through the catch-all.
+
+                Production value: this documents the safer MySQL runbook for catch-all
+                traffic and the follow-up maintenance path that turns emergency overflow
+                into explicit future ranges.
+        """
+        assert async_mysql_production_maxvalue_partition_table == PRODUCTION_MAXVALUE_TABLE
+        metadata = await async_mysql_backend.fetch_all(
+            *_partition_metadata_expression_for_table(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+            ).to_sql()
+        )
+        _assert_partition_metadata(metadata, ["p2026", "pmax"])
+        assert any("MAXVALUE" in str(row["description"]).upper() for row in metadata)
+
+        await async_mysql_backend.execute(
+            *_insert_production_events_into_expression(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                [
+                    [101, datetime(2026, 6, 1), 10, "regular-year"],
+                    [102, datetime(2035, 1, 1), 10, "catch-all"],
+                ],
+            ).to_sql()
+        )
+        future_rows = await async_mysql_backend.fetch_all(
+            *_select_production_payloads_from_expression(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                datetime(2030, 1, 1),
+                datetime(2040, 1, 1),
+                tenant_id=10,
+            ).to_sql()
+        )
+        assert [row["payload"] for row in future_rows] == ["catch-all"]
+
+        result = await async_mysql_backend.explain(
+            _production_range_query_for_table_expression(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                datetime(2030, 1, 1),
+                datetime(2040, 1, 1),
+                tenant_id=10,
+            )
+        )
+        partitions = set(_collect_explain_partitions(result))
+        if partitions:
+            assert partitions == {"pmax"}
+
+        await async_mysql_backend.execute(
+            *_reorganize_maxvalue_partition_expression(async_mysql_backend.dialect).to_sql()
+        )
+        metadata = await async_mysql_backend.fetch_all(
+            *_partition_metadata_expression_for_table(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+            ).to_sql()
+        )
+        _assert_partition_metadata(metadata, ["p2026", "p2027", "pmax"])
+        await async_mysql_backend.execute(
+            *_insert_production_events_into_expression(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                [[103, datetime(2027, 6, 1), 10, "split-year"]],
+            ).to_sql()
+        )
+        rows = await async_mysql_backend.fetch_all(
+            *_select_production_payloads_from_expression(
+                async_mysql_backend.dialect,
+                PRODUCTION_MAXVALUE_TABLE,
+                datetime(2027, 1, 1),
+                datetime(2040, 1, 1),
+                tenant_id=10,
+            ).to_sql()
+        )
+        assert [row["payload"] for row in rows] == ["catch-all", "split-year"]
 
     @pytest.mark.asyncio
     async def test_initial_year_partition_uses_microsecond_boundaries(
