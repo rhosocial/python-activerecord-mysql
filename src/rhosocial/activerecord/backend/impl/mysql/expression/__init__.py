@@ -53,6 +53,23 @@ from .optimizer_hint import (
     SetVarHint,
     OptimizerHintType,
 )
+from .partition import (
+    MySQLPartitionStrategy,
+    MySQLPartitionClause,
+    MySQLPartitionMaxValue,
+    MySQLPartitionValue,
+    MySQLPartitionDefinition,
+    MySQLPartitionByRange,
+    MySQLPartitionByRangeColumns,
+    MySQLPartitionByList,
+    MySQLPartitionByListColumns,
+    MySQLPartitionByHash,
+    MySQLPartitionByKey,
+    MySQLAddPartitionExpression,
+    MySQLDropPartitionExpression,
+    MySQLTruncatePartitionExpression,
+    MySQLReorganizePartitionExpression,
+)
 
 __all__ = [
     "MySQLLoadDataExpression",
@@ -85,4 +102,19 @@ __all__ = [
     "MySQLOptimizerHintExpression",
     "SetVarHint",
     "OptimizerHintType",
+    "MySQLPartitionStrategy",
+    "MySQLPartitionClause",
+    "MySQLPartitionMaxValue",
+    "MySQLPartitionValue",
+    "MySQLPartitionDefinition",
+    "MySQLPartitionByRange",
+    "MySQLPartitionByRangeColumns",
+    "MySQLPartitionByList",
+    "MySQLPartitionByListColumns",
+    "MySQLPartitionByHash",
+    "MySQLPartitionByKey",
+    "MySQLAddPartitionExpression",
+    "MySQLDropPartitionExpression",
+    "MySQLTruncatePartitionExpression",
+    "MySQLReorganizePartitionExpression",
 ]

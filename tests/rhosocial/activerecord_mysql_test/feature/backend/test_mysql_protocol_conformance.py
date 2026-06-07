@@ -77,6 +77,7 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.LockingSupport,
     dialect_protocols.MergeSupport,
     dialect_protocols.OrderedSetAggregationSupport,
+    dialect_protocols.PartitionSupport,
     dialect_protocols.QualifyClauseSupport,
     dialect_protocols.TemporalTableSupport,
     dialect_protocols.UpsertSupport,
@@ -105,6 +106,7 @@ MYSQL_PROTOCOLS = [
     mysql_protocols.MySQLModifyColumnSupport,
     mysql_protocols.MySQLJsonDualityViewSupport,
     mysql_protocols.MySQLOptimizerHintSupport,
+    mysql_protocols.MySQLPartitionSupport,
 ]
 
 
@@ -143,6 +145,11 @@ class TestProtocolNonOverlap:
             ("MySQLLockingSupport", "LockingSupport"),
             ("TableSupport", "MySQLTableSupport"),
             ("MySQLTableSupport", "TableSupport"),
+            # Partitioning extends table DDL capabilities.
+            ("TableSupport", "PartitionSupport"),
+            ("PartitionSupport", "TableSupport"),
+            ("PartitionSupport", "MySQLPartitionSupport"),
+            ("MySQLPartitionSupport", "PartitionSupport"),
             # MySQL DML includes upsert capabilities (ON DUPLICATE KEY UPDATE)
             ("UpsertSupport", "MySQLDMLOperationSupport"),
             ("MySQLDMLOperationSupport", "UpsertSupport"),
@@ -174,6 +181,7 @@ class TestMySQLProtocolDerivation:
 
     PROTOCOL_DERIVATIONS = [
         ("MySQLTableSupport", "TableSupport"),
+        ("MySQLPartitionSupport", "PartitionSupport"),
         ("MySQLLockingSupport", "LockingSupport"),
         ("MySQLJSONFunctionSupport", "JSONSupport"),
     ]
@@ -221,6 +229,12 @@ class TestMySQLExpressionDialectSeparation:
         ("MySQLDistanceDotExpression", "format_distance_dot"),
         ("MySQLMatchAgainstExpression", "format_match_against"),
         ("MySQLOptimizerHintExpression", "format_optimizer_hint"),
+        ("MySQLPartitionMaxValue", "format_partition_value"),
+        ("MySQLPartitionValue", "format_partition_value"),
+        ("MySQLAddPartitionExpression", "format_add_partition_statement"),
+        ("MySQLDropPartitionExpression", "format_drop_partition_statement"),
+        ("MySQLTruncatePartitionExpression", "format_truncate_partition_statement"),
+        ("MySQLReorganizePartitionExpression", "format_reorganize_partition_statement"),
     ]
 
     @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)
@@ -267,6 +281,7 @@ MYSQL_PROTOCOL_MIXIN_PAIRS = [
     (mysql_protocols.MySQLModifyColumnSupport, mysql_mixins.MySQLModifyColumnMixin),
     (mysql_protocols.MySQLJsonDualityViewSupport, mysql_mixins.MySQLJsonDualityViewMixin),
     (mysql_protocols.MySQLOptimizerHintSupport, mysql_mixins.MySQLOptimizerHintMixin),
+    (mysql_protocols.MySQLPartitionSupport, mysql_mixins.MySQLPartitionMixin),
 ]
 
 

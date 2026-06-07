@@ -17,10 +17,26 @@ if TYPE_CHECKING:
         ModifyColumn,
         ChangeColumn,
     )
+    from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        MySQLAddPartitionExpression,
+        MySQLDropPartitionExpression,
+        MySQLPartitionByHash,
+        MySQLPartitionByKey,
+        MySQLPartitionByList,
+        MySQLPartitionByListColumns,
+        MySQLPartitionByRange,
+        MySQLPartitionByRangeColumns,
+        MySQLPartitionDefinition,
+        MySQLPartitionMaxValue,
+        MySQLPartitionValue,
+        MySQLReorganizePartitionExpression,
+        MySQLTruncatePartitionExpression,
+    )
 
 from rhosocial.activerecord.backend.dialect.protocols import (
     JSONSupport,
     LockingSupport,
+    PartitionSupport,
     TableSupport,
 )
 
@@ -260,6 +276,131 @@ class MySQLTableSupport(TableSupport, Protocol):
                 - 'row_format': Row format (DYNAMIC, COMPACT, etc.)
                 Example: dialect_options={'engine': 'InnoDB', 'charset': 'utf8mb4'}
         """
+        ...
+
+
+@runtime_checkable
+class MySQLPartitionSupport(PartitionSupport, Protocol):
+    """MySQL table partitioning protocol.
+
+    MySQL extends the generic PartitionSupport contract with MySQL-specific
+    partitioning strategies and ALTER TABLE partition maintenance statements.
+    Executable maintenance statements are represented by MySQL-specific
+    expressions and formatted by the methods declared here.
+    """
+
+    def supports_range_columns_partitioning(self) -> bool:
+        """Whether RANGE COLUMNS partitioning is supported."""
+        ...
+
+    def supports_list_columns_partitioning(self) -> bool:
+        """Whether LIST COLUMNS partitioning is supported."""
+        ...
+
+    def supports_key_table_partitioning(self) -> bool:
+        """Whether KEY partitioning is supported."""
+        ...
+
+    def supports_linear_hash_partitioning(self) -> bool:
+        """Whether LINEAR HASH partitioning is supported."""
+        ...
+
+    def supports_linear_key_partitioning(self) -> bool:
+        """Whether LINEAR KEY partitioning is supported."""
+        ...
+
+    def supports_partition_definition_options(self) -> bool:
+        """Whether partition definitions support extra MySQL options."""
+        ...
+
+    def supports_partition_value_maxvalue(self) -> bool:
+        """Whether MAXVALUE partition boundary token is supported."""
+        ...
+
+    def supports_remove_partitioning(self) -> bool:
+        """Whether ALTER TABLE ... REMOVE PARTITIONING is supported."""
+        ...
+
+    def supports_coalesce_partition(self) -> bool:
+        """Whether ALTER TABLE ... COALESCE PARTITION is supported."""
+        ...
+
+    def supports_exchange_partition(self) -> bool:
+        """Whether ALTER TABLE ... EXCHANGE PARTITION is supported."""
+        ...
+
+    def supports_analyze_partition(self) -> bool:
+        """Whether ALTER TABLE ... ANALYZE PARTITION is supported."""
+        ...
+
+    def supports_check_partition(self) -> bool:
+        """Whether ALTER TABLE ... CHECK PARTITION is supported."""
+        ...
+
+    def supports_optimize_partition(self) -> bool:
+        """Whether ALTER TABLE ... OPTIMIZE PARTITION is supported."""
+        ...
+
+    def supports_rebuild_partition(self) -> bool:
+        """Whether ALTER TABLE ... REBUILD PARTITION is supported."""
+        ...
+
+    def supports_repair_partition(self) -> bool:
+        """Whether ALTER TABLE ... REPAIR PARTITION is supported."""
+        ...
+
+    def format_partition_definition(self, definition: "MySQLPartitionDefinition") -> Tuple[str, tuple]:
+        """Format a MySQL PARTITION definition."""
+        ...
+
+    def format_partition_value(
+        self,
+        expr: "MySQLPartitionValue | MySQLPartitionMaxValue",
+    ) -> Tuple[str, tuple]:
+        """Format a MySQL partition boundary value."""
+        ...
+
+    def format_partition_by_range(self, expr: "MySQLPartitionByRange") -> Tuple[str, tuple]:
+        """Format PARTITION BY RANGE."""
+        ...
+
+    def format_partition_by_range_columns(self, expr: "MySQLPartitionByRangeColumns") -> Tuple[str, tuple]:
+        """Format PARTITION BY RANGE COLUMNS."""
+        ...
+
+    def format_partition_by_list(self, expr: "MySQLPartitionByList") -> Tuple[str, tuple]:
+        """Format PARTITION BY LIST."""
+        ...
+
+    def format_partition_by_list_columns(self, expr: "MySQLPartitionByListColumns") -> Tuple[str, tuple]:
+        """Format PARTITION BY LIST COLUMNS."""
+        ...
+
+    def format_partition_by_hash(self, expr: "MySQLPartitionByHash") -> Tuple[str, tuple]:
+        """Format PARTITION BY HASH or LINEAR HASH."""
+        ...
+
+    def format_partition_by_key(self, expr: "MySQLPartitionByKey") -> Tuple[str, tuple]:
+        """Format PARTITION BY KEY or LINEAR KEY."""
+        ...
+
+    def format_add_partition_statement(self, expr: "MySQLAddPartitionExpression") -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... ADD PARTITION."""
+        ...
+
+    def format_drop_partition_statement(self, expr: "MySQLDropPartitionExpression") -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... DROP PARTITION."""
+        ...
+
+    def format_truncate_partition_statement(self, expr: "MySQLTruncatePartitionExpression") -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... TRUNCATE PARTITION."""
+        ...
+
+    def format_reorganize_partition_statement(
+        self,
+        expr: "MySQLReorganizePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REORGANIZE PARTITION."""
         ...
 
 

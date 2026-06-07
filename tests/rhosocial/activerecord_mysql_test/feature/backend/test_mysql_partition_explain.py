@@ -8,105 +8,136 @@ from typing import Optional
 
 import pytest
 
-from rhosocial.activerecord.backend.expression import RawSQLExpression
+from rhosocial.activerecord.backend.expression import (
+    Column,
+    ColumnDefinition,
+    CreateTableExpression,
+    DropTableExpression,
+    IndexDefinition,
+    InsertExpression,
+    Literal,
+    QueryExpression,
+    TableExpression,
+    ValuesSource,
+    WildcardExpression,
+)
 from rhosocial.activerecord.backend.impl.mysql import MySQLExplainResult, MySQLExplainRow
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLPartitionByRangeColumns,
+    MySQLPartitionDefinition,
+    MySQLPartitionValue,
+)
 
 
 PARTITION_EXPLAIN_TABLE = "ar_mysql_partition_explain_events"
 
 
+def _partition_value(dialect, value):
+    return MySQLPartitionValue(dialect, value)
+
+
+def _drop_partition_explain_table_expression(dialect):
+    return DropTableExpression(dialect=dialect, table=PARTITION_EXPLAIN_TABLE, if_exists=True)
+
+
+def _create_partition_explain_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=PARTITION_EXPLAIN_TABLE,
+        columns=[
+            ColumnDefinition("id", "BIGINT NOT NULL"),
+            ColumnDefinition("tenant_id", "BIGINT NOT NULL"),
+            ColumnDefinition("created_at", "DATETIME NOT NULL"),
+            ColumnDefinition("payload", "VARCHAR(255)"),
+        ],
+        indexes=[
+            IndexDefinition(name="idx_created_at", columns=["created_at"]),
+            IndexDefinition(
+                name="idx_tenant_created_at",
+                columns=["tenant_id", "created_at"],
+            ),
+            IndexDefinition(name="idx_id", columns=["id"]),
+        ],
+        partition=MySQLPartitionByRangeColumns(
+            dialect=dialect,
+            keys=[Column(dialect, "created_at")],
+            partitions=[
+                MySQLPartitionDefinition(
+                    name="p2026_01",
+                    less_than=[_partition_value(dialect, "2026-02-01")],
+                ),
+                MySQLPartitionDefinition(
+                    name="p2026_02",
+                    less_than=[_partition_value(dialect, "2026-03-01")],
+                ),
+                MySQLPartitionDefinition(
+                    name="p2026_03",
+                    less_than=[_partition_value(dialect, "2026-04-01")],
+                ),
+            ],
+        ),
+    )
+
+
+def _seed_partition_explain_rows_expression(dialect):
+    rows = [
+        [1, 100, datetime(2026, 1, 15), "jan"],
+        [2, 100, datetime(2026, 2, 15), "feb"],
+        [3, 200, datetime(2026, 3, 15), "mar"],
+    ]
+    return InsertExpression(
+        dialect=dialect,
+        into=PARTITION_EXPLAIN_TABLE,
+        columns=["id", "tenant_id", "created_at", "payload"],
+        source=ValuesSource(
+            dialect,
+            [[Literal(dialect, value) for value in row] for row in rows],
+        ),
+    )
+
+
+def _partition_range_query_expression(dialect, start, end):
+    return QueryExpression(
+        dialect,
+        select=[WildcardExpression(dialect)],
+        from_=TableExpression(dialect, PARTITION_EXPLAIN_TABLE),
+        where=(Column(dialect, "created_at") >= Literal(dialect, start))
+        & (Column(dialect, "created_at") < Literal(dialect, end)),
+    )
+
+
+def _full_scan_query_expression(dialect):
+    return QueryExpression(
+        dialect,
+        select=[WildcardExpression(dialect)],
+        from_=TableExpression(dialect, PARTITION_EXPLAIN_TABLE),
+    )
+
+
 def _drop_partition_explain_table(backend):
-    backend.execute(f"DROP TABLE IF EXISTS `{PARTITION_EXPLAIN_TABLE}`")
+    backend.execute(*_drop_partition_explain_table_expression(backend.dialect).to_sql())
 
 
 async def _async_drop_partition_explain_table(backend):
-    await backend.execute(f"DROP TABLE IF EXISTS `{PARTITION_EXPLAIN_TABLE}`")
+    await backend.execute(*_drop_partition_explain_table_expression(backend.dialect).to_sql())
 
 
 def _create_partition_explain_table(backend):
     _drop_partition_explain_table(backend)
-    backend.execute(f"""
-        CREATE TABLE `{PARTITION_EXPLAIN_TABLE}` (
-            id BIGINT NOT NULL,
-            tenant_id BIGINT NOT NULL,
-            created_at DATETIME NOT NULL,
-            payload VARCHAR(255),
-            KEY idx_created_at (created_at),
-            KEY idx_tenant_created_at (tenant_id, created_at),
-            KEY idx_id (id)
-        )
-        PARTITION BY RANGE COLUMNS (created_at) (
-            PARTITION p2026_01 VALUES LESS THAN ('2026-02-01'),
-            PARTITION p2026_02 VALUES LESS THAN ('2026-03-01'),
-            PARTITION p2026_03 VALUES LESS THAN ('2026-04-01')
-        )
-    """)
+    backend.execute(*_create_partition_explain_table_expression(backend.dialect).to_sql())
 
 
 async def _async_create_partition_explain_table(backend):
     await _async_drop_partition_explain_table(backend)
-    await backend.execute(f"""
-        CREATE TABLE `{PARTITION_EXPLAIN_TABLE}` (
-            id BIGINT NOT NULL,
-            tenant_id BIGINT NOT NULL,
-            created_at DATETIME NOT NULL,
-            payload VARCHAR(255),
-            KEY idx_created_at (created_at),
-            KEY idx_tenant_created_at (tenant_id, created_at),
-            KEY idx_id (id)
-        )
-        PARTITION BY RANGE COLUMNS (created_at) (
-            PARTITION p2026_01 VALUES LESS THAN ('2026-02-01'),
-            PARTITION p2026_02 VALUES LESS THAN ('2026-03-01'),
-            PARTITION p2026_03 VALUES LESS THAN ('2026-04-01')
-        )
-    """)
+    await backend.execute(*_create_partition_explain_table_expression(backend.dialect).to_sql())
 
 
 def _seed_partition_explain_rows(backend):
-    backend.execute(
-        f"""
-        INSERT INTO `{PARTITION_EXPLAIN_TABLE}` (id, tenant_id, created_at, payload)
-        VALUES (%s, %s, %s, %s), (%s, %s, %s, %s), (%s, %s, %s, %s)
-        """,
-        (
-            1,
-            100,
-            datetime(2026, 1, 15),
-            "jan",
-            2,
-            100,
-            datetime(2026, 2, 15),
-            "feb",
-            3,
-            200,
-            datetime(2026, 3, 15),
-            "mar",
-        ),
-    )
+    backend.execute(*_seed_partition_explain_rows_expression(backend.dialect).to_sql())
 
 
 async def _async_seed_partition_explain_rows(backend):
-    await backend.execute(
-        f"""
-        INSERT INTO `{PARTITION_EXPLAIN_TABLE}` (id, tenant_id, created_at, payload)
-        VALUES (%s, %s, %s, %s), (%s, %s, %s, %s), (%s, %s, %s, %s)
-        """,
-        (
-            1,
-            100,
-            datetime(2026, 1, 15),
-            "jan",
-            2,
-            100,
-            datetime(2026, 2, 15),
-            "feb",
-            3,
-            200,
-            datetime(2026, 3, 15),
-            "mar",
-        ),
-    )
+    await backend.execute(*_seed_partition_explain_rows_expression(backend.dialect).to_sql())
 
 
 def _split_partitions(value: Optional[str]) -> list[str]:
@@ -162,12 +193,10 @@ class TestMySQLPartitionExplain:
     ):
         """Range predicate on partition key should expose the pruned partition."""
         dialect = mysql_partition_explain_backend.dialect
-        expr = RawSQLExpression(
+        expr = _partition_range_query_expression(
             dialect,
-            f"""
-            SELECT * FROM `{PARTITION_EXPLAIN_TABLE}`
-            WHERE created_at >= '2026-02-01' AND created_at < '2026-03-01'
-            """,
+            datetime(2026, 2, 1),
+            datetime(2026, 3, 1),
         )
 
         result = mysql_partition_explain_backend.explain(expr)
@@ -181,7 +210,7 @@ class TestMySQLPartitionExplain:
         """Full table scan may report all partitions or NULL depending on MySQL version."""
         dialect = mysql_partition_explain_backend.dialect
         result = mysql_partition_explain_backend.explain(
-            RawSQLExpression(dialect, f"SELECT * FROM `{PARTITION_EXPLAIN_TABLE}`")
+            _full_scan_query_expression(dialect)
         )
 
         _assert_explain_result_shape(result)
@@ -193,12 +222,10 @@ class TestMySQLPartitionExplain:
         """MySQLExplainRow should retain the native EXPLAIN partitions field."""
         dialect = mysql_partition_explain_backend.dialect
         result = mysql_partition_explain_backend.explain(
-            RawSQLExpression(
+            _partition_range_query_expression(
                 dialect,
-                f"""
-                SELECT * FROM `{PARTITION_EXPLAIN_TABLE}`
-                WHERE created_at >= '2026-01-01' AND created_at < '2026-02-01'
-                """,
+                datetime(2026, 1, 1),
+                datetime(2026, 2, 1),
             )
         )
 
@@ -219,12 +246,10 @@ class TestAsyncMySQLPartitionExplain:
     ):
         """Range predicate on partition key should expose the pruned partition."""
         dialect = async_mysql_partition_explain_backend.dialect
-        expr = RawSQLExpression(
+        expr = _partition_range_query_expression(
             dialect,
-            f"""
-            SELECT * FROM `{PARTITION_EXPLAIN_TABLE}`
-            WHERE created_at >= '2026-02-01' AND created_at < '2026-03-01'
-            """,
+            datetime(2026, 2, 1),
+            datetime(2026, 3, 1),
         )
 
         result = await async_mysql_partition_explain_backend.explain(expr)
@@ -239,7 +264,7 @@ class TestAsyncMySQLPartitionExplain:
         """Full table scan may report all partitions or NULL depending on MySQL version."""
         dialect = async_mysql_partition_explain_backend.dialect
         result = await async_mysql_partition_explain_backend.explain(
-            RawSQLExpression(dialect, f"SELECT * FROM `{PARTITION_EXPLAIN_TABLE}`")
+            _full_scan_query_expression(dialect)
         )
 
         _assert_explain_result_shape(result)
@@ -255,12 +280,10 @@ class TestAsyncMySQLPartitionExplain:
         """MySQLExplainRow should retain the native EXPLAIN partitions field."""
         dialect = async_mysql_partition_explain_backend.dialect
         result = await async_mysql_partition_explain_backend.explain(
-            RawSQLExpression(
+            _partition_range_query_expression(
                 dialect,
-                f"""
-                SELECT * FROM `{PARTITION_EXPLAIN_TABLE}`
-                WHERE created_at >= '2026-01-01' AND created_at < '2026-02-01'
-                """,
+                datetime(2026, 1, 1),
+                datetime(2026, 2, 1),
             )
         )
 

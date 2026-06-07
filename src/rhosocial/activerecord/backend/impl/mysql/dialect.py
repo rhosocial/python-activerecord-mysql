@@ -65,6 +65,7 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TableMixin,
     ConstraintMixin,
     IntrospectionMixin,
+    PartitionMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
@@ -80,6 +81,7 @@ from .protocols import (
     MySQLModifyColumnSupport,
     MySQLJsonDualityViewSupport,
     MySQLOptimizerHintSupport,
+    MySQLPartitionSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -96,6 +98,7 @@ from .mixins import (
     MySQLModifyColumnMixin,
     MySQLJsonDualityViewMixin,
     MySQLOptimizerHintMixin,
+    MySQLPartitionMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -144,6 +147,8 @@ class MySQLDialect(
     SchemaMixin,
     IndexMixin,
     SequenceMixin,
+    MySQLPartitionMixin,
+    PartitionMixin,
     TableMixin,
     ConstraintMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
@@ -202,6 +207,7 @@ class MySQLDialect(
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
     MySQLJsonDualityViewSupport,  # MySQL 9.7+ JSON Duality Views
     MySQLOptimizerHintSupport,  # MySQL optimizer hints
+    MySQLPartitionSupport,  # MySQL table partitioning
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
@@ -745,10 +751,6 @@ class MySQLDialect(
         """Whether TEMPORARY tables are supported."""
         return True
 
-    def supports_table_partitioning(self) -> bool:
-        """Whether table partitioning is supported."""
-        return True  # MySQL supports partitioning
-
     def format_create_table_statement(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """
         Format CREATE TABLE statement for MySQL.
@@ -814,6 +816,13 @@ class MySQLDialect(
         if "comment" in expr.dialect_options:
             escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
             parts.append(f"COMMENT '{escaped_comment}'")
+
+        # Add partition clause generated through PartitionClause expression.
+        if expr.partition is not None:
+            partition_sql, partition_params = expr.partition.to_sql()
+            if partition_sql:
+                parts.append(partition_sql.strip())
+                all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
 
