@@ -81,6 +81,85 @@ async def _async_partition_names(backend):
     return [row["name"] for row in rows]
 
 
+def _partition_metadata(backend):
+    return backend.fetch_all(
+        """
+        SELECT PARTITION_NAME AS name,
+               PARTITION_METHOD AS method,
+               PARTITION_EXPRESSION AS expression,
+               PARTITION_DESCRIPTION AS description,
+               TABLE_ROWS AS table_rows,
+               DATA_LENGTH AS data_length,
+               INDEX_LENGTH AS index_length
+        FROM information_schema.PARTITIONS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = %s
+          AND PARTITION_NAME IS NOT NULL
+        ORDER BY PARTITION_NAME
+        """,
+        (PARTITION_TABLE,),
+    )
+
+
+async def _async_partition_metadata(backend):
+    return await backend.fetch_all(
+        """
+        SELECT PARTITION_NAME AS name,
+               PARTITION_METHOD AS method,
+               PARTITION_EXPRESSION AS expression,
+               PARTITION_DESCRIPTION AS description,
+               TABLE_ROWS AS table_rows,
+               DATA_LENGTH AS data_length,
+               INDEX_LENGTH AS index_length
+        FROM information_schema.PARTITIONS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = %s
+          AND PARTITION_NAME IS NOT NULL
+        ORDER BY PARTITION_NAME
+        """,
+        (PARTITION_TABLE,),
+    )
+
+
+def _assert_base_partition_metadata(rows):
+    assert [row["name"] for row in rows] == ["p2026_01", "p2026_02"]
+
+    by_name = {row["name"]: row for row in rows}
+    for row in rows:
+        assert "RANGE" in str(row["method"]).upper()
+        assert "created_at" in str(row["expression"]).lower()
+        assert "table_rows" in row
+        assert "data_length" in row
+        assert "index_length" in row
+
+    assert "2026-02-01" in str(by_name["p2026_01"]["description"])
+    assert "2026-03-01" in str(by_name["p2026_02"]["description"])
+
+
+def _show_create_table_sql(backend):
+    row = backend.fetch_one(f"SHOW CREATE TABLE `{PARTITION_TABLE}`")
+    return row.get("Create Table") or row.get("create table")
+
+
+async def _async_show_create_table_sql(backend):
+    row = await backend.fetch_one(f"SHOW CREATE TABLE `{PARTITION_TABLE}`")
+    return row.get("Create Table") or row.get("create table")
+
+
+def _assert_show_create_table_includes_partition_definition(create_sql):
+    assert create_sql
+    upper_sql = create_sql.upper()
+    lower_sql = create_sql.lower()
+
+    assert "PARTITION BY RANGE" in upper_sql
+    assert "created_at" in lower_sql
+    assert "p2026_01" in create_sql
+    assert "p2026_02" in create_sql
+    assert "VALUES LESS THAN" in upper_sql
+    assert "2026-02-01" in create_sql
+    assert "2026-03-01" in create_sql
+
+
 @pytest.fixture
 def mysql_partitioned_table(mysql_backend):
     """Create a real RANGE-partitioned MySQL table."""
@@ -104,6 +183,14 @@ class TestMySQLPartitionOperations:
         """information_schema.PARTITIONS should expose created partitions."""
         assert mysql_partitioned_table == PARTITION_TABLE
         assert _partition_names(mysql_backend) == ["p2026_01", "p2026_02"]
+
+    def test_partition_metadata_contains_strategy_key_and_bounds(self, mysql_backend, mysql_partitioned_table):
+        """information_schema.PARTITIONS should expose strategy, key, and bounds."""
+        _assert_base_partition_metadata(_partition_metadata(mysql_backend))
+
+    def test_show_create_table_includes_partition_definition(self, mysql_backend, mysql_partitioned_table):
+        """SHOW CREATE TABLE should include the native partition definition."""
+        _assert_show_create_table_includes_partition_definition(_show_create_table_sql(mysql_backend))
 
     def test_insert_across_partitions_and_query(self, mysql_backend, mysql_partitioned_table):
         """Rows inserted across ranges should remain queryable through parent table."""
@@ -163,6 +250,25 @@ class TestAsyncMySQLPartitionOperations:
         """information_schema.PARTITIONS should expose created partitions."""
         assert async_mysql_partitioned_table == PARTITION_TABLE
         assert await _async_partition_names(async_mysql_backend) == ["p2026_01", "p2026_02"]
+
+    @pytest.mark.asyncio
+    async def test_partition_metadata_contains_strategy_key_and_bounds(
+        self,
+        async_mysql_backend,
+        async_mysql_partitioned_table,
+    ):
+        """information_schema.PARTITIONS should expose strategy, key, and bounds."""
+        _assert_base_partition_metadata(await _async_partition_metadata(async_mysql_backend))
+
+    @pytest.mark.asyncio
+    async def test_show_create_table_includes_partition_definition(
+        self,
+        async_mysql_backend,
+        async_mysql_partitioned_table,
+    ):
+        """SHOW CREATE TABLE should include the native partition definition."""
+        create_sql = await _async_show_create_table_sql(async_mysql_backend)
+        _assert_show_create_table_includes_partition_definition(create_sql)
 
     @pytest.mark.asyncio
     async def test_insert_across_partitions_and_query(
