@@ -190,13 +190,19 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
         return tuple(result)
 
     async def _setup_model_async(
-        self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str
+        self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str, shared_backend=None
     ) -> Type[ActiveRecord]:
         """A generic helper method to handle the setup for any given async model."""
         from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
 
         _, config = get_scenario(scenario_name)
-        await model_class.configure(config, AsyncMySQLBackend)
+
+        if shared_backend is None:
+            await model_class.configure(config, AsyncMySQLBackend)
+        else:
+            model_class.__connection_config__ = config
+            model_class.__backend_class__ = AsyncMySQLBackend
+            model_class.__backend__ = shared_backend
 
         backend_instance = model_class.__backend__
         if backend_instance not in self._active_backends:
@@ -227,7 +233,7 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
                 model_class.__connection_config__ = configured_model.__connection_config__
                 model_class.__backend_class__ = type(shared_backend)
                 model_class.__backend__ = shared_backend
-                configured_model = await self._setup_model_async(model_class, scenario_name, table_name)
+                configured_model = await self._setup_model_async(model_class, scenario_name, table_name, shared_backend)
             result.append(configured_model)
         return tuple(result)
 
@@ -323,11 +329,8 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
         """Sets up the database for the async blog-related models (AsyncUser, AsyncPost, AsyncComment) tests."""
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_blog_models import (
-            AsyncUser,
-            AsyncPost,
-            AsyncComment,
-        )
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_blog_models import AsyncPost, AsyncComment
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import AsyncUser
 
         return await self._setup_multiple_models_async(
             [(AsyncUser, "users"), (AsyncPost, "posts"), (AsyncComment, "comments")], scenario_name

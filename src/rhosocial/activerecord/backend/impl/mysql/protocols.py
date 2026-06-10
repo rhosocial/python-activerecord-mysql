@@ -354,6 +354,10 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format a MySQL PARTITION definition."""
         ...
 
+    def format_partition_definition_options(self, options: dict) -> Tuple[str, tuple]:
+        """Format MySQL PARTITION definition options."""
+        ...
+
     def format_partition_value(
         self,
         expr: "MySQLPartitionValue | MySQLPartitionMaxValue",
@@ -409,6 +413,55 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         expr: "MySQLExchangePartitionExpression",
     ) -> Tuple[str, tuple]:
         """Format ALTER TABLE ... EXCHANGE PARTITION."""
+        ...
+
+    def format_remove_partitioning_statement(
+        self,
+        expr: "MySQLRemovePartitioningExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REMOVE PARTITIONING."""
+        ...
+
+    def format_coalesce_partition_statement(
+        self,
+        expr: "MySQLCoalescePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... COALESCE PARTITION."""
+        ...
+
+    def format_analyze_partition_statement(
+        self,
+        expr: "MySQLAnalyzePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... ANALYZE PARTITION."""
+        ...
+
+    def format_check_partition_statement(
+        self,
+        expr: "MySQLCheckPartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... CHECK PARTITION."""
+        ...
+
+    def format_optimize_partition_statement(
+        self,
+        expr: "MySQLOptimizePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... OPTIMIZE PARTITION."""
+        ...
+
+    def format_rebuild_partition_statement(
+        self,
+        expr: "MySQLRebuildPartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REBUILD PARTITION."""
+        ...
+
+    def format_repair_partition_statement(
+        self,
+        expr: "MySQLRepairPartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REPAIR PARTITION."""
         ...
 
 

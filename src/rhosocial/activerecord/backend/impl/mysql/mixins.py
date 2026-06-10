@@ -1,7 +1,7 @@
 """MySQL dialect-specific Mixin implementations."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
@@ -40,6 +40,13 @@ if TYPE_CHECKING:
         MySQLExchangePartitionExpression,
         MySQLReorganizePartitionExpression,
         MySQLTruncatePartitionExpression,
+        MySQLRemovePartitioningExpression,
+        MySQLCoalescePartitionExpression,
+        MySQLAnalyzePartitionExpression,
+        MySQLCheckPartitionExpression,
+        MySQLOptimizePartitionExpression,
+        MySQLRebuildPartitionExpression,
+        MySQLRepairPartitionExpression,
     )
 
 
@@ -840,11 +847,11 @@ class MySQLPartitionMixin:
 
     def supports_remove_partitioning(self) -> bool:
         """Whether ALTER TABLE ... REMOVE PARTITIONING is supported."""
-        return False
+        return True
 
     def supports_coalesce_partition(self) -> bool:
         """Whether ALTER TABLE ... COALESCE PARTITION is supported."""
-        return False
+        return True
 
     def supports_exchange_partition(self) -> bool:
         """Whether ALTER TABLE ... EXCHANGE PARTITION is supported."""
@@ -852,23 +859,23 @@ class MySQLPartitionMixin:
 
     def supports_analyze_partition(self) -> bool:
         """Whether ALTER TABLE ... ANALYZE PARTITION is supported."""
-        return False
+        return True
 
     def supports_check_partition(self) -> bool:
         """Whether ALTER TABLE ... CHECK PARTITION is supported."""
-        return False
+        return True
 
     def supports_optimize_partition(self) -> bool:
         """Whether ALTER TABLE ... OPTIMIZE PARTITION is supported."""
-        return False
+        return True
 
     def supports_rebuild_partition(self) -> bool:
         """Whether ALTER TABLE ... REBUILD PARTITION is supported."""
-        return False
+        return True
 
     def supports_repair_partition(self) -> bool:
         """Whether ALTER TABLE ... REPAIR PARTITION is supported."""
-        return False
+        return True
 
     def format_partition_clause(self, expr: "PartitionClause") -> Tuple[str, tuple]:
         """Format MySQL PARTITION BY clause from a PartitionClause expression."""
@@ -1036,6 +1043,10 @@ class MySQLPartitionMixin:
         """Format a MySQL partition definition."""
         params: List[Any] = []
         parts = ["PARTITION", self.format_identifier(definition.name)]
+        if definition.dialect_options:
+            if not self.supports_partition_definition_options():
+                raise UnsupportedFeatureError(self.name, "partition definition options")
+
         if definition.less_than is not None:
             value_sql_parts = []
             for value in definition.less_than:
@@ -1052,6 +1063,49 @@ class MySQLPartitionMixin:
             parts.append(f"VALUES IN ({', '.join(value_sql_parts)})")
         else:
             raise ValueError("Partition definition requires less_than or in_values.")
+        if definition.dialect_options:
+            options_sql, options_params = self.format_partition_definition_options(
+                definition.dialect_options
+            )
+            if options_sql:
+                parts.append(options_sql)
+            params.extend(options_params)
+        return " ".join(parts), tuple(params)
+
+    def format_partition_definition_options(self, options: dict) -> Tuple[str, tuple]:
+        """Format MySQL partition definition options."""
+        if not self.supports_partition_definition_options():
+            raise UnsupportedFeatureError(self.name, "partition definition options")
+
+        parts: List[str] = []
+        params: List[Any] = []
+        allowed_options = {
+            "engine": "ENGINE",
+            "comment": "COMMENT",
+            "data_directory": "DATA DIRECTORY",
+            "index_directory": "INDEX DIRECTORY",
+            "max_rows": "MAX_ROWS",
+            "min_rows": "MIN_ROWS",
+            "tablespace": "TABLESPACE",
+        }
+        for key, value in options.items():
+            normalized = str(key).lower()
+            if normalized not in allowed_options:
+                raise ValueError(f"Unsupported partition definition option: {key}")
+            keyword = allowed_options[normalized]
+            if normalized in {"engine", "tablespace"}:
+                if not isinstance(value, str) or not value:
+                    raise TypeError(f"{key} option must be a non-empty string")
+                parts.append(f"{keyword} {self.format_identifier(value)}")
+            elif normalized in {"comment", "data_directory", "index_directory"}:
+                if not isinstance(value, str):
+                    raise TypeError(f"{key} option must be a string")
+                escaped = self._escape_sql_string(value)
+                parts.append(f"{keyword} '{escaped}'")
+            elif normalized in {"max_rows", "min_rows"}:
+                if not isinstance(value, int) or value < 0:
+                    raise TypeError(f"{key} option must be a non-negative integer")
+                parts.append(f"{keyword} {value}")
         return " ".join(parts), tuple(params)
 
     def format_partition_value(
@@ -1165,6 +1219,87 @@ class MySQLPartitionMixin:
             f"{self.format_identifier(expr.partition)} WITH TABLE {exchange_table_sql} {validation}"
         )
         return sql, tuple(table_params) + tuple(exchange_table_params)
+
+    def _format_partition_name_list(self, partitions: Sequence[str]) -> str:
+        """Format a non-empty partition name list."""
+        if not partitions:
+            raise ValueError("partitions must not be empty")
+        return ", ".join(self.format_identifier(partition) for partition in partitions)
+
+    def format_remove_partitioning_statement(
+        self,
+        expr: "MySQLRemovePartitioningExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REMOVE PARTITIONING."""
+        if not self.supports_remove_partitioning():
+            raise UnsupportedFeatureError(self.name, "REMOVE PARTITIONING")
+        table_sql, table_params = expr.table.to_sql()
+        return f"ALTER TABLE {table_sql} REMOVE PARTITIONING", tuple(table_params)
+
+    def format_coalesce_partition_statement(
+        self,
+        expr: "MySQLCoalescePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... COALESCE PARTITION."""
+        if not self.supports_coalesce_partition():
+            raise UnsupportedFeatureError(self.name, "COALESCE PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        return f"ALTER TABLE {table_sql} COALESCE PARTITION {expr.count}", tuple(table_params)
+
+    def format_analyze_partition_statement(
+        self,
+        expr: "MySQLAnalyzePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... ANALYZE PARTITION."""
+        if not self.supports_analyze_partition():
+            raise UnsupportedFeatureError(self.name, "ANALYZE PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        partitions = self._format_partition_name_list(expr.partitions)
+        return f"ALTER TABLE {table_sql} ANALYZE PARTITION {partitions}", tuple(table_params)
+
+    def format_check_partition_statement(
+        self,
+        expr: "MySQLCheckPartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... CHECK PARTITION."""
+        if not self.supports_check_partition():
+            raise UnsupportedFeatureError(self.name, "CHECK PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        partitions = self._format_partition_name_list(expr.partitions)
+        return f"ALTER TABLE {table_sql} CHECK PARTITION {partitions}", tuple(table_params)
+
+    def format_optimize_partition_statement(
+        self,
+        expr: "MySQLOptimizePartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... OPTIMIZE PARTITION."""
+        if not self.supports_optimize_partition():
+            raise UnsupportedFeatureError(self.name, "OPTIMIZE PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        partitions = self._format_partition_name_list(expr.partitions)
+        return f"ALTER TABLE {table_sql} OPTIMIZE PARTITION {partitions}", tuple(table_params)
+
+    def format_rebuild_partition_statement(
+        self,
+        expr: "MySQLRebuildPartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REBUILD PARTITION."""
+        if not self.supports_rebuild_partition():
+            raise UnsupportedFeatureError(self.name, "REBUILD PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        partitions = self._format_partition_name_list(expr.partitions)
+        return f"ALTER TABLE {table_sql} REBUILD PARTITION {partitions}", tuple(table_params)
+
+    def format_repair_partition_statement(
+        self,
+        expr: "MySQLRepairPartitionExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... REPAIR PARTITION."""
+        if not self.supports_repair_partition():
+            raise UnsupportedFeatureError(self.name, "REPAIR PARTITION")
+        table_sql, table_params = expr.table.to_sql()
+        partitions = self._format_partition_name_list(expr.partitions)
+        return f"ALTER TABLE {table_sql} REPAIR PARTITION {partitions}", tuple(table_params)
 
 
 

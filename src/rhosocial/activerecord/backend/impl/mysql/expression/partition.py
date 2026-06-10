@@ -75,6 +75,11 @@ class MySQLPartitionDefinition:
             raise ValueError("less_than and in_values are mutually exclusive")
         if self.less_than is None and self.in_values is None:
             raise ValueError("partition definition requires less_than or in_values")
+        if self.dialect_options is not None and not isinstance(self.dialect_options, dict):
+            raise TypeError(
+                "dialect_options must be dict or None, "
+                f"got {type(self.dialect_options).__name__}"
+            )
 
 
 class MySQLPartitionClause(PartitionClause):
@@ -253,3 +258,88 @@ class MySQLExchangePartitionExpression(BaseExpression):
 
     def to_sql(self) -> SQLQueryAndParams:
         return self.dialect.format_exchange_partition_statement(self)
+
+
+class MySQLRemovePartitioningExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... REMOVE PARTITIONING``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_remove_partitioning_statement(self)
+
+
+class MySQLCoalescePartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... COALESCE PARTITION``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str, count: int):
+        super().__init__(dialect)
+        if not isinstance(count, int) or count <= 0:
+            raise ValueError("count must be a positive integer")
+        self.table = TableExpression(dialect, table)
+        self.count = count
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_coalesce_partition_statement(self)
+
+
+class MySQLAnalyzePartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... ANALYZE PARTITION``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+        self.partitions = list(partitions)
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_analyze_partition_statement(self)
+
+
+class MySQLCheckPartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... CHECK PARTITION``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+        self.partitions = list(partitions)
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_check_partition_statement(self)
+
+
+class MySQLOptimizePartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... OPTIMIZE PARTITION``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+        self.partitions = list(partitions)
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_optimize_partition_statement(self)
+
+
+class MySQLRebuildPartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... REBUILD PARTITION``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+        self.partitions = list(partitions)
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_rebuild_partition_statement(self)
+
+
+class MySQLRepairPartitionExpression(BaseExpression):
+    """Expression for ``ALTER TABLE ... REPAIR PARTITION``."""
+
+    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+        super().__init__(dialect)
+        self.table = TableExpression(dialect, table)
+        self.partitions = list(partitions)
+
+    def to_sql(self) -> SQLQueryAndParams:
+        return self.dialect.format_repair_partition_statement(self)

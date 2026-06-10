@@ -70,6 +70,13 @@ from .partition import (
     MySQLTruncatePartitionExpression,
     MySQLReorganizePartitionExpression,
     MySQLExchangePartitionExpression,
+    MySQLRemovePartitioningExpression,
+    MySQLCoalescePartitionExpression,
+    MySQLAnalyzePartitionExpression,
+    MySQLCheckPartitionExpression,
+    MySQLOptimizePartitionExpression,
+    MySQLRebuildPartitionExpression,
+    MySQLRepairPartitionExpression,
 )
 
 __all__ = [
@@ -119,4 +126,11 @@ __all__ = [
     "MySQLTruncatePartitionExpression",
     "MySQLReorganizePartitionExpression",
     "MySQLExchangePartitionExpression",
+    "MySQLRemovePartitioningExpression",
+    "MySQLCoalescePartitionExpression",
+    "MySQLAnalyzePartitionExpression",
+    "MySQLCheckPartitionExpression",
+    "MySQLOptimizePartitionExpression",
+    "MySQLRebuildPartitionExpression",
+    "MySQLRepairPartitionExpression",
 ]
