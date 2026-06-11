@@ -1,9 +1,15 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/table.py
 from typing import Any, Dict, List, Tuple
+import re
 
 
 class MySQLTableMixin:
     """MySQL table DDL implementation."""
+
+    @staticmethod
+    def _validate_data_type(data_type: str) -> bool:
+        """Validate data type string, allowing single quotes for MySQL ENUM types."""
+        return bool(re.fullmatch(r"[A-Za-z0-9\s\(\),\']+", data_type))
 
     def supports_table_like_syntax(self) -> bool:
         return True
@@ -83,8 +89,7 @@ class MySQLTableMixin:
 
     def format_column_definition(self, col_def, ColumnConstraintType=None) -> Tuple[str, List[Any]]:
         """Format a single column definition with MySQL-specific syntax."""
-        from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
-        if not SQLDialectBase._validate_data_type(col_def.data_type):
+        if not self._validate_data_type(col_def.data_type):
             raise ValueError(f"Invalid data type: {col_def.data_type}")
         if ColumnConstraintType is None:
             from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType

@@ -333,7 +333,11 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
     def setup_profile_fixtures(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord]]:
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import Profile
+        # Resolve Profile via the relationship descriptor so we get the same
+        # class that batch loading will find (version-specific model files
+        # define their own Profile classes; importing models.Profile would
+        # target the wrong class on Python 3.10+).
+        Profile = User.get_relation('profile').get_related_model(User)
 
         return self._setup_multiple_models([(User, "users"), (Profile, "profiles")], scenario_name)
 
