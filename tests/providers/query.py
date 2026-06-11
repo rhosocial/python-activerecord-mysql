@@ -16,7 +16,7 @@ import sys
 import logging
 from typing import Type, List, Tuple
 
-from rhosocial.activerecord.model import ActiveRecord
+from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
 
 # Setup logging for fixture selection debugging
 logger = logging.getLogger(__name__)
