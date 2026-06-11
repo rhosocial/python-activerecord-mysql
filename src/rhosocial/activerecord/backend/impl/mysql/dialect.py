@@ -75,6 +75,7 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DMLMixin,
     DDLColumnMixin,
     TransactionControlMixin,
+    SetOperationMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
@@ -185,6 +186,7 @@ class MySQLDialect(
     DMLMixin,
     DDLColumnMixin,
     TransactionControlMixin,
+    SetOperationMixin,
     # Protocols for type checking
     # Note: MySQL-specific protocols extend generic protocols,
     # so only MySQL-specific protocols are needed for isinstance checks

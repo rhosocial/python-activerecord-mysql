@@ -182,10 +182,29 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
     def _setup_multiple_models(
         self, model_classes: List[Tuple[Type[ActiveRecord], str]], scenario_name: str
     ) -> Tuple[Type[ActiveRecord], ...]:
-        """Helper to set up multiple related models for a test."""
+        """Helper to set up multiple related models for a test, sharing a single backend."""
         result = []
-        for model_class, table_name in model_classes:
-            configured_model = self._setup_model(model_class, scenario_name, table_name)
+        shared_backend = None
+        for i, (model_class, table_name) in enumerate(model_classes):
+            if i == 0:
+                configured_model = self._setup_model(model_class, scenario_name, table_name)
+                shared_backend = configured_model.__backend__
+            else:
+                backend_class, config = get_scenario(scenario_name)
+                model_class.__connection_config__ = config
+                model_class.__backend_class__ = backend_class
+                model_class.__backend__ = shared_backend
+                backend_instance = shared_backend
+                if backend_instance not in self._active_backends:
+                    self._active_backends.append(backend_instance)
+                try:
+                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                finally:
+                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+                backend_instance.execute(schema_sql)
+                configured_model = model_class
             result.append(configured_model)
         return tuple(result)
 

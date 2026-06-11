@@ -236,7 +236,7 @@ def test_partition_definition_options_are_formatted(dialect):
         less_than=[_partition_value(dialect, "2027-01-01")],
         dialect_options={
             "engine": "InnoDB",
-            "comment": "tenant''s partition",
+            "comment": "tenant's partition",
             "max_rows": 1000,
             "tablespace": "ts_hot",
         },
@@ -245,7 +245,7 @@ def test_partition_definition_options_are_formatted(dialect):
     sql, params = dialect.format_partition_definition(definition)
 
     assert "ENGINE" in sql and "InnoDB" in sql
-    assert "COMMENT" in sql and "tenants partition" in sql
+    assert "COMMENT" in sql and "tenant''s partition" in sql
     assert "MAX_ROWS 1000" in sql
     assert "TABLESPACE" in sql and "ts_hot" in sql
     assert params == ()
