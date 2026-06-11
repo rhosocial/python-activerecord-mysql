@@ -89,7 +89,9 @@ class MySQLTableMixin:
 
     def format_column_definition(self, col_def, ColumnConstraintType=None) -> Tuple[str, List[Any]]:
         """Format a single column definition with MySQL-specific syntax."""
-        if not self._validate_data_type(col_def.data_type):
+        # Call via class, not self, because SQLDialectBase._validate_data_type
+        # appears earlier in the MRO and would shadow this override.
+        if not MySQLTableMixin._validate_data_type(col_def.data_type):
             raise ValueError(f"Invalid data type: {col_def.data_type}")
         if ColumnConstraintType is None:
             from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType
