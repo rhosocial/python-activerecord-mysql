@@ -66,6 +66,15 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     ConstraintMixin,
     IntrospectionMixin,
     PartitionMixin,
+    # New Mixins
+    IdentifierMixin,
+    PredicateMixin,
+    ExpressionMixin,
+    DateTimeMixin,
+    DQLMixin,
+    DMLMixin,
+    DDLColumnMixin,
+    TransactionControlMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
@@ -149,14 +158,14 @@ class MySQLDialect(
     SequenceMixin,
     MySQLPartitionMixin,
     PartitionMixin,
-    TableMixin,
-    ConstraintMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
     MySQLDMLOperationMixin,  # MySQL DML operations
     MySQLFullTextSearchMixin,  # MySQL full-text search
     MySQLTriggerMixin,
-    MySQLTableMixin,
+    MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
+    TableMixin,
+    ConstraintMixin,
     MySQLSetTypeMixin,
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
@@ -167,6 +176,15 @@ class MySQLDialect(
     MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
     MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
     IntrospectionMixin,
+    # New Mixins
+    IdentifierMixin,
+    PredicateMixin,
+    ExpressionMixin,
+    DateTimeMixin,
+    DQLMixin,
+    DMLMixin,
+    DDLColumnMixin,
+    TransactionControlMixin,
     # Protocols for type checking
     # Note: MySQL-specific protocols extend generic protocols,
     # so only MySQL-specific protocols are needed for isinstance checks
@@ -770,7 +788,7 @@ class MySQLDialect(
         """
         # Check for LIKE syntax in dialect_options (highest priority)
         if "like_table" in expr.dialect_options:
-            return self._format_create_table_like(expr)
+            return self.format_create_table_like(expr)
 
         # Build standard CREATE TABLE statement
         from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType, TableConstraintType
@@ -788,19 +806,19 @@ class MySQLDialect(
         # Build column definitions
         column_parts = []
         for col_def in expr.columns:
-            col_sql, col_params = self._format_column_definition_mysql(col_def, ColumnConstraintType)
+            col_sql, col_params = self.format_column_definition(col_def)
             column_parts.append(col_sql)
             all_params.extend(col_params)
 
         # Build table constraints
         for t_const in expr.table_constraints:
-            const_sql, const_params = self._format_table_constraint_mysql(t_const, TableConstraintType)
+            const_sql, const_params = self.format_table_constraint(t_const)
             column_parts.append(const_sql)
             all_params.extend(const_params)
 
         # Build inline indexes (MySQL-specific)
         for idx_def in expr.indexes:
-            idx_sql = self._format_inline_index_mysql(idx_def)
+            idx_sql = self.format_inline_index(idx_def)
             column_parts.append(idx_sql)
 
         # Combine all parts
@@ -808,7 +826,7 @@ class MySQLDialect(
 
         # Add storage options (MySQL-specific format)
         if expr.storage_options:
-            storage_sql = self._format_storage_options_mysql(expr.storage_options)
+            storage_sql = self.format_storage_options(expr.storage_options)
             if storage_sql:
                 parts.append(storage_sql)
 
@@ -825,147 +843,6 @@ class MySQLDialect(
                 all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
-
-    def _format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
-        """Format CREATE TABLE ... LIKE statement."""
-        like_table = expr.dialect_options["like_table"]
-
-        parts = ["CREATE TABLE"]
-        if expr.temporary:
-            parts.append("TEMPORARY")
-        if expr.if_not_exists:
-            parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
-
-        # Handle schema-qualified table name
-        if isinstance(like_table, tuple):
-            schema, table = like_table
-            like_table_str = f"{self.format_identifier(schema)}.{self.format_identifier(table)}"
-        else:
-            like_table_str = self.format_identifier(like_table)
-
-        parts.append(f"LIKE {like_table_str}")
-        return " ".join(parts), ()
-
-    def _format_column_definition_mysql(
-        self, col_def: "ColumnDefinition", ColumnConstraintType
-    ) -> Tuple[str, List[Any]]:
-        """Format a single column definition with MySQL-specific syntax."""
-        parts = [self.format_identifier(col_def.name), col_def.data_type]
-        params: List[Any] = []
-
-        # Build constraint parts
-        constraint_parts = []
-        for constraint in col_def.constraints:
-            if constraint.constraint_type == ColumnConstraintType.PRIMARY_KEY:
-                constraint_parts.append("PRIMARY KEY")
-            elif constraint.constraint_type == ColumnConstraintType.NOT_NULL:
-                constraint_parts.append("NOT NULL")
-            elif constraint.constraint_type == ColumnConstraintType.UNIQUE:
-                constraint_parts.append("UNIQUE")
-            elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
-                if constraint.default_value is not None:
-                    from rhosocial.activerecord.backend.expression import bases
-
-                    if isinstance(constraint.default_value, bases.BaseExpression):
-                        default_sql, default_params = constraint.default_value.to_sql()
-                        constraint_parts.append(f"DEFAULT {default_sql}")
-                        params.extend(default_params)
-                    elif isinstance(constraint.default_value, str):
-                        escaped = self._escape_sql_string(constraint.default_value)
-                        constraint_parts.append(f"DEFAULT '{escaped}'")
-                    else:
-                        constraint_parts.append(f"DEFAULT {constraint.default_value}")
-            elif constraint.constraint_type == ColumnConstraintType.NULL:
-                constraint_parts.append("NULL")
-
-            # Handle AUTO_INCREMENT (MySQL-specific)
-            if constraint.is_auto_increment:
-                constraint_parts.append("AUTO_INCREMENT")
-
-        if constraint_parts:
-            parts.append(" ".join(constraint_parts))
-
-        # Add column comment (MySQL-specific)
-        if col_def.comment:
-            escaped_comment = self._escape_sql_string(col_def.comment)
-            parts.append(f"COMMENT '{escaped_comment}'")
-
-        return " ".join(parts), params
-
-    def _format_table_constraint_mysql(self, t_const: "TableConstraint", TableConstraintType) -> Tuple[str, List[Any]]:
-        """Format a table-level constraint."""
-        from rhosocial.activerecord.backend.expression.statements import (
-            ForeignKeyConstraint,
-            ReferentialAction,
-        )
-
-        parts = []
-        params: List[Any] = []
-
-        if t_const.name:
-            parts.append(f"CONSTRAINT {self.format_identifier(t_const.name)}")
-
-        if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
-            if t_const.columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"PRIMARY KEY ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.UNIQUE:
-            if t_const.columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"UNIQUE ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
-            if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                ref_table = self.format_identifier(t_const.foreign_key_table)
-                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
-
-            # ON DELETE / ON UPDATE
-            if isinstance(t_const, ForeignKeyConstraint):
-                if t_const.on_delete != ReferentialAction.NO_ACTION:
-                    parts.append(f"ON DELETE {t_const.on_delete.value}")
-                if t_const.on_update != ReferentialAction.NO_ACTION:
-                    parts.append(f"ON UPDATE {t_const.on_update.value}")
-
-        elif t_const.constraint_type == TableConstraintType.CHECK and t_const.check_condition:
-            check_sql, check_params = t_const.check_condition.to_sql()
-            parts.append(f"CHECK ({check_sql})")
-            params.extend(check_params)
-
-            # ENFORCED / NOT ENFORCED (MySQL 8.0.16+)
-            if t_const.dialect_options and t_const.dialect_options.get("enforced") is False:
-                parts.append("NOT ENFORCED")
-
-        return " ".join(parts), params
-
-    def _format_inline_index_mysql(self, idx_def: "IndexDefinition") -> str:
-        """Format an inline index definition (MySQL-specific)."""
-        parts = []
-
-        if idx_def.unique:
-            parts.append("UNIQUE")
-
-        parts.append("INDEX")
-        parts.append(self.format_identifier(idx_def.name))
-
-        cols_str = ", ".join(self.format_identifier(c) for c in idx_def.columns)
-        parts.append(f"({cols_str})")
-
-        # MySQL USING syntax for index type
-        if idx_def.type:
-            parts.append(f"USING {idx_def.type}")
-
-        return " ".join(parts)
-
-    def _format_storage_options_mysql(self, storage_options: Dict[str, Any]) -> str:
-        parts = []
-        for key, value in storage_options.items():
-            if isinstance(value, str):
-                parts.append(f"{key}='{self._escape_sql_string(value)}'")
-            else:
-                parts.append(f"{key}={value}")
-        return " ".join(parts)
 
     # endregion
 

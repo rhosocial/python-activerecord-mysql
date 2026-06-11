@@ -10,7 +10,7 @@ When a MySQL protocol extends a generic protocol, dialects only need to implemen
 the MySQL-specific protocol - isinstance checks for the generic protocol will still work.
 """
 
-from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, Dict, TYPE_CHECKING
+from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, Dict, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
@@ -262,21 +262,27 @@ class MySQLTableSupport(TableSupport, Protocol):
     def format_create_table_statement(
         self, expr, dialect_options: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, tuple]:
-        """Format CREATE TABLE statement.
+        """Format CREATE TABLE statement."""
+        ...
 
-        Note: Generic TableSupport protocol defines this interface.
-        This MySQL-specific version documents available options.
+    def format_create_table_like(self, expr: Any) -> Tuple[str, tuple]:
+        """Format CREATE TABLE ... LIKE statement."""
+        ...
 
-        Args:
-            expr: CreateTableExpression instance
-            dialect_options: MySQL-specific options:
-                - 'engine': Storage engine (InnoDB, MyISAM, etc.)
-                - 'charset': Character set
-                - 'collate': Collation
-                - 'auto_increment': Initial AUTO_INCREMENT value
-                - 'row_format': Row format (DYNAMIC, COMPACT, etc.)
-                Example: dialect_options={'engine': 'InnoDB', 'charset': 'utf8mb4'}
-        """
+    def format_column_definition(self, col_def: Any) -> Tuple[str, List]:
+        """Format a column definition with MySQL-specific syntax (AUTO_INCREMENT, etc.)."""
+        ...
+
+    def format_table_constraint(self, t_const: Any) -> Tuple[str, List]:
+        """Format a table-level constraint."""
+        ...
+
+    def format_inline_index(self, idx_def: Any) -> str:
+        """Format inline INDEX definition within CREATE TABLE."""
+        ...
+
+    def format_storage_options(self, storage_options: Dict[str, Any]) -> str:
+        """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
         ...
 
 
@@ -462,6 +468,10 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         expr: "MySQLRepairPartitionExpression",
     ) -> Tuple[str, tuple]:
         """Format ALTER TABLE ... REPAIR PARTITION."""
+        ...
+
+    def format_partition_name_list(self, partitions: Sequence[str]) -> str:
+        """Format a list of partition names: `p0`, `p1`, ..."""
         ...
 
 
@@ -1196,14 +1206,19 @@ class MySQLJsonDualityViewSupport(Protocol):
         ...
 
     def format_drop_json_duality_view_statement(self, expr: Any) -> Tuple[str, tuple]:
-        """Format DROP VIEW statement for a JSON Duality View.
+        """Format DROP VIEW statement for a JSON Duality View."""
+        ...
 
-        Args:
-            expr: DropJsonDualityViewExpression instance
+    def format_duality_object_select(self, spec: Any) -> str:
+        """Format SELECT JSON_DUALITY_OBJECT(...) FROM table clause."""
+        ...
 
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def format_duality_object_body(self, spec: Any) -> str:
+        """Format JSON_DUALITY_OBJECT(...) body."""
+        ...
+
+    def format_nested_duality(self, nested: Any) -> str:
+        """Format nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery."""
         ...
 
 
