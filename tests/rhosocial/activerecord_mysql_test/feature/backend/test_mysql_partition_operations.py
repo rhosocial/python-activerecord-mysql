@@ -28,13 +28,19 @@ from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql import ShowCreateTableExpression
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLAddPartitionExpression,
+    MySQLCoalescePartitionExpression,
     MySQLDropPartitionExpression,
     MySQLExchangePartitionExpression,
+    MySQLPartitionByHash,
+    MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
     MySQLPartitionValue,
     MySQLReorganizePartitionExpression,
+    MySQLSubpartitionClause,
+    MySQLSubpartitionDefinition,
+    MySQLSubpartitionStrategy,
     MySQLTruncatePartitionExpression,
 )
 
@@ -264,6 +270,85 @@ def _assert_show_create_table_includes_partition_definition(create_sql):
     assert "VALUES LESS THAN" in upper_sql
     assert "2026-02-01" in create_sql
     assert "2026-03-01" in create_sql
+
+
+# --- Negative / edge-case test helpers ---
+
+NEGATIVE_TABLE = "ar_mysql_partition_negative"
+NEGATIVE_PARTITIONED_TABLE = "ar_mysql_partition_negative_part"
+NEGATIVE_HASH_TABLE = "ar_mysql_partition_negative_hash"
+
+
+def _base_columns_without_pk():
+    return [
+        ColumnDefinition("id", "BIGINT NOT NULL"),
+        ColumnDefinition("shard_id", "BIGINT NOT NULL"),
+        ColumnDefinition("payload", "VARCHAR(255)"),
+    ]
+
+
+def _create_nonpartitioned_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=NEGATIVE_TABLE,
+        columns=_base_columns_without_pk(),
+    )
+
+
+def _create_negative_partitioned_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=NEGATIVE_PARTITIONED_TABLE,
+        columns=_base_columns_without_pk(),
+        partition=MySQLPartitionByRange(
+            dialect=dialect,
+            keys=[Column(dialect, "shard_id")],
+            partitions=[
+                MySQLPartitionDefinition("p_low", less_than=[MySQLPartitionValue(dialect, 100)]),
+                MySQLPartitionDefinition("p_mid", less_than=[MySQLPartitionValue(dialect, 200)]),
+            ],
+        ),
+    )
+
+
+def _create_negative_hash_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=NEGATIVE_HASH_TABLE,
+        columns=_base_columns_without_pk(),
+        partition=MySQLPartitionByHash(
+            dialect=dialect,
+            keys=[Column(dialect, "shard_id")],
+            partitions_count=4,
+        ),
+    )
+
+
+def _setup_negative_tables(backend):
+    backend.execute(*_drop_named_table_expression(backend.dialect, NEGATIVE_TABLE).to_sql())
+    backend.execute(*_drop_named_table_expression(backend.dialect, NEGATIVE_PARTITIONED_TABLE).to_sql())
+    backend.execute(*_drop_named_table_expression(backend.dialect, NEGATIVE_HASH_TABLE).to_sql())
+    backend.execute(*_create_nonpartitioned_table_expression(backend.dialect).to_sql())
+    backend.execute(*_create_negative_partitioned_table_expression(backend.dialect).to_sql())
+    backend.execute(*_create_negative_hash_table_expression(backend.dialect).to_sql())
+
+
+def _teardown_negative_tables(backend):
+    for table in (NEGATIVE_HASH_TABLE, NEGATIVE_PARTITIONED_TABLE, NEGATIVE_TABLE):
+        backend.execute(*_drop_named_table_expression(backend.dialect, table).to_sql())
+
+
+async def _async_setup_negative_tables(backend):
+    for table in (NEGATIVE_TABLE, NEGATIVE_PARTITIONED_TABLE, NEGATIVE_HASH_TABLE):
+        await backend.execute(*_drop_named_table_expression(backend.dialect, table).to_sql())
+    await backend.execute(*_create_nonpartitioned_table_expression(backend.dialect).to_sql())
+    await backend.execute(*_create_negative_partitioned_table_expression(backend.dialect).to_sql())
+    await backend.execute(*_create_negative_hash_table_expression(backend.dialect).to_sql())
+
+
+async def _async_teardown_negative_tables(backend):
+    for table in (NEGATIVE_HASH_TABLE, NEGATIVE_PARTITIONED_TABLE, NEGATIVE_TABLE):
+        await backend.execute(*_drop_named_table_expression(backend.dialect, table).to_sql())
 
 
 PRODUCTION_PARTITION_TABLE = "ar_mysql_partition_ops_events"
@@ -727,6 +812,601 @@ class TestMySQLPartitionOperations:
         mysql_backend.execute(*_reorganize_partition_expression(mysql_backend.dialect).to_sql())
 
         assert _partition_names(mysql_backend) == ["p2026_01", "p2026_02a", "p2026_02b"]
+
+
+class TestMySQLPartitionOperationsNegative:
+    """Negative and edge-case tests for MySQL partition maintenance operations.
+
+    Each test sets up its own tables via _setup_negative_tables to guarantee
+    a clean baseline regardless of test ordering.
+    """
+
+    def test_add_partition_on_nonpartitioned_table_raises_error(self, mysql_backend):
+        """ALTER TABLE ADD PARTITION should fail on a table without partitioning.
+
+        Raises:
+            Exception: MySQL rejects ADD PARTITION for non-partitioned tables.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLAddPartitionExpression(
+                        mysql_backend.dialect,
+                        NEGATIVE_TABLE,
+                        [
+                            MySQLPartitionDefinition(
+                                "p_extra", less_than=[MySQLPartitionValue(mysql_backend.dialect, 300)]
+                            ),
+                        ],
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_drop_partition_on_nonpartitioned_table_raises_error(self, mysql_backend):
+        """ALTER TABLE DROP PARTITION should fail on a table without partitioning.
+
+        Raises:
+            Exception: MySQL rejects DROP PARTITION for non-partitioned tables.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLDropPartitionExpression(
+                        mysql_backend.dialect, NEGATIVE_TABLE, ["p_low"]
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_drop_nonexistent_partition_raises_error(self, mysql_backend):
+        """ALTER TABLE DROP PARTITION should fail when the partition does not exist.
+
+        Raises:
+            Exception: MySQL rejects dropping a partition name that does not exist.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLDropPartitionExpression(
+                        mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_nonexistent"]
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_add_partition_duplicate_boundary_raises_error(self, mysql_backend):
+        """ALTER TABLE ADD PARTITION should fail when the range overlaps an existing one.
+
+        MySQL RANGE partitions must be strictly increasing. Adding a partition with
+        a boundary less than the existing maximum should be rejected.
+
+        Raises:
+            Exception: MySQL rejects overlapping range boundaries.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLAddPartitionExpression(
+                        mysql_backend.dialect,
+                        NEGATIVE_PARTITIONED_TABLE,
+                        [
+                            MySQLPartitionDefinition(
+                                "p_overlap",
+                                less_than=[MySQLPartitionValue(mysql_backend.dialect, 150)],
+                            ),
+                        ],
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_truncate_partition_on_nonpartitioned_table_raises_error(self, mysql_backend):
+        """ALTER TABLE TRUNCATE PARTITION should fail on a non-partitioned table.
+
+        Raises:
+            Exception: MySQL rejects TRUNCATE PARTITION for non-partitioned tables.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLTruncatePartitionExpression(
+                        mysql_backend.dialect, NEGATIVE_TABLE, ["p_low"]
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_coalesce_partition_on_nonpartitioned_table_raises_error(self, mysql_backend):
+        """ALTER TABLE COALESCE PARTITION should fail on a non-partitioned table.
+
+        Raises:
+            Exception: MySQL rejects COALESCE PARTITION for non-partitioned tables.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLCoalescePartitionExpression(
+                        mysql_backend.dialect, NEGATIVE_TABLE, 2
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_coalesce_partition_count_exceeds_existing_raises_error(self, mysql_backend):
+        """ALTER TABLE COALESCE PARTITION should fail when count exceeds existing partitions.
+
+        Raises:
+            Exception: MySQL rejects COALESCE with N > number of existing HASH partitions.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLCoalescePartitionExpression(
+                        mysql_backend.dialect, NEGATIVE_HASH_TABLE, 10
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_reorganize_nonexistent_partition_raises_error(self, mysql_backend):
+        """ALTER TABLE REORGANIZE PARTITION should fail when the partition does not exist.
+
+        Raises:
+            Exception: MySQL rejects reorganizing a partition name that does not exist.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLReorganizePartitionExpression(
+                        mysql_backend.dialect,
+                        NEGATIVE_PARTITIONED_TABLE,
+                        partition="p_nonexistent",
+                        into=[
+                            MySQLPartitionDefinition(
+                                "p_new", less_than=[MySQLPartitionValue(mysql_backend.dialect, 150)]
+                            ),
+                        ],
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+    def test_reorganize_partition_on_nonpartitioned_table_raises_error(self, mysql_backend):
+        """ALTER TABLE REORGANIZE PARTITION should fail on non-partitioned tables.
+
+        Raises:
+            Exception: MySQL rejects REORGANIZE PARTITION for non-partitioned tables.
+        """
+        _setup_negative_tables(mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                mysql_backend.execute(
+                    *MySQLReorganizePartitionExpression(
+                        mysql_backend.dialect,
+                        NEGATIVE_TABLE,
+                        partition="p_low",
+                        into=[
+                            MySQLPartitionDefinition(
+                                "p_new", less_than=[MySQLPartitionValue(mysql_backend.dialect, 150)]
+                            ),
+                        ],
+                    ).to_sql()
+                )
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+
+class TestMySQLPartitionOperationsConcurrency:
+    """Concurrency and transaction tests for MySQL partition operations.
+
+    These tests verify partition DDL behaviour under concurrent access and
+    transactional contexts, which is important because MySQL partition DDL
+    statements trigger implicit commits.
+    """
+
+    def test_partition_ddl_inside_transaction_triggers_implicit_commit(
+        self, mysql_backend, mysql_partitioned_table
+    ):
+        """ALTER TABLE ADD PARTITION inside a transaction should auto-commit.
+
+        MySQL partition DDL statements are not transactional — they trigger
+        an implicit commit before and after execution. This test verifies that
+        a rollback after ADD PARTITION does not undo the partition change.
+
+        Steps:
+            1. BEGIN a transaction
+            2. INSERT a row
+            3. ADD PARTITION
+            4. ROLLBACK
+            5. Verify partition exists (DDL was committed) and INSERT is rolled back
+
+        Raises:
+            AssertionError: if partition DDL was rolled back or INSERT survived.
+        """
+        mysql_backend.execute("BEGIN")
+        mysql_backend.execute(
+            *_insert_events_expression(
+                mysql_backend.dialect,
+                [[1, datetime(2026, 1, 15), "jan"]],
+            ).to_sql()
+        )
+        mysql_backend.execute(
+            *_add_future_partition_expression(mysql_backend.dialect).to_sql()
+        )
+        mysql_backend.execute("ROLLBACK")
+
+        # Partition DDL auto-committed — p2026_03 should still exist
+        assert _partition_names(mysql_backend) == ["p2026_01", "p2026_02", "p2026_03"]
+
+        # INSERT was rolled back — no rows should remain
+        count = mysql_backend.fetch_one(
+            f"SELECT COUNT(*) AS count FROM {PARTITION_TABLE}"
+        )["count"]
+        assert count == 0
+
+    def test_concurrent_add_and_drop_partition(self, mysql_backend, mysql_control_backend):
+        """Concurrent ADD and DROP on different connections should not corrupt metadata.
+
+        Uses two independent connections to the same database.
+
+        Steps:
+            1. Create a partitioned table with p_low and p_mid
+            2. Connection A adds p_high
+            3. Connection B drops p_low
+            4. Both operations succeed; final metadata has p_mid and p_high
+        """
+        _setup_negative_tables(mysql_backend)
+
+        try:
+            mysql_control_backend.execute(
+                *MySQLAddPartitionExpression(
+                    mysql_control_backend.dialect,
+                    NEGATIVE_PARTITIONED_TABLE,
+                    [
+                        MySQLPartitionDefinition(
+                            "p_high",
+                            less_than=[MySQLPartitionValue(mysql_control_backend.dialect, 300)],
+                        ),
+                    ],
+                ).to_sql()
+            )
+            mysql_backend.execute(
+                *MySQLDropPartitionExpression(
+                    mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_low"]
+                ).to_sql()
+            )
+            names = _partition_names(mysql_backend)
+            assert "p_mid" in names
+            assert "p_high" in names
+            assert "p_low" not in names
+        finally:
+            _teardown_negative_tables(mysql_backend)
+
+
+class TestAsyncMySQLPartitionOperationsNegative:
+    """Asynchronous negative and edge-case tests for MySQL partition maintenance operations."""
+
+    @pytest.mark.asyncio
+    async def test_add_partition_on_nonpartitioned_table_raises_error(self, async_mysql_backend):
+        """ALTER TABLE ADD PARTITION should fail on a non-partitioned table (async)."""
+        await _async_setup_negative_tables(async_mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                await async_mysql_backend.execute(
+                    *MySQLAddPartitionExpression(
+                        async_mysql_backend.dialect,
+                        NEGATIVE_TABLE,
+                        [
+                            MySQLPartitionDefinition(
+                                "p_extra",
+                                less_than=[MySQLPartitionValue(async_mysql_backend.dialect, 300)],
+                            ),
+                        ],
+                    ).to_sql()
+                )
+        finally:
+            await _async_teardown_negative_tables(async_mysql_backend)
+
+    @pytest.mark.asyncio
+    async def test_drop_nonexistent_partition_raises_error(self, async_mysql_backend):
+        """ALTER TABLE DROP PARTITION should fail when partition does not exist (async)."""
+        await _async_setup_negative_tables(async_mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                await async_mysql_backend.execute(
+                    *MySQLDropPartitionExpression(
+                        async_mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_nonexistent"]
+                    ).to_sql()
+                )
+        finally:
+            await _async_teardown_negative_tables(async_mysql_backend)
+
+    @pytest.mark.asyncio
+    async def test_add_partition_duplicate_boundary_raises_error(self, async_mysql_backend):
+        """ALTER TABLE ADD PARTITION should fail on overlapping boundary (async)."""
+        await _async_setup_negative_tables(async_mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                await async_mysql_backend.execute(
+                    *MySQLAddPartitionExpression(
+                        async_mysql_backend.dialect,
+                        NEGATIVE_PARTITIONED_TABLE,
+                        [
+                            MySQLPartitionDefinition(
+                                "p_overlap",
+                                less_than=[MySQLPartitionValue(async_mysql_backend.dialect, 150)],
+                            ),
+                        ],
+                    ).to_sql()
+                )
+        finally:
+            await _async_teardown_negative_tables(async_mysql_backend)
+
+    @pytest.mark.asyncio
+    async def test_coalesce_partition_count_exceeds_existing_raises_error(self, async_mysql_backend):
+        """ALTER TABLE COALESCE PARTITION should fail when count exceeds existing (async)."""
+        await _async_setup_negative_tables(async_mysql_backend)
+        try:
+            with pytest.raises(Exception):
+                await async_mysql_backend.execute(
+                    *MySQLCoalescePartitionExpression(
+                        async_mysql_backend.dialect, NEGATIVE_HASH_TABLE, 10
+                    ).to_sql()
+                )
+        finally:
+            await _async_teardown_negative_tables(async_mysql_backend)
+
+
+class TestAsyncMySQLPartitionOperationsConcurrency:
+    """Asynchronous concurrency and transaction tests for MySQL partition operations."""
+
+    @pytest.mark.asyncio
+    async def test_partition_ddl_triggers_implicit_commit(
+        self, async_mysql_backend, async_mysql_partitioned_table
+    ):
+        """ALTER TABLE ADD PARTITION inside a transaction should auto-commit (async)."""
+        await async_mysql_backend.execute("BEGIN")
+        await async_mysql_backend.execute(
+            *_insert_events_expression(
+                async_mysql_backend.dialect,
+                [[1, datetime(2026, 1, 15), "jan"]],
+            ).to_sql()
+        )
+        await async_mysql_backend.execute(
+            *_add_future_partition_expression(async_mysql_backend.dialect).to_sql()
+        )
+        await async_mysql_backend.execute("ROLLBACK")
+
+        names = await _async_partition_names(async_mysql_backend)
+        assert "p2026_03" in names
+
+
+# --- Subpartition integration tests ---
+
+SUBPARTITION_TABLE = "ar_mysql_partition_subpart"
+
+
+def _subpartition_columns():
+    return [
+        ColumnDefinition("id", "BIGINT NOT NULL"),
+        ColumnDefinition("created_at", "DATE NOT NULL"),
+        ColumnDefinition("region", "VARCHAR(32) NOT NULL"),
+        ColumnDefinition("payload", "VARCHAR(255)"),
+    ]
+
+
+def _create_subpartitioned_table_expression(dialect):
+    return CreateTableExpression(
+        dialect=dialect,
+        table=SUBPARTITION_TABLE,
+        columns=_subpartition_columns(),
+        partition=MySQLPartitionByRange(
+            dialect=dialect,
+            keys=[Column(dialect, "created_at")],
+            partitions=[
+                MySQLPartitionDefinition(
+                    name="p2026",
+                    less_than=[MySQLPartitionValue(dialect, "2027-01-01")],
+                    subpartition_definitions=None,
+                ),
+                MySQLPartitionDefinition(
+                    name="p2027",
+                    less_than=[MySQLPartitionValue(dialect, "2028-01-01")],
+                    subpartition_definitions=None,
+                ),
+            ],
+            subpartition_by=MySQLSubpartitionClause(
+                dialect=dialect,
+                strategy=MySQLSubpartitionStrategy.HASH,
+                expression=Column(dialect, "id"),
+                count=4,
+            ),
+        ),
+    )
+
+
+def _create_subpartitioned_table(backend):
+    backend.execute(*_drop_named_table_expression(backend.dialect, SUBPARTITION_TABLE).to_sql())
+    backend.execute(*_create_subpartitioned_table_expression(backend.dialect).to_sql())
+
+
+async def _async_create_subpartitioned_table(backend):
+    await backend.execute(*_drop_named_table_expression(backend.dialect, SUBPARTITION_TABLE).to_sql())
+    await backend.execute(*_create_subpartitioned_table_expression(backend.dialect).to_sql())
+
+
+def _subpartition_metadata(backend):
+    partitions = TableExpression(dialect=backend.dialect, name="PARTITIONS", schema_name="information_schema")
+    return backend.fetch_all(
+        *QueryExpression(
+            dialect=backend.dialect,
+            select=[
+                Column(backend.dialect, "PARTITION_NAME", alias="name"),
+                Column(backend.dialect, "SUBPARTITION_NAME", alias="subname"),
+                Column(backend.dialect, "SUBPARTITION_METHOD", alias="submethod"),
+                Column(backend.dialect, "SUBPARTITION_EXPRESSION", alias="subexpression"),
+                Column(backend.dialect, "TABLE_ROWS", alias="table_rows"),
+            ],
+            from_=partitions,
+            where=LogicalPredicate(
+                backend.dialect,
+                "AND",
+                Column(backend.dialect, "TABLE_SCHEMA") == FunctionCall(backend.dialect, "DATABASE"),
+                Column(backend.dialect, "TABLE_NAME") == Literal(backend.dialect, SUBPARTITION_TABLE),
+            ),
+            order_by=OrderByClause(
+                backend.dialect,
+                [
+                    (Column(backend.dialect, "PARTITION_ORDINAL_POSITION"), "ASC"),
+                    (Column(backend.dialect, "SUBPARTITION_ORDINAL_POSITION"), "ASC"),
+                ],
+            ),
+        ).to_sql()
+    )
+
+
+async def _async_subpartition_metadata(backend):
+    partitions = TableExpression(dialect=backend.dialect, name="PARTITIONS", schema_name="information_schema")
+    return await backend.fetch_all(
+        *QueryExpression(
+            dialect=backend.dialect,
+            select=[
+                Column(backend.dialect, "PARTITION_NAME", alias="name"),
+                Column(backend.dialect, "SUBPARTITION_NAME", alias="subname"),
+                Column(backend.dialect, "SUBPARTITION_METHOD", alias="submethod"),
+                Column(backend.dialect, "SUBPARTITION_EXPRESSION", alias="subexpression"),
+                Column(backend.dialect, "TABLE_ROWS", alias="table_rows"),
+            ],
+            from_=partitions,
+            where=LogicalPredicate(
+                backend.dialect,
+                "AND",
+                Column(backend.dialect, "TABLE_SCHEMA") == FunctionCall(backend.dialect, "DATABASE"),
+                Column(backend.dialect, "TABLE_NAME") == Literal(backend.dialect, SUBPARTITION_TABLE),
+            ),
+            order_by=OrderByClause(
+                backend.dialect,
+                [
+                    (Column(backend.dialect, "PARTITION_ORDINAL_POSITION"), "ASC"),
+                    (Column(backend.dialect, "SUBPARTITION_ORDINAL_POSITION"), "ASC"),
+                ],
+            ),
+        ).to_sql()
+    )
+
+
+class TestMySQLSubpartitionOperations:
+    """Synchronous real backend tests for MySQL subpartitioning."""
+
+    def test_create_subpartitioned_table_has_subpartition_metadata(self, mysql_backend):
+        """A table with SUBPARTITION BY should expose subpartition metadata in information_schema."""
+        _create_subpartitioned_table(mysql_backend)
+        try:
+            rows = _subpartition_metadata(mysql_backend)
+            assert len(rows) == 8  # 2 partitions × 4 subpartitions
+            parent_partitions = {row["name"] for row in rows}
+            assert parent_partitions == {"p2026", "p2027"}
+            subpartition_names = [row["subname"] for row in rows if row["subname"]]
+            # MySQL auto-generates subpartition names (s0..s7) when not specified
+            assert len(subpartition_names) == 8
+            for row in rows:
+                if row["subname"]:
+                    assert row["submethod"] is not None
+                    assert "HASH" in str(row["submethod"]).upper()
+        finally:
+            mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, SUBPARTITION_TABLE).to_sql())
+
+    def test_insert_into_subpartitioned_table_and_query(self, mysql_backend):
+        """Rows inserted into a subpartitioned table should be queryable through the parent."""
+        _create_subpartitioned_table(mysql_backend)
+        try:
+            insert = InsertExpression(
+                dialect=mysql_backend.dialect,
+                into=SUBPARTITION_TABLE,
+                columns=["id", "created_at", "region", "payload"],
+                source=ValuesSource(
+                    mysql_backend.dialect,
+                    [
+                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, "2026-06-01"),
+                         Literal(mysql_backend.dialect, "us"), Literal(mysql_backend.dialect, "alpha")],
+                        [Literal(mysql_backend.dialect, 2), Literal(mysql_backend.dialect, "2026-06-15"),
+                         Literal(mysql_backend.dialect, "eu"), Literal(mysql_backend.dialect, "beta")],
+                        [Literal(mysql_backend.dialect, 3), Literal(mysql_backend.dialect, "2027-03-01"),
+                         Literal(mysql_backend.dialect, "ap"), Literal(mysql_backend.dialect, "gamma")],
+                    ],
+                ),
+            )
+            mysql_backend.execute(*insert.to_sql())
+
+            query = QueryExpression(
+                dialect=mysql_backend.dialect,
+                select=[Column(mysql_backend.dialect, "payload")],
+                from_=TableExpression(mysql_backend.dialect, SUBPARTITION_TABLE),
+                order_by=OrderByClause(mysql_backend.dialect, [(Column(mysql_backend.dialect, "id"), "ASC")]),
+            )
+            rows = mysql_backend.fetch_all(*query.to_sql())
+            assert [row["payload"] for row in rows] == ["alpha", "beta", "gamma"]
+        finally:
+            mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, SUBPARTITION_TABLE).to_sql())
+
+
+class TestAsyncMySQLSubpartitionOperations:
+    """Asynchronous real backend tests for MySQL subpartitioning."""
+
+    @pytest.mark.asyncio
+    async def test_create_subpartitioned_table_has_subpartition_metadata(self, async_mysql_backend):
+        """Subpartitioned table should expose subpartition metadata (async)."""
+        await _async_create_subpartitioned_table(async_mysql_backend)
+        try:
+            rows = await _async_subpartition_metadata(async_mysql_backend)
+            assert len(rows) == 8
+            parent_partitions = {row["name"] for row in rows}
+            assert parent_partitions == {"p2026", "p2027"}
+        finally:
+            await async_mysql_backend.execute(
+                *_drop_named_table_expression(async_mysql_backend.dialect, SUBPARTITION_TABLE).to_sql()
+            )
+
+    @pytest.mark.asyncio
+    async def test_insert_into_subpartitioned_table_and_query(self, async_mysql_backend):
+        """Rows inserted into subpartitioned table should be queryable (async)."""
+        await _async_create_subpartitioned_table(async_mysql_backend)
+        try:
+            insert = InsertExpression(
+                dialect=async_mysql_backend.dialect,
+                into=SUBPARTITION_TABLE,
+                columns=["id", "created_at", "region", "payload"],
+                source=ValuesSource(
+                    async_mysql_backend.dialect,
+                    [
+                        [Literal(async_mysql_backend.dialect, 1),
+                         Literal(async_mysql_backend.dialect, "2026-06-01"),
+                         Literal(async_mysql_backend.dialect, "us"),
+                         Literal(async_mysql_backend.dialect, "alpha")],
+                    ],
+                ),
+            )
+            await async_mysql_backend.execute(*insert.to_sql())
+            query = QueryExpression(
+                dialect=async_mysql_backend.dialect,
+                select=[Column(async_mysql_backend.dialect, "payload")],
+                from_=TableExpression(async_mysql_backend.dialect, SUBPARTITION_TABLE),
+            )
+            rows = await async_mysql_backend.fetch_all(*query.to_sql())
+            assert [row["payload"] for row in rows] == ["alpha"]
+        finally:
+            await async_mysql_backend.execute(
+                *_drop_named_table_expression(async_mysql_backend.dialect, SUBPARTITION_TABLE).to_sql()
+            )
 
 
 class TestMySQLProductionTimePartitionOperations:

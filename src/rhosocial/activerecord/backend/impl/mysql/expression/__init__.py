@@ -77,6 +77,17 @@ from .partition import (
     MySQLOptimizePartitionExpression,
     MySQLRebuildPartitionExpression,
     MySQLRepairPartitionExpression,
+    MySQLGetPartitionsExpression,
+    MySQLSubpartitionStrategy,
+    MySQLSubpartitionDefinition,
+    MySQLSubpartitionClause,
+)
+from .partition_lifecycle import (
+    MySQLAddPartitionHelper,
+    MySQLAddSubpartitionHelper,
+    MySQLCoalescePartitionHelper,
+    MySQLDropOldestPartitionHelper,
+    MySQLReorganizePartitionHelper,
 )
 
 __all__ = [
@@ -133,4 +144,7 @@ __all__ = [
     "MySQLOptimizePartitionExpression",
     "MySQLRebuildPartitionExpression",
     "MySQLRepairPartitionExpression",
+    "MySQLSubpartitionStrategy",
+    "MySQLSubpartitionDefinition",
+    "MySQLSubpartitionClause",
 ]

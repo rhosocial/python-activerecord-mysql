@@ -364,11 +364,52 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format MySQL PARTITION definition options."""
         ...
 
+    def format_get_partitions_expression(self, expr: "MySQLGetPartitionsExpression") -> Tuple[str, tuple]:
+        """Format a ``SELECT ... FROM information_schema.PARTITIONS`` query.
+
+        Args:
+            expr: MySQLGetPartitionsExpression with the target table name.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+        """
+        ...
+
     def format_partition_value(
         self,
         expr: "MySQLPartitionValue | MySQLPartitionMaxValue",
     ) -> Tuple[str, tuple]:
         """Format a MySQL partition boundary value."""
+        ...
+
+    def format_subpartition_by(self, expr: "MySQLSubpartitionClause") -> Tuple[str, tuple]:
+        """Format ``SUBPARTITION BY {HASH|KEY}(...) SUBPARTITIONS N``.
+
+        Args:
+            expr: MySQLSubpartitionClause with strategy, optional expression,
+                  optional count, and optional explicit definitions.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Raises:
+            UnsupportedFeatureError: if subpartitioning is not supported.
+        """
+        ...
+
+    def format_subpartition_definition(self, definition: "MySQLSubpartitionDefinition") -> Tuple[str, tuple]:
+        """Format a single ``SUBPARTITION name ...`` clause.
+
+        Args:
+            definition: MySQLSubpartitionDefinition with name and optional
+                        dialect_options.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+
+        Raises:
+            ValueError: if the definition name is empty.
+        """
         ...
 
     def format_partition_by_range(self, expr: "MySQLPartitionByRange") -> Tuple[str, tuple]:
