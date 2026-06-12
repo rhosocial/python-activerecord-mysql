@@ -315,7 +315,7 @@ class MySQLPartitionByKey(MySQLPartitionClause):
             super().__init__(dialect, method, keys)
         else:
             BaseExpression.__init__(self, dialect)
-            self.method = method
+            self.method = method.value
             self.keys = list(keys) if keys else []
         self.partitions_count = partitions_count
         self.linear = linear

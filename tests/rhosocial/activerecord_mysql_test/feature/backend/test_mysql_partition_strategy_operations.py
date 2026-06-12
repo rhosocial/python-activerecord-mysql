@@ -839,12 +839,12 @@ class TestMySQLPartitionStrategies:
                     async_mysql_backend.dialect,
                     RANGE_COLUMNS_MULTI_TABLE,
                     [
-                        (1, 50, "active", "low-1"),
-                        (2, 50, "active", "low-2"),
-                        (3, 100, "active", "low-3"),
-                        (4, 100, "closed", "mid-1"),
-                        (5, 200, "active", "mid-2"),
-                        (6, 200, "closed", "high-1"),
+                        (1, 50, "active", "low-1"),      # shard_id=50 < 100 → p_low
+                        (2, 50, "active", "low-2"),      # shard_id=50 < 100 → p_low
+                        (3, 100, "active", "low-3"),     # shard_id=100, id=3 < 100 → p_low
+                        (101, 100, "closed", "mid-1"),   # (100,101) < (200,500) → 100<200 → p_mid
+                        (201, 200, "active", "mid-2"),   # (200,201) < (200,500) → 200==200 AND 201<500 → p_mid
+                        (501, 200, "closed", "high-1"),  # (200,501) < (200,500) → FALSE → p_high
                     ],
                 ).to_sql()
             )
