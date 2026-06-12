@@ -116,7 +116,8 @@ def _select_payload_by_id_expression(dialect, row_id):
     )
 
 
-def _partition_names_expression(dialect):
+def _partition_names_expression(dialect, table_name=None):
+    table_name = table_name or PARTITION_TABLE
     partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
     return QueryExpression(
         dialect,
@@ -126,7 +127,7 @@ def _partition_names_expression(dialect):
             dialect,
             "AND",
             Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, PARTITION_TABLE),
+            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
@@ -215,13 +216,13 @@ async def _async_create_partitioned_table(backend):
     await backend.execute(*_create_partitioned_table_expression(backend.dialect).to_sql())
 
 
-def _partition_names(backend):
-    rows = backend.fetch_all(*_partition_names_expression(backend.dialect).to_sql())
+def _partition_names(backend, table_name=None):
+    rows = backend.fetch_all(*_partition_names_expression(backend.dialect, table_name).to_sql())
     return [row["name"] for row in rows]
 
 
-async def _async_partition_names(backend):
-    rows = await backend.fetch_all(*_partition_names_expression(backend.dialect).to_sql())
+async def _async_partition_names(backend, table_name=None):
+    rows = await backend.fetch_all(*_partition_names_expression(backend.dialect, table_name).to_sql())
     return [row["name"] for row in rows]
 
 
@@ -1020,17 +1021,18 @@ class TestMySQLPartitionOperationsConcurrency:
 
         MySQL partition DDL statements are not transactional — they trigger
         an implicit commit before and after execution. This test verifies that
-        a rollback after ADD PARTITION does not undo the partition change.
+        a rollback after ADD PARTITION does not undo the partition change,
+        and that the INSERT performed before the DDL is also committed.
 
         Steps:
             1. BEGIN a transaction
             2. INSERT a row
-            3. ADD PARTITION
-            4. ROLLBACK
-            5. Verify partition exists (DDL was committed) and INSERT is rolled back
+            3. ADD PARTITION  — triggers implicit commit
+            4. ROLLBACK (no effect — transaction was already committed)
+            5. Verify partition exists and INSERT survived the rollback
 
         Raises:
-            AssertionError: if partition DDL was rolled back or INSERT survived.
+            AssertionError: if partition DDL was rolled back or INSERT was lost.
         """
         mysql_backend.execute("BEGIN")
         mysql_backend.execute(
@@ -1047,11 +1049,11 @@ class TestMySQLPartitionOperationsConcurrency:
         # Partition DDL auto-committed — p2026_03 should still exist
         assert _partition_names(mysql_backend) == ["p2026_01", "p2026_02", "p2026_03"]
 
-        # INSERT was rolled back — no rows should remain
+        # INSERT was also auto-committed by the DDL — row should still exist
         count = mysql_backend.fetch_one(
             f"SELECT COUNT(*) AS count FROM {PARTITION_TABLE}"
         )["count"]
-        assert count == 0
+        assert count == 1
 
     def test_concurrent_add_and_drop_partition(self, mysql_backend, mysql_control_backend):
         """Concurrent ADD and DROP on different connections should not corrupt metadata.
@@ -1084,7 +1086,7 @@ class TestMySQLPartitionOperationsConcurrency:
                     mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_low"]
                 ).to_sql()
             )
-            names = _partition_names(mysql_backend)
+            names = _partition_names(mysql_backend, NEGATIVE_PARTITIONED_TABLE)
             assert "p_mid" in names
             assert "p_high" in names
             assert "p_low" not in names
@@ -1209,7 +1211,7 @@ def _create_subpartitioned_table_expression(dialect):
         dialect=dialect,
         table=SUBPARTITION_TABLE,
         columns=_subpartition_columns(),
-        partition=MySQLPartitionByRange(
+        partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
             keys=[Column(dialect, "created_at")],
             partitions=[

@@ -294,18 +294,29 @@ class MySQLPartitionByHash(MySQLPartitionClause):
 
 
 class MySQLPartitionByKey(MySQLPartitionClause):
-    """MySQL PARTITION BY KEY expression."""
+    """MySQL PARTITION BY KEY expression.
+
+    MySQL allows empty ``KEY()`` to use all primary key columns as the
+    partition key. When ``keys`` is empty or ``None``, this expression
+    bypasses the base class key validation (which requires at least one
+    key expression) and produces ``PARTITION BY KEY()``.
+    """
 
     def __init__(
         self,
         dialect: "MySQLDialect",
-        keys: Sequence[BaseExpression],
+        keys: Optional[Sequence[BaseExpression]] = None,
         *,
         partitions_count: Optional[int] = None,
         linear: bool = False,
     ):
         method = MySQLPartitionStrategy.LINEAR_KEY if linear else MySQLPartitionStrategy.KEY
-        super().__init__(dialect, method, keys)
+        if keys:
+            super().__init__(dialect, method, keys)
+        else:
+            BaseExpression.__init__(self, dialect)
+            self.method = method
+            self.keys = list(keys) if keys else []
         self.partitions_count = partitions_count
         self.linear = linear
 

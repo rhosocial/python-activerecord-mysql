@@ -472,10 +472,10 @@ class TestMySQLPartitionStrategies:
                     [
                         (1, 50, "active", "low-1"),      # shard_id=50 < 100 → p_low
                         (2, 50, "active", "low-2"),      # shard_id=50 < 100 → p_low
-                        (3, 100, "active", "low-3"),     # shard_id=100, id=50 < 100 → p_low
-                        (4, 100, "closed", "mid-1"),     # shard_id=100, id=200 → 200>=100, check p_mid: (100,200) < (200,500) → TRUE
-                        (5, 200, "active", "mid-2"),     # shard_id=200, id=50 < 500 → p_mid
-                        (6, 200, "closed", "high-1"),    # shard_id=200, id=600 → (200,600) < (200,500) → FALSE → p_high
+                        (3, 100, "active", "low-3"),     # shard_id=100, id=3 < 100 → p_low
+                        (101, 100, "closed", "mid-1"),   # (100,101) < (200,500) → 100<200 → p_mid
+                        (201, 200, "active", "mid-2"),   # (200,201) < (200,500) → 200==200 AND 201<500 → p_mid
+                        (501, 200, "closed", "high-1"),  # (200,501) < (200,500) → FALSE → p_high
                     ],
                 ).to_sql()
             )
@@ -587,7 +587,7 @@ class TestMySQLPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), None, Literal(mysql_backend.dialect, "null-row")],
+                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "null-row")],
                     ],
                 ),
             )
@@ -637,7 +637,7 @@ class TestMySQLPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), None, Literal(mysql_backend.dialect, "null-row")],
+                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "null-row")],
                     ],
                 ),
             )
@@ -678,7 +678,7 @@ class TestMySQLPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), None, Literal(mysql_backend.dialect, "null-row")],
+                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "null-row")],
                     ],
                 ),
             )
@@ -720,7 +720,7 @@ class TestMySQLPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), None, Literal(mysql_backend.dialect, "row-1")],
+                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "row-1")],
                     ],
                 ),
             )
