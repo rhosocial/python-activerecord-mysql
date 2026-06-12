@@ -150,6 +150,8 @@ class MySQLDialect(
     OrderedSetAggregationMixin,
     QualifyClauseMixin,
     TemporalTableMixin,
+    MySQLFullTextSearchMixin,  # MySQL full-text search (before IndexMixin to override supports_fulltext_index)
+    MySQLTriggerMixin,  # MySQL trigger support (before IndexMixin to override trigger methods)
     MySQLDMLOperationMixin,  # MySQL DML operations (before UpsertMixin to override format_on_conflict_clause)
     UpsertMixin,
     LateralJoinMixin,  # MySQL 8.0.14+ supports LATERAL
@@ -162,8 +164,6 @@ class MySQLDialect(
     PartitionMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
-    MySQLFullTextSearchMixin,  # MySQL full-text search
-    MySQLTriggerMixin,
     MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
     TableMixin,
     ConstraintMixin,
