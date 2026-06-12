@@ -1,13 +1,12 @@
 # src/rhosocial/activerecord/backend/impl/mysql/cli/output.py
 """Output provider factory and display helpers."""
 
-from rhosocial.activerecord.backend.output import (
-    JsonOutputProvider, CsvOutputProvider, TsvOutputProvider
-)
+from rhosocial.activerecord.backend.output import JsonOutputProvider, CsvOutputProvider, TsvOutputProvider
 
 # Attempt to import rich for formatted output
 try:
     from rhosocial.activerecord.backend.output_rich import RichOutputProvider
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -29,6 +28,7 @@ def create_provider(output_format: str, ascii_borders: bool = False):
 
     if output_format == "table" and RICH_AVAILABLE:
         from rich.console import Console
+
         return RichOutputProvider(console=Console(), ascii_borders=ascii_borders)
     if output_format == "json":
         return JsonOutputProvider()
@@ -47,4 +47,5 @@ def display_nested_json(data):
     (e.g., info overview, status 'all').
     """
     import json
+
     print(json.dumps(data, indent=2))

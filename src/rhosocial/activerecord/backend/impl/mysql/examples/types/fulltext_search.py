@@ -11,11 +11,11 @@ from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'test'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "test"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 dialect = backend.dialect
@@ -23,18 +23,18 @@ dialect = backend.dialect
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode
-from rhosocial.activerecord.backend.expression.core import TableExpression
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode  # noqa: E402
+from rhosocial.activerecord.backend.expression.core import TableExpression  # noqa: E402
 
 # Create a full-text search expression
 # MySQL 5.6+ supports FULLTEXT indexes on InnoDB
-articles = TableExpression(dialect, 'articles')
+articles = TableExpression(dialect, "articles")
 
 # Natural language search (default)
 match_expr = MySQLMatchAgainstExpression(
     dialect=dialect,
-    columns=['title', 'content'],
-    search_string='database',
+    columns=["title", "content"],
+    search_string="database",
     mode=MatchAgainstMode.NATURAL_LANGUAGE,
 )
 
@@ -45,8 +45,8 @@ print(f"Params: {params}")
 # Boolean mode (allows wildcards, operators)
 match_boolean = MySQLMatchAgainstExpression(
     dialect=dialect,
-    columns=['title', 'content'],
-    search_string='+mysql -oracle',
+    columns=["title", "content"],
+    search_string="+mysql -oracle",
     mode=MatchAgainstMode.BOOLEAN,
 )
 
@@ -56,8 +56,8 @@ print(f"Boolean: {sql}")
 # With query expansion
 match_expanded = MySQLMatchAgainstExpression(
     dialect=dialect,
-    columns=['title', 'content'],
-    search_string='database',
+    columns=["title", "content"],
+    search_string="database",
     mode=MatchAgainstMode.NATURAL_LANGUAGE_WITH_QUERY_EXPANSION,
 )
 

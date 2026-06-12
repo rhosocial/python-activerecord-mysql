@@ -8,6 +8,7 @@ Tests SQL generation for:
 - DualityObjectSpec with various tag combinations
 - Nested duality objects
 """
+
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (

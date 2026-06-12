@@ -34,32 +34,40 @@ from rhosocial.activerecord.backend.expression.statements.explain import Explain
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', 3306)),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", 3306)),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
-        ColumnDefinition('id', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
-        ]),
-        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
-        ]),
-        ColumnDefinition('email', 'VARCHAR(200)'),
+        ColumnDefinition(
+            "id",
+            "INT",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition(
+            "name",
+            "VARCHAR(100)",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ],
+        ),
+        ColumnDefinition("email", "VARCHAR(200)"),
     ],
     if_not_exists=True,
 )
@@ -68,24 +76,24 @@ backend.execute(sql, params)
 
 create_index = CreateIndexExpression(
     dialect=dialect,
-    index_name='idx_users_email',
-    table_name='users',
-    columns=['email'],
+    index_name="idx_users_email",
+    table_name="users",
+    columns=["email"],
     if_not_exists=True,
 )
 sql, params = create_index.to_sql()
 backend.execute(sql, params)
 
 users = [
-    ('Alice', 'alice@example.com'),
-    ('Bob', 'bob@example.com'),
-    ('Charlie', 'charlie@example.com'),
+    ("Alice", "alice@example.com"),
+    ("Bob", "bob@example.com"),
+    ("Charlie", "charlie@example.com"),
 ]
 for name, email in users:
     insert_expr = InsertExpression(
         dialect=dialect,
-        into='users',
-        columns=['name', 'email'],
+        into="users",
+        columns=["name", "email"],
         source=ValuesSource(dialect, [[Literal(dialect, name), Literal(dialect, email)]]),
     )
     sql, params = insert_expr.to_sql()
@@ -98,10 +106,13 @@ for name, email in users:
 # 1. EXPLAIN for table scan (no index on name column)
 query1 = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, '*')],
-    from_=TableExpression(dialect, 'users'),
+    select=[Column(dialect, "*")],
+    from_=TableExpression(dialect, "users"),
     where=ComparisonPredicate(
-        dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice'),
+        dialect,
+        "=",
+        Column(dialect, "name"),
+        Literal(dialect, "Alice"),
     ),
 )
 explain_scan = ExplainExpression(
@@ -119,10 +130,13 @@ for row in result.data:
 # 2. EXPLAIN for index search (email has index)
 query2 = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, '*')],
-    from_=TableExpression(dialect, 'users'),
+    select=[Column(dialect, "*")],
+    from_=TableExpression(dialect, "users"),
     where=ComparisonPredicate(
-        dialect, '=', Column(dialect, 'email'), Literal(dialect, 'alice@example.com'),
+        dialect,
+        "=",
+        Column(dialect, "email"),
+        Literal(dialect, "alice@example.com"),
     ),
 )
 explain_search = ExplainExpression(
@@ -141,7 +155,7 @@ for row in result.data:
 explain_json = ExplainExpression(
     dialect=dialect,
     statement=query2,
-    options=ExplainOptions(format='JSON'),
+    options=ExplainOptions(format="JSON"),
 )
 sql, params = explain_json.to_sql()
 print("\n3. EXPLAIN FORMAT=JSON:")
@@ -153,7 +167,7 @@ for row in result.data:
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

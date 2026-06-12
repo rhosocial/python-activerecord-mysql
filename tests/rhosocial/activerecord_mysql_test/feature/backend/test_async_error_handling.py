@@ -7,6 +7,7 @@ using the proper error classes from mysql.connector.errors (not mysql.connector.
 
 This ensures the fix for: AttributeError: module 'mysql.connector.aio' has no attribute 'Error'
 """
+
 import asyncio
 import pytest
 import pytest_asyncio
@@ -63,16 +64,12 @@ class TestAsyncHandleError:
 
         try:
             # Insert first row
-            await async_mysql_backend.execute(
-                "INSERT INTO unique_test_err (email) VALUES (%s)",
-                ("test@example.com",)
-            )
+            await async_mysql_backend.execute("INSERT INTO unique_test_err (email) VALUES (%s)", ("test@example.com",))
 
             # Try to insert duplicate - should raise IntegrityError
             with pytest.raises(IntegrityError) as exc_info:
                 await async_mysql_backend.execute(
-                    "INSERT INTO unique_test_err (email) VALUES (%s)",
-                    ("test@example.com",)
+                    "INSERT INTO unique_test_err (email) VALUES (%s)", ("test@example.com",)
                 )
 
             # The error message contains "duplicate entry" (lowercase in MySQL error)
@@ -82,8 +79,7 @@ class TestAsyncHandleError:
             # Give time for any pending async operations
             await asyncio.sleep(0.1)
             try:
-                await async_mysql_backend.execute(
-                    "DROP TABLE IF EXISTS unique_test_err")
+                await async_mysql_backend.execute("DROP TABLE IF EXISTS unique_test_err")
             except Exception:
                 pass
 
@@ -188,9 +184,7 @@ class TestAsyncHandleError:
 
             # Try to insert with non-existent parent - should raise IntegrityError
             with pytest.raises(IntegrityError) as exc_info:
-                await backend.execute(
-                    "INSERT INTO child_table_err (id, parent_id) VALUES (1, 999)"
-                )
+                await backend.execute("INSERT INTO child_table_err (id, parent_id) VALUES (1, 999)")
 
             assert "foreign key constraint" in str(exc_info.value).lower()
         finally:
@@ -236,7 +230,7 @@ class TestAsyncErrorClassValidation:
         from mysql.connector.errors import Error as MySQLError
 
         # In some versions, mysql_async.Error exists and is the same class
-        if hasattr(mysql_async, 'Error'):
+        if hasattr(mysql_async, "Error"):
             # It should be the same class, not a different one
             assert mysql_async.Error is MySQLError
         # In newer versions, mysql_async.Error may not exist, which is fine
@@ -249,16 +243,10 @@ class TestAsyncConnectionErrorHandling:
     @pytest.mark.asyncio
     async def test_connection_error_on_invalid_host(self):
         """Test that connection to invalid host raises proper error."""
-        from rhosocial.activerecord.backend.errors import (
-            ConnectionError as ARConnectionError
-        )
+        from rhosocial.activerecord.backend.errors import ConnectionError as ARConnectionError
 
         backend = AsyncMySQLBackend(
-            host="nonexistent-host-12345.invalid",
-            port=3306,
-            database="test",
-            username="test",
-            password="test"
+            host="nonexistent-host-12345.invalid", port=3306, database="test", username="test", password="test"
         )
 
         with pytest.raises((ARConnectionError, OSError)):
@@ -268,6 +256,4 @@ class TestAsyncConnectionErrorHandling:
     async def test_syntax_error_handling(self, async_mysql_backend):
         """Test that SQL syntax error raises proper DatabaseError."""
         with pytest.raises(DatabaseError):
-            await async_mysql_backend.execute(
-                "SELECT * FROM nonexistent_table_xyz"
-            )
+            await async_mysql_backend.execute("SELECT * FROM nonexistent_table_xyz")

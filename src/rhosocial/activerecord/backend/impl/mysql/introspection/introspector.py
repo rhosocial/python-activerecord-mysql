@@ -76,13 +76,13 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
 
     def _get_default_schema(self) -> str:
         """Return the MySQL database name from the backend config."""
-        if hasattr(self._backend, 'config') and hasattr(self._backend.config, 'database'):
+        if hasattr(self._backend, "config") and hasattr(self._backend.config, "database"):
             return self._backend.config.database or ""
         return ""
 
     def _get_version(self) -> tuple:
         """Return the MySQL server version tuple from the backend."""
-        return getattr(self._backend, '_version', (8, 0, 0))
+        return getattr(self._backend, "_version", (8, 0, 0))
 
     # ------------------------------------------------------------------ #
     # Parse methods — pure Python, no I/O
@@ -104,9 +104,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             collation=db_row.get("DEFAULT_COLLATION_NAME"),
         )
 
-    def _parse_tables(
-        self, rows: List[Dict[str, Any]], schema: Optional[str]
-    ) -> List[TableInfo]:
+    def _parse_tables(self, rows: List[Dict[str, Any]], schema: Optional[str]) -> List[TableInfo]:
         target_db = schema if schema is not None else self._get_default_schema()
         table_type_map = {
             "BASE TABLE": TableType.BASE_TABLE,
@@ -139,11 +137,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     ) -> List[ColumnInfo]:
         columns = []
         for row in rows:
-            nullable = (
-                ColumnNullable.NULLABLE
-                if row.get("IS_NULLABLE") == "YES"
-                else ColumnNullable.NOT_NULL
-            )
+            nullable = ColumnNullable.NULLABLE if row.get("IS_NULLABLE") == "YES" else ColumnNullable.NOT_NULL
             col_type = row.get("COLUMN_TYPE") or row.get("DATA_TYPE") or "VARCHAR"
             columns.append(
                 ColumnInfo(
@@ -240,9 +234,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             fk_map[fk_name].referenced_columns.append(row.get("REFERENCED_COLUMN_NAME", ""))
         return list(fk_map.values())
 
-    def _parse_views(
-        self, rows: List[Dict[str, Any]], schema: str
-    ) -> List[ViewInfo]:
+    def _parse_views(self, rows: List[Dict[str, Any]], schema: str) -> List[ViewInfo]:
         return [
             ViewInfo(
                 name=row.get("TABLE_NAME", row.get("VIEW_NAME", "")),
@@ -271,9 +263,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             is_updatable=row.get("IS_UPDATABLE") == "YES",
         )
 
-    def _parse_triggers(
-        self, rows: List[Dict[str, Any]], schema: str
-    ) -> List[TriggerInfo]:
+    def _parse_triggers(self, rows: List[Dict[str, Any]], schema: str) -> List[TriggerInfo]:
         return [
             TriggerInfo(
                 name=row.get("TRIGGER_NAME", ""),
@@ -324,12 +314,8 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
     # get_table_info override
     # ------------------------------------------------------------------ #
 
-    def get_table_info(
-        self, table_name: str, schema: Optional[str] = None
-    ) -> Optional[TableInfo]:
-        key = self._make_cache_key(
-            IntrospectionScope.TABLE, table_name, schema=schema
-        )
+    def get_table_info(self, table_name: str, schema: Optional[str] = None) -> Optional[TableInfo]:
+        key = self._make_cache_key(IntrospectionScope.TABLE, table_name, schema=schema)
         cached = self._get_cached(key)
         if cached is not None:
             return cached
@@ -384,12 +370,8 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
     # get_table_info override
     # ------------------------------------------------------------------ #
 
-    async def get_table_info(
-        self, table_name: str, schema: Optional[str] = None
-    ) -> Optional[TableInfo]:
-        key = self._make_cache_key(
-            IntrospectionScope.TABLE, table_name, schema=schema
-        )
+    async def get_table_info(self, table_name: str, schema: Optional[str] = None) -> Optional[TableInfo]:
+        key = self._make_cache_key(IntrospectionScope.TABLE, table_name, schema=schema)
         cached = self._get_cached(key)
         if cached is not None:
             return cached

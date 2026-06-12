@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_EXTRACT expression.
-    
+
     Extracts a value from a JSON document using a path.
-    
+
     Example:
         >>> expr = MySQLJSONExtractExpression(dialect, 'data', '$.name')
     """
@@ -50,9 +50,9 @@ class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
 
 class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
     """MySQL JSON_OBJECT expression.
-    
+
     Creates a JSON object from key-value pairs.
-    
+
     Example:
         >>> expr = MySQLJSONObjectExpression(dialect, {'name': 'Alice', 'age': 30})
         OR
@@ -92,9 +92,9 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
 
 class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
     """MySQL JSON_ARRAY expression.
-    
+
     Creates a JSON array from values.
-    
+
     Example:
         >>> expr = MySQLJSONArrayExpression(dialect, [1, 2, 3])
         OR
@@ -127,9 +127,9 @@ class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
 
 class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_CONTAINS expression.
-    
+
     Checks if a JSON document contains a specific value.
-    
+
     Example:
         >>> expr = MySQLJSONContainsExpression(dialect, 'data', 'urgent', '$.tags')
     """
@@ -148,9 +148,7 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         self.alias = None
 
     def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_json_contains(
-            self.json_column, self.value, self.path
-        )
+        sql, params = self.dialect.format_json_contains(self.json_column, self.value, self.path)
         if self.alias:
             sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
         return sql, params

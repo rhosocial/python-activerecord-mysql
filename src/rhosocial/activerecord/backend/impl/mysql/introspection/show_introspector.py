@@ -62,6 +62,7 @@ class ShowMixin:
     @staticmethod
     def _parse_create_table(rows: List[Dict], table_name: str):
         from ..show.types import ShowCreateTableResult
+
         if not rows:
             return None
         row = rows[0]
@@ -73,6 +74,7 @@ class ShowMixin:
     @staticmethod
     def _parse_create_view(rows: List[Dict], view_name: str):
         from ..show.types import ShowCreateViewResult
+
         if not rows:
             return None
         row = rows[0]
@@ -86,6 +88,7 @@ class ShowMixin:
     @staticmethod
     def _parse_columns(rows: List[Dict]):
         from ..show.types import ShowColumnResult
+
         columns = []
         for row in rows:
             col = ShowColumnResult(
@@ -105,6 +108,7 @@ class ShowMixin:
     @staticmethod
     def _parse_indexes(rows: List[Dict]):
         from ..show.types import ShowIndexResult
+
         return [
             ShowIndexResult(
                 table=row.get("Table", row.get("TABLE_NAME")),
@@ -129,6 +133,7 @@ class ShowMixin:
     @staticmethod
     def _parse_tables(rows: List[Dict]):
         from ..show.types import ShowTableResult
+
         result = []
         for row in rows:
             if len(row) == 1:
@@ -142,11 +147,13 @@ class ShowMixin:
     @staticmethod
     def _parse_databases(rows: List[Dict]):
         from ..show.types import ShowDatabaseResult
+
         return [ShowDatabaseResult(name=row.get("Database")) for row in rows]
 
     @staticmethod
     def _parse_table_status(rows: List[Dict]):
         from ..show.types import ShowTableStatusResult
+
         return [
             ShowTableStatusResult(
                 name=row.get("Name"),
@@ -174,6 +181,7 @@ class ShowMixin:
     @staticmethod
     def _parse_triggers(rows: List[Dict]):
         from ..show.types import ShowTriggerResult
+
         return [
             ShowTriggerResult(
                 trigger=row.get("Trigger", row.get("TRIGGER_NAME")),
@@ -194,6 +202,7 @@ class ShowMixin:
     @staticmethod
     def _parse_create_trigger(rows: List[Dict], trigger_name: str):
         from ..show.types import ShowCreateTriggerResult
+
         if not rows:
             return None
         row = rows[0]
@@ -208,22 +217,19 @@ class ShowMixin:
     @staticmethod
     def _parse_variables(rows: List[Dict]):
         from ..show.types import ShowVariableResult
-        return [
-            ShowVariableResult(variable_name=row.get("Variable_name"), value=row.get("Value"))
-            for row in rows
-        ]
+
+        return [ShowVariableResult(variable_name=row.get("Variable_name"), value=row.get("Value")) for row in rows]
 
     @staticmethod
     def _parse_status(rows: List[Dict]):
         from ..show.types import ShowStatusResult
-        return [
-            ShowStatusResult(variable_name=row.get("Variable_name"), value=row.get("Value"))
-            for row in rows
-        ]
+
+        return [ShowStatusResult(variable_name=row.get("Variable_name"), value=row.get("Value")) for row in rows]
 
     @staticmethod
     def _parse_processlist(rows: List[Dict]):
         from ..show.types import ShowProcessListResult
+
         return [
             ShowProcessListResult(
                 id=row.get("Id", row.get("ID")),
@@ -241,14 +247,15 @@ class ShowMixin:
     @staticmethod
     def _parse_warnings(rows: List[Dict]):
         from ..show.types import ShowWarningResult
+
         return [
-            ShowWarningResult(level=row.get("Level"), code=row.get("Code"), message=row.get("Message"))
-            for row in rows
+            ShowWarningResult(level=row.get("Level"), code=row.get("Code"), message=row.get("Message")) for row in rows
         ]
 
     @staticmethod
     def _parse_engines(rows: List[Dict]):
         from ..show.types import ShowEngineResult
+
         return [
             ShowEngineResult(
                 engine=row.get("Engine"),
@@ -263,6 +270,7 @@ class ShowMixin:
     @staticmethod
     def _parse_charset(rows: List[Dict]):
         from ..show.types import ShowCharsetResult
+
         return [
             ShowCharsetResult(
                 charset=row.get("Charset"),
@@ -276,6 +284,7 @@ class ShowMixin:
     @staticmethod
     def _parse_collation(rows: List[Dict]):
         from ..show.types import ShowCollationResult
+
         return [
             ShowCollationResult(
                 collation=row.get("Collation"),
@@ -291,11 +300,13 @@ class ShowMixin:
     @staticmethod
     def _parse_grants(rows: List[Dict]):
         from ..show.types import ShowGrantResult
+
         return [ShowGrantResult(grants=row.get("Grants for")) for row in rows]
 
     @staticmethod
     def _parse_plugins(rows: List[Dict]):
         from ..show.types import ShowPluginResult
+
         return [
             ShowPluginResult(
                 name=row.get("Name"),

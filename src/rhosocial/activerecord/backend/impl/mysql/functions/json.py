@@ -321,8 +321,13 @@ def json_search(
     if path is not None:
         path_expr = core.Literal(dialect, path)
         return core.FunctionCall(
-            dialect, "JSON_SEARCH", doc_expr, one_or_all_expr, search_expr,
-            core.Literal(dialect, None), path_expr,
+            dialect,
+            "JSON_SEARCH",
+            doc_expr,
+            one_or_all_expr,
+            search_expr,
+            core.Literal(dialect, None),
+            path_expr,
         )
     return core.FunctionCall(dialect, "JSON_SEARCH", doc_expr, one_or_all_expr, search_expr)
 

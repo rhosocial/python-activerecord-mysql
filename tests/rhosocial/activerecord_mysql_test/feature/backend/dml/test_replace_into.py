@@ -8,12 +8,11 @@ and re-inserts rows on duplicate key conflicts.
 Official Documentation:
 - REPLACE: https://dev.mysql.com/doc/refman/8.0/en/replace.html
 """
+
 import pytest
 import pytest_asyncio
 
-from rhosocial.activerecord.backend.expression.statements import (
-    InsertExpression, ValuesSource
-)
+from rhosocial.activerecord.backend.expression.statements import InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression import core
 
 
@@ -46,13 +45,10 @@ class TestMySQLReplaceInto:
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]
-                ]
+                dialect, [[core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]]
             ),
             columns=["email", "name"],
-            dialect_options={"replace": True}
+            dialect_options={"replace": True},
         )
 
         sql, params = expr.to_sql()
@@ -63,10 +59,7 @@ class TestMySQLReplaceInto:
         assert result.affected_rows == 1
 
         # Verify data was inserted
-        row = mysql_backend.fetch_one(
-            "SELECT * FROM test_replace_into WHERE email = %s",
-            ("alice@example.com",)
-        )
+        row = mysql_backend.fetch_one("SELECT * FROM test_replace_into WHERE email = %s", ("alice@example.com",))
         assert row is not None
         assert row["name"] == "Alice"
 
@@ -75,30 +68,21 @@ class TestMySQLReplaceInto:
         dialect = mysql_backend.dialect
 
         # Insert first row
-        mysql_backend.execute(
-            "INSERT INTO test_replace_into (email, name) VALUES (%s, %s)",
-            ("bob@example.com", "Bob")
-        )
+        mysql_backend.execute("INSERT INTO test_replace_into (email, name) VALUES (%s, %s)", ("bob@example.com", "Bob"))
 
         # Get the original ID
         original_row = mysql_backend.fetch_one(
-            "SELECT id FROM test_replace_into WHERE email = %s",
-            ("bob@example.com",)
+            "SELECT id FROM test_replace_into WHERE email = %s", ("bob@example.com",)
         )
-        original_id = original_row["id"]
+        original_row["id"]
 
         # REPLACE with new data
         expr = InsertExpression(
             dialect=dialect,
             into=test_table,
-            source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]
-                ]
-            ),
+            source=ValuesSource(dialect, [[core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]]),
             columns=["email", "name"],
-            dialect_options={"replace": True}
+            dialect_options={"replace": True},
         )
 
         sql, params = expr.to_sql()
@@ -108,10 +92,7 @@ class TestMySQLReplaceInto:
         assert result.affected_rows in (1, 2)
 
         # Verify data was replaced
-        row = mysql_backend.fetch_one(
-            "SELECT * FROM test_replace_into WHERE email = %s",
-            ("bob@example.com",)
-        )
+        row = mysql_backend.fetch_one("SELECT * FROM test_replace_into WHERE email = %s", ("bob@example.com",))
         assert row is not None
         assert row["name"] == "Bob 2"
         # Note: AUTO_INCREMENT may change on REPLACE
@@ -123,8 +104,7 @@ class TestMySQLReplaceInto:
 
         # Insert some initial data
         mysql_backend.execute(
-            "INSERT INTO test_replace_into (email, name) VALUES (%s, %s)",
-            ("existing@example.com", "Existing User")
+            "INSERT INTO test_replace_into (email, name) VALUES (%s, %s)", ("existing@example.com", "Existing User")
         )
 
         # REPLACE multiple rows, one conflicts
@@ -137,10 +117,10 @@ class TestMySQLReplaceInto:
                     [core.Literal(dialect, "new1@example.com"), core.Literal(dialect, "New 1")],
                     [core.Literal(dialect, "existing@example.com"), core.Literal(dialect, "Replaced")],
                     [core.Literal(dialect, "new2@example.com"), core.Literal(dialect, "New 2")],
-                ]
+                ],
             ),
             columns=["email", "name"],
-            dialect_options={"replace": True}
+            dialect_options={"replace": True},
         )
 
         sql, params = expr.to_sql()
@@ -173,12 +153,11 @@ class TestMySQLReplaceInto:
                 dialect=dialect,
                 into=test_table,
                 source=ValuesSource(
-                    dialect,
-                    [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
+                    dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
                 ),
                 columns=["email", "name"],
                 dialect_options={"replace": True},
-                on_conflict=OnConflictClause(dialect, ["email"], do_nothing=True)  # Invalid combination
+                on_conflict=OnConflictClause(dialect, ["email"], do_nothing=True),  # Invalid combination
             )
             expr.to_sql()
 
@@ -191,11 +170,10 @@ class TestMySQLReplaceInto:
                 dialect=dialect,
                 into=test_table,
                 source=ValuesSource(
-                    dialect,
-                    [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
+                    dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
                 ),
                 columns=["email", "name"],
-                dialect_options={"replace": True, "ignore": True}
+                dialect_options={"replace": True, "ignore": True},
             )
             expr.to_sql()
 
@@ -223,8 +201,7 @@ class TestMySQLAsyncReplaceInto:
 
         # Insert first row
         await async_mysql_backend.execute(
-            "INSERT INTO test_replace_into_async (email, name) VALUES (%s, %s)",
-            ("async@example.com", "Async User")
+            "INSERT INTO test_replace_into_async (email, name) VALUES (%s, %s)", ("async@example.com", "Async User")
         )
 
         # REPLACE with new data
@@ -232,22 +209,18 @@ class TestMySQLAsyncReplaceInto:
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Replaced Async")]
-                ]
+                dialect, [[core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Replaced Async")]]
             ),
             columns=["email", "name"],
-            dialect_options={"replace": True}
+            dialect_options={"replace": True},
         )
 
         sql, params = expr.to_sql()
-        result = await async_mysql_backend.execute(sql, params)
+        await async_mysql_backend.execute(sql, params)
 
         # Verify data was replaced
         row = await async_mysql_backend.fetch_one(
-            "SELECT * FROM test_replace_into_async WHERE email = %s",
-            ("async@example.com",)
+            "SELECT * FROM test_replace_into_async WHERE email = %s", ("async@example.com",)
         )
         assert row is not None
         assert row["name"] == "Replaced Async"

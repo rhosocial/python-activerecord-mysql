@@ -31,11 +31,11 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', 3306)),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", 3306)),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
@@ -43,22 +43,30 @@ dialect = backend.dialect
 
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
-        ColumnDefinition('id', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
-        ]),
-        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
-        ]),
-        ColumnDefinition('email', 'VARCHAR(200)'),
+        ColumnDefinition(
+            "id",
+            "INT",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition(
+            "name",
+            "VARCHAR(100)",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ],
+        ),
+        ColumnDefinition("email", "VARCHAR(200)"),
     ],
     if_not_exists=True,
 )
@@ -72,11 +80,14 @@ backend.execute(sql, params)
 # 1. Insert a row
 insert_expr = InsertExpression(
     dialect=dialect,
-    into='users',
-    columns=['name', 'email'],
-    source=ValuesSource(dialect, [
-        [Literal(dialect, 'Alice'), Literal(dialect, 'alice@example.com')],
-    ]),
+    into="users",
+    columns=["name", "email"],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, "Alice"), Literal(dialect, "alice@example.com")],
+        ],
+    ),
 )
 sql, params = insert_expr.to_sql()
 print(f"INSERT SQL: {sql}")
@@ -92,7 +103,7 @@ print(f"Affected rows: {result.affected_rows}")
 # Use SELECT LAST_INSERT_ID() instead
 query_id = QueryExpression(
     dialect=dialect,
-    select=[FunctionCall(dialect, 'LAST_INSERT_ID').as_('generated_id')],
+    select=[FunctionCall(dialect, "LAST_INSERT_ID").as_("generated_id")],
 )
 sql, params = query_id.to_sql()
 print(f"LAST_INSERT_ID SQL: {sql}")
@@ -102,8 +113,8 @@ print(f"Generated ID: {result.data}")
 # 3. Verify by querying the inserted row
 verify_query = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'email')],
-    from_=TableExpression(dialect, 'users'),
+    select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "email")],
+    from_=TableExpression(dialect, "users"),
 )
 sql, params = verify_query.to_sql()
 result = backend.execute(sql, params, options=dql_options)
@@ -112,7 +123,7 @@ print(f"Users: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

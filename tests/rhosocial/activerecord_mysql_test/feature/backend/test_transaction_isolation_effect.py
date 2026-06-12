@@ -11,15 +11,13 @@ Tests cover:
 - REPEATABLE READ: No dirty reads, no non-repeatable reads, but phantom reads possible
 - SERIALIZABLE: Full isolation, no phantom reads
 """
+
 import pytest
 import threading
 import time
 from decimal import Decimal
-from typing import Type
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.transaction import IsolationLevel
-from rhosocial.activerecord.backend.errors import TransactionError
 
 
 class TestIsolationLevelEffects:
@@ -38,8 +36,7 @@ class TestIsolationLevelEffects:
             )
         """)
         mysql_backend.execute(
-            "INSERT INTO isolation_test (name, balance) VALUES (%s, %s)",
-            ("user1", Decimal("100.00"))
+            "INSERT INTO isolation_test (name, balance) VALUES (%s, %s)", ("user1", Decimal("100.00"))
         )
         yield "isolation_test"
         mysql_backend.execute("DROP TABLE IF EXISTS isolation_test")
@@ -67,10 +64,7 @@ class TestIsolationLevelEffects:
                     # Wait for transaction 2 to modify
                     time.sleep(0.15)
                     # Read potentially uncommitted data
-                    rows = backend1.fetch_all(
-                        "SELECT balance FROM isolation_test WHERE name = %s",
-                        ("user1",)
-                    )
+                    rows = backend1.fetch_all("SELECT balance FROM isolation_test WHERE name = %s", ("user1",))
                     if rows and rows[0]["balance"] == Decimal("200.00"):
                         dirty_read_detected.append(True)
             except Exception as e:
@@ -83,8 +77,7 @@ class TestIsolationLevelEffects:
                 with backend2.transaction():
                     # Update balance
                     backend2.execute(
-                        "UPDATE isolation_test SET balance = %s WHERE name = %s",
-                        (Decimal("200.00"), "user1")
+                        "UPDATE isolation_test SET balance = %s WHERE name = %s", (Decimal("200.00"), "user1")
                     )
                     # Wait for transaction 1 to read
                     time.sleep(0.3)
@@ -121,10 +114,7 @@ class TestIsolationLevelEffects:
                     # Wait for transaction 2 to modify
                     time.sleep(0.15)
                     # Should NOT see the uncommitted change
-                    rows = backend1.fetch_all(
-                        "SELECT balance FROM isolation_test WHERE name = %s",
-                        ("user1",)
-                    )
+                    rows = backend1.fetch_all("SELECT balance FROM isolation_test WHERE name = %s", ("user1",))
                     if rows and rows[0]["balance"] != Decimal("200.00"):
                         dirty_read_occurred.append(False)  # Correct behavior
                     else:
@@ -138,8 +128,7 @@ class TestIsolationLevelEffects:
                 backend2.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
                 with backend2.transaction():
                     backend2.execute(
-                        "UPDATE isolation_test SET balance = %s WHERE name = %s",
-                        (Decimal("200.00"), "user1")
+                        "UPDATE isolation_test SET balance = %s WHERE name = %s", (Decimal("200.00"), "user1")
                     )
                     time.sleep(0.2)
                     raise Exception("Force rollback")
@@ -176,20 +165,14 @@ class TestIsolationLevelEffects:
                 backend1.transaction_manager.isolation_level = IsolationLevel.REPEATABLE_READ
                 with backend1.transaction():
                     # First read
-                    rows1 = backend1.fetch_all(
-                        "SELECT balance FROM isolation_test WHERE name = %s",
-                        ("user1",)
-                    )
+                    rows1 = backend1.fetch_all("SELECT balance FROM isolation_test WHERE name = %s", ("user1",))
                     read_values.append(rows1[0]["balance"])
 
                     # Wait for transaction 2 to commit
                     time.sleep(0.2)
 
                     # Second read (should be same as first)
-                    rows2 = backend1.fetch_all(
-                        "SELECT balance FROM isolation_test WHERE name = %s",
-                        ("user1",)
-                    )
+                    rows2 = backend1.fetch_all("SELECT balance FROM isolation_test WHERE name = %s", ("user1",))
                     read_values.append(rows2[0]["balance"])
             except Exception as e:
                 read_values.append(str(e))
@@ -201,10 +184,9 @@ class TestIsolationLevelEffects:
                 backend2.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
                 with backend2.transaction():
                     backend2.execute(
-                        "UPDATE isolation_test SET balance = %s WHERE name = %s",
-                        (Decimal("200.00"), "user1")
+                        "UPDATE isolation_test SET balance = %s WHERE name = %s", (Decimal("200.00"), "user1")
                     )
-            except Exception as e:
+            except Exception:
                 pass
 
         t1 = threading.Thread(target=transaction1)
@@ -241,8 +223,7 @@ class TestIsolationLevelEffects:
                 with backend1.transaction():
                     # First count
                     rows1 = backend1.fetch_all(
-                        "SELECT COUNT(*) as cnt FROM isolation_test WHERE balance > %s",
-                        (Decimal("50.00"),)
+                        "SELECT COUNT(*) as cnt FROM isolation_test WHERE balance > %s", (Decimal("50.00"),)
                     )
                     initial_count.append(rows1[0]["cnt"])
 
@@ -251,8 +232,7 @@ class TestIsolationLevelEffects:
 
                     # Second count (should be same)
                     rows2 = backend1.fetch_all(
-                        "SELECT COUNT(*) as cnt FROM isolation_test WHERE balance > %s",
-                        (Decimal("50.00"),)
+                        "SELECT COUNT(*) as cnt FROM isolation_test WHERE balance > %s", (Decimal("50.00"),)
                     )
                     second_count.append(rows2[0]["cnt"])
             except Exception as e:
@@ -266,11 +246,10 @@ class TestIsolationLevelEffects:
                 with backend2.transaction():
                     # Try to insert a row that matches the condition
                     backend2.execute(
-                        "INSERT INTO isolation_test (name, balance) VALUES (%s, %s)",
-                        ("user2", Decimal("75.00"))
+                        "INSERT INTO isolation_test (name, balance) VALUES (%s, %s)", ("user2", Decimal("75.00"))
                     )
                 insert_blocked.append(False)
-            except Exception as e:
+            except Exception:
                 # May be blocked by SERIALIZABLE lock
                 insert_blocked.append(True)
 
@@ -285,8 +264,9 @@ class TestIsolationLevelEffects:
         # With SERIALIZABLE, the counts should be consistent
         # (insert may be blocked or delayed until transaction 1 commits)
         if len(initial_count) == 2 and isinstance(initial_count[0], int):
-            assert initial_count[0] == second_count[0], \
+            assert initial_count[0] == second_count[0], (
                 f"SERIALIZABLE should prevent phantom reads: {initial_count[0]} vs {second_count[0]}"
+            )
 
 
 class TestTransactionModeEffects:
@@ -303,10 +283,7 @@ class TestTransactionModeEffects:
                 value INT
             )
         """)
-        mysql_backend.execute(
-            "INSERT INTO mode_test (name, value) VALUES (%s, %s)",
-            ("item1", 100)
-        )
+        mysql_backend.execute("INSERT INTO mode_test (name, value) VALUES (%s, %s)", ("item1", 100))
         yield "mode_test"
         mysql_backend.execute("DROP TABLE IF EXISTS mode_test")
 
@@ -323,13 +300,11 @@ class TestTransactionModeEffects:
         error_caught = False
         try:
             from rhosocial.activerecord.backend.transaction import TransactionMode
+
             mysql_backend.transaction_manager.transaction_mode = TransactionMode.READ_ONLY
             with mysql_backend.transaction():
                 # Attempt to insert (should fail)
-                mysql_backend.execute(
-                    "INSERT INTO mode_test (name, value) VALUES (%s, %s)",
-                    ("item2", 200)
-                )
+                mysql_backend.execute("INSERT INTO mode_test (name, value) VALUES (%s, %s)", ("item2", 200))
         except Exception as e:
             error_caught = True
             # Verify it's the right error
@@ -343,6 +318,7 @@ class TestTransactionModeEffects:
             pytest.skip("MySQL version does not support READ ONLY transactions")
 
         from rhosocial.activerecord.backend.transaction import TransactionMode
+
         mysql_backend.transaction_manager.transaction_mode = TransactionMode.READ_ONLY
         with mysql_backend.transaction():
             rows = mysql_backend.fetch_all("SELECT * FROM mode_test")
@@ -352,12 +328,10 @@ class TestTransactionModeEffects:
     def test_read_write_mode_allows_writes(self, mysql_backend, test_table):
         """Verify READ WRITE mode allows write operations."""
         from rhosocial.activerecord.backend.transaction import TransactionMode
+
         mysql_backend.transaction_manager.transaction_mode = TransactionMode.READ_WRITE
         with mysql_backend.transaction():
-            mysql_backend.execute(
-                "INSERT INTO mode_test (name, value) VALUES (%s, %s)",
-                ("item2", 200)
-            )
+            mysql_backend.execute("INSERT INTO mode_test (name, value) VALUES (%s, %s)", ("item2", 200))
 
         rows = mysql_backend.fetch_all("SELECT * FROM mode_test ORDER BY id")
         assert len(rows) == 2
@@ -379,8 +353,7 @@ class TestIsolationModeCombination:
             )
         """)
         mysql_backend.execute(
-            "INSERT INTO combo_test (name, balance) VALUES (%s, %s)",
-            ("account1", Decimal("1000.00"))
+            "INSERT INTO combo_test (name, balance) VALUES (%s, %s)", ("account1", Decimal("1000.00"))
         )
         yield "combo_test"
         mysql_backend.execute("DROP TABLE IF EXISTS combo_test")
@@ -424,9 +397,7 @@ class TestIsolationModeCombination:
         isolation_var = "@@transaction_isolation" if version >= (5, 7, 0) else "@@tx_isolation"
 
         with mysql_backend.transaction():
-            rows = mysql_backend.fetch_all(
-                f"SELECT {isolation_var} as isolation"
-            )
+            rows = mysql_backend.fetch_all(f"SELECT {isolation_var} as isolation")
             if rows and rows[0].get("isolation"):
                 isolation = rows[0]["isolation"]
                 assert "REPEATABLE READ" in isolation.upper() or "REPEATABLE-READ" in isolation.upper()
@@ -442,8 +413,9 @@ class TestIsolationModeCombination:
         from unittest.mock import patch
 
         # Verify initial state is None
-        assert mysql_backend.transaction_manager._isolation_level is None, \
+        assert mysql_backend.transaction_manager._isolation_level is None, (
             "Initial isolation level should be None (use database default)"
+        )
 
         # Track SQL statements executed
         executed_statements = []
@@ -454,24 +426,20 @@ class TestIsolationModeCombination:
             return original_execute(sql, params, **kwargs)
 
         # Patch execute to track statements
-        with patch.object(mysql_backend, 'execute', side_effect=track_execute):
+        with patch.object(mysql_backend, "execute", side_effect=track_execute):
             with mysql_backend.transaction():
                 # Execute a simple query inside the transaction
                 mysql_backend.fetch_all("SELECT 1 as test")
 
         # Verify no SET TRANSACTION was sent
-        set_transaction_found = any(
-            'SET TRANSACTION' in stmt.upper() for stmt in executed_statements
-        )
-        assert not set_transaction_found, \
+        set_transaction_found = any("SET TRANSACTION" in stmt.upper() for stmt in executed_statements)
+        assert not set_transaction_found, (
             f"SET TRANSACTION should NOT be sent when isolation level not specified. Executed: {executed_statements}"
+        )
 
         # Verify START TRANSACTION was sent
-        start_transaction_found = any(
-            'START TRANSACTION' in stmt.upper() for stmt in executed_statements
-        )
-        assert start_transaction_found, \
-            f"START TRANSACTION should be sent. Executed: {executed_statements}"
+        start_transaction_found = any("START TRANSACTION" in stmt.upper() for stmt in executed_statements)
+        assert start_transaction_found, f"START TRANSACTION should be sent. Executed: {executed_statements}"
 
     def test_explicit_isolation_level_sends_set_transaction(self, mysql_backend):
         """Verify that when isolation level is explicitly set, SET TRANSACTION is sent.
@@ -487,8 +455,9 @@ class TestIsolationModeCombination:
         mysql_backend.transaction_manager.isolation_level = IsolationLevel.READ_COMMITTED
 
         # Verify internal state changed
-        assert mysql_backend.transaction_manager._isolation_level == IsolationLevel.READ_COMMITTED, \
+        assert mysql_backend.transaction_manager._isolation_level == IsolationLevel.READ_COMMITTED, (
             "Isolation level should be READ_COMMITTED after explicit setting"
+        )
 
         # Track SQL statements executed
         executed_statements = []
@@ -499,38 +468,34 @@ class TestIsolationModeCombination:
             return original_execute(sql, params, **kwargs)
 
         # Patch execute to track statements
-        with patch.object(mysql_backend, 'execute', side_effect=track_execute):
+        with patch.object(mysql_backend, "execute", side_effect=track_execute):
             with mysql_backend.transaction():
                 mysql_backend.fetch_all("SELECT 1 as test")
 
         # Verify SET TRANSACTION was sent with correct level
         set_transaction_found = any(
-            'SET TRANSACTION' in stmt.upper() and 'READ COMMITTED' in stmt.upper()
-            for stmt in executed_statements
+            "SET TRANSACTION" in stmt.upper() and "READ COMMITTED" in stmt.upper() for stmt in executed_statements
         )
-        assert set_transaction_found, \
-            f"SET TRANSACTION READ COMMITTED should be sent. Executed: {executed_statements}"
+        assert set_transaction_found, f"SET TRANSACTION READ COMMITTED should be sent. Executed: {executed_statements}"
 
         # Verify SET TRANSACTION comes before START TRANSACTION
         set_transaction_idx = next(
-            (i for i, stmt in enumerate(executed_statements)
-             if 'SET TRANSACTION' in stmt.upper()),
-            None
+            (i for i, stmt in enumerate(executed_statements) if "SET TRANSACTION" in stmt.upper()), None
         )
         start_transaction_idx = next(
-            (i for i, stmt in enumerate(executed_statements)
-             if 'START TRANSACTION' in stmt.upper()),
-            None
+            (i for i, stmt in enumerate(executed_statements) if "START TRANSACTION" in stmt.upper()), None
         )
-        assert set_transaction_idx is not None and start_transaction_idx is not None, \
+        assert set_transaction_idx is not None and start_transaction_idx is not None, (
             "Both SET TRANSACTION and START TRANSACTION should be executed"
-        assert set_transaction_idx < start_transaction_idx, \
+        )
+        assert set_transaction_idx < start_transaction_idx, (
             f"SET TRANSACTION should come before START TRANSACTION. Order: {executed_statements}"
+        )
 
     def test_isolation_level_cannot_change_during_transaction(self, mysql_backend, test_table):
         """Verify isolation level cannot be changed during active transaction."""
         with mysql_backend.transaction():
-            with pytest.raises(Exception):  # IsolationLevelError
+            with pytest.raises(Exception):  # IsolationLevelError  # noqa: B017
                 mysql_backend.transaction_manager.isolation_level = IsolationLevel.SERIALIZABLE
 
 
@@ -557,19 +522,13 @@ class TestNestedTransactionsWithIsolation:
 
         with mysql_backend.transaction():
             # Insert first record
-            mysql_backend.execute(
-                "INSERT INTO nested_test (name, value) VALUES (%s, %s)",
-                ("outer", 1)
-            )
+            mysql_backend.execute("INSERT INTO nested_test (name, value) VALUES (%s, %s)", ("outer", 1))
 
             # Create savepoint
             sp = mysql_backend.transaction_manager.savepoint("sp1")
 
             # Insert second record
-            mysql_backend.execute(
-                "INSERT INTO nested_test (name, value) VALUES (%s, %s)",
-                ("inner", 2)
-            )
+            mysql_backend.execute("INSERT INTO nested_test (name, value) VALUES (%s, %s)", ("inner", 2))
 
             # Rollback to savepoint
             mysql_backend.transaction_manager.rollback_to(sp)

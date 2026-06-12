@@ -24,6 +24,7 @@ capabilities property and use the appropriate checking methods. Tests that
 require specific capabilities will automatically be skipped on backends
 that don't support those features.
 """
+
 from rhosocial.activerecord.testsuite.core.registry import ProviderRegistry
 from .basic import BasicProvider
 from .events import EventsProvider

@@ -77,11 +77,11 @@ class MySQLMatchAgainstExpression(
             self.search_string,
             self.mode,
         )
-        
+
         # Apply alias if any
         if self.alias:
             sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        
+
         return sql, params
 
 

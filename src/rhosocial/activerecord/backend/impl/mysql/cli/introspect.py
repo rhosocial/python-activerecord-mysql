@@ -14,19 +14,16 @@ from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 from .connection import add_connection_args, resolve_connection_config_from_args
 from .output import create_provider
 
-OUTPUT_CHOICES = ['table', 'json', 'csv', 'tsv']
+OUTPUT_CHOICES = ["table", "json", "csv", "tsv"]
 
-INTROSPECT_TYPES = [
-    "tables", "views", "table", "columns",
-    "indexes", "foreign-keys", "triggers", "database"
-]
+INTROSPECT_TYPES = ["tables", "views", "table", "columns", "indexes", "foreign-keys", "triggers", "database"]
 
 
 def create_parser(subparsers):
     """Create the introspect subcommand parser."""
     parser = subparsers.add_parser(
-        'introspect',
-        help='Database introspection',
+        "introspect",
+        help="Database introspection",
         epilog="""Examples:
   # List all tables in database
   %(prog)s tables --database mydb
@@ -52,10 +49,11 @@ def create_parser(subparsers):
 
     # Output format
     parser.add_argument(
-        '-o', '--output',
+        "-o",
+        "--output",
         choices=OUTPUT_CHOICES,
-        default='table',
-        help='Output format (default: table)',
+        default="table",
+        help="Output format (default: table)",
     )
 
     # Connection arguments
@@ -63,9 +61,9 @@ def create_parser(subparsers):
 
     # Rich display options
     parser.add_argument(
-        '--rich-ascii',
-        action='store_true',
-        help='Use ASCII characters for rich table borders.',
+        "--rich-ascii",
+        action="store_true",
+        help="Use ASCII characters for rich table borders.",
     )
 
     # introspect-specific arguments
@@ -117,13 +115,14 @@ def handle(args):
 # Internal helper functions
 # ---------------------------------------------------------------------------
 
+
 def _serialize_for_output(obj: Any) -> Any:
     """Serialize object for JSON output, handling non-serializable types."""
     if obj is None:
         return None
-    if hasattr(obj, 'model_dump'):
+    if hasattr(obj, "model_dump"):
         try:
-            result = obj.model_dump(mode='json')
+            result = obj.model_dump(mode="json")
             return _serialize_for_output(result)
         except TypeError:
             result = obj.model_dump()
@@ -149,10 +148,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
         introspector = backend.introspector
 
         if args.type == "tables":
-            tables = introspector.list_tables(
-                schema=args.schema,
-                include_system=args.include_system
-            )
+            tables = introspector.list_tables(schema=args.schema, include_system=args.include_system)
             data = _serialize_for_output(tables)
             provider.display_results(data, title="Tables")
 
@@ -171,7 +167,9 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
                 if info.indexes:
                     provider.display_results(_serialize_for_output(info.indexes), title=f"Indexes of {args.name}")
                 if info.foreign_keys:
-                    provider.display_results(_serialize_for_output(info.foreign_keys), title=f"Foreign Keys of {args.name}")
+                    provider.display_results(
+                        _serialize_for_output(info.foreign_keys), title=f"Foreign Keys of {args.name}"
+                    )
             else:
                 print(f"Error: Table '{args.name}' not found", file=sys.stderr)
                 sys.exit(1)
@@ -201,10 +199,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             provider.display_results(data, title=f"Foreign Keys of {args.name}")
 
         elif args.type == "triggers":
-            triggers = introspector.list_triggers(
-                table_name=args.name,
-                schema=args.schema
-            )
+            triggers = introspector.list_triggers(table_name=args.name, schema=args.schema)
             data = _serialize_for_output(triggers)
             provider.display_results(data, title="Triggers")
 
@@ -235,10 +230,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
         introspector = backend.introspector
 
         if args.type == "tables":
-            tables = await introspector.list_tables_async(
-                schema=args.schema,
-                include_system=args.include_system
-            )
+            tables = await introspector.list_tables_async(schema=args.schema, include_system=args.include_system)
             data = _serialize_for_output(tables)
             provider.display_results(data, title="Tables")
 
@@ -257,7 +249,9 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
                 if info.indexes:
                     provider.display_results(_serialize_for_output(info.indexes), title=f"Indexes of {args.name}")
                 if info.foreign_keys:
-                    provider.display_results(_serialize_for_output(info.foreign_keys), title=f"Foreign Keys of {args.name}")
+                    provider.display_results(
+                        _serialize_for_output(info.foreign_keys), title=f"Foreign Keys of {args.name}"
+                    )
             else:
                 print(f"Error: Table '{args.name}' not found", file=sys.stderr)
                 sys.exit(1)
@@ -287,10 +281,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             provider.display_results(data, title=f"Foreign Keys of {args.name}")
 
         elif args.type == "triggers":
-            triggers = await introspector.list_triggers_async(
-                table_name=args.name,
-                schema=args.schema
-            )
+            triggers = await introspector.list_triggers_async(table_name=args.name, schema=args.schema)
             data = _serialize_for_output(triggers)
             provider.display_results(data, title="Triggers")
 

@@ -371,9 +371,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW CREATE TABLE ==========
 
-    def create_table(
-        self, table_name: str, schema: Optional[str] = None
-    ):
+    def create_table(self, table_name: str, schema: Optional[str] = None):
         """Get CREATE TABLE statement for a table.
 
         Args:
@@ -393,9 +391,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW CREATE VIEW ==========
 
-    def create_view(
-        self, view_name: str, schema: Optional[str] = None
-    ):
+    def create_view(self, view_name: str, schema: Optional[str] = None):
         """Get CREATE VIEW statement for a view.
 
         Args:
@@ -446,9 +442,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW INDEX ==========
 
-    def indexes(
-        self, table_name: str, schema: Optional[str] = None
-    ):
+    def indexes(self, table_name: str, schema: Optional[str] = None):
         """Get index information for a table.
 
         Args:
@@ -516,9 +510,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW TABLE STATUS ==========
 
-    def table_status(
-        self, schema: Optional[str] = None, like: Optional[str] = None
-    ):
+    def table_status(self, schema: Optional[str] = None, like: Optional[str] = None):
         """Get table status information.
 
         Args:
@@ -540,9 +532,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW TRIGGERS ==========
 
-    def triggers(
-        self, schema: Optional[str] = None, table_name: Optional[str] = None
-    ):
+    def triggers(self, schema: Optional[str] = None, table_name: Optional[str] = None):
         """List triggers.
 
         Args:
@@ -562,9 +552,7 @@ class MySQLShowFunctionality:
         result = self._backend.execute(sql, params)
         return self._parse_triggers_result(result)
 
-    def create_trigger(
-        self, trigger_name: str, schema: Optional[str] = None
-    ):
+    def create_trigger(self, trigger_name: str, schema: Optional[str] = None):
         """Get CREATE TRIGGER statement.
 
         Args:
@@ -584,9 +572,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW VARIABLES ==========
 
-    def variables(
-        self, like: Optional[str] = None, session: bool = True
-    ):
+    def variables(self, like: Optional[str] = None, session: bool = True):
         """Show server variables.
 
         Args:
@@ -608,9 +594,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW STATUS ==========
 
-    def status(
-        self, like: Optional[str] = None, session: bool = True
-    ):
+    def status(self, like: Optional[str] = None, session: bool = True):
         """Show server status.
 
         Args:
@@ -738,9 +722,7 @@ class MySQLShowFunctionality:
 
     # ========== SHOW GRANTS ==========
 
-    def grants(
-        self, user: Optional[str] = None, host: Optional[str] = None
-    ):
+    def grants(self, user: Optional[str] = None, host: Optional[str] = None):
         """Show grants.
 
         Args:
@@ -779,9 +761,7 @@ class AsyncMySQLShowFunctionality:
     but with async methods.
     """
 
-    def __init__(
-        self, backend: "AsyncMySQLBackend", version: Optional[Tuple[int, ...]] = None
-    ):
+    def __init__(self, backend: "AsyncMySQLBackend", version: Optional[Tuple[int, ...]] = None):
         """Initialize async MySQL SHOW functionality.
 
         Args:
@@ -796,9 +776,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW CREATE TABLE ==========
 
-    async def create_table(
-        self, table_name: str, schema: Optional[str] = None
-    ):
+    async def create_table(self, table_name: str, schema: Optional[str] = None):
         """Async version of create_table."""
         expr = ShowCreateTableExpression(self.dialect, table_name)
         if schema:
@@ -809,9 +787,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW CREATE VIEW ==========
 
-    async def create_view(
-        self, view_name: str, schema: Optional[str] = None
-    ):
+    async def create_view(self, view_name: str, schema: Optional[str] = None):
         """Async version of create_view."""
         expr = ShowCreateViewExpression(self.dialect, view_name)
         if schema:
@@ -843,9 +819,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW INDEX ==========
 
-    async def indexes(
-        self, table_name: str, schema: Optional[str] = None
-    ):
+    async def indexes(self, table_name: str, schema: Optional[str] = None):
         """Async version of indexes."""
         expr = ShowIndexExpression(self.dialect, table_name)
         if schema:
@@ -887,9 +861,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW TABLE STATUS ==========
 
-    async def table_status(
-        self, schema: Optional[str] = None, like: Optional[str] = None
-    ):
+    async def table_status(self, schema: Optional[str] = None, like: Optional[str] = None):
         """Async version of table_status."""
         expr = ShowTableStatusExpression(self.dialect)
         if schema:
@@ -902,9 +874,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW TRIGGERS ==========
 
-    async def triggers(
-        self, schema: Optional[str] = None, table_name: Optional[str] = None
-    ):
+    async def triggers(self, schema: Optional[str] = None, table_name: Optional[str] = None):
         """Async version of triggers."""
         expr = ShowTriggersExpression(self.dialect)
         if schema:
@@ -915,9 +885,7 @@ class AsyncMySQLShowFunctionality:
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_triggers_result(result)
 
-    async def create_trigger(
-        self, trigger_name: str, schema: Optional[str] = None
-    ):
+    async def create_trigger(self, trigger_name: str, schema: Optional[str] = None):
         """Async version of create_trigger."""
         expr = ShowCreateTriggerExpression(self.dialect, trigger_name)
         if schema:
@@ -928,9 +896,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW VARIABLES ==========
 
-    async def variables(
-        self, like: Optional[str] = None, session: bool = True
-    ):
+    async def variables(self, like: Optional[str] = None, session: bool = True):
         """Async version of variables."""
         expr = ShowVariablesExpression(self.dialect)
         if like:
@@ -943,9 +909,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW STATUS ==========
 
-    async def status(
-        self, like: Optional[str] = None, session: bool = True
-    ):
+    async def status(self, like: Optional[str] = None, session: bool = True):
         """Async version of status."""
         expr = ShowStatusExpression(self.dialect)
         if like:
@@ -1020,9 +984,7 @@ class AsyncMySQLShowFunctionality:
 
     # ========== SHOW GRANTS ==========
 
-    async def grants(
-        self, user: Optional[str] = None, host: Optional[str] = None
-    ):
+    async def grants(self, user: Optional[str] = None, host: Optional[str] = None):
         """Async version of grants."""
         expr = ShowGrantsExpression(self.dialect)
         if user:

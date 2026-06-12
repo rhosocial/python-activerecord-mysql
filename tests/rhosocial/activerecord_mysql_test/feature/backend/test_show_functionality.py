@@ -5,7 +5,6 @@ Tests for MySQL SHOW functionality.
 Tests the MySQLShowFunctionality class for SHOW command execution.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 
@@ -51,10 +50,7 @@ class TestShowCreateTableParsing:
 
         # Mock result
         result = MagicMock()
-        result.data = [{
-            "Table": "users",
-            "Create Table": "CREATE TABLE `users` (`id` INT PRIMARY KEY)"
-        }]
+        result.data = [{"Table": "users", "Create Table": "CREATE TABLE `users` (`id` INT PRIMARY KEY)"}]
 
         parsed = func._parse_create_table_result(result, "users")
 
@@ -81,10 +77,7 @@ class TestShowCreateTableParsing:
         func = MySQLShowFunctionality(mysql_backend_single)
 
         result = MagicMock()
-        result.data = [{
-            "TABLE": "users",
-            "CREATE TABLE": "CREATE TABLE `users` (`id` INT)"
-        }]
+        result.data = [{"TABLE": "users", "CREATE TABLE": "CREATE TABLE `users` (`id` INT)"}]
 
         parsed = func._parse_create_table_result(result, "users")
 
@@ -102,12 +95,14 @@ class TestShowCreateViewParsing:
         func = MySQLShowFunctionality(mysql_backend_single)
 
         result = MagicMock()
-        result.data = [{
-            "View": "user_view",
-            "Create View": "CREATE VIEW `user_view` AS SELECT * FROM users",
-            "character_set_client": "utf8mb4",
-            "collation_connection": "utf8mb4_general_ci"
-        }]
+        result.data = [
+            {
+                "View": "user_view",
+                "Create View": "CREATE VIEW `user_view` AS SELECT * FROM users",
+                "character_set_client": "utf8mb4",
+                "collation_connection": "utf8mb4_general_ci",
+            }
+        ]
 
         parsed = func._parse_create_view_result(result, "user_view")
 
@@ -140,22 +135,8 @@ class TestShowColumnsParsing:
 
         result = MagicMock()
         result.data = [
-            {
-                "Field": "id",
-                "Type": "int",
-                "Null": "NO",
-                "Key": "PRI",
-                "Default": None,
-                "Extra": "auto_increment"
-            },
-            {
-                "Field": "name",
-                "Type": "varchar(255)",
-                "Null": "YES",
-                "Key": "",
-                "Default": None,
-                "Extra": ""
-            }
+            {"Field": "id", "Type": "int", "Null": "NO", "Key": "PRI", "Default": None, "Extra": "auto_increment"},
+            {"Field": "name", "Type": "varchar(255)", "Null": "YES", "Key": "", "Default": None, "Extra": ""},
         ]
 
         columns = func._parse_columns_result(result)
@@ -203,7 +184,7 @@ class TestShowIndexesParsing:
                 "Null": "",
                 "Index_type": "BTREE",
                 "Comment": "",
-                "Index_comment": ""
+                "Index_comment": "",
             }
         ]
 
@@ -226,15 +207,11 @@ class TestShowTablesParsing:
         func = MySQLShowFunctionality(mysql_backend_single)
 
         result = MagicMock()
-        result.data = [
-            {"Tables_in_test": "users"},
-            {"Tables_in_test": "posts"},
-            {"Tables_in_test": "comments"}
-        ]
+        result.data = [{"Tables_in_test": "users"}, {"Tables_in_test": "posts"}, {"Tables_in_test": "comments"}]
 
         # Mock database name
-        with patch.object(func._backend, 'config') as mock_config:
-            mock_config.database = 'test'
+        with patch.object(func._backend, "config") as mock_config:
+            mock_config.database = "test"
             tables = func._parse_tables_result(result)
 
         # Returns list of ShowTableResult objects, not strings
@@ -266,11 +243,7 @@ class TestShowDatabasesParsing:
         func = MySQLShowFunctionality(mysql_backend_single)
 
         result = MagicMock()
-        result.data = [
-            {"Database": "information_schema"},
-            {"Database": "mysql"},
-            {"Database": "test_db"}
-        ]
+        result.data = [{"Database": "information_schema"}, {"Database": "mysql"}, {"Database": "test_db"}]
 
         databases = func._parse_databases_result(result)
 
@@ -304,7 +277,7 @@ class TestShowTriggersParsing:
                 "Definer": "root@localhost",
                 "character_set_client": "utf8mb4",
                 "collation_connection": "utf8mb4_general_ci",
-                "Database Collation": "utf8mb4_general_ci"
+                "Database Collation": "utf8mb4_general_ci",
             }
         ]
 
@@ -329,7 +302,7 @@ class TestShowVariablesParsing:
         result = MagicMock()
         result.data = [
             {"Variable_name": "autocommit", "Value": "ON"},
-            {"Variable_name": "max_connections", "Value": "151"}
+            {"Variable_name": "max_connections", "Value": "151"},
         ]
 
         variables = func._parse_variables_result(result)
@@ -352,7 +325,7 @@ class TestShowStatusParsing:
         result = MagicMock()
         result.data = [
             {"Variable_name": "Uptime", "Value": "12345"},
-            {"Variable_name": "Threads_connected", "Value": "5"}
+            {"Variable_name": "Threads_connected", "Value": "5"},
         ]
 
         status = func._parse_status_result(result)

@@ -36,11 +36,11 @@ from rhosocial.activerecord.backend.schema import StatementType
 
 # Create connection configuration
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test_db'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', 'password'),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test_db"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", "password"),
 )
 
 # Create backend instance and connect
@@ -62,22 +62,22 @@ def execute_expression(expression, options=None):
 def create_demo_tables():
     users_table = CreateTableExpression(
         dialect=dialect,
-        table_name='quickstart_users',
+        table_name="quickstart_users",
         columns=[
             ColumnDefinition(
-                'id',
-                'INT',
+                "id",
+                "INT",
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                     ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
                 ],
             ),
             ColumnDefinition(
-                'name',
-                'VARCHAR(100)',
+                "name",
+                "VARCHAR(100)",
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
             ),
-            ColumnDefinition('status', 'VARCHAR(20)'),
+            ColumnDefinition("status", "VARCHAR(20)"),
         ],
         if_not_exists=True,
     )
@@ -85,19 +85,19 @@ def create_demo_tables():
 
     logs_table = CreateTableExpression(
         dialect=dialect,
-        table_name='quickstart_logs',
+        table_name="quickstart_logs",
         columns=[
             ColumnDefinition(
-                'id',
-                'INT',
+                "id",
+                "INT",
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                     ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
                 ],
             ),
             ColumnDefinition(
-                'message',
-                'VARCHAR(255)',
+                "message",
+                "VARCHAR(255)",
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
             ),
         ],
@@ -109,13 +109,13 @@ def create_demo_tables():
 def seed_demo_data():
     insert_users = InsertExpression(
         dialect=dialect,
-        into='quickstart_users',
-        columns=['name', 'status'],
+        into="quickstart_users",
+        columns=["name", "status"],
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, 'Alice'), Literal(dialect, 'active')],
-                [Literal(dialect, 'Bob'), Literal(dialect, 'inactive')],
+                [Literal(dialect, "Alice"), Literal(dialect, "active")],
+                [Literal(dialect, "Bob"), Literal(dialect, "inactive")],
             ],
         ),
     )
@@ -138,18 +138,18 @@ print(f"User: {config.username}")
 query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'id'),
-        Column(dialect, 'name'),
-        Column(dialect, 'status'),
+        Column(dialect, "id"),
+        Column(dialect, "name"),
+        Column(dialect, "status"),
     ],
-    from_=TableExpression(dialect, 'quickstart_users'),
+    from_=TableExpression(dialect, "quickstart_users"),
     where=WhereClause(
         dialect,
         condition=ComparisonPredicate(
             dialect,
-            '=',
-            Column(dialect, 'status'),
-            Literal(dialect, 'active'),
+            "=",
+            Column(dialect, "status"),
+            Literal(dialect, "active"),
         ),
     ),
 )
@@ -173,23 +173,24 @@ if result.data:
 filtered_query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'id'),
-        Column(dialect, 'name'),
-        Column(dialect, 'status'),
+        Column(dialect, "id"),
+        Column(dialect, "name"),
+        Column(dialect, "status"),
     ],
-    from_=TableExpression(dialect, 'quickstart_users'),
+    from_=TableExpression(dialect, "quickstart_users"),
     where=WhereClause(
         dialect,
         condition=ComparisonPredicate(
             dialect,
-            '=',
-            Column(dialect, 'id'),
+            "=",
+            Column(dialect, "id"),
             Literal(dialect, 1),
-        ) & ComparisonPredicate(
+        )
+        & ComparisonPredicate(
             dialect,
-            '=',
-            Column(dialect, 'status'),
-            Literal(dialect, 'active'),
+            "=",
+            Column(dialect, "status"),
+            Literal(dialect, "active"),
         ),
     ),
 )
@@ -202,16 +203,16 @@ print(f"Parameterized query result: {result.data}")
 with backend.transaction():
     insert_log = InsertExpression(
         dialect=dialect,
-        into='quickstart_logs',
-        columns=['message'],
-        source=ValuesSource(dialect, [[Literal(dialect, 'quickstart transaction')]]),
+        into="quickstart_logs",
+        columns=["message"],
+        source=ValuesSource(dialect, [[Literal(dialect, "quickstart transaction")]]),
     )
     execute_expression(insert_log)
 
 logs_query = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, 'id'), Column(dialect, 'message')],
-    from_=TableExpression(dialect, 'quickstart_logs'),
+    select=[Column(dialect, "id"), Column(dialect, "message")],
+    from_=TableExpression(dialect, "quickstart_logs"),
 )
 result = execute_expression(logs_query, dql_options)
 print(f"Transaction result: {result.data}")
@@ -222,8 +223,8 @@ print(f"Transaction result: {result.data}")
 try:
     invalid_query = QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id')],
-        from_=TableExpression(dialect, 'nonexistent_table'),
+        select=[Column(dialect, "id")],
+        from_=TableExpression(dialect, "nonexistent_table"),
     )
     execute_expression(invalid_query, dql_options)
 except Exception as error:
@@ -232,10 +233,10 @@ except Exception as error:
 # ============================================================
 # SECTION: Disconnect
 # ============================================================
-drop_logs = DropTableExpression(dialect=dialect, table_name='quickstart_logs', if_exists=True)
+drop_logs = DropTableExpression(dialect=dialect, table_name="quickstart_logs", if_exists=True)
 execute_expression(drop_logs, ddl_options)
 
-drop_users = DropTableExpression(dialect=dialect, table_name='quickstart_users', if_exists=True)
+drop_users = DropTableExpression(dialect=dialect, table_name="quickstart_users", if_exists=True)
 execute_expression(drop_users, ddl_options)
 
 backend.disconnect()

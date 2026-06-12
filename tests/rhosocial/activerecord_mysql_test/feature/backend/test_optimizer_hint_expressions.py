@@ -8,6 +8,7 @@ Tests SQL generation for:
 - Multiple hints in single expression
 - Version-gated capability detection
 """
+
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
@@ -51,26 +52,25 @@ class TestOptimizerHintExpression:
     """Test optimizer hint SQL generation."""
 
     def test_hypergraph_on(self, dialect_97):
-        expr = MySQLOptimizerHintExpression(dialect_97, [
-            SetVarHint("optimizer_switch", "hypergraph_optimizer=on")
-        ])
+        expr = MySQLOptimizerHintExpression(dialect_97, [SetVarHint("optimizer_switch", "hypergraph_optimizer=on")])
         sql, params = expr.to_sql()
         assert sql == "/*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */"
         assert params == ()
 
     def test_hypergraph_off(self, dialect_97):
-        expr = MySQLOptimizerHintExpression(dialect_97, [
-            SetVarHint("optimizer_switch", "hypergraph_optimizer=off")
-        ])
+        expr = MySQLOptimizerHintExpression(dialect_97, [SetVarHint("optimizer_switch", "hypergraph_optimizer=off")])
         sql, params = expr.to_sql()
         assert sql == "/*+ SET_VAR(optimizer_switch='hypergraph_optimizer=off') */"
         assert params == ()
 
     def test_multiple_hints(self, dialect_97):
-        expr = MySQLOptimizerHintExpression(dialect_97, [
-            SetVarHint("optimizer_switch", "hypergraph_optimizer=on"),
-            SetVarHint("max_execution_time", "1000"),
-        ])
+        expr = MySQLOptimizerHintExpression(
+            dialect_97,
+            [
+                SetVarHint("optimizer_switch", "hypergraph_optimizer=on"),
+                SetVarHint("max_execution_time", "1000"),
+            ],
+        )
         sql, params = expr.to_sql()
         assert "SET_VAR(optimizer_switch='hypergraph_optimizer=on')" in sql
         assert "SET_VAR(max_execution_time='1000')" in sql
@@ -79,9 +79,7 @@ class TestOptimizerHintExpression:
         assert params == ()
 
     def test_single_set_var(self, dialect_80):
-        expr = MySQLOptimizerHintExpression(dialect_80, [
-            SetVarHint("max_execution_time", "5000")
-        ])
+        expr = MySQLOptimizerHintExpression(dialect_80, [SetVarHint("max_execution_time", "5000")])
         sql, params = expr.to_sql()
         assert sql == "/*+ SET_VAR(max_execution_time='5000') */"
         assert params == ()

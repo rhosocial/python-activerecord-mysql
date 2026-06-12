@@ -28,6 +28,7 @@ class JSONTableColumn:
         error_handling: Error handling mode ('NULL', 'ERROR', 'DEFAULT')
         default_value: Default value when error handling is 'DEFAULT'
     """
+
     name: str
     type: Optional[str] = None
     path: Optional[str] = None
@@ -46,8 +47,9 @@ class NestedPath:
         columns: List of column definitions within this nested path
         alias: Optional alias for the nested table
     """
+
     path: str
-    columns: List['JSONTableColumn']
+    columns: List["JSONTableColumn"]
     alias: Optional[str] = None
 
 
@@ -72,7 +74,7 @@ class MySQLJSONTableExpression(BaseExpression):
         path: str,
         columns: List[JSONTableColumn],
         nested_paths: Optional[List[NestedPath]] = None,
-        alias: Optional[str] = None
+        alias: Optional[str] = None,
     ):
         """Initialize JSON_TABLE expression.
 

@@ -8,7 +8,7 @@ This module tests the following expression classes:
 - MySQLSTWithinExpression
 - MySQLSTContainsExpression
 """
-import pytest
+
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLSTGeomFromTextExpression,
@@ -24,32 +24,32 @@ class TestMySQLSTGeomFromTextExpression:
     def test_st_geom_from_text_basic(self):
         """Test basic geometry from text."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTGeomFromTextExpression(dialect, 'POINT(1 1)')
+
+        expr = MySQLSTGeomFromTextExpression(dialect, "POINT(1 1)")
         sql, params = expr.to_sql()
-        
-        assert 'ST_GeomFromText' in sql
-        assert 'POINT(1 1)' in params
-    
+
+        assert "ST_GeomFromText" in sql
+        assert "POINT(1 1)" in params
+
     def test_st_geom_from_text_with_alias(self):
         """Test geometry from text with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTGeomFromTextExpression(dialect, 'POINT(1 1)').as_('pt')
+
+        expr = MySQLSTGeomFromTextExpression(dialect, "POINT(1 1)").as_("pt")
         sql, params = expr.to_sql()
-        
-        assert 'ST_GeomFromText' in sql
-        assert 'AS `pt`' in sql
-    
+
+        assert "ST_GeomFromText" in sql
+        assert "AS `pt`" in sql
+
     def test_st_geom_from_text_linestring(self):
         """Test geometry from text with linestring."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTGeomFromTextExpression(dialect, 'LINESTRING(0 0, 1 1, 2 2)')
+
+        expr = MySQLSTGeomFromTextExpression(dialect, "LINESTRING(0 0, 1 1, 2 2)")
         sql, params = expr.to_sql()
-        
-        assert 'ST_GeomFromText' in sql
-        assert 'LINESTRING' in params[0]
+
+        assert "ST_GeomFromText" in sql
+        assert "LINESTRING" in params[0]
 
 
 class TestMySQLSTDistanceExpression:
@@ -58,23 +58,23 @@ class TestMySQLSTDistanceExpression:
     def test_st_distance_basic(self):
         """Test basic distance calculation."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTDistanceExpression(dialect, 'pt1', 'pt2')
+
+        expr = MySQLSTDistanceExpression(dialect, "pt1", "pt2")
         sql, params = expr.to_sql()
-        
-        assert 'ST_Distance' in sql
-        assert 'pt1' in sql
-        assert 'pt2' in sql
-    
+
+        assert "ST_Distance" in sql
+        assert "pt1" in sql
+        assert "pt2" in sql
+
     def test_st_distance_with_alias(self):
         """Test distance with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTDistanceExpression(dialect, 'pt1', 'pt2').as_('dist')
+
+        expr = MySQLSTDistanceExpression(dialect, "pt1", "pt2").as_("dist")
         sql, params = expr.to_sql()
-        
-        assert 'ST_Distance' in sql
-        assert 'AS `dist`' in sql
+
+        assert "ST_Distance" in sql
+        assert "AS `dist`" in sql
 
 
 class TestMySQLSTWithinExpression:
@@ -83,23 +83,23 @@ class TestMySQLSTWithinExpression:
     def test_st_within_basic(self):
         """Test basic within check."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTWithinExpression(dialect, 'geom1', 'geom2')
+
+        expr = MySQLSTWithinExpression(dialect, "geom1", "geom2")
         sql, params = expr.to_sql()
-        
-        assert 'ST_Within' in sql
-        assert 'geom1' in sql
-        assert 'geom2' in sql
-    
+
+        assert "ST_Within" in sql
+        assert "geom1" in sql
+        assert "geom2" in sql
+
     def test_st_within_with_alias(self):
         """Test within with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTWithinExpression(dialect, 'geom1', 'geom2').as_('within')
+
+        expr = MySQLSTWithinExpression(dialect, "geom1", "geom2").as_("within")
         sql, params = expr.to_sql()
-        
-        assert 'ST_Within' in sql
-        assert 'AS `within`' in sql
+
+        assert "ST_Within" in sql
+        assert "AS `within`" in sql
 
 
 class TestMySQLSTContainsExpression:
@@ -108,20 +108,20 @@ class TestMySQLSTContainsExpression:
     def test_st_contains_basic(self):
         """Test basic contains check."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTContainsExpression(dialect, 'geom1', 'geom2')
+
+        expr = MySQLSTContainsExpression(dialect, "geom1", "geom2")
         sql, params = expr.to_sql()
-        
-        assert 'ST_Contains' in sql
-        assert 'geom1' in sql
-        assert 'geom2' in sql
-    
+
+        assert "ST_Contains" in sql
+        assert "geom1" in sql
+        assert "geom2" in sql
+
     def test_st_contains_with_alias(self):
         """Test contains with alias."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        
-        expr = MySQLSTContainsExpression(dialect, 'geom1', 'geom2').as_('contains')
+
+        expr = MySQLSTContainsExpression(dialect, "geom1", "geom2").as_("contains")
         sql, params = expr.to_sql()
-        
-        assert 'ST_Contains' in sql
-        assert 'AS `contains`' in sql
+
+        assert "ST_Contains" in sql
+        assert "AS `contains`" in sql

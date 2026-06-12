@@ -12,57 +12,57 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
     DropTableExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
 
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
         ColumnDefinition(
-            'name',
-            'VARCHAR(100)',
+            "name",
+            "VARCHAR(100)",
             constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
         ),
-        ColumnDefinition('age', 'INT'),
-        ColumnDefinition('status', 'VARCHAR(20)'),
+        ColumnDefinition("age", "INT"),
+        ColumnDefinition("status", "VARCHAR(20)"),
     ],
     if_not_exists=True,
 )
@@ -72,14 +72,14 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into='users',
-    columns=['name', 'age', 'status'],
+    into="users",
+    columns=["name", "age", "status"],
     source=ValuesSource(
         dialect,
         [
-            [Literal(dialect, 'Alice'), Literal(dialect, 30), Literal(dialect, 'active')],
-            [Literal(dialect, 'Bob'), Literal(dialect, 25), Literal(dialect, 'active')],
-            [Literal(dialect, 'Charlie'), Literal(dialect, 35), Literal(dialect, 'inactive')],
+            [Literal(dialect, "Alice"), Literal(dialect, 30), Literal(dialect, "active")],
+            [Literal(dialect, "Bob"), Literal(dialect, 25), Literal(dialect, "active")],
+            [Literal(dialect, "Charlie"), Literal(dialect, 35), Literal(dialect, "inactive")],
         ],
     ),
 )
@@ -89,7 +89,7 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
     TableExpression,
     Column,
@@ -97,28 +97,28 @@ from rhosocial.activerecord.backend.expression import (
     OrderByClause,
     LimitOffsetClause,
 )
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
 
 query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'id'),
-        Column(dialect, 'name'),
-        Column(dialect, 'age'),
+        Column(dialect, "id"),
+        Column(dialect, "name"),
+        Column(dialect, "age"),
     ],
-    from_=TableExpression(dialect, 'users'),
+    from_=TableExpression(dialect, "users"),
     where=WhereClause(
         dialect,
         condition=ComparisonPredicate(
             dialect,
-            '=',
-            Column(dialect, 'status'),
-            Literal(dialect, 'active'),
+            "=",
+            Column(dialect, "status"),
+            Literal(dialect, "active"),
         ),
     ),
     order_by=OrderByClause(
         dialect,
-        expressions=[(Column(dialect, 'age'), 'ASC')],
+        expressions=[(Column(dialect, "age"), "ASC")],
     ),
     limit_offset=LimitOffsetClause(dialect, limit=10),
 )

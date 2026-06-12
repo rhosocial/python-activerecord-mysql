@@ -5,8 +5,8 @@ MySQL backend dialect tests using real database connection.
 This module tests MySQL dialect formatting using real database.
 Each test has sync and async versions for complete coverage.
 """
+
 import pytest
-import pytest_asyncio
 
 
 class TestMySQLDialectBackend:

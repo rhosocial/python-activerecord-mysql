@@ -176,7 +176,7 @@ class TestColumnInfoDetails:
 
     def test_column_numeric_precision_scale(self, backend_with_tables):
         """Test numeric precision and scale detection."""
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS test_numeric;
             CREATE TABLE test_numeric (
                 id INT PRIMARY KEY,
@@ -190,7 +190,7 @@ class TestColumnInfoDetails:
         assert amount_col.numeric_precision == 10
         assert amount_col.numeric_scale == 2
 
-        backend_with_tables.executescript( "DROP TABLE IF EXISTS test_numeric;")
+        backend_with_tables.executescript("DROP TABLE IF EXISTS test_numeric;")
 
     def test_column_character_maximum_length(self, backend_with_tables):
         """Test character maximum length detection."""

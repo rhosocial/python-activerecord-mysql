@@ -5,6 +5,7 @@ Negative tests for MySQL 9.7 features.
 Ensures that older MySQL versions correctly report unsupported features
 and do not silently generate invalid SQL.
 """
+
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 

@@ -7,8 +7,9 @@ This test module covers:
 - MySQL-specific connection configurations
 - Integration tests using example_connections module
 """
+
 import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import pytest
 
 from rhosocial.activerecord.backend.named_connection.resolver import (
@@ -17,12 +18,8 @@ from rhosocial.activerecord.backend.named_connection.resolver import (
     list_named_connections_in_module,
 )
 from rhosocial.activerecord.backend.named_connection.exceptions import (
-    NamedConnectionNotFoundError,
-    NamedConnectionModuleNotFoundError,
     NamedConnectionInvalidReturnTypeError,
-    NamedConnectionNotCallableError,
     NamedConnectionMissingParameterError,
-    NamedConnectionInvalidParameterError,
 )
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
@@ -65,9 +62,7 @@ class TestMysqlNamedConnectionResolverUnit:
 
         module.dev_db = dev_db
         with patch("importlib.import_module", return_value=module):
-            config = NamedConnectionResolver("test_mysql_connections.dev_db").load().resolve(
-                {"database": "my_app_db"}
-            )
+            config = NamedConnectionResolver("test_mysql_connections.dev_db").load().resolve({"database": "my_app_db"})
             assert isinstance(config, MySQLConnectionConfig)
             assert config.database == "my_app_db"
 

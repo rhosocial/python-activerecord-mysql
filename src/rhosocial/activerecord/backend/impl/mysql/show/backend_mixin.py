@@ -31,6 +31,7 @@ class MySQLShowMixin:
             MySQLShowFunctionality instance with version awareness.
         """
         from .functionality import MySQLShowFunctionality
+
         # Get server version for feature adaptation
         version = getattr(self, "_version", None)
         if version is None and hasattr(self, "get_server_version"):
@@ -59,6 +60,7 @@ class AsyncMySQLShowMixin:
             AsyncMySQLShowFunctionality instance with version awareness.
         """
         from .functionality import AsyncMySQLShowFunctionality
+
         # Get server version for feature adaptation
         version = getattr(self, "_version", None)
         if version is None and hasattr(self, "_version"):

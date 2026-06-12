@@ -18,6 +18,7 @@ def create_parser(subparsers):
     containing only connection and output arguments.
     """
     from rhosocial.activerecord.backend.named_expression.cli import create_named_expression_parser
+
     local_parent = create_connection_parent_parser()
     parser = create_named_expression_parser(subparsers, local_parent)
     parser.add_argument(

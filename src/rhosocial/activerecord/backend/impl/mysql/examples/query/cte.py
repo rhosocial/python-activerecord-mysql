@@ -15,17 +15,17 @@ from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', 3306)),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", 3306)),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
@@ -35,32 +35,36 @@ from rhosocial.activerecord.backend.expression import (
     CTEExpression,
     WithQueryExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, Column
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
-from rhosocial.activerecord.backend.options import ExecutionOptions
-from rhosocial.activerecord.backend.schema import StatementType
+from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
+from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
 
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
 # Drop table first for clean setup
-drop = DropTableExpression(dialect=dialect, table_name='employees', if_exists=True)
+drop = DropTableExpression(dialect=dialect, table_name="employees", if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='employees',
+    table_name="employees",
     columns=[
-        ColumnDefinition('id', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-        ]),
-        ColumnDefinition('name', 'VARCHAR(100)'),
-        ColumnDefinition('manager_id', 'INT'),
+        ColumnDefinition(
+            "id",
+            "INT",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+            ],
+        ),
+        ColumnDefinition("name", "VARCHAR(100)"),
+        ColumnDefinition("manager_id", "INT"),
     ],
     if_not_exists=True,
 )
@@ -72,15 +76,18 @@ backend.execute(delete_sql)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    into='employees',
-    columns=['id', 'name', 'manager_id'],
-    source=ValuesSource(dialect, [
-        [Literal(dialect, 1), Literal(dialect, 'CEO'), Literal(dialect, None)],
-        [Literal(dialect, 2), Literal(dialect, 'VP Sales'), Literal(dialect, 1)],
-        [Literal(dialect, 3), Literal(dialect, 'VP Engineering'), Literal(dialect, 1)],
-        [Literal(dialect, 4), Literal(dialect, 'Sales Manager'), Literal(dialect, 2)],
-        [Literal(dialect, 5), Literal(dialect, 'Engineer'), Literal(dialect, 3)],
-    ]),
+    into="employees",
+    columns=["id", "name", "manager_id"],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, 1), Literal(dialect, "CEO"), Literal(dialect, None)],
+            [Literal(dialect, 2), Literal(dialect, "VP Sales"), Literal(dialect, 1)],
+            [Literal(dialect, 3), Literal(dialect, "VP Engineering"), Literal(dialect, 1)],
+            [Literal(dialect, 4), Literal(dialect, "Sales Manager"), Literal(dialect, 2)],
+            [Literal(dialect, 5), Literal(dialect, "Engineer"), Literal(dialect, 3)],
+        ],
+    ),
 )
 sql, params = insert_expr.to_sql()
 backend.execute(sql, params)
@@ -92,12 +99,12 @@ backend.execute(sql, params)
 
 high_earners_cte = CTEExpression(
     dialect=dialect,
-    name='high_earners',
+    name="high_earners",
     query=QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id'), Column(dialect, 'name')],
-        from_=TableExpression(dialect, 'employees'),
-        where=ComparisonPredicate(dialect, '>', Column(dialect, 'id'), Literal(dialect, 2)),
+        select=[Column(dialect, "id"), Column(dialect, "name")],
+        from_=TableExpression(dialect, "employees"),
+        where=ComparisonPredicate(dialect, ">", Column(dialect, "id"), Literal(dialect, 2)),
     ),
 )
 
@@ -106,8 +113,8 @@ cte_query = WithQueryExpression(
     ctes=[high_earners_cte],
     main_query=QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id'), Column(dialect, 'name')],
-        from_=TableExpression(dialect, 'high_earners'),
+        select=[Column(dialect, "id"), Column(dialect, "name")],
+        from_=TableExpression(dialect, "high_earners"),
     ),
 )
 sql, params = cte_query.to_sql()
@@ -124,20 +131,20 @@ print(f"Basic CTE result: {result.data}")
 base_query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'id'),
-        Column(dialect, 'name'),
-        Column(dialect, 'manager_id'),
+        Column(dialect, "id"),
+        Column(dialect, "name"),
+        Column(dialect, "manager_id"),
         Literal(dialect, 1),
     ],
-    from_=TableExpression(dialect, 'employees'),
-    where=ComparisonPredicate(dialect, 'IS', Column(dialect, 'manager_id'), Literal(dialect, None)),
+    from_=TableExpression(dialect, "employees"),
+    where=ComparisonPredicate(dialect, "IS", Column(dialect, "manager_id"), Literal(dialect, None)),
 )
 
 org_cte = CTEExpression(
     dialect=dialect,
-    name='org_chart',
+    name="org_chart",
     query=base_query,
-    columns=['id', 'name', 'manager_id', 'level'],
+    columns=["id", "name", "manager_id", "level"],
 )
 
 recursive_query = WithQueryExpression(
@@ -145,8 +152,8 @@ recursive_query = WithQueryExpression(
     ctes=[org_cte],
     main_query=QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'manager_id')],
-        from_=TableExpression(dialect, 'org_chart'),
+        select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "manager_id")],
+        from_=TableExpression(dialect, "org_chart"),
     ),
     recursive=True,
 )
@@ -164,23 +171,23 @@ for row in result.data or []:
 
 active_cte = CTEExpression(
     dialect=dialect,
-    name='active_employees',
+    name="active_employees",
     query=QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id'), Column(dialect, 'name')],
-        from_=TableExpression(dialect, 'employees'),
-        where=ComparisonPredicate(dialect, '>', Column(dialect, 'id'), Literal(dialect, 0)),
+        select=[Column(dialect, "id"), Column(dialect, "name")],
+        from_=TableExpression(dialect, "employees"),
+        where=ComparisonPredicate(dialect, ">", Column(dialect, "id"), Literal(dialect, 0)),
     ),
 )
 
 top_cte = CTEExpression(
     dialect=dialect,
-    name='top_employees',
+    name="top_employees",
     query=QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id'), Column(dialect, 'name')],
-        from_=TableExpression(dialect, 'active_employees'),
-        where=ComparisonPredicate(dialect, '>', Column(dialect, 'id'), Literal(dialect, 2)),
+        select=[Column(dialect, "id"), Column(dialect, "name")],
+        from_=TableExpression(dialect, "active_employees"),
+        where=ComparisonPredicate(dialect, ">", Column(dialect, "id"), Literal(dialect, 2)),
     ),
 )
 
@@ -189,8 +196,8 @@ multi_cte_query = WithQueryExpression(
     ctes=[active_cte, top_cte],
     main_query=QueryExpression(
         dialect=dialect,
-        select=[Column(dialect, 'id'), Column(dialect, 'name')],
-        from_=TableExpression(dialect, 'top_employees'),
+        select=[Column(dialect, "id"), Column(dialect, "name")],
+        from_=TableExpression(dialect, "top_employees"),
     ),
 )
 sql, params = multi_cte_query.to_sql()
@@ -201,7 +208,7 @@ print(f"Multiple CTEs result: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name='employees', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="employees", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

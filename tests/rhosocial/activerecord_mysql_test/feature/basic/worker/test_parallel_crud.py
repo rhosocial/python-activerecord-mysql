@@ -4,8 +4,12 @@ Bridge file for parallel CRUD worker tests.
 
 Imports tests from testsuite and makes them discoverable by pytest.
 """
-from rhosocial.activerecord.testsuite.feature.basic.worker.conftest import (
-    user_class_for_worker,
+
+# Keep these explicit fixture imports: these bridge modules import testsuite test
+# classes directly, so pytest does not load the testsuite worker conftest.py
+# by directory ancestry. The imported names are consumed by pytest fixture lookup.
+from rhosocial.activerecord.testsuite.feature.basic.worker.conftest import (  # noqa: F401
     async_user_class_for_worker,
+    user_class_for_worker,
 )
-from rhosocial.activerecord.testsuite.feature.basic.worker.test_parallel_crud import *
+from rhosocial.activerecord.testsuite.feature.basic.worker.test_parallel_crud import *  # noqa: F403

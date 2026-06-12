@@ -5,6 +5,7 @@ Integration tests for MySQLBackend.explain() and AsyncMySQLBackend.explain().
 These tests require a real MySQL connection configured via mysql_scenarios.yaml.
 The tests create temporary tables, run EXPLAIN, and verify the typed result objects.
 """
+
 import pytest
 import pytest_asyncio
 
@@ -13,7 +14,7 @@ from rhosocial.activerecord.backend.explain import (
     AsyncExplainBackendProtocol,
 )
 from rhosocial.activerecord.backend.expression import RawSQLExpression
-from rhosocial.activerecord.backend.expression.statements import ExplainOptions, ExplainType
+from rhosocial.activerecord.backend.expression.statements import ExplainOptions
 from rhosocial.activerecord.backend.impl.mysql import (
     MySQLExplainResult,
     MySQLExplainRow,
@@ -62,6 +63,7 @@ _CLEANUP_SQL = """
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(scope="function")
 def indexed_backend(mysql_backend_single):
     """Sync backend with test tables and indexes."""
@@ -88,6 +90,7 @@ async def async_indexed_backend(async_mysql_backend):
 # Protocol checking
 # ---------------------------------------------------------------------------
 
+
 class TestExplainProtocol:
     def test_sync_backend_implements_protocol(self, mysql_backend_single):
         assert isinstance(mysql_backend_single, SyncExplainBackendProtocol)
@@ -100,6 +103,7 @@ class TestExplainProtocol:
 # ---------------------------------------------------------------------------
 # Sync explain – basic structure
 # ---------------------------------------------------------------------------
+
 
 class TestSyncExplainBasic:
     def test_explain_returns_mysql_explain_result(self, indexed_backend):
@@ -146,13 +150,12 @@ class TestSyncExplainBasic:
 # Sync explain – index usage analysis
 # ---------------------------------------------------------------------------
 
+
 class TestSyncExplainIndexAnalysis:
     def test_full_scan_detection(self, indexed_backend):
         """SELECT * FROM table without WHERE → full scan (type='ALL')."""
         dialect = indexed_backend.dialect
-        result = indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT * FROM explain_orders")
-        )
+        result = indexed_backend.explain(RawSQLExpression(dialect, "SELECT * FROM explain_orders"))
         assert result.analyze_index_usage() == "full_scan"
         assert result.is_full_scan is True
         assert result.is_index_used is False
@@ -174,10 +177,7 @@ class TestSyncExplainIndexAnalysis:
         """SELECT indexed_col FROM table WHERE indexed_col = ? → covering index."""
         dialect = indexed_backend.dialect
         result = indexed_backend.explain(
-            RawSQLExpression(
-                dialect,
-                "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1"
-            )
+            RawSQLExpression(dialect, "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1")
         )
         usage = result.analyze_index_usage()
         # Both columns are in the covering index (order_id, sku)
@@ -188,9 +188,7 @@ class TestSyncExplainIndexAnalysis:
     def test_row_fields_present(self, indexed_backend):
         """Verify MySQLExplainRow has expected attribute names."""
         dialect = indexed_backend.dialect
-        result = indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT * FROM explain_orders")
-        )
+        result = indexed_backend.explain(RawSQLExpression(dialect, "SELECT * FROM explain_orders"))
         row = result.rows[0]
         # All expected fields must exist (may be None for some)
         assert hasattr(row, "id")
@@ -205,6 +203,7 @@ class TestSyncExplainIndexAnalysis:
 # ---------------------------------------------------------------------------
 # Async explain – mirror of sync tests
 # ---------------------------------------------------------------------------
+
 
 class TestAsyncExplainBasic:
     @pytest.mark.asyncio
@@ -232,9 +231,7 @@ class TestAsyncExplainBasic:
     @pytest.mark.asyncio
     async def test_full_scan_detection(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
-        result = await async_indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT * FROM explain_orders")
-        )
+        result = await async_indexed_backend.explain(RawSQLExpression(dialect, "SELECT * FROM explain_orders"))
         assert result.is_full_scan is True
 
     @pytest.mark.asyncio
@@ -249,10 +246,7 @@ class TestAsyncExplainBasic:
     async def test_covering_index_detection(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
         result = await async_indexed_backend.explain(
-            RawSQLExpression(
-                dialect,
-                "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1"
-            )
+            RawSQLExpression(dialect, "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1")
         )
         assert result.is_covering_index is True
 
@@ -261,6 +255,7 @@ class TestAsyncExplainBasic:
 # FORMAT option (version-gated)
 # ---------------------------------------------------------------------------
 
+
 class TestExplainFormat:
     def test_format_json_when_supported(self, indexed_backend):
         """EXPLAIN FORMAT=JSON returns a result (may not be MySQLExplainResult rows)."""
@@ -268,6 +263,7 @@ class TestExplainFormat:
         if not dialect.supports_explain_format("JSON"):
             pytest.skip("MySQL version does not support FORMAT=JSON")
         from rhosocial.activerecord.backend.expression.statements import ExplainFormat
+
         opts = ExplainOptions(format=ExplainFormat.JSON)
         expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr, opts)
@@ -281,6 +277,7 @@ class TestExplainFormat:
         if not dialect.supports_explain_format("TREE"):
             pytest.skip("MySQL version does not support FORMAT=TREE")
         from rhosocial.activerecord.backend.expression.statements import ExplainFormat
+
         opts = ExplainOptions(format=ExplainFormat.TREE)
         expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr, opts)

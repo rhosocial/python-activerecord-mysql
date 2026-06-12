@@ -5,7 +5,8 @@ MySQL backend SQL dialect implementation.
 This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING, Union
+
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
@@ -64,6 +65,17 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TableMixin,
     ConstraintMixin,
     IntrospectionMixin,
+    PartitionMixin,
+    # New Mixins
+    IdentifierMixin,
+    PredicateMixin,
+    ExpressionMixin,
+    DateTimeMixin,
+    DQLMixin,
+    DMLMixin,
+    DDLColumnMixin,
+    TransactionControlMixin,
+    SetOperationMixin,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
@@ -79,6 +91,7 @@ from .protocols import (
     MySQLModifyColumnSupport,
     MySQLJsonDualityViewSupport,
     MySQLOptimizerHintSupport,
+    MySQLPartitionSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -95,6 +108,7 @@ from .mixins import (
     MySQLModifyColumnMixin,
     MySQLJsonDualityViewMixin,
     MySQLOptimizerHintMixin,
+    MySQLPartitionMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -102,9 +116,14 @@ from .show.dialect import MySQLShowDialectMixin
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.collation import CollateExpression
     from rhosocial.activerecord.backend.expression.statements import (
-        CreateTableExpression, CreateViewExpression, DropViewExpression,
-        ColumnDefinition, TableConstraint, IndexDefinition,
-        ExplainExpression, InsertExpression,
+        CreateTableExpression,
+        CreateViewExpression,
+        DropViewExpression,
+        ColumnDefinition,
+        TableConstraint,
+        IndexDefinition,
+        ExplainExpression,
+        InsertExpression,
     )
     from rhosocial.activerecord.backend.expression.transaction import (
         SetTransactionExpression,
@@ -120,7 +139,7 @@ class MySQLDialect(
     FilterClauseMixin,
     WindowFunctionMixin,
     JSONMixin,
-    ReturningMixin, # MySQL doesn't support RETURNING, but we'll override to indicate this
+    ReturningMixin,  # MySQL doesn't support RETURNING, but we'll override to indicate this
     AdvancedGroupingMixin,
     ArrayMixin,
     ExplainMixin,
@@ -131,21 +150,23 @@ class MySQLDialect(
     OrderedSetAggregationMixin,
     QualifyClauseMixin,
     TemporalTableMixin,
+    MySQLFullTextSearchMixin,  # MySQL full-text search (before IndexMixin to override supports_fulltext_index)
+    MySQLTriggerMixin,  # MySQL trigger support (before IndexMixin to override trigger methods)
+    MySQLDMLOperationMixin,  # MySQL DML operations (before UpsertMixin to override format_on_conflict_clause)
     UpsertMixin,
-    LateralJoinMixin, # MySQL 8.0.14+ supports LATERAL
+    LateralJoinMixin,  # MySQL 8.0.14+ supports LATERAL
     JoinMixin,
     ViewMixin,
     SchemaMixin,
     IndexMixin,
     SequenceMixin,
-    TableMixin,
-    ConstraintMixin,
+    MySQLPartitionMixin,
+    PartitionMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
-    MySQLDMLOperationMixin,  # MySQL DML operations
-    MySQLFullTextSearchMixin,  # MySQL full-text search
-    MySQLTriggerMixin,
-    MySQLTableMixin,
+    MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
+    TableMixin,
+    ConstraintMixin,
     MySQLSetTypeMixin,
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
@@ -156,6 +177,16 @@ class MySQLDialect(
     MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
     MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
     IntrospectionMixin,
+    # New Mixins
+    IdentifierMixin,
+    PredicateMixin,
+    ExpressionMixin,
+    DateTimeMixin,
+    DQLMixin,
+    DMLMixin,
+    DDLColumnMixin,
+    TransactionControlMixin,
+    SetOperationMixin,
     # Protocols for type checking
     # Note: MySQL-specific protocols extend generic protocols,
     # so only MySQL-specific protocols are needed for isinstance checks
@@ -196,6 +227,7 @@ class MySQLDialect(
     MySQLModifyColumnSupport,  # MySQL MODIFY/CHANGE COLUMN support
     MySQLJsonDualityViewSupport,  # MySQL 9.7+ JSON Duality Views
     MySQLOptimizerHintSupport,  # MySQL optimizer hints
+    MySQLPartitionSupport,  # MySQL table partitioning
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
@@ -251,9 +283,7 @@ class MySQLDialect(
         }
         if field not in formats:
             raise UnsupportedFeatureError(self.name, f"date_trunc({expr.field.value})")
-        return self._apply_value_expression_modifiers(
-            sql, source_params + (formats[field],), expr
-        )
+        return self._apply_value_expression_modifiers(sql, source_params + (formats[field],), expr)
 
     def format_interval_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         sql = f"INTERVAL %s {expr.unit.value.upper()}"
@@ -263,17 +293,13 @@ class MySQLDialect(
         source_sql, source_params = expr.source.to_sql()
         interval_sql, interval_params = expr.interval.to_sql()
         sql = f"DATE_ADD({source_sql}, {interval_sql})"
-        return self._apply_value_expression_modifiers(
-            sql, source_params + interval_params, expr
-        )
+        return self._apply_value_expression_modifiers(sql, source_params + interval_params, expr)
 
     def format_datetime_subtract_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         source_sql, source_params = expr.source.to_sql()
         interval_sql, interval_params = expr.interval.to_sql()
         sql = f"DATE_SUB({source_sql}, {interval_sql})"
-        return self._apply_value_expression_modifiers(
-            sql, source_params + interval_params, expr
-        )
+        return self._apply_value_expression_modifiers(sql, source_params + interval_params, expr)
 
     def format_datetime_diff_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         start_sql, start_params = expr.start.to_sql()
@@ -306,7 +332,7 @@ class MySQLDialect(
         Returns:
             Escaped string safe for use in MySQL SQL statements
         """
-        value = value.replace('\\', '\\\\')
+        value = value.replace("\\", "\\\\")
         value = value.replace("'", "''")
         return value
 
@@ -517,6 +543,7 @@ class MySQLDialect(
     def supports_wildcard(self) -> bool:
         """Wildcard (*) is supported."""
         return True
+
     # endregion
 
     # region Set Operation Support
@@ -547,6 +574,7 @@ class MySQLDialect(
     def supports_set_operation_for_update(self) -> bool:
         """Set operations support FOR UPDATE."""
         return True
+
     # endregion
 
     def format_identifier(self, identifier: str) -> str:
@@ -560,12 +588,12 @@ class MySQLDialect(
             Quoted identifier with escaped internal backticks
         """
         # Escape any internal backticks by doubling them
-        escaped = identifier.replace('`', '``')
+        escaped = identifier.replace("`", "``")
         return f"`{escaped}`"
 
-    def format_column(self, name: str, table: Optional[str] = None,
-                      alias: Optional[str] = None,
-                      schema_name: Optional[str] = None) -> Tuple[str, Tuple]:
+    def format_column(
+        self, name: str, table: Optional[str] = None, alias: Optional[str] = None, schema_name: Optional[str] = None
+    ) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
 
         MySQL uses database-qualified references (db.table.column) rather
@@ -583,11 +611,12 @@ class MySQLDialect(
 
         return col_sql, ()
 
-    def format_limit_offset(self, limit: Optional[int] = None,
-                            offset: Optional[int] = None) -> Tuple[Optional[str], List[Any]]:
+    def format_limit_offset(
+        self, limit: Optional[int] = None, offset: Optional[int] = None
+    ) -> Tuple[Optional[str], List[Any]]:
         """
         Format LIMIT and OFFSET clause for MySQL.
-        
+
         MySQL requires LIMIT when using OFFSET.
         """
         params = []
@@ -596,7 +625,7 @@ class MySQLDialect(
         if limit is not None:
             sql_parts.append("LIMIT %s")
             params.append(limit)
-        
+
         if offset is not None:
             if limit is None:
                 # MySQL requires LIMIT when using OFFSET, use a very large number
@@ -640,9 +669,7 @@ class MySQLDialect(
         """Whether DROP VIEW CASCADE is supported."""
         return False  # MySQL does not support CASCADE for views
 
-    def format_create_view_statement(
-        self, expr: "CreateViewExpression"
-    ) -> Tuple[str, tuple]:
+    def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
         """Format CREATE VIEW statement for MySQL."""
         parts = ["CREATE"]
 
@@ -656,7 +683,7 @@ class MySQLDialect(
         parts.append(self.format_identifier(expr.view_name))
 
         if expr.column_aliases:
-            cols = ', '.join(self.format_identifier(c) for c in expr.column_aliases)
+            cols = ", ".join(self.format_identifier(c) for c in expr.column_aliases)
             parts.append(f"({cols})")
 
         query_sql, query_params = expr.query.to_sql()
@@ -666,17 +693,16 @@ class MySQLDialect(
             check_option = expr.options.check_option.value
             parts.append(f"WITH {check_option} CHECK OPTION")
 
-        return ' '.join(parts), query_params
+        return " ".join(parts), query_params
 
-    def format_drop_view_statement(
-        self, expr: "DropViewExpression"
-    ) -> Tuple[str, tuple]:
+    def format_drop_view_statement(self, expr: "DropViewExpression") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for MySQL."""
         parts = ["DROP VIEW"]
         if expr.if_exists:
             parts.append("IF EXISTS")
         parts.append(self.format_identifier(expr.view_name))
-        return ' '.join(parts), ()
+        return " ".join(parts), ()
+
     # endregion
 
     # region Schema Support
@@ -695,6 +721,7 @@ class MySQLDialect(
     def supports_schema_if_exists(self) -> bool:
         """Whether DROP SCHEMA IF EXISTS is supported."""
         return True
+
     # endregion
 
     # region Index Support
@@ -717,16 +744,18 @@ class MySQLDialect(
     def supports_index_if_exists(self) -> bool:
         """Whether DROP INDEX IF EXISTS is supported."""
         return False  # MySQL does not support IF EXISTS for indexes
+
     # endregion
 
     # region Sequence Support
     def supports_create_sequence(self) -> bool:
         """Whether CREATE SEQUENCE is supported."""
-        return False # MySQL does not support sequences (uses AUTO_INCREMENT)
+        return False  # MySQL does not support sequences (uses AUTO_INCREMENT)
 
     def supports_drop_sequence(self) -> bool:
         """Whether DROP SEQUENCE is supported."""
         return False
+
     # endregion
 
     # region Table Support
@@ -742,13 +771,7 @@ class MySQLDialect(
         """Whether TEMPORARY tables are supported."""
         return True
 
-    def supports_table_partitioning(self) -> bool:
-        """Whether table partitioning is supported."""
-        return True  # MySQL supports partitioning
-
-    def format_create_table_statement(
-        self, expr: "CreateTableExpression"
-    ) -> Tuple[str, tuple]:
+    def format_create_table_statement(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """
         Format CREATE TABLE statement for MySQL.
 
@@ -766,13 +789,11 @@ class MySQLDialect(
             Tuple of (SQL string, parameters tuple)
         """
         # Check for LIKE syntax in dialect_options (highest priority)
-        if 'like_table' in expr.dialect_options:
-            return self._format_create_table_like(expr)
+        if "like_table" in expr.dialect_options:
+            return self.format_create_table_like(expr)
 
         # Build standard CREATE TABLE statement
-        from rhosocial.activerecord.backend.expression.statements import (
-            ColumnConstraintType, TableConstraintType
-        )
+        from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType, TableConstraintType
 
         all_params: List[Any] = []
 
@@ -787,19 +808,19 @@ class MySQLDialect(
         # Build column definitions
         column_parts = []
         for col_def in expr.columns:
-            col_sql, col_params = self._format_column_definition_mysql(col_def, ColumnConstraintType)
+            col_sql, col_params = self.format_column_definition(col_def)
             column_parts.append(col_sql)
             all_params.extend(col_params)
 
         # Build table constraints
         for t_const in expr.table_constraints:
-            const_sql, const_params = self._format_table_constraint_mysql(t_const, TableConstraintType)
+            const_sql, const_params = self.format_table_constraint(t_const)
             column_parts.append(const_sql)
             all_params.extend(const_params)
 
         # Build inline indexes (MySQL-specific)
         for idx_def in expr.indexes:
-            idx_sql = self._format_inline_index_mysql(idx_def)
+            idx_sql = self.format_inline_index(idx_def)
             column_parts.append(idx_sql)
 
         # Combine all parts
@@ -807,335 +828,23 @@ class MySQLDialect(
 
         # Add storage options (MySQL-specific format)
         if expr.storage_options:
-            storage_sql = self._format_storage_options_mysql(expr.storage_options)
+            storage_sql = self.format_storage_options(expr.storage_options)
             if storage_sql:
                 parts.append(storage_sql)
 
         # Add table-level comment (from dialect_options)
-        if 'comment' in expr.dialect_options:
-            escaped_comment = self._escape_sql_string(expr.dialect_options['comment'])
+        if "comment" in expr.dialect_options:
+            escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
             parts.append(f"COMMENT '{escaped_comment}'")
 
-        return ' '.join(parts), tuple(all_params)
+        # Add partition clause generated through PartitionClause expression.
+        if expr.partition is not None:
+            partition_sql, partition_params = expr.partition.to_sql()
+            if partition_sql:
+                parts.append(partition_sql.strip())
+                all_params.extend(partition_params)
 
-    def _format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
-        """Format CREATE TABLE ... LIKE statement."""
-        like_table = expr.dialect_options['like_table']
-
-        parts = ["CREATE TABLE"]
-        if expr.temporary:
-            parts.append("TEMPORARY")
-        if expr.if_not_exists:
-            parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
-
-        # Handle schema-qualified table name
-        if isinstance(like_table, tuple):
-            schema, table = like_table
-            like_table_str = f"{self.format_identifier(schema)}.{self.format_identifier(table)}"
-        else:
-            like_table_str = self.format_identifier(like_table)
-
-        parts.append(f"LIKE {like_table_str}")
-        return ' '.join(parts), ()
-
-    def _format_column_definition_mysql(
-        self,
-        col_def: "ColumnDefinition",
-        ColumnConstraintType
-    ) -> Tuple[str, List[Any]]:
-        """Format a single column definition with MySQL-specific syntax."""
-        parts = [self.format_identifier(col_def.name), col_def.data_type]
-        params: List[Any] = []
-
-        # Build constraint parts
-        constraint_parts = []
-        for constraint in col_def.constraints:
-            if constraint.constraint_type == ColumnConstraintType.PRIMARY_KEY:
-                constraint_parts.append("PRIMARY KEY")
-            elif constraint.constraint_type == ColumnConstraintType.NOT_NULL:
-                constraint_parts.append("NOT NULL")
-            elif constraint.constraint_type == ColumnConstraintType.UNIQUE:
-                constraint_parts.append("UNIQUE")
-            elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
-                if constraint.default_value is not None:
-                    from rhosocial.activerecord.backend.expression import bases
-                    if isinstance(constraint.default_value, bases.BaseExpression):
-                        default_sql, default_params = constraint.default_value.to_sql()
-                        constraint_parts.append(f"DEFAULT {default_sql}")
-                        params.extend(default_params)
-                    elif isinstance(constraint.default_value, str):
-                        escaped = self._escape_sql_string(constraint.default_value)
-                        constraint_parts.append(f"DEFAULT '{escaped}'")
-                    else:
-                        constraint_parts.append(f"DEFAULT {constraint.default_value}")
-            elif constraint.constraint_type == ColumnConstraintType.NULL:
-                constraint_parts.append("NULL")
-
-            # Handle AUTO_INCREMENT (MySQL-specific)
-            if constraint.is_auto_increment:
-                constraint_parts.append("AUTO_INCREMENT")
-
-        if constraint_parts:
-            parts.append(' '.join(constraint_parts))
-
-        # Add column comment (MySQL-specific)
-        if col_def.comment:
-            escaped_comment = self._escape_sql_string(col_def.comment)
-            parts.append(f"COMMENT '{escaped_comment}'")
-
-        return ' '.join(parts), params
-
-    def _format_table_constraint_mysql(
-        self,
-        t_const: "TableConstraint",
-        TableConstraintType
-    ) -> Tuple[str, List[Any]]:
-        """Format a table-level constraint."""
-        from rhosocial.activerecord.backend.expression.statements import (
-            ForeignKeyConstraint, ReferentialAction,
-        )
-
-        parts = []
-        params: List[Any] = []
-
-        if t_const.name:
-            parts.append(f"CONSTRAINT {self.format_identifier(t_const.name)}")
-
-        if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
-            if t_const.columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"PRIMARY KEY ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.UNIQUE:
-            if t_const.columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"UNIQUE ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
-            if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ', '.join(
-                    self.format_identifier(c) for c in t_const.foreign_key_columns
-                )
-                ref_table = self.format_identifier(t_const.foreign_key_table)
-                parts.append(
-                    f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})"
-                )
-
-            # ON DELETE / ON UPDATE
-            if isinstance(t_const, ForeignKeyConstraint):
-                if t_const.on_delete != ReferentialAction.NO_ACTION:
-                    parts.append(f"ON DELETE {t_const.on_delete.value}")
-                if t_const.on_update != ReferentialAction.NO_ACTION:
-                    parts.append(f"ON UPDATE {t_const.on_update.value}")
-
-        elif t_const.constraint_type == TableConstraintType.CHECK and t_const.check_condition:
-            check_sql, check_params = t_const.check_condition.to_sql()
-            parts.append(f"CHECK ({check_sql})")
-            params.extend(check_params)
-
-            # ENFORCED / NOT ENFORCED (MySQL 8.0.16+)
-            if t_const.dialect_options and t_const.dialect_options.get('enforced') is False:
-                parts.append("NOT ENFORCED")
-
-        return ' '.join(parts), params
-
-    def _format_inline_index_mysql(self, idx_def: "IndexDefinition") -> str:
-        """Format an inline index definition (MySQL-specific)."""
-        parts = []
-
-        if idx_def.unique:
-            parts.append("UNIQUE")
-
-        parts.append("INDEX")
-        parts.append(self.format_identifier(idx_def.name))
-
-        cols_str = ', '.join(self.format_identifier(c) for c in idx_def.columns)
-        parts.append(f"({cols_str})")
-
-        # MySQL USING syntax for index type
-        if idx_def.type:
-            parts.append(f"USING {idx_def.type}")
-
-        return ' '.join(parts)
-
-    def _format_storage_options_mysql(self, storage_options: Dict[str, Any]) -> str:
-        parts = []
-        for key, value in storage_options.items():
-            if isinstance(value, str):
-                parts.append(f"{key}='{self._escape_sql_string(value)}'")
-            else:
-                parts.append(f"{key}={value}")
-        return ' '.join(parts)
-    # endregion
-
-    # region Trigger Support (MySQL-specific)
-    def supports_trigger(self) -> bool:
-        return True
-
-    def supports_create_trigger(self) -> bool:
-        return True
-
-    def supports_drop_trigger(self) -> bool:
-        return True
-
-    def supports_instead_of_trigger(self) -> bool:
-        return False
-
-    def supports_statement_trigger(self) -> bool:
-        return False
-
-    def supports_trigger_referencing(self) -> bool:
-        return False
-
-    def supports_trigger_when(self) -> bool:
-        return False
-
-    def supports_trigger_if_not_exists(self) -> bool:
-        return True
-
-    def format_create_trigger_statement(
-        self,
-        expr
-    ):
-        """Format CREATE TRIGGER statement (MySQL syntax).
-
-        MySQL differences from SQL:1999:
-        - Does not support INSTEAD OF triggers
-        - Does not support FOR EACH STATEMENT
-        - Does not support WHEN condition
-        - Does not support REFERENCING clause
-        - Uses trigger body directly instead of function call
-        """
-        if not self.supports_trigger():
-            raise UnsupportedFeatureError(self.name, "triggers")
-
-        if expr.timing.value == "INSTEAD OF":
-            raise UnsupportedFeatureError(
-                self.name,
-                "INSTEAD OF triggers (MySQL does not support this feature)"
-            )
-
-        if expr.level and expr.level.value == "FOR EACH STATEMENT":
-            raise UnsupportedFeatureError(
-                self.name,
-                "FOR EACH STATEMENT triggers (MySQL only supports FOR EACH ROW)"
-            )
-
-        if expr.condition:
-            raise UnsupportedFeatureError(
-                self.name,
-                "WHEN condition in triggers (MySQL does not support this feature)"
-            )
-
-        if expr.referencing:
-            raise UnsupportedFeatureError(
-                self.name,
-                "REFERENCING clause in triggers (MySQL does not support this feature)"
-            )
-
-        if len(expr.events) > 1:
-            raise UnsupportedFeatureError(
-                self.name,
-                "multiple trigger events (MySQL only supports single event)"
-            )
-
-        if expr.update_columns:
-            raise UnsupportedFeatureError(
-                self.name,
-                "UPDATE OF column_list (MySQL does not support this syntax)"
-            )
-
-        parts = ["CREATE TRIGGER"]
-
-        if expr.if_not_exists and self.supports_trigger_if_not_exists():
-            parts.append("IF NOT EXISTS")
-
-        parts.append(self.format_identifier(expr.trigger_name))
-
-        parts.append(expr.timing.value)
-
-        if expr.events:
-            parts.append(expr.events[0].value)
-
-        parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
-
-        parts.append("FOR EACH ROW")
-
-        if expr.function_name:
-            parts.append("CALL")
-            parts.append(self.format_identifier(expr.function_name))
-
-        return " ".join(parts), ()
-
-    def format_drop_trigger_statement(
-        self,
-        expr
-    ):
-        """Format DROP TRIGGER statement (MySQL syntax)."""
-        if not self.supports_trigger():
-            raise UnsupportedFeatureError(self.name, "triggers")
-
-        parts = ["DROP TRIGGER"]
-
-        if expr.if_exists:
-            parts.append("IF EXISTS")
-
-        parts.append(self.format_identifier(expr.trigger_name))
-
-        return " ".join(parts), ()
-    # endregion
-    
-    # region FULLTEXT Index Support
-    def supports_fulltext_index(self) -> bool:
-        """MySQL 5.6+ supports FULLTEXT for InnoDB."""
-        return self.version >= (5, 6, 0)
-    
-    def supports_fulltext_parser(self) -> bool:
-        """MySQL supports FULLTEXT parser plugins."""
-        return self.version >= (5, 1, 0)
-    
-    def supports_fulltext_query_expansion(self) -> bool:
-        """MySQL supports QUERY EXPANSION."""
-        return True  # All versions with FULLTEXT support this
-
-    def format_match_against(
-        self,
-        columns: List[str],
-        search_string: str,
-        mode: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format MATCH ... AGAINST expression.
-
-        Args:
-            columns: Column names to search
-            search_string: Search term
-            mode: Search mode - NATURAL_LANGUAGE, BOOLEAN, or QUERY_EXPANSION
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        cols_sql = ", ".join(self.format_identifier(c) for c in columns)
-
-        placeholder = self.get_parameter_placeholder()
-        search_sql = placeholder
-        search_params = (search_string,)
-
-        if mode:
-            mode_upper = mode.upper()
-            if mode_upper == "NATURAL_LANGUAGE":
-                mode_str = "IN NATURAL LANGUAGE MODE"
-            elif mode_upper == "BOOLEAN":
-                mode_str = "IN BOOLEAN MODE"
-            elif mode_upper == "QUERY_EXPANSION":
-                mode_str = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
-            else:
-                mode_str = ""
-        else:
-            mode_str = "IN NATURAL LANGUAGE MODE"
-
-        sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
-        return sql, search_params
+        return " ".join(parts), tuple(all_params)
 
     # endregion
 
@@ -1203,6 +912,7 @@ class MySQLDialect(
         MySQL 8.0+ supports expressions in DEFAULT column values.
         """
         return self.version >= (8, 0, 0)
+
     # endregion
 
     # region Transaction Control
@@ -1360,9 +1070,7 @@ class MySQLDialect(
         """MySQL supports savepoints."""
         return True
 
-    def format_set_transaction(
-        self, expr: "SetTransactionExpression"
-    ) -> Tuple[str, tuple]:
+    def format_set_transaction(self, expr: "SetTransactionExpression") -> Tuple[str, tuple]:
         """Format SET TRANSACTION statement for MySQL.
 
         MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed before
@@ -1410,9 +1118,7 @@ class MySQLDialect(
 
         return f"SET TRANSACTION {' '.join(parts)}", ()
 
-    def format_begin_transaction(
-        self, expr: "BeginTransactionExpression"
-    ) -> Tuple[str, tuple]:
+    def format_begin_transaction(self, expr: "BeginTransactionExpression") -> Tuple[str, tuple]:
         """Format START TRANSACTION statement for MySQL.
 
         This method returns a SINGLE SQL statement as required by the protocol.
@@ -1441,10 +1147,11 @@ class MySQLDialect(
                 return "START TRANSACTION READ ONLY", ()
             else:
                 from rhosocial.activerecord.backend.errors import UnsupportedTransactionModeError
+
                 raise UnsupportedTransactionModeError(
                     feature="READ ONLY transactions",
                     backend="MySQL",
-                    message="READ ONLY transactions require MySQL 5.6.5 or later."
+                    message="READ ONLY transactions require MySQL 5.6.5 or later.",
                 )
         else:
             return "START TRANSACTION", ()
@@ -1489,8 +1196,8 @@ class MySQLDialect(
             expr.validate(strict=True)
 
         # Check for conflicting options
-        is_replace = expr.dialect_options.get('replace', False)
-        is_ignore = expr.dialect_options.get('ignore', False)
+        is_replace = expr.dialect_options.get("replace", False)
+        is_ignore = expr.dialect_options.get("ignore", False)
 
         if is_replace and is_ignore:
             raise ValueError("Cannot use both 'replace' and 'ignore' options together")
@@ -1518,9 +1225,7 @@ class MySQLDialect(
             parts.append(columns_sql)
 
         # Format source (VALUES, SELECT, or DEFAULT VALUES)
-        from rhosocial.activerecord.backend.expression.statements import (
-            DefaultValuesSource, ValuesSource, SelectSource
-        )
+        from rhosocial.activerecord.backend.expression.statements import DefaultValuesSource, ValuesSource, SelectSource
 
         if isinstance(expr.source, DefaultValuesSource):
             parts.append("DEFAULT VALUES")
@@ -1540,7 +1245,7 @@ class MySQLDialect(
             parts.append(s_sql)
             all_params.extend(s_params)
 
-        sql = ' '.join(parts)
+        sql = " ".join(parts)
 
         # Handle ON CONFLICT (ON DUPLICATE KEY UPDATE for MySQL)
         if expr.on_conflict:
@@ -1551,105 +1256,10 @@ class MySQLDialect(
         # Note: MySQL does not support RETURNING clause
         if expr.returning:
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-            raise UnsupportedFeatureError(
-                self.name,
-                "RETURNING clause (MySQL does not support RETURNING)"
-            )
+
+            raise UnsupportedFeatureError(self.name, "RETURNING clause (MySQL does not support RETURNING)")
 
         return sql, tuple(all_params)
-
-    def supports_load_data(self) -> bool:
-        """Whether LOAD DATA INFILE is supported.
-
-        MySQL supports LOAD DATA INFILE in all versions.
-        """
-        return True
-
-    def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
-        """Format LOAD DATA INFILE statement.
-
-        Args:
-            expr: MySQLLoadDataExpression instance
-
-        Returns:
-            Tuple of (SQL string, empty tuple - no parameters for LOAD DATA)
-
-        Raises:
-            ValueError: If both replace and ignore are True
-        """
-        expr.validate(strict=self.strict_validation)
-
-        parts = ["LOAD DATA"]
-
-        if expr.options.local:
-            parts.append("LOCAL")
-
-        parts.append("INFILE")
-
-        # File path needs to be quoted as string literal
-        file_path_escaped = expr.file_path.replace("", "").replace("'", "\'")
-        parts.append(f"'{file_path_escaped}'")
-
-        if expr.options.replace:
-            parts.append("REPLACE")
-        elif expr.options.ignore:
-            parts.append("IGNORE")
-
-        parts.append("INTO TABLE")
-        parts.append(self.format_identifier(expr.table))
-
-        # Character set
-        if expr.options.character_set:
-            parts.append(f"CHARACTER SET {expr.options.character_set}")
-
-        # Fields options
-        field_parts = []
-        if expr.options.fields_terminated_by is not None:
-            term = expr.options.fields_terminated_by.replace("", "").replace("'", "\'")
-            field_parts.append(f"TERMINATED BY '{term}'")
-        if expr.options.fields_enclosed_by is not None:
-            enc = expr.options.fields_enclosed_by.replace("", "").replace("'", "\'")
-            field_parts.append(f"ENCLOSED BY '{enc}'")
-        if expr.options.fields_escaped_by is not None:
-            esc = expr.options.fields_escaped_by.replace("", "").replace("'", "\'")
-            field_parts.append(f"ESCAPED BY '{esc}'")
-
-        if field_parts:
-            parts.append("FIELDS")
-            parts.append(" ".join(field_parts))
-
-        # Lines options
-        line_parts = []
-        if expr.options.lines_starting_by is not None:
-            start = expr.options.lines_starting_by.replace("", "").replace("'", "\'")
-            line_parts.append(f"STARTING BY '{start}'")
-        if expr.options.lines_terminated_by is not None:
-            term = expr.options.lines_terminated_by.replace("", "").replace("'", "\'")
-            line_parts.append(f"TERMINATED BY '{term}'")
-
-        if line_parts:
-            parts.append("LINES")
-            parts.append(" ".join(line_parts))
-
-        # Ignore lines
-        if expr.options.ignore_lines is not None:
-            parts.append(f"IGNORE {expr.options.ignore_lines} LINES")
-
-        # Column list
-        if expr.options.column_list:
-            columns = ", ".join(
-                self.format_identifier(c) for c in expr.options.column_list
-            )
-            parts.append(f"({columns})")
-
-        # SET assignments (future enhancement)
-        if expr.options.set_assignments:
-            set_parts = []
-            for col, val in expr.options.set_assignments.items():
-                set_parts.append(f"{self.format_identifier(col)} = {val}")
-            parts.append("SET " + ", ".join(set_parts))
-
-        return " ".join(parts), ()
 
     def supports_json_table(self) -> bool:
         """Whether JSON_TABLE is supported.
@@ -1657,35 +1267,6 @@ class MySQLDialect(
         JSON_TABLE is supported in MySQL 8.0.4+.
         """
         return self.version >= (8, 0, 4)
-
-    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
-        """Format ON DUPLICATE KEY UPDATE for MySQL.
-
-        MySQL uses ON DUPLICATE KEY UPDATE instead of PostgreSQL's ON CONFLICT.
-        This overrides UpsertMixin's format_on_conflict_clause which generates
-        ON CONFLICT syntax.
-        """
-        all_params = []
-        parts = ["ON DUPLICATE KEY UPDATE"]
-
-        update_parts = []
-        if expr.update_assignments:
-            for col_name, value_expr in expr.update_assignments.items():
-                col_sql = self.format_identifier(col_name)
-                if hasattr(value_expr, 'to_sql'):
-                    val_sql, val_params = value_expr.to_sql()
-                    all_params.extend(val_params)
-                else:
-                    val_sql = str(value_expr)
-                update_parts.append(f"{col_sql} = {val_sql}")
-
-        if update_parts:
-            parts.append(" ".join(update_parts))
-        else:
-            # No update assignments: use id = id as no-op
-            parts.append(f"{self.format_identifier('id')} = {self.format_identifier('id')}")
-
-        return " ".join(parts), tuple(all_params)
 
     def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
         """Format JSON_TABLE expression.
@@ -1710,8 +1291,7 @@ class MySQLDialect(
             parts.append(json_sql)
         else:
             raise ValueError(
-                f"json_doc must be a string or implement ToSQLProtocol, "
-                f"got {type(expr.json_doc).__name__}"
+                f"json_doc must be a string or implement ToSQLProtocol, got {type(expr.json_doc).__name__}"
             )
 
         parts.append(",")
@@ -1726,9 +1306,7 @@ class MySQLDialect(
                 column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
             elif col.exists:
                 escaped_col_path = self._escape_sql_string(col.path) if col.path else ""
-                column_parts.append(
-                    f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'"
-                )
+                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'")
             else:
                 if not self._validate_data_type(col.type):
                     raise ValueError(f"Invalid data type: {col.type}")
@@ -1737,11 +1315,13 @@ class MySQLDialect(
                     escaped_col_path = self._escape_sql_string(col.path)
                     col_def += f" PATH '{escaped_col_path}'"
                 if col.error_handling:
-                    valid_error_handling = {'NULL', 'ERROR', 'DEFAULT'}
+                    valid_error_handling = {"NULL", "ERROR", "DEFAULT"}
                     error_handling_upper = col.error_handling.upper()
                     if error_handling_upper not in valid_error_handling:
-                        raise ValueError(f"Invalid error_handling: {col.error_handling}. Must be one of {valid_error_handling}")
-                    if error_handling_upper == 'DEFAULT':
+                        raise ValueError(
+                            f"Invalid error_handling: {col.error_handling}. Must be one of {valid_error_handling}"
+                        )
+                    if error_handling_upper == "DEFAULT":
                         escaped_default = self._escape_sql_string(str(col.default_value))
                         col_def += f" DEFAULT '{escaped_default}' ON ERROR"
                     else:

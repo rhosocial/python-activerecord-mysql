@@ -12,16 +12,34 @@ import logging
 from typing import Any, Dict, List, Tuple
 
 from rhosocial.activerecord.backend.dialect.protocols import (
-    WindowFunctionSupport, CTESupport, FilterClauseSupport,
-    ReturningSupport, UpsertSupport, LateralJoinSupport, JoinSupport,
-    JSONSupport, ExplainSupport, GraphSupport,
-    SetOperationSupport, ViewSupport,
-    TableSupport, TruncateSupport, GeneratedColumnSupport,
-    TriggerSupport, FunctionSupport,
-    AdvancedGroupingSupport, ArraySupport, ILIKESupport,
-    IndexSupport, LockingSupport, MergeSupport,
-    OrderedSetAggregationSupport, QualifyClauseSupport,
-    SchemaSupport, SequenceSupport, TemporalTableSupport,
+    WindowFunctionSupport,
+    CTESupport,
+    FilterClauseSupport,
+    ReturningSupport,
+    UpsertSupport,
+    LateralJoinSupport,
+    JoinSupport,
+    JSONSupport,
+    ExplainSupport,
+    GraphSupport,
+    SetOperationSupport,
+    ViewSupport,
+    TableSupport,
+    TruncateSupport,
+    GeneratedColumnSupport,
+    TriggerSupport,
+    FunctionSupport,
+    AdvancedGroupingSupport,
+    ArraySupport,
+    ILIKESupport,
+    IndexSupport,
+    LockingSupport,
+    MergeSupport,
+    OrderedSetAggregationSupport,
+    QualifyClauseSupport,
+    SchemaSupport,
+    SequenceSupport,
+    TemporalTableSupport,
 )
 from rhosocial.activerecord.backend.impl.mysql.protocols import (
     MySQLTriggerSupport,
@@ -36,7 +54,7 @@ from .output import create_provider, RICH_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
-OUTPUT_CHOICES = ['table', 'json']
+OUTPUT_CHOICES = ["table", "json"]
 
 # Groups that are specific to MySQL dialect
 DIALECT_SPECIFIC_GROUPS = {"MySQL-specific"}
@@ -44,13 +62,18 @@ DIALECT_SPECIFIC_GROUPS = {"MySQL-specific"}
 # Protocol family groups for display
 PROTOCOL_FAMILY_GROUPS: Dict[str, list] = {
     "Query Features": [
-        WindowFunctionSupport, CTESupport, FilterClauseSupport,
-        SetOperationSupport, AdvancedGroupingSupport,
+        WindowFunctionSupport,
+        CTESupport,
+        FilterClauseSupport,
+        SetOperationSupport,
+        AdvancedGroupingSupport,
     ],
     "JOIN Support": [JoinSupport, LateralJoinSupport],
     "Data Types": [JSONSupport, ArraySupport],
     "DML Features": [
-        ReturningSupport, UpsertSupport, MergeSupport,
+        ReturningSupport,
+        UpsertSupport,
+        MergeSupport,
         OrderedSetAggregationSupport,
     ],
     "Transaction & Locking": [LockingSupport, TemporalTableSupport],
@@ -61,8 +84,11 @@ PROTOCOL_FAMILY_GROUPS: Dict[str, list] = {
     "DDL - Sequence & Trigger": [SequenceSupport, TriggerSupport, FunctionSupport],
     "String Matching": [ILIKESupport],
     "MySQL-specific": [
-        MySQLTriggerSupport, MySQLTableSupport,
-        MySQLSetTypeSupport, MySQLJSONFunctionSupport, MySQLSpatialSupport,
+        MySQLTriggerSupport,
+        MySQLTableSupport,
+        MySQLSetTypeSupport,
+        MySQLJSONFunctionSupport,
+        MySQLSpatialSupport,
     ],
 }
 
@@ -72,13 +98,25 @@ SUPPORT_METHOD_ALL_ARGS: Dict[str, List[str]] = {
     "supports_explain_format": ["TEXT", "JSON", "TREE", "XML", "YAML", "DOT"],
     # MySQLJSONFunctionSupport: JSON functions with version-specific support
     "supports_json_function": [
-        "JSON_EXTRACT", "JSON_ARRAY", "JSON_OBJECT", "JSON_MERGE",
-        "JSON_TABLE", "JSON_VALUE", "JSON_SCHEMA_VALID", "JSON_MERGE_PATCH",
+        "JSON_EXTRACT",
+        "JSON_ARRAY",
+        "JSON_OBJECT",
+        "JSON_MERGE",
+        "JSON_TABLE",
+        "JSON_VALUE",
+        "JSON_SCHEMA_VALID",
+        "JSON_MERGE_PATCH",
     ],
     # MySQLSpatialSupport: spatial types
     "supports_spatial_type": [
-        "GEOMETRY", "POINT", "LINESTRING", "POLYGON",
-        "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
+        "GEOMETRY",
+        "POINT",
+        "LINESTRING",
+        "POLYGON",
+        "MULTIPOINT",
+        "MULTILINESTRING",
+        "MULTIPOLYGON",
+        "GEOMETRYCOLLECTION",
     ],
 }
 
@@ -86,8 +124,8 @@ SUPPORT_METHOD_ALL_ARGS: Dict[str, List[str]] = {
 def create_parser(subparsers):
     """Create the info subcommand parser."""
     parser = subparsers.add_parser(
-        'info',
-        help='Display MySQL environment information',
+        "info",
+        help="Display MySQL environment information",
         epilog="""Examples:
   # Show info using default version (8.0.0)
   %(prog)s
@@ -109,10 +147,11 @@ def create_parser(subparsers):
 
     # Output format (only table and json; info has nested output)
     parser.add_argument(
-        '-o', '--output',
+        "-o",
+        "--output",
         choices=OUTPUT_CHOICES,
-        default='table',
-        help='Output format (default: table)',
+        default="table",
+        help="Output format (default: table)",
     )
 
     # Connection arguments (optional; info can work without a database)
@@ -123,17 +162,18 @@ def create_parser(subparsers):
 
     # Verbosity
     parser.add_argument(
-        '-v', '--verbose',
-        action='count',
+        "-v",
+        "--verbose",
+        action="count",
         default=0,
-        help='Increase verbosity. -v for families, -vv for details.',
+        help="Increase verbosity. -v for families, -vv for details.",
     )
 
     # Rich display options
     parser.add_argument(
-        '--rich-ascii',
-        action='store_true',
-        help='Use ASCII characters for rich table borders.',
+        "--rich-ascii",
+        action="store_true",
+        help="Use ASCII characters for rich table borders.",
     )
 
     return parser
@@ -141,7 +181,7 @@ def create_parser(subparsers):
 
 def handle(args):
     """Handle the info subcommand."""
-    provider = create_provider(args.output, ascii_borders=args.rich_ascii)
+    create_provider(args.output, ascii_borders=args.rich_ascii)
 
     # Track whether we're using actual database or defaults
     is_connected = False
@@ -152,6 +192,7 @@ def handle(args):
     if named_conn or args.database:
         try:
             from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+
             config = resolve_connection_config_from_args(args)
             backend = MySQLBackend(connection_config=config)
             backend.connect()
@@ -178,6 +219,7 @@ def handle(args):
         else:
             version = (8, 0, 0)  # Default version
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
         dialect = MySQLDialect(version=version)
         version_display = f"{version[0]}.{version[1]}.{version[2]}"
 
@@ -195,9 +237,7 @@ def handle(args):
 
     # Build protocol support information
     for group_name, protocols in PROTOCOL_FAMILY_GROUPS.items():
-        info["protocols"][group_name] = _build_protocol_info(
-            dialect, group_name, protocols, args.verbose
-        )
+        info["protocols"][group_name] = _build_protocol_info(dialect, group_name, protocols, args.verbose)
 
     if args.output == "json" or not RICH_AVAILABLE:
         print(json.dumps(info, indent=2))
@@ -213,6 +253,7 @@ def handle(args):
 # ---------------------------------------------------------------------------
 # Internal helper functions
 # ---------------------------------------------------------------------------
+
 
 def get_protocol_support_methods(protocol_class: type) -> List[str]:
     """Get all support check methods from a protocol class.
@@ -276,7 +317,7 @@ def check_protocol_support(dialect, protocol_class: type) -> Dict[str, Any]:
 
 def parse_version(version_str: str) -> Tuple[int, int, int]:
     """Parse version string like '8.0.0' to tuple."""
-    parts = version_str.split('.')
+    parts = version_str.split(".")
     major = int(parts[0]) if len(parts) > 0 else 0
     minor = int(parts[1]) if len(parts) > 1 else 0
     patch = int(parts[2]) if len(parts) > 2 else 0
@@ -307,12 +348,7 @@ def _calculate_protocol_stats(support_methods: Dict[str, Any]) -> Tuple[int, int
     return supported_count, total_count
 
 
-def _build_protocol_info(
-    dialect,
-    group_name: str,
-    protocols: List[type],
-    verbose: int
-) -> Dict[str, Dict[str, Any]]:
+def _build_protocol_info(dialect, group_name: str, protocols: List[type], verbose: int) -> Dict[str, Dict[str, Any]]:
     """Build protocol support information for a single group.
 
     Args:
@@ -362,12 +398,7 @@ def _get_status_style(pct: float) -> Tuple[str, str]:
 
 def _format_method_display(method: str) -> str:
     """Format method name for display."""
-    return (
-        method.replace("supports_", "")
-        .replace("_", " ")
-        .replace("is_", "")
-        .replace("_available", "")
-    )
+    return method.replace("supports_", "").replace("_", " ").replace("is_", "").replace("_available", "")
 
 
 def _display_method_details(console: Any, method: str, value: Any) -> None:
@@ -384,12 +415,7 @@ def _display_method_details(console: Any, method: str, value: Any) -> None:
         console.print(f"        {m_status} {method_display}")
 
 
-def _display_protocol_item(
-    console: Any,
-    protocol_name: str,
-    stats: Dict[str, Any],
-    verbose: int
-) -> None:
+def _display_protocol_item(console: Any, protocol_name: str, stats: Dict[str, Any], verbose: int) -> None:
     """Display a single protocol's support information."""
     pct = stats["percentage"]
     color, symbol = _get_status_style(pct)
@@ -401,8 +427,7 @@ def _display_protocol_item(
     sup = stats["supported"]
     tot = stats["total"]
     console.print(
-        f"    [{color}]{symbol}[/{color}] {protocol_name}: "
-        f"[{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
+        f"    [{color}]{symbol}[/{color}] {protocol_name}: [{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
     )
 
     if verbose >= 2 and "methods" in stats:
@@ -410,12 +435,7 @@ def _display_protocol_item(
             _display_method_details(console, method, value)
 
 
-def _display_protocol_group(
-    console: Any,
-    group_name: str,
-    protocols: Dict[str, Any],
-    verbose: int
-) -> None:
+def _display_protocol_group(console: Any, group_name: str, protocols: Dict[str, Any], verbose: int) -> None:
     """Display a protocol group's support information."""
     if group_name in DIALECT_SPECIFIC_GROUPS:
         console.print(f"\n  [bold underline]{group_name}:[/bold underline] [dim](dialect-specific)[/dim]")
@@ -437,7 +457,9 @@ def _display_info_rich(info: Dict, verbose: int, version_display: str, is_connec
     if is_connected:
         console.print(f"[bold]MySQL Version:[/bold] {version_display} [dim](from actual connection)[/dim]\n")
     else:
-        console.print(f"[bold]MySQL Version:[/bold] {version_display} [yellow](default value - no database connection)[/yellow]\n")
+        console.print(
+            f"[bold]MySQL Version:[/bold] {version_display} [yellow](default value - no database connection)[/yellow]\n"
+        )
 
     label = "Detailed" if verbose >= 2 else "Family Overview"
     console.print(f"[bold green]Protocol Support ({label}):[/bold green]")
