@@ -11,6 +11,7 @@ IMPORTANT: mysql-connector-python returns JSON columns as strings, not Python di
 Tests that expect automatic JSON parsing must use the column_adapters parameter to specify
 the MySQLJSONAdapter for columns that should be parsed.
 """
+
 import pytest
 
 
@@ -21,9 +22,9 @@ class TestMySQLJSONFunctionBackend:
         """Test that JSON functions are supported."""
         dialect = mysql_backend.dialect
         if dialect.version >= (5, 7, 8):
-            assert dialect.supports_json_function('JSON_EXTRACT')
+            assert dialect.supports_json_function("JSON_EXTRACT")
         else:
-            assert not dialect.supports_json_function('JSON_EXTRACT')
+            assert not dialect.supports_json_function("JSON_EXTRACT")
 
     def test_create_table_with_json_column(self, mysql_backend, json_column_adapter):
         """Test creating table with JSON column type."""
@@ -37,17 +38,14 @@ class TestMySQLJSONFunctionBackend:
             )
             """)
 
-        mysql_backend.execute(
-            "INSERT INTO test_json_table (data) VALUES ('{\"name\": \"John\"}')"
-        )
+        mysql_backend.execute('INSERT INTO test_json_table (data) VALUES (\'{"name": "John"}\')')
 
         # Use column_adapters to parse JSON string to dict
         result = mysql_backend.execute(
-            "SELECT data FROM test_json_table WHERE id = 1",
-            column_adapters={'data': (json_column_adapter, dict)}
+            "SELECT data FROM test_json_table WHERE id = 1", column_adapters={"data": (json_column_adapter, dict)}
         )
 
-        assert result.data[0]['data']['name'] == 'John'
+        assert result.data[0]["data"]["name"] == "John"
 
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_json_table")
 
@@ -63,15 +61,11 @@ class TestMySQLJSONFunctionBackend:
             )
             """)
 
-        mysql_backend.execute(
-            "INSERT INTO test_json_extract (data) VALUES ('{\"name\": \"John\", \"age\": 30}')"
-        )
+        mysql_backend.execute('INSERT INTO test_json_extract (data) VALUES (\'{"name": "John", "age": 30}\')')
 
-        result = mysql_backend.execute(
-            "SELECT JSON_EXTRACT(data, '$.name') as name FROM test_json_extract"
-        )
+        result = mysql_backend.execute("SELECT JSON_EXTRACT(data, '$.name') as name FROM test_json_extract")
 
-        assert result.data[0]['name'] == '"John"'
+        assert result.data[0]["name"] == '"John"'
 
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_json_extract")
 
@@ -82,11 +76,10 @@ class TestMySQLJSONFunctionBackend:
 
         # Use column_adapters to parse JSON string to dict
         result = mysql_backend.execute(
-            "SELECT JSON_OBJECT('name', 'John', 'age', 30) as obj",
-            column_adapters={'obj': (json_column_adapter, dict)}
+            "SELECT JSON_OBJECT('name', 'John', 'age', 30) as obj", column_adapters={"obj": (json_column_adapter, dict)}
         )
 
-        assert result.data[0]['obj']['name'] == 'John'
+        assert result.data[0]["obj"]["name"] == "John"
 
     def test_json_array_function(self, mysql_backend, json_column_adapter):
         """Test JSON_ARRAY function."""
@@ -95,11 +88,10 @@ class TestMySQLJSONFunctionBackend:
 
         # Use column_adapters to parse JSON string to list
         result = mysql_backend.execute(
-            "SELECT JSON_ARRAY(1, 2, 3) as arr",
-            column_adapters={'arr': (json_column_adapter, list)}
+            "SELECT JSON_ARRAY(1, 2, 3) as arr", column_adapters={"arr": (json_column_adapter, list)}
         )
 
-        assert result.data[0]['arr'] == [1, 2, 3]
+        assert result.data[0]["arr"] == [1, 2, 3]
 
     def test_json_contains_function(self, mysql_backend):
         """Test JSON_CONTAINS function."""
@@ -113,9 +105,7 @@ class TestMySQLJSONFunctionBackend:
             )
             """)
 
-        mysql_backend.execute(
-            "INSERT INTO test_json_contains (data) VALUES ('{\"tags\": [\"mysql\", \"database\"]}')"
-        )
+        mysql_backend.execute('INSERT INTO test_json_contains (data) VALUES (\'{"tags": ["mysql", "database"]}\')')
 
         result = mysql_backend.execute(
             "SELECT id FROM test_json_contains WHERE JSON_CONTAINS(data, '\"mysql\"', '$.tags')"
@@ -137,19 +127,14 @@ class TestMySQLJSONFunctionBackend:
             )
             """)
 
-        mysql_backend.execute(
-            "INSERT INTO test_format_json_extract (data) VALUES ('{\"name\": \"John\"}')"
-        )
+        mysql_backend.execute('INSERT INTO test_format_json_extract (data) VALUES (\'{"name": "John"}\')')
 
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_json_extract('data', '$.name')
+        sql, params = dialect.format_json_extract("data", "$.name")
 
-        result = mysql_backend.execute(
-            f"SELECT {sql} as name FROM test_format_json_extract",
-            params
-        )
+        result = mysql_backend.execute(f"SELECT {sql} as name FROM test_format_json_extract", params)
 
-        assert '"John"' in str(result.data[0]['name'])
+        assert '"John"' in str(result.data[0]["name"])
 
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_format_json_extract")
 
@@ -162,9 +147,9 @@ class TestAsyncMySQLJSONFunctionBackend:
         """Test that JSON functions are supported (async)."""
         dialect = async_mysql_backend.dialect
         if dialect.version >= (5, 7, 8):
-            assert dialect.supports_json_function('JSON_EXTRACT')
+            assert dialect.supports_json_function("JSON_EXTRACT")
         else:
-            assert not dialect.supports_json_function('JSON_EXTRACT')
+            assert not dialect.supports_json_function("JSON_EXTRACT")
 
     @pytest.mark.asyncio
     async def test_async_create_table_with_json_column(self, async_mysql_backend, json_column_adapter):
@@ -179,17 +164,14 @@ class TestAsyncMySQLJSONFunctionBackend:
             )
             """)
 
-        await async_mysql_backend.execute(
-            "INSERT INTO test_async_json_table (data) VALUES ('{\"name\": \"Jane\"}')"
-        )
+        await async_mysql_backend.execute('INSERT INTO test_async_json_table (data) VALUES (\'{"name": "Jane"}\')')
 
         # Use column_adapters to parse JSON string to dict
         result = await async_mysql_backend.execute(
-            "SELECT data FROM test_async_json_table WHERE id = 1",
-            column_adapters={'data': (json_column_adapter, dict)}
+            "SELECT data FROM test_async_json_table WHERE id = 1", column_adapters={"data": (json_column_adapter, dict)}
         )
 
-        assert result.data[0]['data']['name'] == 'Jane'
+        assert result.data[0]["data"]["name"] == "Jane"
 
         await async_mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_async_json_table")
 
@@ -206,15 +188,13 @@ class TestAsyncMySQLJSONFunctionBackend:
             )
             """)
 
-        await async_mysql_backend.execute(
-            "INSERT INTO test_async_json_extract (data) VALUES ('{\"name\": \"Jane\"}')"
-        )
+        await async_mysql_backend.execute('INSERT INTO test_async_json_extract (data) VALUES (\'{"name": "Jane"}\')')
 
         result = await async_mysql_backend.execute(
             "SELECT JSON_EXTRACT(data, '$.name') as name FROM test_async_json_extract"
         )
 
-        assert result.data[0]['name'] == '"Jane"'
+        assert result.data[0]["name"] == '"Jane"'
 
         await async_mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_async_json_extract")
 
@@ -226,11 +206,10 @@ class TestAsyncMySQLJSONFunctionBackend:
 
         # Use column_adapters to parse JSON string to dict
         result = await async_mysql_backend.execute(
-            "SELECT JSON_OBJECT('name', 'Jane') as obj",
-            column_adapters={'obj': (json_column_adapter, dict)}
+            "SELECT JSON_OBJECT('name', 'Jane') as obj", column_adapters={"obj": (json_column_adapter, dict)}
         )
 
-        assert result.data[0]['obj']['name'] == 'Jane'
+        assert result.data[0]["obj"]["name"] == "Jane"
 
     @pytest.mark.asyncio
     async def test_async_json_array_function(self, async_mysql_backend, json_column_adapter):
@@ -240,11 +219,10 @@ class TestAsyncMySQLJSONFunctionBackend:
 
         # Use column_adapters to parse JSON string to list
         result = await async_mysql_backend.execute(
-            "SELECT JSON_ARRAY('a', 'b', 'c') as arr",
-            column_adapters={'arr': (json_column_adapter, list)}
+            "SELECT JSON_ARRAY('a', 'b', 'c') as arr", column_adapters={"arr": (json_column_adapter, list)}
         )
 
-        assert result.data[0]['arr'] == ['a', 'b', 'c']
+        assert result.data[0]["arr"] == ["a", "b", "c"]
 
     @pytest.mark.asyncio
     async def test_async_json_contains_function(self, async_mysql_backend):
@@ -260,7 +238,7 @@ class TestAsyncMySQLJSONFunctionBackend:
             """)
 
         await async_mysql_backend.execute(
-            "INSERT INTO test_async_json_contains (data) VALUES ('{\"tags\": [\"async\", \"test\"]}')"
+            'INSERT INTO test_async_json_contains (data) VALUES (\'{"tags": ["async", "test"]}\')'
         )
 
         result = await async_mysql_backend.execute(
@@ -285,17 +263,14 @@ class TestAsyncMySQLJSONFunctionBackend:
             """)
 
         await async_mysql_backend.execute(
-            "INSERT INTO test_async_format_json_extract (data) VALUES ('{\"name\": \"Jane\"}')"
+            'INSERT INTO test_async_format_json_extract (data) VALUES (\'{"name": "Jane"}\')'
         )
 
         dialect = async_mysql_backend.dialect
-        sql, params = dialect.format_json_extract('data', '$.name')
+        sql, params = dialect.format_json_extract("data", "$.name")
 
-        result = await async_mysql_backend.execute(
-            f"SELECT {sql} as name FROM test_async_format_json_extract",
-            params
-        )
+        result = await async_mysql_backend.execute(f"SELECT {sql} as name FROM test_async_format_json_extract", params)
 
-        assert '"Jane"' in str(result.data[0]['name'])
+        assert '"Jane"' in str(result.data[0]["name"])
 
         await async_mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_async_format_json_extract")

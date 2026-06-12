@@ -4,8 +4,9 @@
 This module provides MySQL-specific transaction management that handles
 MySQL's requirement for SET TRANSACTION before START TRANSACTION.
 """
+
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from rhosocial.activerecord.backend.transaction import (
     TransactionManager,
@@ -31,7 +32,11 @@ class MySQLTransactionManager(MySQLTransactionMixin, TransactionManager):
     are inherited from MySQLTransactionMixin.
     """
 
-    def __init__(self, backend: "MySQLBackend", logger=None):
+    def __init__(
+        self,
+        backend: "MySQLBackend",
+        logger: Optional[logging.Logger] = None,
+    ) -> None:
         """Initialize MySQL transaction manager.
 
         Args:

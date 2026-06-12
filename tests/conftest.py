@@ -6,6 +6,7 @@ Its primary responsibility is to configure the environment so that the external
 `rhosocial-activerecord-testsuite` can find and use the backend-specific
 implementations (Providers) defined within this project.
 """
+
 import os
 import asyncio
 import pytest
@@ -17,10 +18,7 @@ import pytest
 #
 # `setdefault` is used to ensure that this value is set only if it hasn't been
 # set already, allowing for overrides in different environments if needed.
-os.environ.setdefault(
-    'TESTSUITE_PROVIDER_REGISTRY',
-    'providers.registry:provider_registry'
-)
+os.environ.setdefault("TESTSUITE_PROVIDER_REGISTRY", "providers.registry:provider_registry")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -34,6 +32,7 @@ def setup_asyncio_broken_pipe_handler():
 
     This fixture sets up the handler at session start and restores it at end.
     """
+
     def handler(loop, context):
         exc = context.get("exception")
         if isinstance(exc, BrokenPipeError):
@@ -71,10 +70,12 @@ def setup_asyncio_broken_pipe_handler():
 #         parallel. Behavior is unchanged without --scenario-parallel.
 # =============================================================================
 
+
 def _get_scenario_names():
     """Lazy import to avoid side effects during conftest loading."""
     try:
         from providers.scenarios import SCENARIO_MAP
+
         return set(SCENARIO_MAP.keys()), list(SCENARIO_MAP.keys())
     except Exception:
         return set(), []
@@ -88,13 +89,10 @@ def _extract_scenario_from_item(item, scenario_name_set):
         None: no scenario params (not a scenario-parametrized test)
         list: multiple distinct scenario names (cross-scenario test)
     """
-    callspec = getattr(item, 'callspec', None)
+    callspec = getattr(item, "callspec", None)
     if callspec is None:
         return None
-    scenario_values = [
-        v for v in callspec.params.values()
-        if isinstance(v, str) and v in scenario_name_set
-    ]
+    scenario_values = [v for v in callspec.params.values() if isinstance(v, str) and v in scenario_name_set]
     if len(scenario_values) == 1:
         return scenario_values[0]
     if len(scenario_values) >= 2:
@@ -111,10 +109,10 @@ def _add_xdist_group_marker(item, group_name):
 
 def pytest_addoption(parser):
     parser.addoption(
-        '--scenario-parallel',
-        action='store_true',
+        "--scenario-parallel",
+        action="store_true",
         default=False,
-        help='Scenario parallel mode: distribute scenarios across workers, keep each scenario on one worker.',
+        help="Scenario parallel mode: distribute scenarios across workers, keep each scenario on one worker.",
     )
 
 
@@ -132,14 +130,14 @@ def _is_backend_single_test(item):
     scenario-parametrized. In --scenario-parallel mode they must be pinned
     to the first scenario's worker to avoid table conflicts.
     """
-    fixturenames = getattr(item, 'fixturenames', None)
+    fixturenames = getattr(item, "fixturenames", None)
     if fixturenames is None:
         return False
-    return 'mysql_backend_single' in fixturenames or 'async_mysql_backend_single' in fixturenames
+    return "mysql_backend_single" in fixturenames or "async_mysql_backend_single" in fixturenames
 
 
 def pytest_collection_modifyitems(config, items):
-    if not config.getoption('--scenario-parallel', default=False):
+    if not config.getoption("--scenario-parallel", default=False):
         return
 
     scenario_name_set, scenario_name_list = _get_scenario_names()
@@ -162,7 +160,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(
                 pytest.mark.skip(
                     reason="Cross-scenario test skipped in --scenario-parallel mode. "
-                           "Run without --scenario-parallel for serial execution."
+                    "Run without --scenario-parallel for serial execution."
                 )
             )
             cross_scenario_items.append(item)
@@ -180,12 +178,12 @@ def pytest_collection_modifyitems(config, items):
     def sort_key(item):
         result = _extract_scenario_from_item(item, scenario_name_set)
         if not isinstance(result, str):
-            return ('~', 0)
+            return ("~", 0)
         try:
             scenario_idx = scenario_name_list.index(result)
         except ValueError:
             scenario_idx = 0
-        base = item.nodeid.split('[')[0] if '[' in item.nodeid else item.nodeid
+        base = item.nodeid.split("[")[0] if "[" in item.nodeid else item.nodeid
         return (base, scenario_idx)
 
     scenario_items.sort(key=sort_key)
@@ -195,13 +193,15 @@ def pytest_collection_modifyitems(config, items):
     for item in scenario_items:
         sn = _extract_scenario_from_item(item, scenario_name_set)
         if isinstance(sn, str):
-            base = item.nodeid.split('[')[0] if '[' in item.nodeid else item.nodeid
+            base = item.nodeid.split("[")[0] if "[" in item.nodeid else item.nodeid
             groups.setdefault(base, set()).add(sn)
 
-    print(f"\n[ScenarioParallel] {len(items)} items: "
-          f"{len(scenario_items)} scenario-param + "
-          f"{len(backend_single_items)} backend-single @{first_scenario} + "
-          f"{len(normal_items)} normal + "
-          f"{len(cross_scenario_items)} cross-scenario (skipped)")
+    print(
+        f"\n[ScenarioParallel] {len(items)} items: "
+        f"{len(scenario_items)} scenario-param + "
+        f"{len(backend_single_items)} backend-single @{first_scenario} + "
+        f"{len(normal_items)} normal + "
+        f"{len(cross_scenario_items)} cross-scenario (skipped)"
+    )
     print(f"[ScenarioParallel] {len(groups)} test methods, {len(scenario_name_list)} scenarios in parallel")
     print(f"[ScenarioParallel] Suggested: --dist=loadgroup -n {len(scenario_name_list)}")

@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValueExpression):
     """MySQL ST_GeomFromText expression.
-    
+
     Creates a geometry value from WKT.
-    
+
     Example:
         >>> expr = MySQLSTGeomFromTextExpression(dialect, 'POINT(1 1)')
     """
@@ -48,9 +48,9 @@ class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValueExpression):
 
 class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_Distance expression.
-    
+
     Returns the distance between two geometries.
-    
+
     Example:
         >>> expr = MySQLSTDistanceExpression(dialect, 'geom1', 'geom2')
     """
@@ -75,9 +75,9 @@ class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
 
 class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_Within expression.
-    
+
     Returns whether one geometry is within another.
-    
+
     Example:
         >>> expr = MySQLSTWithinExpression(dialect, 'geom1', 'geom2')
     """
@@ -102,9 +102,9 @@ class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
 
 class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_Contains expression.
-    
+
     Returns whether one geometry contains another.
-    
+
     Example:
         >>> expr = MySQLSTContainsExpression(dialect, 'geom1', 'geom2')
     """

@@ -5,7 +5,7 @@ Test SQLFunctionSupport protocol implementation for MySQL dialect.
 This module tests the supports_functions() method and version-dependent
 function availability detection in MySQLDialect.
 """
-import pytest
+
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 
@@ -40,9 +40,19 @@ class TestMySQLFunctionSupportBasic:
         dialect = MySQLDialect((8, 0, 0))
         result = dialect.supports_functions()
         sqlxml_constructors = [
-            "xmlparse", "xmlserialize", "xmlelement", "xmlattributes",
-            "xmlforest", "xmlconcat", "xmlcomment", "xmlpi", "xmlroot",
-            "xmlagg", "xmlquery", "xmlexists", "xmltable",
+            "xmlparse",
+            "xmlserialize",
+            "xmlelement",
+            "xmlattributes",
+            "xmlforest",
+            "xmlconcat",
+            "xmlcomment",
+            "xmlpi",
+            "xmlroot",
+            "xmlagg",
+            "xmlquery",
+            "xmlexists",
+            "xmltable",
         ]
         for func in sqlxml_constructors:
             assert func not in result
@@ -53,9 +63,18 @@ class TestMySQLFunctionSupportVersionDependent:
 
     def test_json_functions_require_mysql_5_7_8(self):
         """Test that JSON functions require MySQL 5.7.8+."""
-        json_functions = ["json_extract", "json_unquote", "json_object", "json_array",
-                         "json_contains", "json_set", "json_remove", "json_type",
-                         "json_valid", "json_search"]
+        json_functions = [
+            "json_extract",
+            "json_unquote",
+            "json_object",
+            "json_array",
+            "json_contains",
+            "json_set",
+            "json_remove",
+            "json_type",
+            "json_valid",
+            "json_search",
+        ]
 
         dialect_old = MySQLDialect(version=(5, 7, 7))
         result_old = dialect_old.supports_functions()
@@ -69,8 +88,15 @@ class TestMySQLFunctionSupportVersionDependent:
 
     def test_spatial_functions_require_mysql_5_7(self):
         """Test that spatial functions require MySQL 5.7+."""
-        spatial_functions = ["st_geom_from_text", "st_geom_from_wkb", "st_as_text",
-                            "st_distance", "st_within", "st_contains", "st_intersects"]
+        spatial_functions = [
+            "st_geom_from_text",
+            "st_geom_from_wkb",
+            "st_as_text",
+            "st_distance",
+            "st_within",
+            "st_contains",
+            "st_intersects",
+        ]
 
         dialect_old = MySQLDialect(version=(5, 6, 99))
         result_old = dialect_old.supports_functions()
@@ -99,10 +125,24 @@ class TestMySQLFunctionSupportVersionDependent:
 
         always_available = [
             "match_against",
-            "find_in_set", "elt", "field",
-            "round_", "pow", "power", "sqrt", "mod", "ceil", "floor", "trunc",
-            "max_", "min_", "avg",
-            "bit_and", "bit_or", "bit_xor", "bit_count",
+            "find_in_set",
+            "elt",
+            "field",
+            "round_",
+            "pow",
+            "power",
+            "sqrt",
+            "mod",
+            "ceil",
+            "floor",
+            "trunc",
+            "max_",
+            "min_",
+            "avg",
+            "bit_and",
+            "bit_or",
+            "bit_xor",
+            "bit_count",
         ]
         for func in always_available:
             assert result.get(func) is True, f"{func} should be always available"

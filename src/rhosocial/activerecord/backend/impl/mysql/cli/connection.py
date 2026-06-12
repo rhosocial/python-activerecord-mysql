@@ -4,7 +4,6 @@
 import os
 
 
-
 def add_connection_args(parser):
     """Add MySQL connection arguments to a subcommand parser.
 
@@ -79,11 +78,13 @@ def create_connection_parent_parser():
     require a parent_parser containing connection parameters.
     """
     import argparse
+
     parent = argparse.ArgumentParser(add_help=False)
     add_connection_args(parent)
     # Output parameters
     parent.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         choices=["table", "json", "csv", "tsv"],
         default="table",
         help='Output format. Defaults to "table" if rich is installed.',
@@ -136,6 +137,7 @@ def resolve_connection_config_from_args(args):
 def create_backend(args):
     """Create, connect, and introspect a MySQL backend from parsed args."""
     from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+
     config = resolve_connection_config_from_args(args)
     backend = MySQLBackend(connection_config=config)
     backend.connect()

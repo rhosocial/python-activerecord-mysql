@@ -97,9 +97,7 @@ class TestMySQLCollationExpression:
             expr.to_sql()
 
     def test_collate_executes_case_sensitive_match(self, mysql_backend, collation_table):
-        expr = Column(mysql_backend.dialect, "name", table=collation_table).collate(
-            MySQLCollation.UTF8MB4_BIN
-        )
+        expr = Column(mysql_backend.dialect, "name", table=collation_table).collate(MySQLCollation.UTF8MB4_BIN)
         sql, params = expr.to_sql()
 
         rows = mysql_backend.fetch_all(
@@ -110,9 +108,7 @@ class TestMySQLCollationExpression:
         assert [row["name"] for row in rows] == ["Alice"]
 
     def test_collate_executes_case_insensitive_match(self, mysql_backend, collation_table):
-        expr = Column(mysql_backend.dialect, "name", table=collation_table).collate(
-            MySQLCollation.UTF8MB4_UNICODE_CI
-        )
+        expr = Column(mysql_backend.dialect, "name", table=collation_table).collate(MySQLCollation.UTF8MB4_UNICODE_CI)
         sql, params = expr.to_sql()
 
         rows = mysql_backend.fetch_all(

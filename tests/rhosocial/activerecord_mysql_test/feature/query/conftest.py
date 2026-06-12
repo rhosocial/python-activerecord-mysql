@@ -5,17 +5,15 @@ Pytest configuration for query feature tests.
 This file imports fixtures from the corresponding testsuite, making them
 available to the tests in this directory.
 """
-import pytest
-import pytest_asyncio
 
-# Import fixtures from backend conftest
-# The mysql_backend and async_mysql_backend fixtures are defined in
-# feature/backend/conftest.py
-from rhosocial.activerecord_mysql_test.feature.backend.conftest import (
-    mysql_backend,
-    mysql_backend_single,
+# Keep these explicit backend fixture imports: query tests use mysql_backend
+# fixtures from the sibling backend test tree, which pytest will not load by
+# directory ancestry. The imported names are consumed by pytest fixture lookup.
+from rhosocial.activerecord_mysql_test.feature.backend.conftest import (  # noqa: F401
     async_mysql_backend,
     async_mysql_backend_single,
+    mysql_backend,
+    mysql_backend_single,
 )
 
-from rhosocial.activerecord.testsuite.feature.query.conftest import *
+from rhosocial.activerecord.testsuite.feature.query.conftest import *  # noqa: F403

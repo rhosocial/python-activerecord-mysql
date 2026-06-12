@@ -166,8 +166,8 @@ class MySQLStatusIntrospectorMixin:
         if not version_str:
             return (0, 0, 0)
         # Remove suffix like '-log', '-debug', etc.
-        version_part = version_str.split('-')[0]
-        parts = version_part.split('.')
+        version_part = version_str.split("-")[0]
+        parts = version_part.split(".")
         try:
             major = int(parts[0]) if len(parts) > 0 else 0
             minor = int(parts[1]) if len(parts) > 1 else 0
@@ -244,9 +244,7 @@ class MySQLStatusIntrospectorMixin:
         )
 
 
-class SyncMySQLStatusIntrospector(
-    MySQLStatusIntrospectorMixin, SyncAbstractStatusIntrospector
-):
+class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStatusIntrospector):
     """Synchronous MySQL status introspector.
 
     Uses SHOW VARIABLES and SHOW STATUS to gather server information.
@@ -303,12 +301,10 @@ class SyncMySQLStatusIntrospector(
             for var in variables:
                 if var.variable_name == "version":
                     return str(var.value)
-        version_tuple = getattr(self._backend, '_version', (8, 0, 0))
+        version_tuple = getattr(self._backend, "_version", (8, 0, 0))
         return ".".join(str(v) for v in version_tuple)
 
-    def list_configuration(
-        self, category: Optional[StatusCategory] = None
-    ) -> List[StatusItem]:
+    def list_configuration(self, category: Optional[StatusCategory] = None) -> List[StatusItem]:
         """List MySQL configuration parameters via SHOW VARIABLES."""
         items = []
 
@@ -336,9 +332,7 @@ class SyncMySQLStatusIntrospector(
 
         return items
 
-    def list_performance_metrics(
-        self, category: Optional[StatusCategory] = None
-    ) -> List[StatusItem]:
+    def list_performance_metrics(self, category: Optional[StatusCategory] = None) -> List[StatusItem]:
         """List MySQL performance metrics via SHOW STATUS."""
         items = []
 
@@ -400,7 +394,7 @@ class SyncMySQLStatusIntrospector(
                 "SELECT SUM(data_length + index_length) as total_size "
                 "FROM information_schema.TABLES "
                 "WHERE table_schema = %s",
-                (self._backend.config.database,)
+                (self._backend.config.database,),
             )
             if result and result.data:
                 total_size = result.data[0].get("total_size")
@@ -432,7 +426,7 @@ class SyncMySQLStatusIntrospector(
                 "FROM information_schema.TABLES "
                 "WHERE table_schema IN (%s) "
                 "GROUP BY table_schema, table_type" % ",".join(["%s"] * len(db_names)),
-                tuple(db_names)
+                tuple(db_names),
             )
             if result and result.data:
                 for row in result.data:
@@ -462,10 +456,7 @@ class SyncMySQLStatusIntrospector(
         users = []
 
         try:
-            result = self._backend.execute(
-                "SELECT User, Host, Super_priv FROM mysql.user",
-                ()
-            )
+            result = self._backend.execute("SELECT User, Host, Super_priv FROM mysql.user", ())
             if result and result.data:
                 for row in result.data:
                     user = UserInfo(
@@ -491,7 +482,7 @@ class SyncMySQLStatusIntrospector(
                 current_user = result.data[0].get("CURRENT_USER()")
                 if current_user:
                     # Parse user@host format
-                    parts = current_user.split('@')
+                    parts = current_user.split("@")
                     session.user = parts[0] if parts else current_user
                     if len(parts) > 1:
                         session.host = parts[1]
@@ -532,10 +523,7 @@ class SyncMySQLStatusIntrospector(
         innodb = InnoDBInfo()
         # Get buffer pool info
         try:
-            result = self._backend.execute(
-                "SHOW STATUS LIKE 'Innodb_buffer_pool%'",
-                ()
-            )
+            result = self._backend.execute("SHOW STATUS LIKE 'Innodb_buffer_pool%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -558,10 +546,7 @@ class SyncMySQLStatusIntrospector(
             pass
         # Get InnoDB variables
         try:
-            result = self._backend.execute(
-                "SHOW VARIABLES LIKE 'innodb%'",
-                ()
-            )
+            result = self._backend.execute("SHOW VARIABLES LIKE 'innodb%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -580,10 +565,7 @@ class SyncMySQLStatusIntrospector(
             pass
         # Get InnoDB row lock status
         try:
-            result = self._backend.execute(
-                "SHOW STATUS LIKE 'Innodb_row_lock%'",
-                ()
-            )
+            result = self._backend.execute("SHOW STATUS LIKE 'Innodb_row_lock%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -619,15 +601,13 @@ class SyncMySQLStatusIntrospector(
         except Exception:
             pass
         return innodb
+
     def get_binary_log_info(self) -> BinaryLogInfo:
         """Get binary log information."""
         binary_log = BinaryLogInfo()
         # Check if binary logging is enabled
         try:
-            result = self._backend.execute(
-                "SHOW VARIABLES LIKE 'log_bin'",
-                ()
-            )
+            result = self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -665,9 +645,7 @@ class SyncMySQLStatusIntrospector(
                 # Get server version first
                 version_result = self._backend.execute("SELECT VERSION()", ())
                 version_str = (
-                    version_result.data[0].get("VERSION()", "")
-                    if version_result and version_result.data
-                    else ""
+                    version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
                 )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
@@ -682,9 +660,7 @@ class SyncMySQLStatusIntrospector(
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(
-                            row.get("Position")
-                        )
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
@@ -692,17 +668,12 @@ class SyncMySQLStatusIntrospector(
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(
-                            row.get("Position")
-                        )
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
             except Exception:
                 pass
         # Get GTID info
         try:
-            result = self._backend.execute(
-                "SHOW VARIABLES LIKE 'gtid_mode'",
-                ()
-            )
+            result = self._backend.execute("SHOW VARIABLES LIKE 'gtid_mode'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -711,10 +682,7 @@ class SyncMySQLStatusIntrospector(
         except Exception:
             pass
         try:
-            result = self._backend.execute(
-                "SHOW GLOBAL VARIABLES LIKE 'gtid_executed'",
-                ()
-            )
+            result = self._backend.execute("SHOW GLOBAL VARIABLES LIKE 'gtid_executed'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -725,8 +693,11 @@ class SyncMySQLStatusIntrospector(
         # Add note if binary logging is disabled
         if binary_log.log_enabled is False:
             binary_log.extra["note"] = "Binary logging is not enabled on this server."
-            binary_log.extra["hint"] = "Set log_bin=ON to enable binary logging for replication and point-in-time recovery."
+            binary_log.extra["hint"] = (
+                "Set log_bin=ON to enable binary logging for replication and point-in-time recovery."
+            )
         return binary_log
+
     def list_processes(self) -> List[ProcessInfo]:
         """List current running processes/queries."""
         processes = []
@@ -748,15 +719,13 @@ class SyncMySQLStatusIntrospector(
         except Exception:
             pass
         return processes
+
     def get_slow_query_info(self) -> SlowQueryInfo:
         """Get slow query log configuration."""
         slow_query = SlowQueryInfo()
         # Get slow query log status
         try:
-            result = self._backend.execute(
-                "SHOW VARIABLES LIKE 'slow_query_log%'",
-                ()
-            )
+            result = self._backend.execute("SHOW VARIABLES LIKE 'slow_query_log%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -777,10 +746,7 @@ class SyncMySQLStatusIntrospector(
             pass
         # Get slow query count
         try:
-            result = self._backend.execute(
-                "SHOW STATUS LIKE 'Slow_queries'",
-                ()
-            )
+            result = self._backend.execute("SHOW STATUS LIKE 'Slow_queries'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -790,15 +756,13 @@ class SyncMySQLStatusIntrospector(
         except Exception:
             pass
         return slow_query
+
     def get_mysql_replication_info(self) -> MySQLReplicationInfo:
         """Get MySQL replication status information."""
         repl_info = MySQLReplicationInfo()
         # Get server_id
         try:
-            result = self._backend.execute(
-                "SHOW VARIABLES LIKE 'server_id'",
-                ()
-            )
+            result = self._backend.execute("SHOW VARIABLES LIKE 'server_id'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -825,7 +789,9 @@ class SyncMySQLStatusIntrospector(
             try:
                 # Get server version first
                 version_result = self._backend.execute("SELECT VERSION()", ())
-                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+                version_str = (
+                    version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+                )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 9.0+: use performance_schema.log_status
@@ -834,7 +800,7 @@ class SyncMySQLStatusIntrospector(
                         "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
                         "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
                         "FROM performance_schema.log_status",
-                        ()
+                        (),
                     )
                     if result and result.data:
                         repl_info.is_master = True
@@ -867,9 +833,11 @@ class SyncMySQLStatusIntrospector(
         # MySQL 9.0+ removed SHOW SLAVE STATUS, use performance_schema tables instead
         try:
             # Get server version first (reuse if already fetched above)
-            if 'version_str' not in dir() or not version_str:
+            if "version_str" not in dir() or not version_str:
                 version_result = self._backend.execute("SELECT VERSION()", ())
-                version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+                version_str = (
+                    version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
+                )
 
             if self._is_mysql_version_at_least(version_str, 8, 4):
                 # MySQL 9.0+: use performance_schema replication tables
@@ -878,7 +846,7 @@ class SyncMySQLStatusIntrospector(
                     "SELECT CHANNEL_NAME, SOURCE_UUID, SERVICE_STATE "
                     "FROM performance_schema.replication_connection_status "
                     "WHERE SERVICE_STATE = 'ON'",
-                    ()
+                    (),
                 )
                 if result and result.data:
                     repl_info.is_slave = True
@@ -917,9 +885,7 @@ class SyncMySQLStatusIntrospector(
         return repl_info
 
 
-class AsyncMySQLStatusIntrospector(
-    MySQLStatusIntrospectorMixin, AsyncAbstractStatusIntrospector
-):
+class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractStatusIntrospector):
     """Asynchronous MySQL status introspector.
 
     Uses SHOW VARIABLES and SHOW STATUS to gather server information.
@@ -976,12 +942,10 @@ class AsyncMySQLStatusIntrospector(
             for var in variables:
                 if var.variable_name == "version":
                     return str(var.value)
-        version_tuple = getattr(self._backend, '_version', (8, 0, 0))
+        version_tuple = getattr(self._backend, "_version", (8, 0, 0))
         return ".".join(str(v) for v in version_tuple)
 
-    async def list_configuration(
-        self, category: Optional[StatusCategory] = None
-    ) -> List[StatusItem]:
+    async def list_configuration(self, category: Optional[StatusCategory] = None) -> List[StatusItem]:
         """List MySQL configuration parameters via SHOW VARIABLES."""
         items = []
 
@@ -1007,9 +971,7 @@ class AsyncMySQLStatusIntrospector(
 
         return items
 
-    async def list_performance_metrics(
-        self, category: Optional[StatusCategory] = None
-    ) -> List[StatusItem]:
+    async def list_performance_metrics(self, category: Optional[StatusCategory] = None) -> List[StatusItem]:
         """List MySQL performance metrics via SHOW STATUS."""
         items = []
 
@@ -1068,7 +1030,7 @@ class AsyncMySQLStatusIntrospector(
                 "SELECT SUM(data_length + index_length) as total_size "
                 "FROM information_schema.TABLES "
                 "WHERE table_schema = %s",
-                (self._backend.config.database,)
+                (self._backend.config.database,),
             )
             if result and result.data:
                 total_size = result.data[0].get("total_size")
@@ -1100,7 +1062,7 @@ class AsyncMySQLStatusIntrospector(
                 "FROM information_schema.TABLES "
                 "WHERE table_schema IN (%s) "
                 "GROUP BY table_schema, table_type" % ",".join(["%s"] * len(db_names)),
-                tuple(db_names)
+                tuple(db_names),
             )
             if result and result.data:
                 for row in result.data:
@@ -1130,10 +1092,7 @@ class AsyncMySQLStatusIntrospector(
         users = []
 
         try:
-            result = await self._backend.execute(
-                "SELECT User, Host, Super_priv FROM mysql.user",
-                ()
-            )
+            result = await self._backend.execute("SELECT User, Host, Super_priv FROM mysql.user", ())
             if result and result.data:
                 for row in result.data:
                     user = UserInfo(
@@ -1157,7 +1116,7 @@ class AsyncMySQLStatusIntrospector(
             if result and result.data:
                 current_user = result.data[0].get("CURRENT_USER()")
                 if current_user:
-                    parts = current_user.split('@')
+                    parts = current_user.split("@")
                     session.user = parts[0] if parts else current_user
                     if len(parts) > 1:
                         session.host = parts[1]
@@ -1198,10 +1157,7 @@ class AsyncMySQLStatusIntrospector(
         innodb = InnoDBInfo()
         # Get buffer pool info
         try:
-            result = await self._backend.execute(
-                "SHOW STATUS LIKE 'Innodb_buffer_pool%'",
-                ()
-            )
+            result = await self._backend.execute("SHOW STATUS LIKE 'Innodb_buffer_pool%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1224,10 +1180,7 @@ class AsyncMySQLStatusIntrospector(
             pass
         # Get InnoDB variables
         try:
-            result = await self._backend.execute(
-                "SHOW VARIABLES LIKE 'innodb%'",
-                ()
-            )
+            result = await self._backend.execute("SHOW VARIABLES LIKE 'innodb%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1246,10 +1199,7 @@ class AsyncMySQLStatusIntrospector(
             pass
         # Get InnoDB row lock status
         try:
-            result = await self._backend.execute(
-                "SHOW STATUS LIKE 'Innodb_row_lock%'",
-                ()
-            )
+            result = await self._backend.execute("SHOW STATUS LIKE 'Innodb_row_lock%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1290,10 +1240,7 @@ class AsyncMySQLStatusIntrospector(
         binary_log = BinaryLogInfo()
         # Check if binary logging is enabled
         try:
-            result = await self._backend.execute(
-                "SHOW VARIABLES LIKE 'log_bin'",
-                ()
-            )
+            result = await self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1330,9 +1277,7 @@ class AsyncMySQLStatusIntrospector(
                 # Get server version first
                 version_result = await self._backend.execute("SELECT VERSION()", ())
                 version_str = (
-                    version_result.data[0].get("VERSION()", "")
-                    if version_result and version_result.data
-                    else ""
+                    version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
                 )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
@@ -1347,9 +1292,7 @@ class AsyncMySQLStatusIntrospector(
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(
-                            row.get("Position")
-                        )
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
@@ -1357,17 +1300,12 @@ class AsyncMySQLStatusIntrospector(
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(
-                            row.get("Position")
-                        )
+                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
             except Exception:
                 pass
         # Get GTID info
         try:
-            result = await self._backend.execute(
-                "SHOW VARIABLES LIKE 'gtid_mode'",
-                ()
-            )
+            result = await self._backend.execute("SHOW VARIABLES LIKE 'gtid_mode'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1378,7 +1316,9 @@ class AsyncMySQLStatusIntrospector(
         # Add note if binary logging is disabled
         if binary_log.log_enabled is False:
             binary_log.extra["note"] = "Binary logging is not enabled on this server."
-            binary_log.extra["hint"] = "Set log_bin=ON to enable binary logging for replication and point-in-time recovery."
+            binary_log.extra["hint"] = (
+                "Set log_bin=ON to enable binary logging for replication and point-in-time recovery."
+            )
         return binary_log
 
     async def list_processes(self) -> List[ProcessInfo]:
@@ -1407,10 +1347,7 @@ class AsyncMySQLStatusIntrospector(
         slow_query = SlowQueryInfo()
         # Get slow query log settings
         try:
-            result = await self._backend.execute(
-                "SHOW VARIABLES LIKE 'slow_query_log%'",
-                ()
-            )
+            result = await self._backend.execute("SHOW VARIABLES LIKE 'slow_query_log%'", ())
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1423,10 +1360,7 @@ class AsyncMySQLStatusIntrospector(
             pass
         # Get long_query_time
         try:
-            result = await self._backend.execute(
-                "SHOW VARIABLES LIKE 'long_query_time'",
-                ()
-            )
+            result = await self._backend.execute("SHOW VARIABLES LIKE 'long_query_time'", ())
             if result and result.data:
                 for row in result.data:
                     value = row.get("Value")
@@ -1436,10 +1370,7 @@ class AsyncMySQLStatusIntrospector(
             pass
         # Get slow query count
         try:
-            result = await self._backend.execute(
-                "SHOW STATUS LIKE 'Slow_queries'",
-                ()
-            )
+            result = await self._backend.execute("SHOW STATUS LIKE 'Slow_queries'", ())
             if result and result.data:
                 for row in result.data:
                     value = row.get("Value")
@@ -1480,7 +1411,7 @@ class AsyncMySQLStatusIntrospector(
                         "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
                         "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position "
                         "FROM performance_schema.log_status",
-                        ()
+                        (),
                     )
                     if result and result.data:
                         repl.is_master = True
@@ -1504,7 +1435,7 @@ class AsyncMySQLStatusIntrospector(
                 result = await self._backend.execute(
                     "SELECT SERVICE_STATE FROM performance_schema.replication_connection_status "
                     "WHERE SERVICE_STATE = 'ON' LIMIT 1",
-                    ()
+                    (),
                 )
                 if result and result.data:
                     repl.is_slave = True

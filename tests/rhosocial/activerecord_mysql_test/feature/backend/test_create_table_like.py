@@ -4,7 +4,7 @@ MySQL CREATE TABLE ... LIKE syntax tests.
 
 This module tests the MySQL-specific LIKE syntax for CREATE TABLE statements.
 """
-import pytest
+
 from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition
 from rhosocial.activerecord.backend.expression.statements import ColumnConstraint, ColumnConstraintType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -17,10 +17,7 @@ class TestMySQLCreateTableLike:
         """Test basic CREATE TABLE ... LIKE syntax."""
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
-            dialect=dialect,
-            table="users_copy",
-            columns=[],
-            dialect_options={'like_table': 'users'}
+            dialect=dialect, table="users_copy", columns=[], dialect_options={"like_table": "users"}
         )
         sql, params = create_expr.to_sql()
 
@@ -31,11 +28,7 @@ class TestMySQLCreateTableLike:
         """Test CREATE TABLE ... LIKE with IF NOT EXISTS."""
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
-            dialect=dialect,
-            table="users_copy",
-            columns=[],
-            if_not_exists=True,
-            dialect_options={'like_table': 'users'}
+            dialect=dialect, table="users_copy", columns=[], if_not_exists=True, dialect_options={"like_table": "users"}
         )
         sql, params = create_expr.to_sql()
 
@@ -46,11 +39,7 @@ class TestMySQLCreateTableLike:
         """Test CREATE TEMPORARY TABLE ... LIKE."""
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
-            dialect=dialect,
-            table="temp_users",
-            columns=[],
-            temporary=True,
-            dialect_options={'like_table': 'users'}
+            dialect=dialect, table="temp_users", columns=[], temporary=True, dialect_options={"like_table": "users"}
         )
         sql, params = create_expr.to_sql()
 
@@ -61,10 +50,7 @@ class TestMySQLCreateTableLike:
         """Test CREATE TABLE ... LIKE with schema-qualified source table."""
         dialect = MySQLDialect()
         create_expr = CreateTableExpression(
-            dialect=dialect,
-            table="users_copy",
-            columns=[],
-            dialect_options={'like_table': ('production', 'users')}
+            dialect=dialect, table="users_copy", columns=[], dialect_options={"like_table": ("production", "users")}
         )
         sql, params = create_expr.to_sql()
 
@@ -75,16 +61,11 @@ class TestMySQLCreateTableLike:
         """Test that LIKE syntax ignores columns parameter."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INTEGER", constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)
-            ]),
-            ColumnDefinition("name", "VARCHAR(255)")
+            ColumnDefinition("id", "INTEGER", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("name", "VARCHAR(255)"),
         ]
         create_expr = CreateTableExpression(
-            dialect=dialect,
-            table="users_copy",
-            columns=columns,
-            dialect_options={'like_table': 'users'}
+            dialect=dialect, table="users_copy", columns=columns, dialect_options={"like_table": "users"}
         )
         sql, params = create_expr.to_sql()
 
@@ -101,7 +82,7 @@ class TestMySQLCreateTableLike:
             columns=[],
             temporary=True,
             if_not_exists=True,
-            dialect_options={'like_table': ('test_db', 'users')}
+            dialect_options={"like_table": ("test_db", "users")},
         )
         sql, params = create_expr.to_sql()
 
@@ -112,18 +93,10 @@ class TestMySQLCreateTableLike:
         """Test that base implementation is used when LIKE is not specified."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INTEGER", constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)
-            ]),
-            ColumnDefinition("name", "VARCHAR(255)", constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL)
-            ])
+            ColumnDefinition("id", "INTEGER", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("name", "VARCHAR(255)", constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
         ]
-        create_expr = CreateTableExpression(
-            dialect=dialect,
-            table="users",
-            columns=columns
-        )
+        create_expr = CreateTableExpression(dialect=dialect, table="users", columns=columns)
         sql, params = create_expr.to_sql()
 
         # Should use base implementation

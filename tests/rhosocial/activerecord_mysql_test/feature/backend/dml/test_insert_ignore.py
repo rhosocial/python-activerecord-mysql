@@ -8,12 +8,11 @@ ignores rows that would cause duplicate key errors.
 Official Documentation:
 - INSERT: https://dev.mysql.com/doc/refman/8.0/en/insert.html
 """
+
 import pytest
 import pytest_asyncio
 
-from rhosocial.activerecord.backend.expression.statements import (
-    InsertExpression, ValuesSource
-)
+from rhosocial.activerecord.backend.expression.statements import InsertExpression, ValuesSource
 from rhosocial.activerecord.backend.expression import core
 
 
@@ -46,13 +45,10 @@ class TestMySQLInsertIgnore:
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]
-                ]
+                dialect, [[core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]]
             ),
             columns=["email", "name"],
-            dialect_options={"ignore": True}
+            dialect_options={"ignore": True},
         )
 
         sql, params = expr.to_sql()
@@ -63,10 +59,7 @@ class TestMySQLInsertIgnore:
         assert result.affected_rows == 1
 
         # Verify data was inserted
-        row = mysql_backend.fetch_one(
-            "SELECT * FROM test_insert_ignore WHERE email = %s",
-            ("alice@example.com",)
-        )
+        row = mysql_backend.fetch_one("SELECT * FROM test_insert_ignore WHERE email = %s", ("alice@example.com",))
         assert row is not None
         assert row["name"] == "Alice"
 
@@ -76,22 +69,16 @@ class TestMySQLInsertIgnore:
 
         # Insert first row
         mysql_backend.execute(
-            "INSERT INTO test_insert_ignore (email, name) VALUES (%s, %s)",
-            ("bob@example.com", "Bob")
+            "INSERT INTO test_insert_ignore (email, name) VALUES (%s, %s)", ("bob@example.com", "Bob")
         )
 
         # Try to insert duplicate with IGNORE
         expr = InsertExpression(
             dialect=dialect,
             into=test_table,
-            source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]
-                ]
-            ),
+            source=ValuesSource(dialect, [[core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]]),
             columns=["email", "name"],
-            dialect_options={"ignore": True}
+            dialect_options={"ignore": True},
         )
 
         sql, params = expr.to_sql()
@@ -102,10 +89,7 @@ class TestMySQLInsertIgnore:
         assert result.affected_rows == 0
 
         # Verify original data unchanged
-        row = mysql_backend.fetch_one(
-            "SELECT * FROM test_insert_ignore WHERE email = %s",
-            ("bob@example.com",)
-        )
+        row = mysql_backend.fetch_one("SELECT * FROM test_insert_ignore WHERE email = %s", ("bob@example.com",))
         assert row is not None
         assert row["name"] == "Bob"  # Original name, not "Bob 2"
 
@@ -115,8 +99,7 @@ class TestMySQLInsertIgnore:
 
         # Insert first row
         mysql_backend.execute(
-            "INSERT INTO test_insert_ignore (email, name) VALUES (%s, %s)",
-            ("existing@example.com", "Existing User")
+            "INSERT INTO test_insert_ignore (email, name) VALUES (%s, %s)", ("existing@example.com", "Existing User")
         )
 
         # Insert multiple rows, one conflicts
@@ -129,10 +112,10 @@ class TestMySQLInsertIgnore:
                     [core.Literal(dialect, "new1@example.com"), core.Literal(dialect, "New 1")],
                     [core.Literal(dialect, "existing@example.com"), core.Literal(dialect, "Duplicate")],
                     [core.Literal(dialect, "new2@example.com"), core.Literal(dialect, "New 2")],
-                ]
+                ],
             ),
             columns=["email", "name"],
-            dialect_options={"ignore": True}
+            dialect_options={"ignore": True},
         )
 
         sql, params = expr.to_sql()
@@ -155,8 +138,7 @@ class TestMySQLInsertIgnore:
 
         # Insert first row
         mysql_backend.execute(
-            "INSERT INTO test_insert_ignore (email, name) VALUES (%s, %s)",
-            ("test@example.com", "Test")
+            "INSERT INTO test_insert_ignore (email, name) VALUES (%s, %s)", ("test@example.com", "Test")
         )
 
         # Regular insert without IGNORE should fail
@@ -164,12 +146,9 @@ class TestMySQLInsertIgnore:
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Duplicate")]
-                ]
+                dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Duplicate")]]
             ),
-            columns=["email", "name"]
+            columns=["email", "name"],
         )
 
         sql, params = expr.to_sql()
@@ -177,7 +156,7 @@ class TestMySQLInsertIgnore:
         assert "IGNORE" not in sql
 
         # This should raise an error
-        with pytest.raises(Exception):  # MySQL IntegrityError
+        with pytest.raises(Exception):  # MySQL IntegrityError  # noqa: B017
             mysql_backend.execute(sql, params)
 
 
@@ -204,8 +183,7 @@ class TestMySQLAsyncInsertIgnore:
 
         # Insert first row
         await async_mysql_backend.execute(
-            "INSERT INTO test_insert_ignore_async (email, name) VALUES (%s, %s)",
-            ("async@example.com", "Async User")
+            "INSERT INTO test_insert_ignore_async (email, name) VALUES (%s, %s)", ("async@example.com", "Async User")
         )
 
         # Try to insert duplicate with IGNORE
@@ -213,13 +191,10 @@ class TestMySQLAsyncInsertIgnore:
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
-                dialect,
-                [
-                    [core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Duplicate")]
-                ]
+                dialect, [[core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Duplicate")]]
             ),
             columns=["email", "name"],
-            dialect_options={"ignore": True}
+            dialect_options={"ignore": True},
         )
 
         sql, params = expr.to_sql()
@@ -230,8 +205,7 @@ class TestMySQLAsyncInsertIgnore:
 
         # Verify original data unchanged
         row = await async_mysql_backend.fetch_one(
-            "SELECT * FROM test_insert_ignore_async WHERE email = %s",
-            ("async@example.com",)
+            "SELECT * FROM test_insert_ignore_async WHERE email = %s", ("async@example.com",)
         )
         assert row is not None
         assert row["name"] == "Async User"

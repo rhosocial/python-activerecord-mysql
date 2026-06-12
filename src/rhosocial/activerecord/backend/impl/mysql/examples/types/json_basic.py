@@ -13,48 +13,48 @@ from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
     DropTableExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name='documents', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="documents", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 # Create table with JSON column (MySQL 5.7+)
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='documents',
+    table_name="documents",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
-        ColumnDefinition('data', 'JSON'),
+        ColumnDefinition("data", "JSON"),
     ],
     if_not_exists=True,
 )
@@ -63,8 +63,8 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into='documents',
-    columns=['data'],
+    into="documents",
+    columns=["data"],
     source=ValuesSource(
         dialect,
         [
@@ -79,21 +79,21 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
     TableExpression,
     Column,
 )
-from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote
+from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote  # noqa: E402
 
 query = QueryExpression(
     dialect=dialect,
     select=[
-        Column(dialect, 'id'),
-        json_unquote(dialect, json_extract(dialect, Column(dialect, 'data'), '$.name')).as_('name'),
-        json_extract(dialect, Column(dialect, 'data'), '$.age').as_('age'),
+        Column(dialect, "id"),
+        json_unquote(dialect, json_extract(dialect, Column(dialect, "data"), "$.name")).as_("name"),
+        json_extract(dialect, Column(dialect, "data"), "$.age").as_("age"),
     ],
-    from_=TableExpression(dialect, 'documents'),
+    from_=TableExpression(dialect, "documents"),
 )
 
 sql, params = query.to_sql()

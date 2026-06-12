@@ -16,7 +16,10 @@ import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression, InsertExpression, ValuesSource, DropTableExpression,
+    CreateTableExpression,
+    InsertExpression,
+    ValuesSource,
+    DropTableExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
@@ -26,38 +29,38 @@ from rhosocial.activerecord.backend.expression.statements import (
 )
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
-    charset='utf8mb4',
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
+    charset="utf8mb4",
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
-        ColumnDefinition('name', 'VARCHAR(100)'),
+        ColumnDefinition("name", "VARCHAR(100)"),
     ],
     if_not_exists=True,
 )
@@ -66,11 +69,11 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into='users',
-    columns=['name'],
+    into="users",
+    columns=["name"],
     source=ValuesSource(
         dialect,
-        [[Literal(dialect, 'Alice')]],
+        [[Literal(dialect, "Alice")]],
     ),
 )
 sql, params = insert.to_sql()
@@ -78,11 +81,11 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into='users',
-    columns=['name'],
+    into="users",
+    columns=["name"],
     source=ValuesSource(
         dialect,
-        [[Literal(dialect, 'Alice')]],
+        [[Literal(dialect, "Alice")]],
     ),
 )
 sql, params = insert.to_sql()
@@ -91,19 +94,20 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import AlterTableExpression
-from rhosocial.activerecord.backend.expression.statements.ddl_alter import AddColumn
+from rhosocial.activerecord.backend.expression import AlterTableExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements.ddl_alter import AddColumn  # noqa: E402
 
 add_col_action = AddColumn(
+    dialect=dialect,
     column=ColumnDefinition(
-        name='email',
-        data_type='VARCHAR(100)',
+        name="email",
+        data_type="VARCHAR(100)",
     ),
 )
 
 add_col_expr = AlterTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     actions=[add_col_action],
 )
 
@@ -115,9 +119,10 @@ backend.execute(sql, params)
 print("Column email added successfully")
 
 add_age_action = AddColumn(
+    dialect=dialect,
     column=ColumnDefinition(
-        'age',
-        'INT',
+        "age",
+        "INT",
         constraints=[
             ColumnConstraint(
                 ColumnConstraintType.DEFAULT,
@@ -129,7 +134,7 @@ add_age_action = AddColumn(
 
 add_age_expr = AlterTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     actions=[add_age_action],
 )
 
@@ -145,7 +150,7 @@ print("Column age added successfully")
 # ============================================================
 
 # Verify using introspector
-columns = backend.introspector.list_columns('users')
+columns = backend.introspector.list_columns("users")
 print("Table structure after alterations:")
 for col in columns:
     print(f"  {col}")

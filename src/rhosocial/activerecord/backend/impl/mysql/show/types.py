@@ -12,6 +12,7 @@ from typing import Optional
 
 # ==================== CREATE Statement Results ====================
 
+
 @dataclass
 class ShowCreateTableResult:
     """Result from SHOW CREATE TABLE command.
@@ -22,6 +23,7 @@ class ShowCreateTableResult:
         table_name: Name of the table.
         create_statement: Complete CREATE TABLE statement.
     """
+
     table_name: str
     create_statement: str
 
@@ -38,6 +40,7 @@ class ShowCreateViewResult:
         character_set_client: Client character set.
         collation_connection: Connection collation.
     """
+
     view_name: str
     create_statement: str
     character_set_client: Optional[str] = None
@@ -57,6 +60,7 @@ class ShowCreateTriggerResult:
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
+
     trigger_name: str
     create_statement: str
     character_set_client: Optional[str] = None
@@ -77,6 +81,7 @@ class ShowCreateProcedureResult:
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
+
     procedure_name: str
     create_statement: str
     character_set_client: Optional[str] = None
@@ -97,6 +102,7 @@ class ShowCreateFunctionResult:
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
+
     function_name: str
     create_statement: str
     character_set_client: Optional[str] = None
@@ -105,6 +111,7 @@ class ShowCreateFunctionResult:
 
 
 # ==================== Column Information Results ====================
+
 
 @dataclass
 class ShowColumnResult:
@@ -122,6 +129,7 @@ class ShowColumnResult:
         privileges: Column privileges (FULL mode only).
         comment: Column comment (FULL mode only).
     """
+
     field: str
     type: str
     null: str
@@ -133,6 +141,7 @@ class ShowColumnResult:
 
 
 # ==================== Table Status Results ====================
+
 
 @dataclass
 class ShowTableStatusResult:
@@ -160,6 +169,7 @@ class ShowTableStatusResult:
         create_options: Additional table options.
         comment: Table comment.
     """
+
     name: str
     engine: Optional[str] = None
     version: Optional[int] = None
@@ -181,6 +191,7 @@ class ShowTableStatusResult:
 
 
 # ==================== Index Information Results ====================
+
 
 @dataclass
 class ShowIndexResult:
@@ -206,6 +217,7 @@ class ShowIndexResult:
         visible: Whether index is visible to optimizer (MySQL 8.0+).
         expression: Expression for functional index (MySQL 8.0+).
     """
+
     table: str
     non_unique: int
     key_name: str
@@ -225,6 +237,7 @@ class ShowIndexResult:
 
 # ==================== Database and Table List Results ====================
 
+
 @dataclass
 class ShowTableResult:
     """Result from SHOW TABLES command.
@@ -233,6 +246,7 @@ class ShowTableResult:
         name: Table name.
         table_type: Table type (BASE TABLE or VIEW), available in FULL mode.
     """
+
     name: str
     table_type: Optional[str] = None
 
@@ -244,10 +258,12 @@ class ShowDatabaseResult:
     Attributes:
         name: Database name.
     """
+
     name: str
 
 
 # ==================== Trigger Results ====================
+
 
 @dataclass
 class ShowTriggerResult:
@@ -268,6 +284,7 @@ class ShowTriggerResult:
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
+
     trigger: str
     event: str
     table: str
@@ -282,6 +299,7 @@ class ShowTriggerResult:
 
 
 # ==================== Procedure and Function Results ====================
+
 
 @dataclass
 class ShowProcedureResult:
@@ -300,6 +318,7 @@ class ShowProcedureResult:
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
+
     db: str
     name: str
     type: str = "PROCEDURE"
@@ -330,6 +349,7 @@ class ShowFunctionResult:
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
+
     db: str
     name: str
     type: str = "FUNCTION"
@@ -345,6 +365,7 @@ class ShowFunctionResult:
 
 # ==================== Variables and Status Results ====================
 
+
 @dataclass
 class ShowVariableResult:
     """Result from SHOW VARIABLES command.
@@ -353,6 +374,7 @@ class ShowVariableResult:
         variable_name: Variable name.
         value: Variable value.
     """
+
     variable_name: str
     value: str
 
@@ -365,11 +387,13 @@ class ShowStatusResult:
         variable_name: Status variable name.
         value: Status value.
     """
+
     variable_name: str
     value: str
 
 
 # ==================== Warning and Error Results ====================
+
 
 @dataclass
 class ShowWarningResult:
@@ -380,6 +404,7 @@ class ShowWarningResult:
         code: Warning code.
         message: Warning message.
     """
+
     level: str
     code: int
     message: str
@@ -392,10 +417,12 @@ class ShowCountResult:
     Attributes:
         count: Number of warnings or errors.
     """
+
     count: int
 
 
 # ==================== Grants Results ====================
+
 
 @dataclass
 class ShowGrantResult:
@@ -404,10 +431,12 @@ class ShowGrantResult:
     Attributes:
         grants: List of GRANT statements for the user.
     """
+
     grants: str
 
 
 # ==================== Process List Results ====================
+
 
 @dataclass
 class ShowProcessListResult:
@@ -423,6 +452,7 @@ class ShowProcessListResult:
         state: Thread state.
         info: Query text (NULL if not executing query, or in basic mode).
     """
+
     id: int
     user: str
     host: str
@@ -435,6 +465,7 @@ class ShowProcessListResult:
 
 # ==================== Open Tables Results ====================
 
+
 @dataclass
 class ShowOpenTableResult:
     """Result from SHOW OPEN TABLES command.
@@ -445,6 +476,7 @@ class ShowOpenTableResult:
         in_use: Number of table locks in use.
         name_locked: Whether table name is locked.
     """
+
     database: str
     table: str
     in_use: int
@@ -452,6 +484,7 @@ class ShowOpenTableResult:
 
 
 # ==================== Engine Results ====================
+
 
 @dataclass
 class ShowEngineResult:
@@ -464,6 +497,7 @@ class ShowEngineResult:
         xa: Whether engine supports XA transactions.
         savepoints: Whether engine supports savepoints.
     """
+
     engine: str
     support: str
     transactions: Optional[str] = None
@@ -472,6 +506,7 @@ class ShowEngineResult:
 
 
 # ==================== Charset and Collation Results ====================
+
 
 @dataclass
 class ShowCharsetResult:
@@ -483,6 +518,7 @@ class ShowCharsetResult:
         default_collation: Default collation name.
         maxlen: Maximum length of a character in bytes.
     """
+
     charset: str
     description: str
     default_collation: str
@@ -501,6 +537,7 @@ class ShowCollationResult:
         compiled: Whether the collation is compiled.
         sortlen: Sort length.
     """
+
     collation: str
     charset: str
     id: int
@@ -510,6 +547,7 @@ class ShowCollationResult:
 
 
 # ==================== Plugin Results ====================
+
 
 @dataclass
 class ShowPluginResult:
@@ -522,6 +560,7 @@ class ShowPluginResult:
         library: Plugin library file name.
         license: Plugin license.
     """
+
     name: str
     status: str
     type: str
@@ -530,6 +569,7 @@ class ShowPluginResult:
 
 
 # ==================== Profile Results (Deprecated) ====================
+
 
 @dataclass
 class ShowProfileResult:
@@ -555,6 +595,7 @@ class ShowProfileResult:
         source_file: Source file name (if SOURCE profile).
         source_line: Source line number (if SOURCE profile).
     """
+
     status: str
     duration: float
     cpu_user: Optional[float] = None
@@ -584,6 +625,7 @@ class ShowProfilesResult:
         duration: Query duration in seconds.
         query: Query text.
     """
+
     query_id: int
     duration: float
     query: str

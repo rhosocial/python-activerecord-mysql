@@ -5,11 +5,11 @@ Concrete implementation of IBasicConnectionProvider for MySQL backend.
 This provider sets up connection pools and models for testing
 ActiveRecord context awareness.
 """
+
 from typing import Type, Tuple, Optional, List
 
 from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
-from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.connection.pool import BackendPool, AsyncBackendPool, PoolConfig
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
@@ -20,6 +20,7 @@ from .scenarios import get_scenario, get_enabled_scenarios
 
 class SyncTestUser(ActiveRecord):
     """Sync test user model for connection pool tests."""
+
     __table_name__ = "test_users"
     id: Optional[int] = None
     name: str
@@ -28,6 +29,7 @@ class SyncTestUser(ActiveRecord):
 
 class AsyncTestUser(AsyncActiveRecord):
     """Async test user model for connection pool tests."""
+
     __table_name__ = "test_users"
     id: Optional[int] = None
     name: str
@@ -54,39 +56,43 @@ class BasicConnectionProvider(IBasicConnectionProvider):
         except Exception:
             pass
 
-        backend.execute("""
+        backend.execute(
+            """
             CREATE TABLE test_users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL
             )
-        """, options=ExecutionOptions(stmt_type=StatementType.DDL))
+        """,
+            options=ExecutionOptions(stmt_type=StatementType.DDL),
+        )
 
     async def _create_test_table_async(self, backend):
         """Create the test_users table asynchronously."""
         try:
-            await backend.execute("DROP TABLE IF EXISTS test_users", options=ExecutionOptions(stmt_type=StatementType.DDL))
+            await backend.execute(
+                "DROP TABLE IF EXISTS test_users", options=ExecutionOptions(stmt_type=StatementType.DDL)
+            )
         except Exception:
             pass
 
-        await backend.execute("""
+        await backend.execute(
+            """
             CREATE TABLE test_users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) NOT NULL
             )
-        """, options=ExecutionOptions(stmt_type=StatementType.DDL))
+        """,
+            options=ExecutionOptions(stmt_type=StatementType.DDL),
+        )
 
     def setup_sync_pool_and_model(self, scenario_name: str) -> Tuple[BackendPool, Type[ActiveRecord]]:
         """Setup sync connection pool and model for context tests."""
         _, config = get_scenario(scenario_name)
 
         # Create connection pool
-        pool_config = PoolConfig(
-            min_size=1,
-            max_size=5,
-            backend_factory=lambda: MySQLBackend(connection_config=config)
-        )
+        pool_config = PoolConfig(min_size=1, max_size=5, backend_factory=lambda: MySQLBackend(connection_config=config))
         pool = BackendPool.create(pool_config)
 
         # Create table
@@ -109,9 +115,7 @@ class BasicConnectionProvider(IBasicConnectionProvider):
 
         # Create connection pool
         pool_config = PoolConfig(
-            min_size=1,
-            max_size=5,
-            backend_factory=lambda: AsyncMySQLBackend(connection_config=config)
+            min_size=1, max_size=5, backend_factory=lambda: AsyncMySQLBackend(connection_config=config)
         )
 
         # Create pool

@@ -10,6 +10,7 @@ Its main responsibilities are:
     - Dropping any old tables and creating the necessary table schema.
 3.  Cleaning up any resources (like temporary database files) after a test runs.
 """
+
 import os
 import sys
 import logging
@@ -21,14 +22,14 @@ from rhosocial.activerecord.model import ActiveRecord
 logger = logging.getLogger(__name__)
 
 # Import the fixture selector utility
-from rhosocial.activerecord.testsuite.utils import select_fixture
+from rhosocial.activerecord.testsuite.utils import select_fixture  # noqa: E402
 
 # Import base version models (Python 3.8+)
-from rhosocial.activerecord.testsuite.feature.mixins.fixtures.models import (
+from rhosocial.activerecord.testsuite.feature.mixins.fixtures.models import (  # noqa: E402
     TimestampedPost as TimestampedPostBase,
     VersionedProduct as VersionedProductBase,
     Task as TaskBase,
-    CombinedArticle as CombinedArticleBase
+    CombinedArticle as CombinedArticleBase,
 )
 
 # Conditionally import Python 3.10+ models
@@ -40,7 +41,7 @@ if sys.version_info >= (3, 10):
             TimestampedPost as TimestampedPost310,
             VersionedProduct as VersionedProduct310,
             Task as Task310,
-            CombinedArticle as CombinedArticle310
+            CombinedArticle as CombinedArticle310,
         )
     except ImportError as e:
         logger.warning(f"Failed to import Python 3.10+ fixtures: {e}")
@@ -54,7 +55,7 @@ if sys.version_info >= (3, 11):
             TimestampedPost as TimestampedPost311,
             VersionedProduct as VersionedProduct311,
             Task as Task311,
-            CombinedArticle as CombinedArticle311
+            CombinedArticle as CombinedArticle311,
         )
     except ImportError as e:
         logger.warning(f"Failed to import Python 3.11+ fixtures: {e}")
@@ -68,7 +69,7 @@ if sys.version_info >= (3, 12):
             TimestampedPost as TimestampedPost312,
             VersionedProduct as VersionedProduct312,
             Task as Task312,
-            CombinedArticle as CombinedArticle312
+            CombinedArticle as CombinedArticle312,
         )
     except ImportError as e:
         logger.warning(f"Failed to import Python 3.12+ fixtures: {e}")
@@ -84,14 +85,21 @@ def _select_model_class(base_cls, py312_cls, py311_cls, py310_cls, model_name: s
 
 
 # Select models
-TimestampedPost = _select_model_class(TimestampedPostBase, TimestampedPost312, TimestampedPost311, TimestampedPost310, "TimestampedPost")
-VersionedProduct = _select_model_class(VersionedProductBase, VersionedProduct312, VersionedProduct311, VersionedProduct310, "VersionedProduct")
+TimestampedPost = _select_model_class(
+    TimestampedPostBase, TimestampedPost312, TimestampedPost311, TimestampedPost310, "TimestampedPost"
+)
+VersionedProduct = _select_model_class(
+    VersionedProductBase, VersionedProduct312, VersionedProduct311, VersionedProduct310, "VersionedProduct"
+)
 Task = _select_model_class(TaskBase, Task312, Task311, Task310, "Task")
-CombinedArticle = _select_model_class(CombinedArticleBase, CombinedArticle312, CombinedArticle311, CombinedArticle310, "CombinedArticle")
+CombinedArticle = _select_model_class(
+    CombinedArticleBase, CombinedArticle312, CombinedArticle311, CombinedArticle310, "CombinedArticle"
+)
 
-from rhosocial.activerecord.testsuite.feature.mixins.interfaces import IMixinsProvider
+from rhosocial.activerecord.testsuite.feature.mixins.interfaces import IMixinsProvider  # noqa: E402
+
 # ...and the scenarios are defined specifically for this backend.
-from .scenarios import get_enabled_scenarios, get_scenario
+from .scenarios import get_enabled_scenarios, get_scenario  # noqa: E402
 
 
 class MixinsProvider(IMixinsProvider):
@@ -99,7 +107,7 @@ class MixinsProvider(IMixinsProvider):
     This is the MySQL backend's implementation for the mixins features test group.
     It connects the generic tests in the testsuite with the actual MySQL database.
     """
-    
+
     def __init__(self):
         # This list will track the backend instances created during the setup phase.
         self._active_backends = []
@@ -138,10 +146,10 @@ class MixinsProvider(IMixinsProvider):
             except Exception:
                 pass  # Ignore any errors when re-enabling foreign key checks
             # Continue anyway since the table might not exist
-        
+
         schema_sql = self._load_mysql_schema(f"{table_name}.sql")
         model_class.__backend__.execute(schema_sql)
-        
+
         return model_class
 
     # --- Implementation of the IMixinsProvider interface ---
@@ -165,10 +173,12 @@ class MixinsProvider(IMixinsProvider):
     def _load_mysql_schema(self, filename: str) -> str:
         """Helper to load a SQL schema file from this project's fixtures."""
         # Schemas are stored in the centralized location for mixins feature.
-        schema_dir = os.path.join(os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "mixins", "schema")
+        schema_dir = os.path.join(
+            os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "mixins", "schema"
+        )
         schema_path = os.path.join(schema_dir, filename)
-        
-        with open(schema_path, 'r', encoding='utf-8') as f:
+
+        with open(schema_path, "r", encoding="utf-8") as f:
             return f.read()
 
     def cleanup_after_test(self, scenario_name: str):
@@ -181,7 +191,7 @@ class MixinsProvider(IMixinsProvider):
                 # Drop all tables that might have been created for mixins tests
                 # Disable foreign key checks to avoid constraint issues during cleanup
                 backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table_name in ['timestamped_posts', 'versioned_products', 'tasks', 'combined_articles']:
+                for table_name in ["timestamped_posts", "versioned_products", "tasks", "combined_articles"]:
                     try:
                         backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
                     except Exception:
@@ -202,6 +212,6 @@ class MixinsProvider(IMixinsProvider):
                 except Exception:
                     # Ignore errors during disconnect
                     pass
-        
+
         # Clear the list of active backends for the next test
         self._active_backends.clear()

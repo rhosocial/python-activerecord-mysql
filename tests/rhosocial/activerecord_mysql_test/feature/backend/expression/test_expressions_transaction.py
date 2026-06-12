@@ -7,6 +7,7 @@ MySQL Transaction Behavior:
 - The dialect's format_begin_transaction() only returns START TRANSACTION
 - SetTransactionExpression is used for isolation level settings
 """
+
 import pytest
 from rhosocial.activerecord.backend.expression.transaction import (
     BeginTransactionExpression,
@@ -16,7 +17,7 @@ from rhosocial.activerecord.backend.expression.transaction import (
     ReleaseSavepointExpression,
     SetTransactionExpression,
 )
-from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
+from rhosocial.activerecord.backend.transaction import IsolationLevel
 
 
 class TestMySQLBeginTransactionExpression:
@@ -48,7 +49,7 @@ class TestMySQLBeginTransactionExpression:
         assert sql == "START TRANSACTION"
         assert params == ()
         # Verify dialect capability
-        assert mysql_dialect.supports_isolation_level_in_begin() == False
+        assert not mysql_dialect.supports_isolation_level_in_begin()
 
     def test_begin_read_only(self, mysql_dialect):
         """Test START TRANSACTION READ ONLY."""
@@ -80,12 +81,15 @@ class TestMySQLBeginTransactionExpression:
         assert sql == "START TRANSACTION READ ONLY"
         assert params == ()
 
-    @pytest.mark.parametrize("level", [
-        IsolationLevel.READ_UNCOMMITTED,
-        IsolationLevel.READ_COMMITTED,
-        IsolationLevel.REPEATABLE_READ,
-        IsolationLevel.SERIALIZABLE,
-    ])
+    @pytest.mark.parametrize(
+        "level",
+        [
+            IsolationLevel.READ_UNCOMMITTED,
+            IsolationLevel.READ_COMMITTED,
+            IsolationLevel.REPEATABLE_READ,
+            IsolationLevel.SERIALIZABLE,
+        ],
+    )
     def test_begin_with_isolation_returns_start_transaction(self, mysql_dialect, level):
         """Test that START TRANSACTION does not include isolation level.
 
@@ -114,12 +118,15 @@ class TestMySQLSetTransactionExpression:
         assert sql == "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
         assert params == ()
 
-    @pytest.mark.parametrize("level,expected_name", [
-        (IsolationLevel.READ_UNCOMMITTED, "READ UNCOMMITTED"),
-        (IsolationLevel.READ_COMMITTED, "READ COMMITTED"),
-        (IsolationLevel.REPEATABLE_READ, "REPEATABLE READ"),
-        (IsolationLevel.SERIALIZABLE, "SERIALIZABLE"),
-    ])
+    @pytest.mark.parametrize(
+        "level,expected_name",
+        [
+            (IsolationLevel.READ_UNCOMMITTED, "READ UNCOMMITTED"),
+            (IsolationLevel.READ_COMMITTED, "READ COMMITTED"),
+            (IsolationLevel.REPEATABLE_READ, "REPEATABLE READ"),
+            (IsolationLevel.SERIALIZABLE, "SERIALIZABLE"),
+        ],
+    )
     def test_all_isolation_levels(self, mysql_dialect, level, expected_name):
         """Test all isolation levels in SET TRANSACTION."""
         expr = SetTransactionExpression(mysql_dialect)
@@ -197,20 +204,20 @@ class TestMySQLTransactionCapabilities:
 
     def test_supports_transaction_mode(self, mysql_dialect):
         """Test MySQL supports transaction mode."""
-        assert mysql_dialect.supports_transaction_mode() == True
+        assert mysql_dialect.supports_transaction_mode()
 
     def test_supports_isolation_level_in_begin(self, mysql_dialect):
         """Test MySQL does not support isolation level in BEGIN."""
-        assert mysql_dialect.supports_isolation_level_in_begin() == False
+        assert not mysql_dialect.supports_isolation_level_in_begin()
 
     def test_supports_read_only_transaction(self, mysql_dialect):
         """Test MySQL supports READ ONLY transactions (5.6.5+)."""
-        assert mysql_dialect.supports_read_only_transaction() == True
+        assert mysql_dialect.supports_read_only_transaction()
 
     def test_supports_deferrable_transaction(self, mysql_dialect):
         """Test MySQL does not support DEFERRABLE transactions."""
-        assert mysql_dialect.supports_deferrable_transaction() == False
+        assert not mysql_dialect.supports_deferrable_transaction()
 
     def test_supports_savepoint(self, mysql_dialect):
         """Test MySQL supports savepoints."""
-        assert mysql_dialect.supports_savepoint() == True
+        assert mysql_dialect.supports_savepoint()

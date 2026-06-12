@@ -5,6 +5,7 @@ Example named connections for MySQL testing.
 This module contains sample connection definitions for testing
 the named connection functionality with MySQL backend.
 """
+
 import os
 
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig

@@ -114,7 +114,7 @@ class TestViewInfoDetails:
 
     def test_multiple_views(self, backend_with_view):
         """Test multiple views introspection."""
-        backend_with_view.executescript( """
+        backend_with_view.executescript("""
             CREATE VIEW user_names AS
             SELECT id, name FROM users;
         """)
@@ -125,7 +125,7 @@ class TestViewInfoDetails:
         assert "user_summary" in view_names
         assert "user_names" in view_names
 
-        backend_with_view.executescript( "DROP VIEW IF EXISTS user_names;")
+        backend_with_view.executescript("DROP VIEW IF EXISTS user_names;")
 
     def test_view_with_join(self, backend_with_view):
         """Test view with JOIN."""

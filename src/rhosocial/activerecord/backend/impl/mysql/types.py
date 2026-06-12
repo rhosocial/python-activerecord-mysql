@@ -5,6 +5,7 @@ MySQL-specific type definitions and helpers.
 This module provides type-safe helpers for defining MySQL-specific data types
 such as ENUM and SET.
 """
+
 from typing import List, Optional
 
 
@@ -24,12 +25,7 @@ class MySQLEnumType:
         "ENUM('active','inactive') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
     """
 
-    def __init__(
-        self,
-        values: List[str],
-        charset: Optional[str] = None,
-        collation: Optional[str] = None
-    ):
+    def __init__(self, values: List[str], charset: Optional[str] = None, collation: Optional[str] = None):
         """
         Initialize ENUM type definition.
 
@@ -54,7 +50,7 @@ class MySQLEnumType:
         Returns:
             SQL type definition for use in CREATE TABLE statements
         """
-        values_str = ','.join(f"'{v}'" for v in self.values)
+        values_str = ",".join(f"'{v}'" for v in self.values)
         result = f"ENUM({values_str})"
 
         if self.charset:
@@ -88,12 +84,7 @@ class MySQLSetType:
         "SET('a','b') CHARACTER SET utf8mb4"
     """
 
-    def __init__(
-        self,
-        values: List[str],
-        charset: Optional[str] = None,
-        collation: Optional[str] = None
-    ):
+    def __init__(self, values: List[str], charset: Optional[str] = None, collation: Optional[str] = None):
         """
         Initialize SET type definition.
 
@@ -118,7 +109,7 @@ class MySQLSetType:
         Returns:
             SQL type definition for use in CREATE TABLE statements
         """
-        values_str = ','.join(f"'{v}'" for v in self.values)
+        values_str = ",".join(f"'{v}'" for v in self.values)
         result = f"SET({values_str})"
 
         if self.charset:

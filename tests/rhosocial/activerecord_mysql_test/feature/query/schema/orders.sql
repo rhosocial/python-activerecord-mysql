@@ -10,5 +10,5 @@ CREATE TABLE `orders` (
     `created_at` DATETIME(6),
     `updated_at` DATETIME(6),
     INDEX `idx_user_id` (`user_id`),
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

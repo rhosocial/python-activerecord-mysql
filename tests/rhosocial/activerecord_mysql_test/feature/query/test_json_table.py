@@ -8,12 +8,11 @@ JSON data to relational format. Requires MySQL 8.0.4+.
 Official Documentation:
 - JSON_TABLE: https://dev.mysql.com/doc/refman/8.0/en/json-table-functions.html
 """
+
 import pytest
 import pytest_asyncio
 
-from rhosocial.activerecord.backend.impl.mysql.expression import (
-    MySQLJSONTableExpression, JSONTableColumn, NestedPath
-)
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLJSONTableExpression, JSONTableColumn, NestedPath
 
 
 class TestMySQLJSONTable:
@@ -40,16 +39,16 @@ class TestMySQLJSONTable:
 
     def test_json_table_basic_expression(self, mysql_backend):
         """Test basic JSON_TABLE expression generation."""
-        json_doc = r"'[{""name"": ""Alice"", ""age"": 30}]'"
+        json_doc = r"'[{" "name" ": " "Alice" ", " "age" ": 30}]'"
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc=json_doc,
-            path='$[*]',
+            path="$[*]",
             columns=[
-                JSONTableColumn(name='name', type='VARCHAR(255)', path='$.name'),
-                JSONTableColumn(name='age', type='INT', path='$.age'),
+                JSONTableColumn(name="name", type="VARCHAR(255)", path="$.name"),
+                JSONTableColumn(name="age", type="INT", path="$.age"),
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()
@@ -65,12 +64,12 @@ class TestMySQLJSONTable:
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
-            path='$[*]',
+            path="$[*]",
             columns=[
-                JSONTableColumn(name='row_num', ordinality=True),
-                JSONTableColumn(name='value', type='INT', path='$'),
+                JSONTableColumn(name="row_num", ordinality=True),
+                JSONTableColumn(name="value", type="INT", path="$"),
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()
@@ -81,13 +80,13 @@ class TestMySQLJSONTable:
         """Test JSON_TABLE with EXISTS PATH."""
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
-            json_doc=r"'{""a"": 1, ""b"": 2}'",
-            path='$',
+            json_doc=r"'{" "a" ": 1, " "b" ": 2}'",
+            path="$",
             columns=[
-                JSONTableColumn(name='has_a', type='BOOLEAN', path='$.a', exists=True),
-                JSONTableColumn(name='has_c', type='BOOLEAN', path='$.c', exists=True),
+                JSONTableColumn(name="has_a", type="BOOLEAN", path="$.a", exists=True),
+                JSONTableColumn(name="has_c", type="BOOLEAN", path="$.c", exists=True),
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()
@@ -97,21 +96,21 @@ class TestMySQLJSONTable:
         """Test JSON_TABLE with NESTED PATH."""
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
-            json_doc=r"'[{""name"": ""Alice"", ""orders"": [{""id"": 1}, {""id"": 2}]}]'",
-            path='$[*]',
+            json_doc=r"'[{" "name" ": " "Alice" ", " "orders" ": [{" "id" ": 1}, {" "id" ": 2}]}]'",
+            path="$[*]",
             columns=[
-                JSONTableColumn(name='customer_name', type='VARCHAR(255)', path='$.name'),
+                JSONTableColumn(name="customer_name", type="VARCHAR(255)", path="$.name"),
             ],
             nested_paths=[
                 NestedPath(
-                    path='$.orders[*]',
+                    path="$.orders[*]",
                     columns=[
-                        JSONTableColumn(name='order_id', type='INT', path='$.id'),
+                        JSONTableColumn(name="order_id", type="INT", path="$.id"),
                     ],
-                    alias='orders'
+                    alias="orders",
                 )
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()
@@ -123,11 +122,11 @@ class TestMySQLJSONTable:
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
-            path='$[*]',
+            path="$[*]",
             columns=[
-                JSONTableColumn(name='value', type='INT', path='$'),
+                JSONTableColumn(name="value", type="INT", path="$"),
             ],
-            alias='my_table'
+            alias="my_table",
         )
 
         sql, params = expr.to_sql()
@@ -139,16 +138,11 @@ class TestMySQLJSONTable:
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
-            path='$[*]',
+            path="$[*]",
             columns=[
-                JSONTableColumn(
-                    name='value',
-                    type='VARCHAR(255)',
-                    path='$.nonexistent',
-                    error_handling='NULL'
-                ),
+                JSONTableColumn(name="value", type="VARCHAR(255)", path="$.nonexistent", error_handling="NULL"),
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()
@@ -158,14 +152,14 @@ class TestMySQLJSONTable:
         """Test JSON_TABLE with multiple columns."""
         expr = MySQLJSONTableExpression(
             dialect=mysql_backend.dialect,
-            json_doc=r"'[{""id"": 1, ""name"": ""Alice"", ""email"": ""alice@example.com""}]'",
-            path='$[*]',
+            json_doc=r"'[{" "id" ": 1, " "name" ": " "Alice" ", " "email" ": " "alice@example.com" "}]'",
+            path="$[*]",
             columns=[
-                JSONTableColumn(name='id', type='INT', path='$.id'),
-                JSONTableColumn(name='name', type='VARCHAR(255)', path='$.name'),
-                JSONTableColumn(name='email', type='VARCHAR(255)', path='$.email'),
+                JSONTableColumn(name="id", type="INT", path="$.id"),
+                JSONTableColumn(name="name", type="VARCHAR(255)", path="$.name"),
+                JSONTableColumn(name="email", type="VARCHAR(255)", path="$.email"),
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()
@@ -195,11 +189,11 @@ class TestMySQLAsyncJSONTable:
         expr = MySQLJSONTableExpression(
             dialect=async_mysql_backend.dialect,
             json_doc="'[1, 2, 3]'",
-            path='$[*]',
+            path="$[*]",
             columns=[
-                JSONTableColumn(name='value', type='INT', path='$'),
+                JSONTableColumn(name="value", type="INT", path="$"),
             ],
-            alias='jt'
+            alias="jt",
         )
 
         sql, params = expr.to_sql()

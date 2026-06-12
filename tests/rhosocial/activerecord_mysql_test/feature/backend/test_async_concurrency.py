@@ -39,8 +39,10 @@ logger = logging.getLogger(__name__)
 
 # --- Test Models ---
 
+
 class ConcurrentUser(AsyncActiveRecord):
     """User model for concurrency testing."""
+
     __table_name__ = "concurrent_users"
     c: ClassVar[FieldProxy] = FieldProxy()
 
@@ -53,6 +55,7 @@ class ConcurrentUser(AsyncActiveRecord):
 
 class ConcurrentTask(AsyncActiveRecord):
     """Task model for concurrency testing with status tracking."""
+
     __table_name__ = "concurrent_tasks"
     c: ClassVar[FieldProxy] = FieldProxy()
 
@@ -87,6 +90,7 @@ CREATE TABLE `concurrent_tasks` (
 
 
 # --- Fixtures ---
+
 
 @pytest_asyncio.fixture(scope="function")
 async def concurrent_user_model(async_mysql_backend_single):
@@ -148,6 +152,7 @@ async def mysql_config(async_mysql_backend_single):
 
 # --- Test 1: Shared Backend Concurrency Issues (DOCUMENTED AS EXPECTED FAILURE) ---
 
+
 @pytest.mark.asyncio
 async def test_shared_backend_concurrent_reads_fail(concurrent_user_model):
     """
@@ -161,11 +166,7 @@ async def test_shared_backend_concurrent_reads_fail(concurrent_user_model):
     """
     # Setup: Insert test data first (sequentially)
     for i in range(10):
-        user = concurrent_user_model(
-            username=f"user_{i}",
-            email=f"user_{i}@test.com",
-            value=i
-        )
+        user = concurrent_user_model(username=f"user_{i}", email=f"user_{i}@test.com", value=i)
         await user.save()
 
     errors = []
@@ -180,10 +181,7 @@ async def test_shared_backend_concurrent_reads_fail(concurrent_user_model):
             return None
 
     # Create multiple concurrent read tasks
-    tasks = [
-        asyncio.create_task(reader_task(i, (i % 10) + 1))
-        for i in range(20)
-    ]
+    tasks = [asyncio.create_task(reader_task(i, (i % 10) + 1)) for i in range(20)]
 
     # Wait for all tasks to complete
     await asyncio.gather(*tasks)
@@ -202,6 +200,7 @@ async def test_shared_backend_concurrent_reads_fail(concurrent_user_model):
 
 # --- Test 2: Sequential Operations Work (SANITY CHECK) ---
 
+
 @pytest.mark.asyncio
 async def test_sequential_operations_work(concurrent_user_model):
     """
@@ -210,11 +209,7 @@ async def test_sequential_operations_work(concurrent_user_model):
     """
     # Sequential inserts
     for i in range(10):
-        user = concurrent_user_model(
-            username=f"seq_user_{i}",
-            email=f"seq_{i}@test.com",
-            value=i
-        )
+        user = concurrent_user_model(username=f"seq_user_{i}", email=f"seq_{i}@test.com", value=i)
         await user.save()
 
     # Sequential reads
@@ -238,6 +233,7 @@ async def test_sequential_operations_work(concurrent_user_model):
 
 
 # --- Test 3: RECOMMENDED Pattern - Independent Backends ---
+
 
 @pytest.mark.asyncio
 async def test_recommended_pattern_independent_backends(mysql_config):
@@ -291,9 +287,7 @@ async def test_recommended_pattern_independent_backends(mysql_config):
             # Perform operations (can use transaction safely)
             async with backend.transaction():
                 user = WorkerUser(
-                    username=f"isolated_user_{task_id}",
-                    email=f"isolated_{task_id}@test.com",
-                    value=task_id * 10
+                    username=f"isolated_user_{task_id}", email=f"isolated_{task_id}@test.com", value=task_id * 10
                 )
                 await user.save()
 
@@ -313,10 +307,7 @@ async def test_recommended_pattern_independent_backends(mysql_config):
                     pass
 
     # Run multiple tasks concurrently, each with its own backend
-    tasks = [
-        asyncio.create_task(isolated_worker_task(i))
-        for i in range(10)
-    ]
+    tasks = [asyncio.create_task(isolated_worker_task(i)) for i in range(10)]
 
     await asyncio.gather(*tasks)
 
@@ -329,18 +320,17 @@ async def test_recommended_pattern_independent_backends(mysql_config):
     await backend.connect()
 
     try:
-        users = await backend.fetch_all(
-            "SELECT * FROM concurrent_users WHERE username LIKE 'isolated_user_%'"
-        )
+        users = await backend.fetch_all("SELECT * FROM concurrent_users WHERE username LIKE 'isolated_user_%'")
         assert len(users) == 10
     finally:
         await backend.execute("DROP TABLE IF EXISTS concurrent_users")
         await backend.disconnect()
 
-    print(f"\nSUCCESS: All 10 concurrent tasks with independent backends completed")
+    print("\nSUCCESS: All 10 concurrent tasks with independent backends completed")
 
 
 # --- Test 4: Transaction Isolation with Independent Backends ---
+
 
 @pytest.mark.asyncio
 async def test_transaction_isolation_with_independent_backends(mysql_config):
@@ -383,11 +373,7 @@ async def test_transaction_isolation_with_independent_backends(mysql_config):
 
             try:
                 async with backend.transaction():
-                    user = TxUser(
-                        username=f"tx_user_{task_id}",
-                        email=f"tx_{task_id}@test.com",
-                        value=task_id
-                    )
+                    user = TxUser(username=f"tx_user_{task_id}", email=f"tx_{task_id}@test.com", value=task_id)
                     await user.save()
 
                     # Simulate work
@@ -413,10 +399,7 @@ async def test_transaction_isolation_with_independent_backends(mysql_config):
                     pass
 
     # Run tasks concurrently - some commit, some rollback
-    tasks = [
-        asyncio.create_task(transaction_task(i, i % 2 == 0))
-        for i in range(10)
-    ]
+    tasks = [asyncio.create_task(transaction_task(i, i % 2 == 0)) for i in range(10)]
 
     await asyncio.gather(*tasks)
 
@@ -430,13 +413,11 @@ async def test_transaction_isolation_with_independent_backends(mysql_config):
     await backend.connect()
 
     try:
-        users = await backend.fetch_all(
-            "SELECT * FROM concurrent_users WHERE username LIKE 'tx_user_%'"
-        )
+        users = await backend.fetch_all("SELECT * FROM concurrent_users WHERE username LIKE 'tx_user_%'")
         # Only committed transactions should have records
         assert len(users) == 5
 
-        committed_ids = set(int(u['username'].split('_')[-1]) for u in users)
+        committed_ids = set(int(u["username"].split("_")[-1]) for u in users)
         for i in range(10):
             if i % 2 == 0:
                 assert i in committed_ids, f"Expected tx_user_{i} to be committed"
@@ -446,12 +427,13 @@ async def test_transaction_isolation_with_independent_backends(mysql_config):
         await backend.execute("DROP TABLE IF EXISTS concurrent_users")
         await backend.disconnect()
 
-    print(f"\nConfirmed: Transaction isolation works with independent backends")
+    print("\nConfirmed: Transaction isolation works with independent backends")
     print(f"  Committed: {results['committed']}")
     print(f"  Rolled back: {results['rolled_back']}")
 
 
 # --- Test 5: Sequential vs Concurrent Comparison ---
+
 
 @pytest.mark.asyncio
 async def test_sequential_vs_concurrent_comparison(mysql_config):
@@ -491,6 +473,7 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
     SharedUser.__connection_config__ = config
 
     import time
+
     start_sequential = time.time()
 
     for i in range(20):
@@ -507,6 +490,7 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
         backend = AsyncMySQLBackend(connection_config=config)
         await backend.connect()
         try:
+
             class ConcurrentUser(AsyncActiveRecord):
                 __table_name__ = "concurrent_users"
                 c: ClassVar[FieldProxy] = FieldProxy()
@@ -520,9 +504,7 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
             ConcurrentUser.__connection_config__ = config
 
             user = ConcurrentUser(
-                username=f"concurrent_{task_id}",
-                email=f"concurrent_{task_id}@test.com",
-                value=task_id
+                username=f"concurrent_{task_id}", email=f"concurrent_{task_id}@test.com", value=task_id
             )
             await user.save()
         finally:
@@ -544,7 +526,7 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
 
     assert len(users) == 20
 
-    print(f"\nPerformance Comparison:")
+    print("\nPerformance Comparison:")
     print(f"  Sequential (shared backend): {sequential_time:.3f}s")
     print(f"  Concurrent (independent backends): {concurrent_time:.3f}s")
 
@@ -553,6 +535,7 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
 
 
 # --- Test 6: Document Best Practices ---
+
 
 @pytest.mark.asyncio
 async def test_concurrency_best_practices_documentation(mysql_config):
@@ -592,6 +575,7 @@ async def test_concurrency_best_practices_documentation(mysql_config):
         backend = AsyncMySQLBackend(connection_config=config)
         await backend.connect()
         try:
+
             class SafeUser(AsyncActiveRecord):
                 __table_name__ = "concurrent_users"
                 c: ClassVar[FieldProxy] = FieldProxy()
@@ -606,11 +590,7 @@ async def test_concurrency_best_practices_documentation(mysql_config):
 
             # Can safely use transactions
             async with backend.transaction():
-                user = SafeUser(
-                    username=f"safe_user_{task_id}",
-                    email=f"safe_{task_id}@test.com",
-                    value=task_id
-                )
+                user = SafeUser(username=f"safe_user_{task_id}", email=f"safe_{task_id}@test.com", value=task_id)
                 await user.save()
         finally:
             await backend.disconnect()

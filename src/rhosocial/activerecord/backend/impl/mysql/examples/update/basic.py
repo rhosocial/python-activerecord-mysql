@@ -17,49 +17,57 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', 3306)),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", 3306)),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (
+from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
     ValuesSource,
     DropTableExpression,
     UpdateExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, Column
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
-from rhosocial.activerecord.backend.expression.operators import BinaryArithmeticExpression
-from rhosocial.activerecord.backend.expression.statements import (
+from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+from rhosocial.activerecord.backend.expression.operators import BinaryArithmeticExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
 )
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
-        ColumnDefinition('id', 'INT', constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
-        ]),
-        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
-        ]),
-        ColumnDefinition('age', 'INT'),
+        ColumnDefinition(
+            "id",
+            "INT",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ],
+        ),
+        ColumnDefinition(
+            "name",
+            "VARCHAR(100)",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ],
+        ),
+        ColumnDefinition("age", "INT"),
     ],
     if_not_exists=True,
 )
@@ -69,12 +77,15 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into='users',
-    columns=['name', 'age'],
-    source=ValuesSource(dialect, [
-        [Literal(dialect, 'Alice'), Literal(dialect, 25)],
-        [Literal(dialect, 'Bob'), Literal(dialect, 30)],
-    ]),
+    into="users",
+    columns=["name", "age"],
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, "Alice"), Literal(dialect, 25)],
+            [Literal(dialect, "Bob"), Literal(dialect, 30)],
+        ],
+    ),
 )
 sql, params = insert.to_sql()
 print(f"Insert SQL: {sql}")
@@ -85,9 +96,9 @@ backend.execute(sql, params)
 # ============================================================
 update_expr = UpdateExpression(
     dialect=dialect,
-    table='users',
-    assignments={'age': Literal(dialect, 26)},
-    where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+    table="users",
+    assignments={"age": Literal(dialect, 26)},
+    where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
 )
 sql, params = update_expr.to_sql()
 print(f"Update SQL: {sql}")
@@ -102,13 +113,11 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 update_expr = UpdateExpression(
     dialect=dialect,
-    table='users',
+    table="users",
     assignments={
-        'age': BinaryArithmeticExpression(
-            dialect, '+', Column(dialect, 'age'), Literal(dialect, 1)
-        ),
+        "age": BinaryArithmeticExpression(dialect, "+", Column(dialect, "age"), Literal(dialect, 1)),
     },
-    where=ComparisonPredicate(dialect, '=', Column(dialect, 'name'), Literal(dialect, 'Alice')),
+    where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
 )
 sql, params = update_expr.to_sql()
 print(f"Update with expression SQL: {sql}")
@@ -120,8 +129,8 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 update_expr = UpdateExpression(
     dialect=dialect,
-    table='users',
-    assignments={'age': Literal(dialect, 99)},
+    table="users",
+    assignments={"age": Literal(dialect, 99)},
 )
 sql, params = update_expr.to_sql()
 print(f"Update all SQL: {sql}")
@@ -131,7 +140,7 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_expr = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_expr = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

@@ -33,6 +33,7 @@ class LoadDataOptions:
         column_list: List of column names for mapping
         set_assignments: SET clause for column transformations
     """
+
     local: bool = True
     replace: bool = False
     ignore: bool = False
@@ -60,11 +61,7 @@ class MySQLLoadDataExpression(BaseExpression):
     """
 
     def __init__(
-        self,
-        dialect: "SQLDialectBase",
-        file_path: str,
-        table: str,
-        options: Optional[LoadDataOptions] = None
+        self, dialect: "SQLDialectBase", file_path: str, table: str, options: Optional[LoadDataOptions] = None
     ):
         """Initialize LOAD DATA expression.
 

@@ -5,11 +5,12 @@ Supports per-statement optimizer hints using the /*+ ... */ syntax,
 including SET_VAR hints for controlling optimizer switches like
 the hypergraph optimizer (MySQL 9.7+).
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
@@ -19,12 +20,14 @@ if TYPE_CHECKING:
 
 class OptimizerHintType(Enum):
     """Types of MySQL optimizer hints."""
+
     SET_VAR = "SET_VAR"
 
 
 @dataclass
 class SetVarHint:
     """A SET_VAR optimizer hint."""
+
     variable: str
     value: str
 

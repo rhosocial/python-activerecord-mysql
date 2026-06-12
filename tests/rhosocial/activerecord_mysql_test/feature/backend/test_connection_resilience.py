@@ -227,8 +227,8 @@ When connection is lost (timeout, KILL, network issue):
 
 ========================================================================
 """
+
 import pytest
-import pytest_asyncio
 import asyncio
 import time
 import logging
@@ -346,23 +346,18 @@ class TestIsConnectedMethod:
         # After disconnect, _connection should be None
         assert mysql_backend_single._connection is None
 
-    def test_is_connected_after_kill(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_is_connected_after_kill(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """Verify is_connected() correctly detects killed connections."""
         # Get current connection ID
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        connection_id = result.data[0]['id']
+        connection_id = result.data[0]["id"]
         print(f"Test connection ID: {connection_id}")
 
         # Kill the connection
         mysql_control_backend.execute(f"KILL CONNECTION {connection_id}")
 
         # Wait for connection to be confirmed dead with retry mechanism
-        assert wait_until_dead(mysql_backend_single._connection), \
-            "Connection did not die within timeout"
+        assert wait_until_dead(mysql_backend_single._connection), "Connection did not die within timeout"
 
         # Verify is_connected() detects the disconnection
         # Note: _connection is not None, but is_connected() should return False
@@ -375,9 +370,7 @@ class TestWaitTimeoutRecovery:
     """Tests for wait_timeout connection recovery."""
 
     def test_wait_timeout_triggers_reconnection(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that wait_timeout expiration triggers automatic reconnection.
@@ -415,7 +408,7 @@ class TestWaitTimeoutRecovery:
         try:
             result = mysql_backend_single.execute("SELECT 1 AS test")
             print(f"Query succeeded: {result}")
-            assert result.data[0]['test'] == 1
+            assert result.data[0]["test"] == 1
 
             # Verify we have a new connection
             new_conn_result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
@@ -432,9 +425,7 @@ class TestKillConnectionRecovery:
     """Tests for KILL CONNECTION recovery."""
 
     def test_kill_connection_triggers_reconnection(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that KILL CONNECTION triggers automatic reconnection.
@@ -448,7 +439,7 @@ class TestKillConnectionRecovery:
 
         # 1. Get current connection ID
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         print(f"Original connection ID: {original_conn_id}")
 
         # 2. Kill the connection
@@ -460,18 +451,16 @@ class TestKillConnectionRecovery:
         print("Executing query after connection killed...")
         result = mysql_backend_single.execute("SELECT 1 AS test")
         print(f"Query succeeded: {result}")
-        assert result.data[0]['test'] == 1
+        assert result.data[0]["test"] == 1
 
         # 4. Verify new connection ID
         new_conn_result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        new_conn_id = new_conn_result.data[0]['id']
+        new_conn_id = new_conn_result.data[0]["id"]
         print(f"New connection ID: {new_conn_id}")
         assert new_conn_id != original_conn_id, "Should have a new connection ID"
 
     def test_multiple_queries_after_reconnection(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that multiple queries work correctly after reconnection.
@@ -483,25 +472,21 @@ class TestKillConnectionRecovery:
 
         # Kill connection
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
         time.sleep(1)
 
         # Execute multiple queries
         for i in range(5):
             result = mysql_backend_single.execute(f"SELECT {i} AS value")
-            assert result.data[0]['value'] == i
+            assert result.data[0]["value"] == i
             print(f"Query {i + 1}/5 succeeded")
 
 
 class TestPingReconnect:
     """Tests for manual ping reconnection."""
 
-    def test_ping_reconnect_after_kill(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_ping_reconnect_after_kill(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Test that ping(reconnect=True) can restore a killed connection.
 
@@ -515,7 +500,7 @@ class TestPingReconnect:
 
         # 1. Get current connection ID
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         print(f"Original connection ID: {original_conn_id}")
 
         # 2. Kill the connection
@@ -523,8 +508,7 @@ class TestPingReconnect:
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
 
         # 3. Wait for connection to be confirmed dead
-        assert wait_until_dead(mysql_backend_single._connection), \
-            "Connection did not die within timeout"
+        assert wait_until_dead(mysql_backend_single._connection), "Connection did not die within timeout"
         print("Connection confirmed dead")
 
         # 4. Ping with reconnect
@@ -538,14 +522,12 @@ class TestPingReconnect:
 
         # 6. Verify new connection ID
         new_conn_result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        new_conn_id = new_conn_result.data[0]['id']
+        new_conn_id = new_conn_result.data[0]["id"]
         print(f"New connection ID: {new_conn_id}")
         assert new_conn_id != original_conn_id
 
     def test_ping_no_reconnect_keeps_dead_connection(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that ping(reconnect=False) returns False for dead connections
@@ -555,14 +537,13 @@ class TestPingReconnect:
 
         # Get current connection ID
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
 
         # Kill the connection
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
 
         # Wait for connection to be confirmed dead
-        assert wait_until_dead(mysql_backend_single._connection), \
-            "Connection did not die within timeout"
+        assert wait_until_dead(mysql_backend_single._connection), "Connection did not die within timeout"
 
         # Ping without reconnect
         ping_result = mysql_backend_single.ping(reconnect=False)
@@ -577,9 +558,7 @@ class TestGetCursorAutoReconnect:
     """Tests for _get_cursor() automatic reconnection behavior."""
 
     def test_get_cursor_reconnects_killed_connection(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that _get_cursor() automatically reconnects when connection is dead.
@@ -590,15 +569,14 @@ class TestGetCursorAutoReconnect:
 
         # Get current connection ID
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         print(f"Original connection ID: {original_conn_id}")
 
         # Kill the connection
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
 
         # Wait for connection to be confirmed dead
-        assert wait_until_dead(mysql_backend_single._connection), \
-            "Connection did not die within timeout"
+        assert wait_until_dead(mysql_backend_single._connection), "Connection did not die within timeout"
 
         # Call _get_cursor - should trigger reconnection
         cursor = mysql_backend_single._get_cursor()
@@ -612,7 +590,7 @@ class TestGetCursorAutoReconnect:
 
         # Verify new connection ID
         new_conn_result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        new_conn_id = new_conn_result.data[0]['id']
+        new_conn_id = new_conn_result.data[0]["id"]
         print(f"New connection ID: {new_conn_id}")
         assert new_conn_id != original_conn_id
 
@@ -640,22 +618,21 @@ class TestAsyncIsConnectedMethod:
 
     @pytest.mark.asyncio
     async def test_is_connected_after_kill(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Verify is_connected() correctly detects killed connections."""
         # Get current connection ID
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        connection_id = result.data[0]['id']
+        connection_id = result.data[0]["id"]
         print(f"Test connection ID: {connection_id}")
 
         # Kill the connection
         await async_mysql_control_backend.execute(f"KILL CONNECTION {connection_id}")
 
         # Wait for connection to be confirmed dead with retry mechanism
-        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), (
             "Connection did not die within timeout"
+        )
 
         # Verify is_connected() detects the disconnection
         assert async_mysql_backend_single._connection is not None
@@ -668,9 +645,7 @@ class TestAsyncWaitTimeoutRecovery:
 
     @pytest.mark.asyncio
     async def test_wait_timeout_triggers_reconnection(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """
         Test that wait_timeout expiration triggers automatic reconnection.
@@ -701,7 +676,7 @@ class TestAsyncWaitTimeoutRecovery:
         try:
             result = await async_mysql_backend_single.execute("SELECT 1 AS test")
             print(f"Query succeeded: {result}")
-            assert result.data[0]['test'] == 1
+            assert result.data[0]["test"] == 1
         finally:
             # Restore original timeout via control backend
             try:
@@ -715,16 +690,14 @@ class TestAsyncKillConnectionRecovery:
 
     @pytest.mark.asyncio
     async def test_kill_connection_triggers_reconnection(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that KILL CONNECTION triggers automatic reconnection."""
         print_separator("Test: Async KILL CONNECTION Recovery")
 
         # 1. Get current connection ID
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         print(f"Original connection ID: {original_conn_id}")
 
         # 2. Kill the connection
@@ -736,33 +709,31 @@ class TestAsyncKillConnectionRecovery:
         print("Executing query after connection killed...")
         result = await async_mysql_backend_single.execute("SELECT 1 AS test")
         print(f"Query succeeded: {result}")
-        assert result.data[0]['test'] == 1
+        assert result.data[0]["test"] == 1
 
         # 4. Verify new connection ID
         new_conn_result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        new_conn_id = new_conn_result.data[0]['id']
+        new_conn_id = new_conn_result.data[0]["id"]
         print(f"New connection ID: {new_conn_id}")
         assert new_conn_id != original_conn_id
 
     @pytest.mark.asyncio
     async def test_multiple_queries_after_reconnection(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that multiple queries work correctly after reconnection."""
         print_separator("Test: Async Multiple Queries After Reconnection")
 
         # Kill connection
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
         await asyncio.sleep(1)
 
         # Execute multiple queries
         for i in range(5):
             result = await async_mysql_backend_single.execute(f"SELECT {i} AS value")
-            assert result.data[0]['value'] == i
+            assert result.data[0]["value"] == i
             print(f"Query {i + 1}/5 succeeded")
 
 
@@ -771,16 +742,14 @@ class TestAsyncPingReconnect:
 
     @pytest.mark.asyncio
     async def test_ping_reconnect_after_kill(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that ping(reconnect=True) can restore a killed connection."""
         print_separator("Test: Async Ping Reconnect")
 
         # 1. Get current connection ID
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         print(f"Original connection ID: {original_conn_id}")
 
         # 2. Kill the connection
@@ -788,8 +757,9 @@ class TestAsyncPingReconnect:
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
 
         # 3. Wait for connection to be confirmed dead
-        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), (
             "Connection did not die within timeout"
+        )
         print("Connection confirmed dead")
 
         # 4. Ping with reconnect
@@ -803,29 +773,28 @@ class TestAsyncPingReconnect:
 
         # 6. Verify new connection ID
         new_conn_result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        new_conn_id = new_conn_result.data[0]['id']
+        new_conn_id = new_conn_result.data[0]["id"]
         print(f"New connection ID: {new_conn_id}")
         assert new_conn_id != original_conn_id
 
     @pytest.mark.asyncio
     async def test_ping_no_reconnect_keeps_dead_connection(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that ping(reconnect=False) returns False for dead connections."""
         print_separator("Test: Async Ping No Reconnect")
 
         # Get current connection ID
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
 
         # Kill the connection
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
 
         # Wait for connection to be confirmed dead
-        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), (
             "Connection did not die within timeout"
+        )
 
         # Ping without reconnect
         ping_result = await async_mysql_backend_single.ping(reconnect=False)
@@ -841,24 +810,23 @@ class TestAsyncGetCursorAutoReconnect:
 
     @pytest.mark.asyncio
     async def test_get_cursor_reconnects_killed_connection(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that _get_cursor() automatically reconnects when connection is dead."""
         print_separator("Test: Async _get_cursor Auto Reconnect")
 
         # Get current connection ID
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         print(f"Original connection ID: {original_conn_id}")
 
         # Kill the connection
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
 
         # Wait for connection to be confirmed dead
-        assert await async_wait_until_dead(async_mysql_backend_single._connection), \
+        assert await async_wait_until_dead(async_mysql_backend_single._connection), (
             "Connection did not die within timeout"
+        )
 
         # Call _get_cursor - should trigger reconnection
         cursor = await async_mysql_backend_single._get_cursor()
@@ -872,7 +840,7 @@ class TestAsyncGetCursorAutoReconnect:
 
         # Verify new connection ID
         new_conn_result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        new_conn_id = new_conn_result.data[0]['id']
+        new_conn_id = new_conn_result.data[0]["id"]
         print(f"New connection ID: {new_conn_id}")
         assert new_conn_id != original_conn_id
 
@@ -923,9 +891,7 @@ class TestTransactionInterruption:
     """
 
     def test_transaction_lost_after_connection_killed(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that killing a connection during a transaction properly loses the transaction.
@@ -955,14 +921,12 @@ class TestTransactionInterruption:
             mysql_backend_single.begin_transaction()
 
             # Insert a record within the transaction
-            mysql_backend_single.execute(
-                "INSERT INTO test_transaction_integrity (value) VALUES ('in_transaction')"
-            )
+            mysql_backend_single.execute("INSERT INTO test_transaction_integrity (value) VALUES ('in_transaction')")
             print("Inserted record in transaction (not committed)")
 
             # Get connection ID before killing
             result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            original_conn_id = result.data[0]['id']
+            original_conn_id = result.data[0]["id"]
             print(f"Original connection ID: {original_conn_id}")
 
             # Verify transaction is active
@@ -991,8 +955,9 @@ class TestTransactionInterruption:
 
                 # Transaction should NOT be active after reconnection
                 # because the new connection has no active transaction
-                assert in_transaction is False, \
+                assert in_transaction is False, (
                     "Transaction should be inactive after reconnection (transaction was lost)"
+                )
 
             except Exception as e:
                 # If an error is raised, it should indicate transaction loss
@@ -1001,10 +966,8 @@ class TestTransactionInterruption:
 
             # Verify the uncommitted record was rolled back
             # Need to check from the control backend since it has a separate connection
-            result = mysql_control_backend.execute(
-                "SELECT COUNT(*) AS count FROM test_transaction_integrity"
-            )
-            count = result.data[0]['count']
+            result = mysql_control_backend.execute("SELECT COUNT(*) AS count FROM test_transaction_integrity")
+            count = result.data[0]["count"]
             print(f"Record count after transaction loss: {count}")
             assert count == 0, "Uncommitted record should have been rolled back"
 
@@ -1018,9 +981,7 @@ class TestTransactionInterruption:
             mysql_backend_single.execute("DROP TABLE IF EXISTS test_transaction_integrity")
 
     def test_explicit_rollback_after_reconnect_safe(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that calling rollback after connection loss is handled safely.
@@ -1037,7 +998,7 @@ class TestTransactionInterruption:
 
         # Get connection ID and kill it
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
         time.sleep(1)
 
@@ -1058,9 +1019,7 @@ class TestAsyncTransactionInterruption:
 
     @pytest.mark.asyncio
     async def test_transaction_lost_after_connection_killed(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """
         Test that killing a connection during a transaction properly loses the transaction.
@@ -1092,7 +1051,7 @@ class TestAsyncTransactionInterruption:
 
             # Get connection ID
             result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            original_conn_id = result.data[0]['id']
+            original_conn_id = result.data[0]["id"]
             print(f"Original connection ID: {original_conn_id}")
 
             # Verify transaction is active
@@ -1113,8 +1072,7 @@ class TestAsyncTransactionInterruption:
                 in_transaction = async_mysql_backend_single.in_transaction
                 print(f"Transaction active after reconnect: {in_transaction}")
 
-                assert in_transaction is False, \
-                    "Transaction should be inactive after reconnection"
+                assert in_transaction is False, "Transaction should be inactive after reconnection"
 
             except Exception as e:
                 print(f"Error after reconnect (expected): {e}")
@@ -1123,7 +1081,7 @@ class TestAsyncTransactionInterruption:
             result = await async_mysql_control_backend.execute(
                 "SELECT COUNT(*) AS count FROM test_async_transaction_integrity"
             )
-            count = result.data[0]['count']
+            count = result.data[0]["count"]
             print(f"Record count after transaction loss: {count}")
             assert count == 0, "Uncommitted record should have been rolled back"
 
@@ -1137,9 +1095,7 @@ class TestAsyncTransactionInterruption:
 
     @pytest.mark.asyncio
     async def test_explicit_rollback_after_reconnect_safe(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that calling rollback after connection loss is handled safely."""
         print_separator("Test: Async Rollback After Reconnect Safety")
@@ -1148,7 +1104,7 @@ class TestAsyncTransactionInterruption:
         assert async_mysql_backend_single.in_transaction is True
 
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        original_conn_id = result.data[0]['id']
+        original_conn_id = result.data[0]["id"]
         await async_mysql_control_backend.execute(f"KILL CONNECTION {original_conn_id}")
         await asyncio.sleep(1)
 
@@ -1269,9 +1225,7 @@ class TestConcurrentAccess:
         )
     )
     def test_shared_backend_concurrent_queries(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         DOCUMENTATION-ONLY TEST — DO NOT RUN IN PRODUCTION OR CI.
@@ -1330,7 +1284,7 @@ class TestConcurrentAccess:
                 for i in range(iterations):
                     # Each worker should see its own connection ID
                     result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id, %s AS worker" % worker_id)
-                    conn_id = result.data[0]['id']
+                    conn_id = result.data[0]["id"]
                     results_queue.put((worker_id, i, conn_id))
             except Exception as e:
                 errors_queue.put((worker_id, str(e)))
@@ -1377,9 +1331,7 @@ class TestConcurrentAccess:
         print("Note: Current implementation shares a single connection across threads")
 
     def test_shared_backend_transaction_isolation(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that transactions on a shared backend affect all threads.
@@ -1422,7 +1374,7 @@ class TestConcurrentAccess:
             # With shared backend, this query sees the uncommitted data!
             print("Step 2: Querying from 'another context'...")
             result = mysql_backend_single.execute("SELECT COUNT(*) AS count FROM test_concurrent_transaction")
-            count = result.data[0]['count']
+            count = result.data[0]["count"]
             print(f"Count seen by 'Thread 2': {count}")
 
             # The count should be 1 because we're in the same transaction
@@ -1435,7 +1387,7 @@ class TestConcurrentAccess:
 
             # Step 5: Verify data is now visible to all
             result = mysql_backend_single.execute("SELECT COUNT(*) AS count FROM test_concurrent_transaction")
-            final_count = result.data[0]['count']
+            final_count = result.data[0]["count"]
             print(f"Final count: {final_count}")
             assert final_count == 1
 
@@ -1451,9 +1403,7 @@ class TestConcurrentAccess:
             mysql_backend_single.execute("DROP TABLE IF EXISTS test_concurrent_transaction")
 
     def test_connection_killed_during_sequential_access(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test behavior when connection is killed between sequential operations.
@@ -1475,7 +1425,7 @@ class TestConcurrentAccess:
                 if i == 2:
                     # Kill connection mid-sequence
                     result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-                    conn_id = result.data[0]['id']
+                    conn_id = result.data[0]["id"]
                     print(f"Killing connection {conn_id}...")
                     mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
                     time.sleep(0.5)
@@ -1547,9 +1497,7 @@ class TestAsyncConcurrentAccess:
 
     @pytest.mark.asyncio
     async def test_shared_backend_sequential_queries(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """
         Test sequential async queries on a shared backend instance.
@@ -1572,7 +1520,7 @@ class TestAsyncConcurrentAccess:
                     result = await async_mysql_backend_single.execute(
                         f"SELECT CONNECTION_ID() AS id, {worker_id} AS worker"
                     )
-                    conn_id = result.data[0]['id']
+                    conn_id = result.data[0]["id"]
                     results.append((worker_id, i, conn_id))
             except Exception as e:
                 errors.append((worker_id, str(e)))
@@ -1597,9 +1545,7 @@ class TestAsyncConcurrentAccess:
 
     @pytest.mark.asyncio
     async def test_shared_backend_transaction_isolation(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """
         Test that transactions on a shared async backend affect all tasks.
@@ -1642,7 +1588,7 @@ class TestAsyncConcurrentAccess:
             result = await async_mysql_backend_single.execute(
                 "SELECT COUNT(*) AS count FROM test_async_concurrent_transaction"
             )
-            count = result.data[0]['count']
+            count = result.data[0]["count"]
             print(f"Count seen by 'Task 2': {count}")
 
             # The count should be 1 because we're in the same transaction
@@ -1657,7 +1603,7 @@ class TestAsyncConcurrentAccess:
             result = await async_mysql_backend_single.execute(
                 "SELECT COUNT(*) AS count FROM test_async_concurrent_transaction"
             )
-            final_count = result.data[0]['count']
+            final_count = result.data[0]["count"]
             print(f"Final count: {final_count}")
             assert final_count == 1
 
@@ -1685,11 +1631,7 @@ class TestNetworkInterruptionSimulation:
     these tests use MySQL-level mechanisms to approximate network issues.
     """
 
-    def test_query_timeout_simulation(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_query_timeout_simulation(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Simulate query timeout by setting a very short timeout.
 
@@ -1701,10 +1643,8 @@ class TestNetworkInterruptionSimulation:
         original_timeout = 30
         try:
             # Get original timeout
-            result = mysql_backend_single.execute(
-                "SHOW VARIABLES LIKE 'wait_timeout'"
-            )
-            original_timeout = int(result.data[0]['Value'])
+            result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'wait_timeout'")
+            original_timeout = int(result.data[0]["Value"])
             print(f"Original wait_timeout: {original_timeout}")
         except Exception:
             pass
@@ -1719,7 +1659,7 @@ class TestNetworkInterruptionSimulation:
 
             # Next query should trigger reconnection
             result = mysql_backend_single.execute("SELECT 1 AS test")
-            assert result.data[0]['test'] == 1
+            assert result.data[0]["test"] == 1
             print("Query succeeded after timeout (auto-reconnected)")
 
         finally:
@@ -1729,11 +1669,7 @@ class TestNetworkInterruptionSimulation:
             except Exception:
                 pass
 
-    def test_lock_wait_timeout(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_lock_wait_timeout(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Test behavior when lock wait timeout occurs.
 
@@ -1786,19 +1722,15 @@ class TestAsyncNetworkInterruptionSimulation:
 
     @pytest.mark.asyncio
     async def test_query_timeout_simulation(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Simulate query timeout in async context."""
         print_separator("Test: Async Query Timeout Simulation")
 
         original_timeout = 30
         try:
-            result = await async_mysql_backend_single.execute(
-                "SHOW VARIABLES LIKE 'wait_timeout'"
-            )
-            original_timeout = int(result.data[0]['Value'])
+            result = await async_mysql_backend_single.execute("SHOW VARIABLES LIKE 'wait_timeout'")
+            original_timeout = int(result.data[0]["Value"])
         except Exception:
             pass
 
@@ -1809,22 +1741,18 @@ class TestAsyncNetworkInterruptionSimulation:
             await asyncio.sleep(2)
 
             result = await async_mysql_backend_single.execute("SELECT 1 AS test")
-            assert result.data[0]['test'] == 1
+            assert result.data[0]["test"] == 1
             print("Query succeeded after timeout (auto-reconnected)")
 
         finally:
             try:
-                await async_mysql_backend_single.execute(
-                    f"SET SESSION wait_timeout = {original_timeout}"
-                )
+                await async_mysql_backend_single.execute(f"SET SESSION wait_timeout = {original_timeout}")
             except Exception:
                 pass
 
     @pytest.mark.asyncio
     async def test_lock_wait_timeout(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test lock wait timeout in async context."""
         print_separator("Test: Async Lock Wait Timeout")
@@ -2023,9 +1951,7 @@ class TestMultiModelSharedBackend:
     """
 
     def test_shared_backend_same_connection(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that models sharing a backend use the same connection.
@@ -2060,20 +1986,16 @@ class TestMultiModelSharedBackend:
             mysql_backend_single.execute("DELETE FROM test_users")
 
             # Insert user
-            mysql_backend_single.execute(
-                "INSERT INTO test_users (name, balance) VALUES ('Alice', 100.00)"
-            )
+            mysql_backend_single.execute("INSERT INTO test_users (name, balance) VALUES ('Alice', 100.00)")
             result = mysql_backend_single.execute("SELECT LAST_INSERT_ID() AS id")
-            user_id = result.data[0]['id']
+            user_id = result.data[0]["id"]
 
             # Insert order
-            mysql_backend_single.execute(
-                f"INSERT INTO test_orders (user_id, amount) VALUES ({user_id}, 50.00)"
-            )
+            mysql_backend_single.execute(f"INSERT INTO test_orders (user_id, amount) VALUES ({user_id}, 50.00)")
 
             # Verify both operations used the same connection
             result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            conn_id = result.data[0]['id']
+            conn_id = result.data[0]["id"]
             print(f"All operations used connection ID: {conn_id}")
 
             # This confirms that "User" and "Order" models would share
@@ -2085,9 +2007,7 @@ class TestMultiModelSharedBackend:
             mysql_backend_single.execute("DROP TABLE IF EXISTS test_users")
 
     def test_cross_model_transaction_atomicity(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that operations on multiple models in a transaction are atomic.
@@ -2124,24 +2044,20 @@ class TestMultiModelSharedBackend:
             mysql_backend_single.execute("INSERT INTO test_accounts (name, balance) VALUES ('Bob', 50.00)")
 
             result = mysql_backend_single.execute("SELECT id FROM test_accounts WHERE name = 'Alice'")
-            alice_id = result.data[0]['id']
+            alice_id = result.data[0]["id"]
             result = mysql_backend_single.execute("SELECT id FROM test_accounts WHERE name = 'Bob'")
-            bob_id = result.data[0]['id']
+            bob_id = result.data[0]["id"]
 
             # Perform a transfer transaction
             mysql_backend_single.begin_transaction()
             try:
                 # Deduct from Alice
-                mysql_backend_single.execute(
-                    f"UPDATE test_accounts SET balance = balance - 30 WHERE id = {alice_id}"
-                )
+                mysql_backend_single.execute(f"UPDATE test_accounts SET balance = balance - 30 WHERE id = {alice_id}")
                 # Add to Bob
-                mysql_backend_single.execute(
-                    f"UPDATE test_accounts SET balance = balance + 30 WHERE id = {bob_id}"
-                )
+                mysql_backend_single.execute(f"UPDATE test_accounts SET balance = balance + 30 WHERE id = {bob_id}")
                 # Record transaction
                 mysql_backend_single.execute(
-                    f"INSERT INTO test_transactions (from_account, to_account, amount) VALUES ({alice_id}, {bob_id}, 30.00)"
+                    f"INSERT INTO test_transactions (from_account, to_account, amount) VALUES ({alice_id}, {bob_id}, 30.00)"  # noqa: E501
                 )
 
                 mysql_backend_single.commit_transaction()
@@ -2153,9 +2069,9 @@ class TestMultiModelSharedBackend:
 
             # Verify balances
             result = mysql_backend_single.execute(f"SELECT balance FROM test_accounts WHERE id = {alice_id}")
-            alice_balance = result.data[0]['balance']
+            alice_balance = result.data[0]["balance"]
             result = mysql_backend_single.execute(f"SELECT balance FROM test_accounts WHERE id = {bob_id}")
-            bob_balance = result.data[0]['balance']
+            bob_balance = result.data[0]["balance"]
 
             assert float(alice_balance) == 70.00, f"Alice balance should be 70, got {alice_balance}"
             assert float(bob_balance) == 80.00, f"Bob balance should be 80, got {bob_balance}"
@@ -2171,9 +2087,7 @@ class TestMultiModelSharedBackend:
             mysql_backend_single.execute("DROP TABLE IF EXISTS test_accounts")
 
     def test_cross_model_transaction_rollback(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that rollback affects all models in a shared backend transaction.
@@ -2204,12 +2118,12 @@ class TestMultiModelSharedBackend:
             mysql_backend_single.begin_transaction()
             mysql_backend_single.execute("INSERT INTO test_items (name) VALUES ('Widget')")
             result = mysql_backend_single.execute("SELECT LAST_INSERT_ID() AS id")
-            item_id = result.data[0]['id']
+            item_id = result.data[0]["id"]
             mysql_backend_single.execute(f"INSERT INTO test_inventory (item_id, quantity) VALUES ({item_id}, 100)")
 
             # Verify changes within transaction
             result = mysql_backend_single.execute("SELECT COUNT(*) AS count FROM test_items")
-            assert result.data[0]['count'] == 1
+            assert result.data[0]["count"] == 1
             print("Changes visible within transaction")
 
             # Rollback
@@ -2218,9 +2132,9 @@ class TestMultiModelSharedBackend:
 
             # Verify both tables were rolled back
             result = mysql_backend_single.execute("SELECT COUNT(*) AS count FROM test_items")
-            assert result.data[0]['count'] == 0, "Items should be rolled back"
+            assert result.data[0]["count"] == 0, "Items should be rolled back"
             result = mysql_backend_single.execute("SELECT COUNT(*) AS count FROM test_inventory")
-            assert result.data[0]['count'] == 0, "Inventory should be rolled back"
+            assert result.data[0]["count"] == 0, "Inventory should be rolled back"
             print("Cross-model rollback verified")
 
         finally:
@@ -2238,9 +2152,7 @@ class TestAsyncMultiModelSharedBackend:
 
     @pytest.mark.asyncio
     async def test_shared_backend_same_connection(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test that async models sharing a backend use the same connection."""
         print_separator("Test: Async Multi-Model Shared Backend Same Connection")
@@ -2265,18 +2177,16 @@ class TestAsyncMultiModelSharedBackend:
             await async_mysql_backend_single.execute("DELETE FROM test_async_posts")
             await async_mysql_backend_single.execute("DELETE FROM test_async_users")
 
-            await async_mysql_backend_single.execute(
-                "INSERT INTO test_async_users (name) VALUES ('Alice')"
-            )
+            await async_mysql_backend_single.execute("INSERT INTO test_async_users (name) VALUES ('Alice')")
             result = await async_mysql_backend_single.execute("SELECT LAST_INSERT_ID() AS id")
-            user_id = result.data[0]['id']
+            user_id = result.data[0]["id"]
 
             await async_mysql_backend_single.execute(
                 f"INSERT INTO test_async_posts (user_id, title) VALUES ({user_id}, 'Hello')"
             )
 
             result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            conn_id = result.data[0]['id']
+            conn_id = result.data[0]["id"]
             print(f"All async operations used connection ID: {conn_id}")
 
         finally:
@@ -2285,9 +2195,7 @@ class TestAsyncMultiModelSharedBackend:
 
     @pytest.mark.asyncio
     async def test_cross_model_transaction_atomicity(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test async cross-model transaction atomicity."""
         print_separator("Test: Async Cross-Model Transaction Atomicity")
@@ -2327,7 +2235,7 @@ class TestAsyncMultiModelSharedBackend:
             result = await async_mysql_backend_single.execute(
                 "SELECT balance FROM test_async_accounts WHERE name = 'Alice'"
             )
-            assert float(result.data[0]['balance']) == 75.00
+            assert float(result.data[0]["balance"]) == 75.00
             print("Async cross-model transaction verified")
 
         finally:
@@ -2350,9 +2258,7 @@ class TestBulkOperationInterruption:
     """
 
     def test_bulk_insert_partial_completion(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test behavior when connection is killed during bulk insert.
@@ -2381,15 +2287,13 @@ class TestBulkOperationInterruption:
 
             # Insert several records
             for i in range(5):
-                mysql_backend_single.execute(
-                    f"INSERT INTO test_bulk_items (name) VALUES ('item_{i}')"
-                )
+                mysql_backend_single.execute(f"INSERT INTO test_bulk_items (name) VALUES ('item_{i}')")
                 print(f"Inserted item_{i}")
 
                 if i == 2:
                     # Kill connection after 3rd insert
                     result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-                    conn_id = result.data[0]['id']
+                    conn_id = result.data[0]["id"]
                     print(f"Killing connection {conn_id} mid-transaction...")
                     mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
                     time.sleep(1)
@@ -2410,7 +2314,7 @@ class TestBulkOperationInterruption:
 
             # Verify all inserts were rolled back
             result = mysql_control_backend.execute("SELECT COUNT(*) AS count FROM test_bulk_items")
-            count = result.data[0]['count']
+            count = result.data[0]["count"]
             print(f"Records after transaction loss: {count}")
             # Transaction was lost, so all inserts should be rolled back
             assert count == 0, "All inserts should be rolled back after transaction loss"
@@ -2423,11 +2327,7 @@ class TestBulkOperationInterruption:
                 pass
             mysql_backend_single.execute("DROP TABLE IF EXISTS test_bulk_items")
 
-    def test_bulk_update_interruption(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_bulk_update_interruption(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Test behavior when connection is killed during bulk update.
 
@@ -2453,7 +2353,7 @@ class TestBulkOperationInterruption:
 
             # Verify setup
             result = mysql_backend_single.execute("SELECT SUM(value) AS total FROM test_bulk_updates")
-            original_total = result.data[0]['total']
+            original_total = result.data[0]["total"]
             print(f"Original total: {original_total}")
 
             # Start transaction and perform bulk updates
@@ -2471,8 +2371,8 @@ class TestBulkOperationInterruption:
                 if i == 4:
                     # Kill after 5 updates
                     result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-                    conn_id = result.data[0]['id']
-                    print(f"Killing connection {conn_id} after {i+1} updates...")
+                    conn_id = result.data[0]["id"]
+                    print(f"Killing connection {conn_id} after {i + 1} updates...")
                     mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
                     time.sleep(1)
                     killed = True
@@ -2493,7 +2393,7 @@ class TestBulkOperationInterruption:
 
             # Verify all updates were rolled back (transaction was lost)
             result = mysql_control_backend.execute("SELECT SUM(value) AS total FROM test_bulk_updates")
-            final_total = result.data[0]['total']
+            final_total = result.data[0]["total"]
             print(f"Final total: {final_total}")
             assert int(final_total) == 0, "All updates should be rolled back (transaction lost)"
 
@@ -2511,9 +2411,7 @@ class TestAsyncBulkOperationInterruption:
 
     @pytest.mark.asyncio
     async def test_bulk_insert_partial_completion(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test async bulk insert partial completion."""
         print_separator("Test: Async Bulk Insert Partial Completion")
@@ -2540,7 +2438,7 @@ class TestAsyncBulkOperationInterruption:
 
                 if i == 2:
                     result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-                    conn_id = result.data[0]['id']
+                    conn_id = result.data[0]["id"]
                     await async_mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
                     await asyncio.sleep(1)
                     break
@@ -2550,10 +2448,8 @@ class TestAsyncBulkOperationInterruption:
             except Exception as e:
                 print(f"Reconnect error: {e}")
 
-            result = await async_mysql_control_backend.execute(
-                "SELECT COUNT(*) AS count FROM test_async_bulk_items"
-            )
-            count = result.data[0]['count']
+            result = await async_mysql_control_backend.execute("SELECT COUNT(*) AS count FROM test_async_bulk_items")
+            count = result.data[0]["count"]
             print(f"Records after transaction loss: {count}")
             assert count == 0
 
@@ -2635,9 +2531,7 @@ class TestSessionStateRecovery:
     """
 
     def test_session_variables_reset_after_reconnect(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test that session variables are reset after reconnection.
@@ -2652,12 +2546,12 @@ class TestSessionStateRecovery:
         # Set a session variable
         mysql_backend_single.execute("SET SESSION sql_mode = 'STRICT_TRANS_TABLES'")
         result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'sql_mode'")
-        original_mode = result.data[0]['Value']
+        original_mode = result.data[0]["Value"]
         print(f"Set sql_mode to: {original_mode}")
 
         # Kill connection
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        conn_id = result.data[0]['id']
+        conn_id = result.data[0]["id"]
         mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
         time.sleep(1)
 
@@ -2667,18 +2561,14 @@ class TestSessionStateRecovery:
 
         # Check if session variable is reset
         result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'sql_mode'")
-        new_mode = result.data[0]['Value']
+        new_mode = result.data[0]["Value"]
         print(f"sql_mode after reconnect: {new_mode}")
 
         # Note: The session variable may or may not be reset
         # depending on MySQL configuration and connection pooling
         print("Note: Session variables may need to be re-set after reconnection")
 
-    def test_character_set_preserved(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_character_set_preserved(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Test that character set settings are handled correctly after reconnect.
         """
@@ -2686,25 +2576,23 @@ class TestSessionStateRecovery:
 
         # Check current character set
         result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'character_set_connection'")
-        charset = result.data[0]['Value']
+        charset = result.data[0]["Value"]
         print(f"Character set: {charset}")
 
         # Kill and reconnect
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        conn_id = result.data[0]['id']
+        conn_id = result.data[0]["id"]
         mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
         time.sleep(1)
 
         mysql_backend_single.execute("SELECT 1 AS test")
 
         result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'character_set_connection'")
-        new_charset = result.data[0]['Value']
+        new_charset = result.data[0]["Value"]
         print(f"Character set after reconnect: {new_charset}")
 
     def test_timezone_setting_after_reconnect(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
+        self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend
     ):
         """
         Test timezone setting behavior after reconnect.
@@ -2714,19 +2602,19 @@ class TestSessionStateRecovery:
         # Set a specific timezone
         mysql_backend_single.execute("SET SESSION time_zone = '+00:00'")
         result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'time_zone'")
-        tz = result.data[0]['Value']
+        tz = result.data[0]["Value"]
         print(f"Set timezone to: {tz}")
 
         # Kill and reconnect
         result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        conn_id = result.data[0]['id']
+        conn_id = result.data[0]["id"]
         mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
         time.sleep(1)
 
         mysql_backend_single.execute("SELECT 1 AS test")
 
         result = mysql_backend_single.execute("SHOW VARIABLES LIKE 'time_zone'")
-        new_tz = result.data[0]['Value']
+        new_tz = result.data[0]["Value"]
         print(f"Timezone after reconnect: {new_tz}")
 
         # Note: Timezone is a session variable, may reset to server default
@@ -2738,9 +2626,7 @@ class TestAsyncSessionStateRecovery:
 
     @pytest.mark.asyncio
     async def test_session_variables_reset_after_reconnect(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test async session variables reset after reconnect."""
         print_separator("Test: Async Session Variables After Reconnect")
@@ -2750,7 +2636,7 @@ class TestAsyncSessionStateRecovery:
         print(f"Set sql_mode to: {result.data[0]['Value']}")
 
         result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-        conn_id = result.data[0]['id']
+        conn_id = result.data[0]["id"]
         await async_mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
         await asyncio.sleep(1)
 
@@ -2770,11 +2656,7 @@ class TestNestedTransactionInterruption:
     Tests for nested transaction (savepoint) behavior during interruption.
     """
 
-    def test_savepoint_lost_on_reconnect(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_savepoint_lost_on_reconnect(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Test that savepoints are lost when connection is killed.
 
@@ -2812,7 +2694,7 @@ class TestNestedTransactionInterruption:
 
             # Kill connection
             result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            conn_id = result.data[0]['id']
+            conn_id = result.data[0]["id"]
             mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
             time.sleep(1)
 
@@ -2830,7 +2712,7 @@ class TestNestedTransactionInterruption:
 
             # Verify all records were rolled back
             result = mysql_control_backend.execute("SELECT COUNT(*) AS count FROM test_savepoint_items")
-            count = result.data[0]['count']
+            count = result.data[0]["count"]
             print(f"Records after transaction loss: {count}")
             assert count == 0, "All records should be rolled back"
 
@@ -2848,9 +2730,7 @@ class TestAsyncNestedTransactionInterruption:
 
     @pytest.mark.asyncio
     async def test_savepoint_lost_on_reconnect(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test async savepoint lost on reconnect."""
         print_separator("Test: Async Savepoint Lost on Reconnect")
@@ -2869,20 +2749,16 @@ class TestAsyncNestedTransactionInterruption:
             await async_mysql_backend_single.begin_transaction()
             print("Started async outer transaction")
 
-            await async_mysql_backend_single.execute(
-                "INSERT INTO test_async_savepoint_items (name) VALUES ('first')"
-            )
+            await async_mysql_backend_single.execute("INSERT INTO test_async_savepoint_items (name) VALUES ('first')")
             print("Inserted first record")
 
             savepoint_name = await async_mysql_backend_single.transaction_manager.savepoint()
             print(f"Created savepoint: {savepoint_name}")
 
-            await async_mysql_backend_single.execute(
-                "INSERT INTO test_async_savepoint_items (name) VALUES ('second')"
-            )
+            await async_mysql_backend_single.execute("INSERT INTO test_async_savepoint_items (name) VALUES ('second')")
 
             result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            conn_id = result.data[0]['id']
+            conn_id = result.data[0]["id"]
             await async_mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
             await asyncio.sleep(1)
 
@@ -2895,7 +2771,7 @@ class TestAsyncNestedTransactionInterruption:
             result = await async_mysql_control_backend.execute(
                 "SELECT COUNT(*) AS count FROM test_async_savepoint_items"
             )
-            count = result.data[0]['count']
+            count = result.data[0]["count"]
             print(f"Records after transaction loss: {count}")
             assert count == 0
 
@@ -2918,11 +2794,7 @@ class TestLargeResultSetInterruption:
     Tests for behavior when connection is lost while reading a large result set.
     """
 
-    def test_interrupt_during_fetch(
-        self,
-        mysql_backend_single: MySQLBackend,
-        mysql_control_backend: MySQLBackend
-    ):
+    def test_interrupt_during_fetch(self, mysql_backend_single: MySQLBackend, mysql_control_backend: MySQLBackend):
         """
         Test behavior when connection is killed during result fetching.
 
@@ -2945,14 +2817,12 @@ class TestLargeResultSetInterruption:
             # Insert many records
             mysql_backend_single.execute("DELETE FROM test_large_result")
             for i in range(100):
-                mysql_backend_single.execute(
-                    f"INSERT INTO test_large_result (data) VALUES ('data_{i}')"
-                )
+                mysql_backend_single.execute(f"INSERT INTO test_large_result (data) VALUES ('data_{i}')")
             print("Inserted 100 records")
 
             # Get connection ID
             result = mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            conn_id = result.data[0]['id']
+            conn_id = result.data[0]["id"]
 
             # Execute a query that returns many rows
             result = mysql_backend_single.execute("SELECT * FROM test_large_result ORDER BY id")
@@ -2965,7 +2835,7 @@ class TestLargeResultSetInterruption:
 
             # Try to execute another query
             result = mysql_backend_single.execute("SELECT 1 AS test")
-            assert result.data[0]['test'] == 1
+            assert result.data[0]["test"] == 1
             print("Successfully reconnected and executed new query")
 
         finally:
@@ -2977,9 +2847,7 @@ class TestAsyncLargeResultSetInterruption:
 
     @pytest.mark.asyncio
     async def test_interrupt_during_fetch(
-        self,
-        async_mysql_backend_single: AsyncMySQLBackend,
-        async_mysql_control_backend: AsyncMySQLBackend
+        self, async_mysql_backend_single: AsyncMySQLBackend, async_mysql_control_backend: AsyncMySQLBackend
     ):
         """Test async interrupt during fetch."""
         print_separator("Test: Async Interrupt During Fetch")
@@ -3001,18 +2869,16 @@ class TestAsyncLargeResultSetInterruption:
             print("Inserted 100 records")
 
             result = await async_mysql_backend_single.execute("SELECT CONNECTION_ID() AS id")
-            conn_id = result.data[0]['id']
+            conn_id = result.data[0]["id"]
 
-            result = await async_mysql_backend_single.execute(
-                "SELECT * FROM test_async_large_result ORDER BY id"
-            )
+            result = await async_mysql_backend_single.execute("SELECT * FROM test_async_large_result ORDER BY id")
             print(f"Fetched {len(result.data)} rows")
 
             await async_mysql_control_backend.execute(f"KILL CONNECTION {conn_id}")
             await asyncio.sleep(1)
 
             result = await async_mysql_backend_single.execute("SELECT 1 AS test")
-            assert result.data[0]['test'] == 1
+            assert result.data[0]["test"] == 1
             print("Successfully reconnected")
 
         finally:

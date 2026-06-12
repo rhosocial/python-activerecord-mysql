@@ -33,11 +33,11 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
@@ -46,30 +46,34 @@ dialect = backend.dialect
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
 # Drop dependent tables first for clean setup
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name='users',
+    table_name="users",
     columns=[
         ColumnDefinition(
-            'id',
-            'INT',
+            "id",
+            "INT",
             constraints=[
                 ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
                 ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
             ],
         ),
-        ColumnDefinition('name', 'VARCHAR(100)', constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
-        ]),
-        ColumnDefinition('email', 'VARCHAR(200)'),
+        ColumnDefinition(
+            "name",
+            "VARCHAR(100)",
+            constraints=[
+                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ],
+        ),
+        ColumnDefinition("email", "VARCHAR(200)"),
     ],
     if_not_exists=True,
 )
@@ -83,11 +87,14 @@ backend.execute(sql, params)
 # 1. Insert a single row with explicit column values
 insert_expr = InsertExpression(
     dialect=dialect,
-    into=TableExpression(dialect, 'users'),
-    source=ValuesSource(dialect, [
-        [Literal(dialect, 'Alice'), Literal(dialect, 'alice@example.com')],
-    ]),
-    columns=['name', 'email'],
+    into=TableExpression(dialect, "users"),
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, "Alice"), Literal(dialect, "alice@example.com")],
+        ],
+    ),
+    columns=["name", "email"],
 )
 sql, params = insert_expr.to_sql()
 print(f"SQL: {sql}")
@@ -103,11 +110,12 @@ print(f"Affected rows: {result.affected_rows}")
 verify_query = QueryExpression(
     dialect=dialect,
     select=[WildcardExpression(dialect)],
-    from_=TableExpression(dialect, 'users'),
+    from_=TableExpression(dialect, "users"),
     where=ComparisonPredicate(
-        dialect, '=',
-        Column(dialect, 'name'),
-        Literal(dialect, 'Alice'),
+        dialect,
+        "=",
+        Column(dialect, "name"),
+        Literal(dialect, "Alice"),
     ),
 )
 sql, params = verify_query.to_sql()
@@ -117,11 +125,14 @@ print(f"Inserted row: {result.data}")
 # 2. Insert another row (AUTO_INCREMENT id will be assigned automatically)
 insert_expr2 = InsertExpression(
     dialect=dialect,
-    into=TableExpression(dialect, 'users'),
-    source=ValuesSource(dialect, [
-        [Literal(dialect, 'Bob'), Literal(dialect, 'bob@example.com')],
-    ]),
-    columns=['name', 'email'],
+    into=TableExpression(dialect, "users"),
+    source=ValuesSource(
+        dialect,
+        [
+            [Literal(dialect, "Bob"), Literal(dialect, "bob@example.com")],
+        ],
+    ),
+    columns=["name", "email"],
 )
 sql, params = insert_expr2.to_sql()
 result = backend.execute(sql, params)
@@ -130,9 +141,9 @@ print(f"Second insert affected rows: {result.affected_rows}")
 # Verify all rows
 all_query = QueryExpression(
     dialect=dialect,
-    select=[Column(dialect, 'id'), Column(dialect, 'name'), Column(dialect, 'email')],
-    from_=TableExpression(dialect, 'users'),
-    order_by=OrderByClause(dialect, [Column(dialect, 'id')]),
+    select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "email")],
+    from_=TableExpression(dialect, "users"),
+    order_by=OrderByClause(dialect, [Column(dialect, "id")]),
 )
 sql, params = all_query.to_sql()
 result = backend.execute(sql, params, options=dql_options)
@@ -141,11 +152,11 @@ print(f"All rows: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_orders = DropTableExpression(dialect=dialect, table_name='orders', if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name='users', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

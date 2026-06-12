@@ -30,18 +30,18 @@ from rhosocial.activerecord.backend.expression.statements.ddl_table import (
 )
 
 config = MySQLConnectionConfig(
-    host=os.getenv('MYSQL_HOST', 'localhost'),
-    port=int(os.getenv('MYSQL_PORT', '3306')),
-    database=os.getenv('MYSQL_DATABASE', 'test'),
-    username=os.getenv('MYSQL_USER', 'root'),
-    password=os.getenv('MYSQL_PASSWORD', ''),
+    host=os.getenv("MYSQL_HOST", "localhost"),
+    port=int(os.getenv("MYSQL_PORT", "3306")),
+    database=os.getenv("MYSQL_DATABASE", "test"),
+    username=os.getenv("MYSQL_USER", "root"),
+    password=os.getenv("MYSQL_PASSWORD", ""),
 )
 backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
 # Drop if exists for clean setup
-drop = DropTableExpression(dialect=dialect, table_name='products', if_exists=True)
+drop = DropTableExpression(dialect=dialect, table_name="products", if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
 
@@ -51,41 +51,41 @@ backend.execute(sql, params)
 
 columns = [
     ColumnDefinition(
-        name='id',
-        data_type='INT',
+        name="id",
+        data_type="INT",
         constraints=[
             ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
             ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
         ],
     ),
     ColumnDefinition(
-        name='name',
-        data_type='VARCHAR(200)',
+        name="name",
+        data_type="VARCHAR(200)",
         constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ],
     ),
     ColumnDefinition(
-        name='price',
-        data_type='DECIMAL(10,2)',
+        name="price",
+        data_type="DECIMAL(10,2)",
         constraints=[
             ColumnConstraint(ColumnConstraintType.NOT_NULL),
         ],
     ),
     ColumnDefinition(
-        name='category',
-        data_type='VARCHAR(100)',
+        name="category",
+        data_type="VARCHAR(100)",
     ),
     ColumnDefinition(
-        name='is_active',
-        data_type='TINYINT(1)',
+        name="is_active",
+        data_type="TINYINT(1)",
         constraints=[
             ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
         ],
     ),
     ColumnDefinition(
-        name='created_at',
-        data_type='TIMESTAMP',
+        name="created_at",
+        data_type="TIMESTAMP",
         constraints=[
             ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect)),
         ],
@@ -94,21 +94,21 @@ columns = [
 
 indexes = [
     IndexDefinition(
-        name='idx_products_category',
-        columns=['category'],
+        name="idx_products_category",
+        columns=["category"],
     ),
 ]
 
 # Create table with MySQL-specific ENGINE and CHARSET options
 create_expr = CreateTableExpression(
     dialect=dialect,
-    table_name='products',
+    table_name="products",
     columns=columns,
     indexes=indexes,
     if_not_exists=True,
     dialect_options={
-        'engine': 'InnoDB',
-        'charset': 'utf8mb4',
+        "engine": "InnoDB",
+        "charset": "utf8mb4",
     },
 )
 
@@ -123,7 +123,7 @@ result = backend.execute(sql, params)
 print("Table created: products")
 
 # Verify table structure using introspector
-columns_info = backend.introspector.list_columns('products')
+columns_info = backend.introspector.list_columns("products")
 print("Columns in 'products':")
 for col in columns_info:
     print(f"  {col}")
@@ -131,7 +131,7 @@ for col in columns_info:
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name='products', if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table_name="products", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

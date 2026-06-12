@@ -5,6 +5,7 @@ Tests for MySQL optimizer hint execution with actual MySQL 9.7.
 Verifies that generated hint syntax executes correctly and
 the hypergraph optimizer can be toggled per-statement.
 """
+
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLOptimizerHintExpression,
@@ -25,9 +26,9 @@ class TestOptimizerHintExecution:
         backend = mysql_backend
         _requires_mysql_97(backend)
 
-        hint_expr = MySQLOptimizerHintExpression(backend.dialect, [
-            SetVarHint("optimizer_switch", "hypergraph_optimizer=on")
-        ])
+        hint_expr = MySQLOptimizerHintExpression(
+            backend.dialect, [SetVarHint("optimizer_switch", "hypergraph_optimizer=on")]
+        )
         hint_sql, _ = hint_expr.to_sql()
 
         result = backend.execute(f"SELECT {hint_sql} 1 AS val", ())
@@ -38,9 +39,9 @@ class TestOptimizerHintExecution:
         backend = mysql_backend
         _requires_mysql_97(backend)
 
-        hint_expr = MySQLOptimizerHintExpression(backend.dialect, [
-            SetVarHint("optimizer_switch", "hypergraph_optimizer=off")
-        ])
+        hint_expr = MySQLOptimizerHintExpression(
+            backend.dialect, [SetVarHint("optimizer_switch", "hypergraph_optimizer=off")]
+        )
         hint_sql, _ = hint_expr.to_sql()
 
         result = backend.execute(f"SELECT {hint_sql} 1 + 1 AS val", ())
@@ -56,22 +57,15 @@ class TestOptimizerHintExecution:
 
         ddl_opts = ExecutionOptions(stmt_type=StatementType.DDL)
         backend.execute("DROP TABLE IF EXISTS hint_test", (), options=ddl_opts)
-        backend.execute(
-            "CREATE TABLE hint_test (id INT PRIMARY KEY, val VARCHAR(50))",
-            (), options=ddl_opts
-        )
-        backend.execute(
-            "INSERT INTO hint_test VALUES (1, 'hello'), (2, 'world')", ()
-        )
+        backend.execute("CREATE TABLE hint_test (id INT PRIMARY KEY, val VARCHAR(50))", (), options=ddl_opts)
+        backend.execute("INSERT INTO hint_test VALUES (1, 'hello'), (2, 'world')", ())
 
-        hint_expr = MySQLOptimizerHintExpression(backend.dialect, [
-            SetVarHint("optimizer_switch", "hypergraph_optimizer=on")
-        ])
+        hint_expr = MySQLOptimizerHintExpression(
+            backend.dialect, [SetVarHint("optimizer_switch", "hypergraph_optimizer=on")]
+        )
         hint_sql, _ = hint_expr.to_sql()
 
-        result = backend.execute(
-            f"SELECT {hint_sql} * FROM hint_test ORDER BY id", ()
-        )
+        result = backend.execute(f"SELECT {hint_sql} * FROM hint_test ORDER BY id", ())
         assert len(result.data) == 2
         assert result.data[0]["val"] == "hello"
         assert result.data[1]["val"] == "world"

@@ -49,9 +49,7 @@ class TestMySQLDateTimeIntervalExpressions:
             ("second", "%Y-%m-%d %H:%i:%s"),
         ],
     )
-    def test_date_trunc_datetime_fields(
-        self, mysql_dialect: MySQLDialect, field: str, fmt: str
-    ):
+    def test_date_trunc_datetime_fields(self, mysql_dialect: MySQLDialect, field: str, fmt: str):
         expr = date_trunc(mysql_dialect, field, Column(mysql_dialect, "created_at"))
 
         sql, params = expr.to_sql()
@@ -124,19 +122,20 @@ class TestMySQLDateTimeIntervalExpressions:
         assert params == ()
 
     def test_alias_and_cast(self, mysql_dialect: MySQLDialect):
-        expr = date_diff(
-            mysql_dialect,
-            "day",
-            Column(mysql_dialect, "started_at"),
-            Column(mysql_dialect, "ended_at"),
-        ).cast("SIGNED").as_("elapsed_days")
+        expr = (
+            date_diff(
+                mysql_dialect,
+                "day",
+                Column(mysql_dialect, "started_at"),
+                Column(mysql_dialect, "ended_at"),
+            )
+            .cast("SIGNED")
+            .as_("elapsed_days")
+        )
 
         sql, params = expr.to_sql()
 
-        assert sql == (
-            "CAST(TIMESTAMPDIFF(DAY, `started_at`, `ended_at`) AS SIGNED) "
-            "AS `elapsed_days`"
-        )
+        assert sql == ("CAST(TIMESTAMPDIFF(DAY, `started_at`, `ended_at`) AS SIGNED) AS `elapsed_days`")
         assert params == ()
 
     def test_query_expression_integration(self, mysql_dialect: MySQLDialect):

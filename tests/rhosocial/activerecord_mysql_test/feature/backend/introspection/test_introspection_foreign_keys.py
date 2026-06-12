@@ -126,7 +126,7 @@ class TestForeignKeyDetails:
     def test_foreign_key_on_delete_no_action(self, backend_with_tables):
         """Test ON DELETE NO ACTION detection."""
         # Create table with NO ACTION
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_no_action;
             DROP TABLE IF EXISTS parent_no_action;
 
@@ -149,14 +149,14 @@ class TestForeignKeyDetails:
         assert len(fks) == 1
         assert fks[0].on_delete == ReferentialAction.NO_ACTION
 
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_no_action;
             DROP TABLE IF EXISTS parent_no_action;
         """)
 
     def test_foreign_key_on_update_restrict(self, backend_with_tables):
         """Test ON UPDATE RESTRICT detection."""
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_restrict;
             DROP TABLE IF EXISTS parent_restrict;
 
@@ -179,14 +179,14 @@ class TestForeignKeyDetails:
         assert len(fks) == 1
         assert fks[0].on_update == ReferentialAction.RESTRICT
 
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_restrict;
             DROP TABLE IF EXISTS parent_restrict;
         """)
 
     def test_foreign_key_on_delete_set_null(self, backend_with_tables):
         """Test ON DELETE SET NULL detection."""
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_set_null;
             DROP TABLE IF EXISTS parent_set_null;
 
@@ -209,14 +209,14 @@ class TestForeignKeyDetails:
         assert len(fks) == 1
         assert fks[0].on_delete == ReferentialAction.SET_NULL
 
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_set_null;
             DROP TABLE IF EXISTS parent_set_null;
         """)
 
     def test_composite_foreign_key_columns(self, backend_with_tables):
         """Test composite foreign key columns."""
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_composite;
             DROP TABLE IF EXISTS parent_composite;
 
@@ -247,7 +247,7 @@ class TestForeignKeyDetails:
         assert fk.columns == ["parent_col1", "parent_col2"]
         assert fk.referenced_columns == ["col1", "col2"]
 
-        backend_with_tables.executescript( """
+        backend_with_tables.executescript("""
             DROP TABLE IF EXISTS child_composite;
             DROP TABLE IF EXISTS parent_composite;
         """)

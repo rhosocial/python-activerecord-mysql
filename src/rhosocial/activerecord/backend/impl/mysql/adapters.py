@@ -14,6 +14,7 @@ class MySQLBlobAdapter(SQLTypeAdapter):
     """
     Adapts Python bytes to MySQL BLOB and vice-versa.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {bytes: [bytes]}
@@ -41,6 +42,7 @@ class MySQLJSONAdapter(SQLTypeAdapter):
     Adapts Python dict/list to MySQL JSON and vice-versa.
     Serializes to JSON string when writing, deserializes from JSON string when reading.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {dict: [str], list: [str]}
@@ -66,6 +68,7 @@ class MySQLUUIDAdapter(SQLTypeAdapter):
     """
     Adapts Python UUID to MySQL CHAR(36) and vice-versa.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {uuid.UUID: [str]}
@@ -89,6 +92,7 @@ class MySQLBooleanAdapter(SQLTypeAdapter):
     """
     Adapts Python bool to MySQL TINYINT(1) (or similar integer type) and vice-versa.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {bool: [int]}
@@ -115,6 +119,7 @@ class MySQLDecimalAdapter(SQLTypeAdapter):
     """
     Adapts Python Decimal to MySQL DECIMAL/NUMERIC (or float/str) and vice-versa.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {Decimal: [Decimal, float, str]}
@@ -145,6 +150,7 @@ class MySQLDateAdapter(SQLTypeAdapter):
     """
     Adapts Python date to MySQL DATE string (YYYY-MM-DD) and vice-versa.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {datetime.date: [datetime.date]}
@@ -152,7 +158,7 @@ class MySQLDateAdapter(SQLTypeAdapter):
     def to_database(self, value: datetime.date, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
-        return value.isoformat() # "YYYY-MM-DD"
+        return value.isoformat()  # "YYYY-MM-DD"
 
     def from_database(
         self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
@@ -171,6 +177,7 @@ class MySQLTimeAdapter(SQLTypeAdapter):
     MySQL connector-python returns timedelta for TIME columns, but accepts
     string format for insertion. This adapter handles both cases.
     """
+
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {datetime.time: [datetime.timedelta, str]}
@@ -178,7 +185,7 @@ class MySQLTimeAdapter(SQLTypeAdapter):
     def to_database(self, value: datetime.time, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         if value is None:
             return None
-        return value.isoformat(timespec='microseconds') # "HH:MM:SS.ffffff"
+        return value.isoformat(timespec="microseconds")  # "HH:MM:SS.ffffff"
 
     def from_database(
         self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
@@ -187,7 +194,7 @@ class MySQLTimeAdapter(SQLTypeAdapter):
             return None
         if isinstance(value, datetime.time):
             return value
-        if isinstance(value, timedelta): # Handle timedelta returned by mysql-connector-python
+        if isinstance(value, timedelta):  # Handle timedelta returned by mysql-connector-python
             total_seconds = int(value.total_seconds())
             hours, remainder = divmod(total_seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
@@ -224,7 +231,7 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
             if self._mysql_version >= (5, 7, 8):
                 return utc_dt.isoformat()
             else:
-                return utc_dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+                return utc_dt.strftime("%Y-%m-%d %H:%M:%S.%f")
         # If it's already naive, assume it's in the desired timezone (conventionally UTC)
         return value
 
@@ -240,7 +247,7 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
         if isinstance(value, datetime.datetime):
             if value.tzinfo is None:
                 return value.replace(tzinfo=datetime.timezone.utc)
-            return value # It's already aware, respect it.
+            return value  # It's already aware, respect it.
         if isinstance(value, str):
             dt = datetime.datetime.fromisoformat(str(value))
             if dt.tzinfo is None:
@@ -305,20 +312,16 @@ class MySQLEnumAdapter(SQLTypeAdapter):
             return None
 
         # Validate against allowed values if provided
-        enum_values = options.get('enum_values') if options else None
+        enum_values = options.get("enum_values") if options else None
         if enum_values and value.value not in enum_values:
-            raise ValueError(
-                f"Invalid enum value '{value.value}'. "
-                f"Allowed values: {enum_values}"
-            )
+            raise ValueError(f"Invalid enum value '{value.value}'. Allowed values: {enum_values}")
 
         # Note: mysql_enum_type option doesn't change behavior
         # because MySQL ENUM type accepts and returns strings by default
         # This option is just for documentation/validation purposes
 
         # Determine which representation to use
-        use_int = (options.get('use_int_storage', self._use_int_storage)
-                   if options else self._use_int_storage)
+        use_int = options.get("use_int_storage", self._use_int_storage) if options else self._use_int_storage
 
         if target_type is str:
             # Default: use string representation (enum member value)
@@ -341,12 +344,13 @@ class MySQLEnumAdapter(SQLTypeAdapter):
                     "or ensure enum values are integers."
                 )
 
-        raise TypeError(
-            f"Cannot convert {type(value).__name__} to {target_type.__name__}"
-        )
+        raise TypeError(f"Cannot convert {type(value).__name__} to {target_type.__name__}")
 
     def from_database(
-        self, value: Any, target_type: Type[Enum], options: Optional[Dict[str, Any]] = None,
+        self,
+        value: Any,
+        target_type: Type[Enum],
+        options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Optional[Enum]:
         """
@@ -378,8 +382,7 @@ class MySQLEnumAdapter(SQLTypeAdapter):
                 return target_type[value]
             except KeyError:
                 raise ValueError(
-                    f"Invalid enum value '{value}'. "
-                    f"Valid values: {[m.value for m in target_type]}"
+                    f"Invalid enum value '{value}'. Valid values: {[m.value for m in target_type]}"
                 ) from None
 
         if isinstance(value, int):
@@ -394,13 +397,10 @@ class MySQLEnumAdapter(SQLTypeAdapter):
                 return target_type(value)
             except ValueError:
                 raise ValueError(
-                    f"Invalid enum index {value}. "
-                    f"Valid range: 1-{len(enum_members)} or matching enum values"
+                    f"Invalid enum index {value}. Valid range: 1-{len(enum_members)} or matching enum values"
                 ) from None
 
-        raise TypeError(
-            f"Cannot convert {type(value).__name__} to {target_type.__name__}"
-        )
+        raise TypeError(f"Cannot convert {type(value).__name__} to {target_type.__name__}")
 
 
 class MySQLSetAdapter(SQLTypeAdapter):
@@ -432,10 +432,7 @@ class MySQLSetAdapter(SQLTypeAdapter):
         return {set: [str], frozenset: [str]}
 
     def to_database(
-        self,
-        value: Union[set, frozenset],
-        target_type: Type,
-        options: Optional[Dict[str, Any]] = None
+        self, value: Union[set, frozenset], target_type: Type, options: Optional[Dict[str, Any]] = None
     ) -> Any:
         """
         Convert Python set/frozenset to MySQL SET string.
@@ -457,36 +454,25 @@ class MySQLSetAdapter(SQLTypeAdapter):
             return None
 
         if target_type is not str:
-            raise TypeError(
-                f"MySQL SET adapter only supports str target type, "
-                f"got {target_type.__name__}"
-            )
+            raise TypeError(f"MySQL SET adapter only supports str target type, got {target_type.__name__}")
 
         if len(value) > 64:
-            raise ValueError(
-                f"MySQL SET supports maximum 64 members, got {len(value)}"
-            )
+            raise ValueError(f"MySQL SET supports maximum 64 members, got {len(value)}")
 
         # Get allowed values from options or instance
-        allowed_values = options.get('allowed_values', self._allowed_values) if options else self._allowed_values
+        allowed_values = options.get("allowed_values", self._allowed_values) if options else self._allowed_values
 
         if allowed_values is not None:
             invalid_values = [v for v in value if v not in allowed_values]
             if invalid_values:
-                raise ValueError(
-                    f"Invalid SET values: {invalid_values}. "
-                    f"Allowed values: {allowed_values}"
-                )
+                raise ValueError(f"Invalid SET values: {invalid_values}. Allowed values: {allowed_values}")
 
         # MySQL automatically sorts SET values on storage
         sorted_values = sorted(str(v) for v in value)
-        return ','.join(sorted_values) if sorted_values else ''
+        return ",".join(sorted_values) if sorted_values else ""
 
     def _decode_set_from_int(
-        self,
-        value: int,
-        target_type: Type,
-        allowed_values: Optional[List[str]]
+        self, value: int, target_type: Type, allowed_values: Optional[List[str]]
     ) -> Union[set, frozenset]:
         """
         Decode MySQL SET from integer bit flags.
@@ -515,11 +501,7 @@ class MySQLSetAdapter(SQLTypeAdapter):
 
         return frozenset(result) if target_type is frozenset else result
 
-    def _decode_set_from_string(
-        self,
-        value: str,
-        target_type: Type
-    ) -> Union[set, frozenset]:
+    def _decode_set_from_string(self, value: str, target_type: Type) -> Union[set, frozenset]:
         """
         Decode MySQL SET from comma-separated string.
 
@@ -533,7 +515,7 @@ class MySQLSetAdapter(SQLTypeAdapter):
         if not value:
             result = set()
         else:
-            result = set(value.split(','))
+            result = set(value.split(","))
         return frozenset(result) if target_type is frozenset else result
 
     def from_database(
@@ -562,16 +544,14 @@ class MySQLSetAdapter(SQLTypeAdapter):
 
         # Handle integer storage (bit flags)
         if isinstance(value, int):
-            allowed_values = self._allowed_values or (options.get('allowed_values') if options else None)
+            allowed_values = self._allowed_values or (options.get("allowed_values") if options else None)
             return self._decode_set_from_int(value, target_type, allowed_values)
 
         # Handle string storage (comma-separated)
         if isinstance(value, str):
             return self._decode_set_from_string(value, target_type)
 
-        raise TypeError(
-            f"Cannot convert {type(value).__name__} to {target_type.__name__}"
-        )
+        raise TypeError(f"Cannot convert {type(value).__name__} to {target_type.__name__}")
 
 
 class MySQLVectorAdapter(SQLTypeAdapter):
@@ -609,12 +589,7 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         # list[float] -> VECTOR (stored as binary or string)
         return {list: [bytes, str]}
 
-    def to_database(
-        self,
-        value: List[float],
-        target_type: Type,
-        options: Optional[Dict[str, Any]] = None
-    ) -> Any:
+    def to_database(self, value: List[float], target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
         """
         Convert Python list of floats to MySQL VECTOR format.
 
@@ -634,32 +609,27 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         if value is None:
             return None
 
-        dimension = options.get('dimension', self._dimension) if options else self._dimension
+        dimension = options.get("dimension", self._dimension) if options else self._dimension
 
         if len(value) > self.MAX_VECTOR_DIMENSION:
             raise ValueError(
-                f"Vector dimension {len(value)} exceeds maximum "
-                f"supported dimension {self.MAX_VECTOR_DIMENSION}"
+                f"Vector dimension {len(value)} exceeds maximum supported dimension {self.MAX_VECTOR_DIMENSION}"
             )
 
         if dimension is not None and len(value) != dimension:
-            raise ValueError(
-                f"Vector dimension {len(value)} doesn't match expected dimension {dimension}"
-            )
+            raise ValueError(f"Vector dimension {len(value)} doesn't match expected dimension {dimension}")
 
         # Validate all elements are floats or can be converted
         for i, v in enumerate(value):
             if not isinstance(v, (int, float)):
-                raise TypeError(
-                    f"Vector element at index {i} is not a number: {type(v).__name__}"
-                )
+                raise TypeError(f"Vector element at index {i} is not a number: {type(v).__name__}")
 
         # MySQL accepts string format '[1.0,2.0,3.0]' for VECTOR
         # or use STRING_TO_VECTOR function
-        vector_str = '[' + ','.join(str(float(v)) for v in value) + ']'
+        vector_str = "[" + ",".join(str(float(v)) for v in value) + "]"
 
         if target_type is bytes:
-            return vector_str.encode('utf-8')
+            return vector_str.encode("utf-8")
         return vector_str
 
     def _decode_vector_from_bytes(self, value: bytes) -> List[float]:
@@ -677,19 +647,19 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         """
         # Try UTF-8 decode first (string format stored as bytes)
         try:
-            return self._decode_vector_from_string(value.decode('utf-8'))
+            return self._decode_vector_from_string(value.decode("utf-8"))
         except UnicodeDecodeError:
             pass
 
         # Binary format: packed IEEE 754 float32 values (little-endian)
         import struct
+
         float_count = len(value) // 4
         if len(value) % 4 != 0:
             raise ValueError(
-                f"Invalid VECTOR binary length: {len(value)} bytes "
-                f"(must be multiple of 4 for float32 values)"
+                f"Invalid VECTOR binary length: {len(value)} bytes (must be multiple of 4 for float32 values)"
             ) from None
-        return list(struct.unpack(f'<{float_count}f', value))
+        return list(struct.unpack(f"<{float_count}f", value))
 
     def _decode_vector_from_string(self, value: str) -> List[float]:
         """
@@ -706,7 +676,7 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         """
         # Remove brackets and split
         value = value.strip()
-        if value.startswith('[') and value.endswith(']'):
+        if value.startswith("[") and value.endswith("]"):
             value = value[1:-1]
 
         if not value:
@@ -714,7 +684,7 @@ class MySQLVectorAdapter(SQLTypeAdapter):
 
         # Split by comma and convert to floats
         try:
-            return [float(v.strip()) for v in value.split(',')]
+            return [float(v.strip()) for v in value.split(",")]
         except ValueError as e:
             raise ValueError(f"Cannot parse VECTOR value: {value}") from e
 
@@ -744,10 +714,7 @@ class MySQLVectorAdapter(SQLTypeAdapter):
             return None
 
         if target_type is not list:
-            raise TypeError(
-                f"MySQL VECTOR adapter only supports list target type, "
-                f"got {target_type.__name__}"
-            )
+            raise TypeError(f"MySQL VECTOR adapter only supports list target type, got {target_type.__name__}")
 
         # Already a list (some drivers might parse it)
         if isinstance(value, list):
@@ -761,6 +728,4 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         if isinstance(value, str):
             return self._decode_vector_from_string(value)
 
-        raise TypeError(
-            f"Cannot convert {type(value).__name__} to vector (list of floats)"
-        )
+        raise TypeError(f"Cannot convert {type(value).__name__} to vector (list of floats)")

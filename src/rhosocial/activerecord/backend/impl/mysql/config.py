@@ -15,19 +15,13 @@ from rhosocial.activerecord.backend.config import (
     CharsetMixin,
     TimezoneMixin,
     VersionMixin,
-    LoggingMixin
+    LoggingMixin,
 )
 
 
 @dataclass
 class MySQLConnectionConfig(
-    ConnectionConfig,
-    ConnectionPoolMixin,
-    SSLMixin,
-    CharsetMixin,
-    TimezoneMixin,
-    VersionMixin,
-    LoggingMixin
+    ConnectionConfig, ConnectionPoolMixin, SSLMixin, CharsetMixin, TimezoneMixin, VersionMixin, LoggingMixin
 ):
     """MySQL connection configuration with MySQL-specific parameters.
 
@@ -59,15 +53,15 @@ class MySQLConnectionConfig(
 
         # Add MySQL-specific parameters
         mysql_params = {
-            'auth_plugin': self.auth_plugin,
-            'autocommit': self.autocommit,
-            'init_command': self.init_command,
+            "auth_plugin": self.auth_plugin,
+            "autocommit": self.autocommit,
+            "init_command": self.init_command,
             # 'connect_timeout': self.connect_timeout,
             # 'read_timeout': self.read_timeout,
             # 'write_timeout': self.write_timeout,
-            'use_pure': self.use_pure,
-            'get_warnings': self.get_warnings,
-            'ssl_disabled': self.ssl_disabled,
+            "use_pure": self.use_pure,
+            "get_warnings": self.get_warnings,
+            "ssl_disabled": self.ssl_disabled,
         }
 
         # Only include non-None values
