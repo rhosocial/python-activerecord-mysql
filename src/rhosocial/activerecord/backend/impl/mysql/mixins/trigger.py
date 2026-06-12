@@ -33,6 +33,9 @@ class MySQLTriggerMixin:
         """Format CREATE TRIGGER statement (MySQL syntax)."""
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
+        if not self.supports_trigger():
+            raise UnsupportedFeatureError(self.name, "triggers")
+
         if expr.timing.value == "INSTEAD OF":
             raise UnsupportedFeatureError(self.name, "INSTEAD OF triggers (MySQL does not support this feature)")
 
@@ -76,6 +79,11 @@ class MySQLTriggerMixin:
 
     def format_drop_trigger_statement(self, expr) -> Tuple[str, tuple]:
         """Format DROP TRIGGER statement (MySQL syntax)."""
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
+        if not self.supports_trigger():
+            raise UnsupportedFeatureError(self.name, "triggers")
+
         parts = ["DROP TRIGGER"]
 
         if expr.if_exists:

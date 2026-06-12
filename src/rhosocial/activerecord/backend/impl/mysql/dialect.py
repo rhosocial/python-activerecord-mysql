@@ -150,6 +150,7 @@ class MySQLDialect(
     OrderedSetAggregationMixin,
     QualifyClauseMixin,
     TemporalTableMixin,
+    MySQLDMLOperationMixin,  # MySQL DML operations (before UpsertMixin to override format_on_conflict_clause)
     UpsertMixin,
     LateralJoinMixin,  # MySQL 8.0.14+ supports LATERAL
     JoinMixin,
@@ -161,7 +162,6 @@ class MySQLDialect(
     PartitionMixin,
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
-    MySQLDMLOperationMixin,  # MySQL DML operations
     MySQLFullTextSearchMixin,  # MySQL full-text search
     MySQLTriggerMixin,
     MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
@@ -848,153 +848,6 @@ class MySQLDialect(
 
     # endregion
 
-    # region Trigger Support (MySQL-specific)
-    def supports_trigger(self) -> bool:
-        return True
-
-    def supports_create_trigger(self) -> bool:
-        return True
-
-    def supports_drop_trigger(self) -> bool:
-        return True
-
-    def supports_instead_of_trigger(self) -> bool:
-        return False
-
-    def supports_statement_trigger(self) -> bool:
-        return False
-
-    def supports_trigger_referencing(self) -> bool:
-        return False
-
-    def supports_trigger_when(self) -> bool:
-        return False
-
-    def supports_trigger_if_not_exists(self) -> bool:
-        return True
-
-    def format_create_trigger_statement(self, expr):
-        """Format CREATE TRIGGER statement (MySQL syntax).
-
-        MySQL differences from SQL:1999:
-        - Does not support INSTEAD OF triggers
-        - Does not support FOR EACH STATEMENT
-        - Does not support WHEN condition
-        - Does not support REFERENCING clause
-        - Uses trigger body directly instead of function call
-        """
-        if not self.supports_trigger():
-            raise UnsupportedFeatureError(self.name, "triggers")
-
-        if expr.timing.value == "INSTEAD OF":
-            raise UnsupportedFeatureError(self.name, "INSTEAD OF triggers (MySQL does not support this feature)")
-
-        if expr.level and expr.level.value == "FOR EACH STATEMENT":
-            raise UnsupportedFeatureError(self.name, "FOR EACH STATEMENT triggers (MySQL only supports FOR EACH ROW)")
-
-        if expr.condition:
-            raise UnsupportedFeatureError(self.name, "WHEN condition in triggers (MySQL does not support this feature)")
-
-        if expr.referencing:
-            raise UnsupportedFeatureError(
-                self.name, "REFERENCING clause in triggers (MySQL does not support this feature)"
-            )
-
-        if len(expr.events) > 1:
-            raise UnsupportedFeatureError(self.name, "multiple trigger events (MySQL only supports single event)")
-
-        if expr.update_columns:
-            raise UnsupportedFeatureError(self.name, "UPDATE OF column_list (MySQL does not support this syntax)")
-
-        parts = ["CREATE TRIGGER"]
-
-        if expr.if_not_exists and self.supports_trigger_if_not_exists():
-            parts.append("IF NOT EXISTS")
-
-        parts.append(self.format_identifier(expr.trigger_name))
-
-        parts.append(expr.timing.value)
-
-        if expr.events:
-            parts.append(expr.events[0].value)
-
-        parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
-
-        parts.append("FOR EACH ROW")
-
-        if expr.function_name:
-            parts.append("CALL")
-            parts.append(self.format_identifier(expr.function_name))
-
-        return " ".join(parts), ()
-
-    def format_drop_trigger_statement(self, expr):
-        """Format DROP TRIGGER statement (MySQL syntax)."""
-        if not self.supports_trigger():
-            raise UnsupportedFeatureError(self.name, "triggers")
-
-        parts = ["DROP TRIGGER"]
-
-        if expr.if_exists:
-            parts.append("IF EXISTS")
-
-        parts.append(self.format_identifier(expr.trigger_name))
-
-        return " ".join(parts), ()
-
-    # endregion
-
-    # region FULLTEXT Index Support
-    def supports_fulltext_index(self) -> bool:
-        """MySQL 5.6+ supports FULLTEXT for InnoDB."""
-        return self.version >= (5, 6, 0)
-
-    def supports_fulltext_parser(self) -> bool:
-        """MySQL supports FULLTEXT parser plugins."""
-        return self.version >= (5, 1, 0)
-
-    def supports_fulltext_query_expansion(self) -> bool:
-        """MySQL supports QUERY EXPANSION."""
-        return True  # All versions with FULLTEXT support this
-
-    def format_match_against(
-        self, columns: List[str], search_string: str, mode: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format MATCH ... AGAINST expression.
-
-        Args:
-            columns: Column names to search
-            search_string: Search term
-            mode: Search mode - NATURAL_LANGUAGE, BOOLEAN, or QUERY_EXPANSION
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        cols_sql = ", ".join(self.format_identifier(c) for c in columns)
-
-        placeholder = self.get_parameter_placeholder()
-        search_sql = placeholder
-        search_params = (search_string,)
-
-        if mode:
-            mode_upper = mode.upper()
-            if mode_upper == "NATURAL_LANGUAGE":
-                mode_str = "IN NATURAL LANGUAGE MODE"
-            elif mode_upper == "BOOLEAN":
-                mode_str = "IN BOOLEAN MODE"
-            elif mode_upper == "QUERY_EXPANSION":
-                mode_str = "IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION"
-            else:
-                mode_str = ""
-        else:
-            mode_str = "IN NATURAL LANGUAGE MODE"
-
-        sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
-        return sql, search_params
-
-    # endregion
-
     # region MySQL 8.0 Index Features
     def supports_invisible_index(self) -> bool:
         """Whether INVISIBLE indexes are supported.
@@ -1408,132 +1261,12 @@ class MySQLDialect(
 
         return sql, tuple(all_params)
 
-    def supports_load_data(self) -> bool:
-        """Whether LOAD DATA INFILE is supported.
-
-        MySQL supports LOAD DATA INFILE in all versions.
-        """
-        return True
-
-    def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
-        """Format LOAD DATA INFILE statement.
-
-        Args:
-            expr: MySQLLoadDataExpression instance
-
-        Returns:
-            Tuple of (SQL string, empty tuple - no parameters for LOAD DATA)
-
-        Raises:
-            ValueError: If both replace and ignore are True
-        """
-        expr.validate(strict=self.strict_validation)
-
-        parts = ["LOAD DATA"]
-
-        if expr.options.local:
-            parts.append("LOCAL")
-
-        parts.append("INFILE")
-
-        # File path needs to be quoted as string literal
-        file_path_escaped = expr.file_path.replace("", "").replace("'", "'")
-        parts.append(f"'{file_path_escaped}'")
-
-        if expr.options.replace:
-            parts.append("REPLACE")
-        elif expr.options.ignore:
-            parts.append("IGNORE")
-
-        parts.append("INTO TABLE")
-        parts.append(self.format_identifier(expr.table))
-
-        # Character set
-        if expr.options.character_set:
-            parts.append(f"CHARACTER SET {expr.options.character_set}")
-
-        # Fields options
-        field_parts = []
-        if expr.options.fields_terminated_by is not None:
-            term = expr.options.fields_terminated_by.replace("", "").replace("'", "'")
-            field_parts.append(f"TERMINATED BY '{term}'")
-        if expr.options.fields_enclosed_by is not None:
-            enc = expr.options.fields_enclosed_by.replace("", "").replace("'", "'")
-            field_parts.append(f"ENCLOSED BY '{enc}'")
-        if expr.options.fields_escaped_by is not None:
-            esc = expr.options.fields_escaped_by.replace("", "").replace("'", "'")
-            field_parts.append(f"ESCAPED BY '{esc}'")
-
-        if field_parts:
-            parts.append("FIELDS")
-            parts.append(" ".join(field_parts))
-
-        # Lines options
-        line_parts = []
-        if expr.options.lines_starting_by is not None:
-            start = expr.options.lines_starting_by.replace("", "").replace("'", "'")
-            line_parts.append(f"STARTING BY '{start}'")
-        if expr.options.lines_terminated_by is not None:
-            term = expr.options.lines_terminated_by.replace("", "").replace("'", "'")
-            line_parts.append(f"TERMINATED BY '{term}'")
-
-        if line_parts:
-            parts.append("LINES")
-            parts.append(" ".join(line_parts))
-
-        # Ignore lines
-        if expr.options.ignore_lines is not None:
-            parts.append(f"IGNORE {expr.options.ignore_lines} LINES")
-
-        # Column list
-        if expr.options.column_list:
-            columns = ", ".join(self.format_identifier(c) for c in expr.options.column_list)
-            parts.append(f"({columns})")
-
-        # SET assignments (future enhancement)
-        if expr.options.set_assignments:
-            set_parts = []
-            for col, val in expr.options.set_assignments.items():
-                set_parts.append(f"{self.format_identifier(col)} = {val}")
-            parts.append("SET " + ", ".join(set_parts))
-
-        return " ".join(parts), ()
-
     def supports_json_table(self) -> bool:
         """Whether JSON_TABLE is supported.
 
         JSON_TABLE is supported in MySQL 8.0.4+.
         """
         return self.version >= (8, 0, 4)
-
-    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
-        """Format ON DUPLICATE KEY UPDATE for MySQL.
-
-        MySQL uses ON DUPLICATE KEY UPDATE instead of PostgreSQL's ON CONFLICT.
-        This overrides UpsertMixin's format_on_conflict_clause which generates
-        ON CONFLICT syntax.
-        """
-        all_params = []
-        parts = ["ON DUPLICATE KEY UPDATE"]
-
-        update_parts = []
-        if expr.update_assignments:
-            for col_name, value_expr in expr.update_assignments.items():
-                col_sql = self.format_identifier(col_name)
-                if hasattr(value_expr, "to_sql"):
-                    val_sql, val_params = value_expr.to_sql()
-                    all_params.extend(val_params)
-                else:
-                    val_sql = str(value_expr)
-                update_parts.append(f"{col_sql} = {val_sql}")
-
-        if update_parts:
-            parts.append(" ".join(update_parts))
-        else:
-            # No update assignments: use id = id as no-op
-            parts.append(f"{self.format_identifier('id')} = {self.format_identifier('id')}")
-
-        return " ".join(parts), tuple(all_params)
 
     def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
         """Format JSON_TABLE expression.

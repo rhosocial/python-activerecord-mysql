@@ -47,18 +47,24 @@ class MySQLDMLOperationMixin:
         if expr.options.fields_escaped_by is not None:
             field_parts.append(f"ESCAPED BY '{expr.options.fields_escaped_by}'")
         if field_parts:
-            parts.append("FIELDS " + " ".join(field_parts))
+            parts.append("FIELDS")
+            parts.append(" ".join(field_parts))
 
         line_parts = []
-        if expr.options_lines_terminated_by is not None:
-            line_parts.append(f"TERMINATED BY '{expr.options_lines_terminated_by}'")
-        if expr.options_lines_starting_by is not None:
-            line_parts.append(f"STARTING BY '{expr.options_lines_starting_by}'")
+        if expr.options.lines_starting_by is not None:
+            line_parts.append(f"STARTING BY '{expr.options.lines_starting_by}'")
+        if expr.options.lines_terminated_by is not None:
+            line_parts.append(f"TERMINATED BY '{expr.options.lines_terminated_by}'")
         if line_parts:
-            parts.append("LINES " + " ".join(line_parts))
+            parts.append("LINES")
+            parts.append(" ".join(line_parts))
 
-        if expr.options.skip:
-            parts.append(f"IGNORE {expr.options.skip} LINES")
+        if expr.options.ignore_lines is not None:
+            parts.append(f"IGNORE {expr.options.ignore_lines} LINES")
+
+        if expr.options.column_list:
+            columns = ", ".join(self.format_identifier(c) for c in expr.options.column_list)
+            parts.append(f"({columns})")
 
         if expr.options.set_assignments:
             set_parts = []
