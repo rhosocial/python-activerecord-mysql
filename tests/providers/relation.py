@@ -126,7 +126,22 @@ class RelationProvider(IRelationProvider):
         self._async_relation_boundary_setup = False
 
     def get_test_scenarios(self) -> List[str]:
-        return list(get_enabled_scenarios().keys())
+        from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+        scenarios = []
+        for name in get_enabled_scenarios().keys():
+            try:
+                backend_class, config = get_scenario(name)
+                backend = backend_class(connection_config=config)
+                backend.connect()
+                version = backend.get_server_version()
+                backend.disconnect()
+                dialect = MySQLDialect(version)
+                if not dialect.supports_json_type():
+                    continue
+            except Exception:
+                pass
+            scenarios.append(name)
+        return scenarios
 
     def _execute_script(self, backend, sql: str):
         for statement in sql.split(";"):
