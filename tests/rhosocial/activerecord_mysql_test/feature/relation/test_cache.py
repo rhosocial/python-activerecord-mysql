@@ -1,13 +1,3 @@
-"""
-Test bridge for relation cache functionality.
+# tests/rhosocial/activerecord_mysql_test/feature/relation/test_cache.py
 
-This test file runs the relation cache tests from the testsuite using the MySQL backend.
-"""
-
-
-
-# Import the test classes from the testsuite
-
-
-# This will cause pytest to run all the tests in the imported class
-# The tests will use the fixtures and providers configured in conftest.py
+from rhosocial.activerecord.testsuite.feature.relation.test_cache import TestRelationCache  # noqa: F401
