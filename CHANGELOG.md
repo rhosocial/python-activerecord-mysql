@@ -1,3 +1,19 @@
+## [v1.0.0.dev18] - 2026-06-15
+
+### Added
+
+- Added MySQL 9.7 new feature support: JSON Duality Views (CREATE/DROP DDL, DML operations with auto-increment), Hypergraph Optimizer per-statement hints (SET_VAR syntax), and DDL/function regression tests confirming correct behavior on MySQL 9.7. ([#41](https://github.com/rhosocial/python-activerecord-mysql/issues/41))
+- Added MySQL expression-level `COLLATE` support with version-aware collation validation. ([#42](https://github.com/rhosocial/python-activerecord-mysql/issues/42))
+- Added MySQL dialect support for datetime interval expressions (`EXTRACT`, `DATE_ADD`, `DATE_SUB`, `TIMESTAMPDIFF`) with EXPLAIN-backed index usage verification tests. ([#43](https://github.com/rhosocial/python-activerecord-mysql/issues/43))
+- Added production-style MySQL time partition operation tests covering microsecond `DATETIME(6)` boundaries, future partition pre-creation, continuous partition pruning, index usage, and cold archival via `EXCHANGE PARTITION`. ([#44](https://github.com/rhosocial/python-activerecord-mysql/issues/44))
+
+
+
+### Fixed
+
+- Fixed RANGE COLUMNS partition routing assertion in async test and MySQLPartitionByKey crash when keys=[] produces empty KEY() partition ([#44](https://github.com/rhosocial/python-activerecord-mysql/issues/44))
+
+
 ## [v1.0.0.dev17] - 2026-05-30
 
 ### Changed
