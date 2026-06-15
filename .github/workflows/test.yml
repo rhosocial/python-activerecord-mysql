@@ -12,6 +12,7 @@ on:
       - main
       - 'release/v**'
       - 'maint/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
