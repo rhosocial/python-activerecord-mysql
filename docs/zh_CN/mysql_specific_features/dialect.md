@@ -174,6 +174,121 @@ class GroupConcat(FunctionExpression):
 
 💡 *AI 提示词：* "MySQL 的 REPLACE INTO 和 INSERT ... ON DUPLICATE KEY UPDATE 有什么区别？"
 
+## 表达式级 COLLATE 支持
+
+MySQL 支持为列表达式指定排序规则：
+
+```python
+from rhosocial.activerecord.backend.expression.collation import collate
+
+# 为列指定排序规则
+expr = collate(Column(dialect, "name"), "utf8mb4_general_ci")
+# 生成: `name` COLLATE `utf8mb4_general_ci`
+
+# 在 WHERE 条件中使用
+query = User.query().where(
+    collate(User.c.name, "utf8mb4_unicode_ci") == "alice"
+)
+```
+
+排序规则名称会根据 MySQL 版本进行验证。例如 `utf8mb4_0900_*` 系列需要 MySQL 8.0+。
+
+```python
+# 检查 COLLATE 支持
+if dialect.supports_collate_expression():
+    # 可以使用 COLLATE 表达式
+    pass
+```
+
+## 日期时间间隔表达式
+
+MySQL 方言支持标准化的日期时间间隔表达式：
+
+```python
+from rhosocial.activerecord.backend.expression.datetime import (
+    ExtractExpression, DateTimeField, IntervalExpression, IntervalUnit,
+    DateTimeAddExpression, DateTimeSubtractExpression, DateTimeDiffExpression,
+)
+
+# EXTRACT
+expr = ExtractExpression(dialect, DateTimeField.YEAR, Column(dialect, "created_at"))
+# 生成: EXTRACT(YEAR FROM `created_at`)
+
+# 间隔值
+interval = IntervalExpression(dialect, 7, IntervalUnit.DAY)
+# 生成: INTERVAL 7 DAY
+
+# 日期加法
+expr = DateTimeAddExpression(dialect, Column(dialect, "created_at"),
+                             IntervalExpression(dialect, 30, IntervalUnit.DAY))
+# 生成: DATE_ADD(`created_at`, INTERVAL 30 DAY)
+
+# 日期减法
+expr = DateTimeSubtractExpression(dialect, Column(dialect, "created_at"),
+                                  IntervalExpression(dialect, 7, IntervalUnit.DAY))
+# 生成: DATE_SUB(`created_at`, INTERVAL 7 DAY)
+
+# 日期差
+expr = DateTimeDiffExpression(dialect, DateTimeField.DAY,
+                              Column(dialect, "start"), Column(dialect, "end"))
+# 生成: TIMESTAMPDIFF(DAY, `start`, `end`)
+```
+
+## 查询优化器提示 (Optimizer Hints)
+
+MySQL 支持 SET_VAR 优化器提示，MySQL 9.7+ 还支持超图优化器：
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.expression.optimizer_hint import (
+    MySQLOptimizerHintExpression, SetVarHint,
+)
+
+# 设置优化器开关
+hint = MySQLOptimizerHintExpression(dialect, [
+    SetVarHint("optimizer_switch", "hypergraph_optimizer=on"),
+])
+# 生成: /*+ SET_VAR(optimizer_switch='hypergraph_optimizer=on') */
+
+# 检查支持
+if dialect.supports_optimizer_hint():
+    pass
+
+if dialect.supports_hypergraph_optimizer():
+    # MySQL 9.7+ 超图优化器
+    pass
+```
+
+## JSON 二象性视图 (MySQL 9.7+)
+
+MySQL 9.7+ 支持 JSON 二象性视图（JSON Duality View）：
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+    CreateJsonDualityViewExpression, DropJsonDualityViewExpression,
+    DualityObjectSpec, DualityDMLTag, DualityColumnMapping,
+)
+
+# 创建 JSON 二象性视图
+create = CreateJsonDualityViewExpression(
+    dialect,
+    view_name="user_details",
+    root_spec=DualityObjectSpec(
+        tags=[DualityDMLTag.INSERT, DualityDMLTag.UPDATE, DualityDMLTag.DELETE],
+        columns=[
+            DualityColumnMapping("id", Column(dialect, "id", "users")),
+        ],
+        from_table="users",
+    ),
+    replace=True,
+)
+# sql: 'CREATE OR REPLACE JSON RELATIONAL DUALITY VIEW "user_details" AS ...'
+
+# 检查支持
+if dialect.supports_json_duality_view():
+    # MySQL 9.7+
+    pass
+```
+
 ## 查询运行时函数与常量
 
 MySQL 支持不涉及数据源的纯函数查询，如 `SELECT CURRENT_TIMESTAMP`、`SELECT NOW()`、`SELECT VERSION()` 等。使用 `QueryExpression` 不指定 `from_` 子句即可实现。

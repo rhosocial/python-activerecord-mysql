@@ -13,8 +13,39 @@ MySQL 后端支持与核心库相同的类型安全 DDL 表达式。
 | `DropIndexExpression` | ✅ 完整 | |
 | `CreateViewExpression` | ✅ 完整 | MySQL ALGORITHM 选项 |
 | `DropViewExpression` | ✅ 完整 | |
+| `CreateTableExpression` | ✅ 完整 | 分区支持（RANGE, LIST, HASH, KEY） |
+| `PartitionByRange` | ✅ 完整 | RANGE 和 RANGE COLUMNS 分区 |
+| `PartitionByList` | ✅ 完整 | LIST 和 LIST COLUMNS 分区 |
+| `PartitionByHash` | ✅ 完整 | HASH 和 LINEAR HASH 分区 |
+| `PartitionByKey` | ✅ 完整 | KEY 和 LINEAR KEY 分区 |
 
 ## MySQL 特性
+
+### 分区支持
+
+MySQL 支持丰富的表分区策略。详见 [分区文档](../mysql_specific_features/partition.md)。
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+    MySQLPartitionByRange, MySQLPartitionDefinition, MySQLPartitionValue,
+)
+
+partition = MySQLPartitionByRange(
+    dialect,
+    keys=["created_at"],
+    partitions=[
+        MySQLPartitionDefinition("p1", less_than=MySQLPartitionValue("2024-01-01")),
+        MySQLPartitionDefinition("p2", less_than=MySQLPartitionMaxValue()),
+    ]
+)
+
+create_table = CreateTableExpression(
+    dialect,
+    table_name="orders",
+    columns=[...],
+    partition_clause=partition,
+)
+```
 
 ### ALGORITHM 选项
 

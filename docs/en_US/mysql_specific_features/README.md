@@ -10,3 +10,4 @@ This section covers MySQL-specific features and usage.
 - [Indexing and Performance Optimization](indexing.md): Index design principles
 - [Database Introspection](introspection.md): Query metadata using information_schema and SHOW commands
 - [EXPLAIN Support](explain.md): Query execution plan analysis and performance diagnostics
+- [Table Partitioning](partition.md): RANGE / LIST / HASH / KEY partition management
