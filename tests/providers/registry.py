@@ -33,6 +33,7 @@ from .query import QueryProvider
 from .relation import RelationProvider
 from .basic_connection import BasicConnectionProvider
 from .query_connection import QueryConnectionProvider
+from .composite_pk import CompositePKProvider
 from .crud_benchmark import CrudBenchmarkProvider
 from .fastapi_benchmark import FastAPIBenchmarkProvider
 from .mixin_benchmark import MixinBenchmarkProvider
@@ -74,6 +75,8 @@ provider_registry.register(
     "feature.query.connection.IQueryConnectionProvider",
     QueryConnectionProvider,
 )
+
+provider_registry.register("feature.composite_pk.ICompositePKProvider", CompositePKProvider)
 
 # Register benchmark providers.
 provider_registry.register("benchmark.crud.ICrudBenchmarkProvider", CrudBenchmarkProvider)
