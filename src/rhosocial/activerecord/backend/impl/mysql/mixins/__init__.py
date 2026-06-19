@@ -16,6 +16,7 @@ from .column import MySQLModifyColumnMixin
 from .concurrency import MySQLConcurrencyMixin, AsyncMySQLConcurrencyMixin
 from .json_duality_view import MySQLJsonDualityViewMixin
 from .optimizer_hint import MySQLOptimizerHintMixin
+from .types import MySQLTypeSupportMixin
 
 __all__ = [
     "MySQLIntrospectionMixin",
@@ -36,4 +37,5 @@ __all__ = [
     "AsyncMySQLConcurrencyMixin",
     "MySQLJsonDualityViewMixin",
     "MySQLOptimizerHintMixin",
+    "MySQLTypeSupportMixin",
 ]
