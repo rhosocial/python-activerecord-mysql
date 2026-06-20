@@ -17,7 +17,7 @@ DDL definition expressions (``ColumnDefinition.data_type``).
 
 from __future__ import annotations
 
-from typing import ClassVar, List, Optional, Set, Tuple
+from typing import ClassVar, List, Optional
 
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
@@ -34,14 +34,20 @@ from rhosocial.activerecord.backend.expression.types import (
 # Integer variants with UNSIGNED / ZEROFILL
 # ---------------------------------------------------------------------------
 
-class MySQLIntType(IntegerType):
+class MySQLIntType(IntegerType, backend="mysql"):
     """MySQL ``INTEGER`` / ``INT`` with optional UNSIGNED / ZEROFILL."""
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def _type_params(self) -> Tuple:
-        return (self.unsigned, self.zerofill)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return (self.unsigned == other.unsigned and
+                self.zerofill == other.zerofill)
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.unsigned, self.zerofill))
 
     def _default_sql(self) -> str:
         sql = "INT"
@@ -52,14 +58,20 @@ class MySQLIntType(IntegerType):
         return sql
 
 
-class MySQLTinyIntType(TinyIntType):
+class MySQLTinyIntType(TinyIntType, backend="mysql"):
     """MySQL ``TINYINT`` with optional UNSIGNED / ZEROFILL."""
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def _type_params(self) -> Tuple:
-        return (self.unsigned, self.zerofill)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return (self.unsigned == other.unsigned and
+                self.zerofill == other.zerofill)
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.unsigned, self.zerofill))
 
     def _default_sql(self) -> str:
         sql = super()._default_sql()
@@ -70,14 +82,20 @@ class MySQLTinyIntType(TinyIntType):
         return sql
 
 
-class MySQLSmallIntType(SmallIntType):
+class MySQLSmallIntType(SmallIntType, backend="mysql"):
     """MySQL ``SMALLINT`` with optional UNSIGNED / ZEROFILL."""
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def _type_params(self) -> Tuple:
-        return (self.unsigned, self.zerofill)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return (self.unsigned == other.unsigned and
+                self.zerofill == other.zerofill)
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.unsigned, self.zerofill))
 
     def _default_sql(self) -> str:
         sql = super()._default_sql()
@@ -88,14 +106,20 @@ class MySQLSmallIntType(SmallIntType):
         return sql
 
 
-class MySQLBigIntType(BigIntType):
+class MySQLBigIntType(BigIntType, backend="mysql"):
     """MySQL ``BIGINT`` with optional UNSIGNED / ZEROFILL."""
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def _type_params(self) -> Tuple:
-        return (self.unsigned, self.zerofill)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return (self.unsigned == other.unsigned and
+                self.zerofill == other.zerofill)
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.unsigned, self.zerofill))
 
     def _default_sql(self) -> str:
         sql = super()._default_sql()
@@ -110,28 +134,28 @@ class MySQLBigIntType(BigIntType):
 # BLOB size variants
 # ---------------------------------------------------------------------------
 
-class MySQLTinyBlobType(BlobType):
+class MySQLTinyBlobType(BlobType, backend="mysql"):
     """MySQL ``TINYBLOB`` — maximum 255 bytes."""
 
     def _default_sql(self) -> str:
         return "TINYBLOB"
 
 
-class MySQLBlobType(BlobType):
+class MySQLBlobType(BlobType, backend="mysql"):
     """MySQL ``BLOB`` — maximum 65,535 bytes."""
 
     def _default_sql(self) -> str:
         return "BLOB"
 
 
-class MySQLMediumBlobType(BlobType):
+class MySQLMediumBlobType(BlobType, backend="mysql"):
     """MySQL ``MEDIUMBLOB`` — maximum 16,777,215 bytes."""
 
     def _default_sql(self) -> str:
         return "MEDIUMBLOB"
 
 
-class MySQLLongBlobType(BlobType):
+class MySQLLongBlobType(BlobType, backend="mysql"):
     """MySQL ``LONGBLOB`` — maximum 4,294,967,295 bytes."""
 
     def _default_sql(self) -> str:
@@ -142,28 +166,28 @@ class MySQLLongBlobType(BlobType):
 # TEXT size variants
 # ---------------------------------------------------------------------------
 
-class MySQLTinyTextType(TextType):
+class MySQLTinyTextType(TextType, backend="mysql"):
     """MySQL ``TINYTEXT`` — maximum 255 bytes."""
 
     def _default_sql(self) -> str:
         return "TINYTEXT"
 
 
-class MySQLTextType(TextType):
+class MySQLTextType(TextType, backend="mysql"):
     """MySQL ``TEXT`` — maximum 65,535 bytes."""
 
     def _default_sql(self) -> str:
         return "TEXT"
 
 
-class MySQLMediumTextType(TextType):
+class MySQLMediumTextType(TextType, backend="mysql"):
     """MySQL ``MEDIUMTEXT`` — maximum 16,777,215 bytes."""
 
     def _default_sql(self) -> str:
         return "MEDIUMTEXT"
 
 
-class MySQLLongTextType(TextType):
+class MySQLLongTextType(TextType, backend="mysql"):
     """MySQL ``LONGTEXT`` — maximum 4,294,967,295 bytes."""
 
     def _default_sql(self) -> str:
@@ -174,7 +198,7 @@ class MySQLLongTextType(TextType):
 # Bit type
 # ---------------------------------------------------------------------------
 
-class MySQLBitType(DataType):
+class MySQLBitType(DataType, backend="mysql"):
     """MySQL ``BIT[(n)]`` — bit-field type."""
 
     n: Optional[int] = None
@@ -183,8 +207,13 @@ class MySQLBitType(DataType):
         super().__init__()
         self.n = n
 
-    def _type_params(self) -> Tuple:
-        return (self.n,)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return self.n == other.n
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.n))
 
     def _default_sql(self) -> str:
         if self.n is not None:
@@ -196,7 +225,7 @@ class MySQLBitType(DataType):
 # Year type
 # ---------------------------------------------------------------------------
 
-class MySQLYearType(DataType):
+class MySQLYearType(DataType, backend="mysql"):
     """MySQL ``YEAR[(4)]`` — year type (``YEAR(4)`` is legacy)."""
 
     display_width: Optional[int] = None
@@ -205,8 +234,13 @@ class MySQLYearType(DataType):
         super().__init__()
         self.display_width = display_width
 
-    def _type_params(self) -> Tuple:
-        return (self.display_width,)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return self.display_width == other.display_width
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.display_width))
 
     def _default_sql(self) -> str:
         if self.display_width is not None:
@@ -218,7 +252,7 @@ class MySQLYearType(DataType):
 # Binary / VarBinary
 # ---------------------------------------------------------------------------
 
-class MySQLBinaryType(DataType):
+class MySQLBinaryType(DataType, backend="mysql"):
     """MySQL ``BINARY[(n)]`` — fixed-length binary."""
 
     length: Optional[int] = None
@@ -227,8 +261,13 @@ class MySQLBinaryType(DataType):
         super().__init__()
         self.length = length
 
-    def _type_params(self) -> Tuple:
-        return (self.length,)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return self.length == other.length
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.length))
 
     def _default_sql(self) -> str:
         if self.length is not None:
@@ -236,7 +275,7 @@ class MySQLBinaryType(DataType):
         return "BINARY"
 
 
-class MySQLVarBinaryType(DataType):
+class MySQLVarBinaryType(DataType, backend="mysql"):
     """MySQL ``VARBINARY(n)`` — variable-length binary."""
 
     length: Optional[int] = None
@@ -245,8 +284,13 @@ class MySQLVarBinaryType(DataType):
         super().__init__()
         self.length = length
 
-    def _type_params(self) -> Tuple:
-        return (self.length,)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return self.length == other.length
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.length))
 
     def _default_sql(self) -> str:
         if self.length is not None:
@@ -258,7 +302,7 @@ class MySQLVarBinaryType(DataType):
 # ENUM
 # ---------------------------------------------------------------------------
 
-class MySQLEnumType(DataType):
+class MySQLEnumType(DataType, backend="mysql"):
     """MySQL ``ENUM('val', ...)`` with optional CHARACTER SET / COLLATE."""
 
     values: List[str]
@@ -274,8 +318,15 @@ class MySQLEnumType(DataType):
         self.charset = charset
         self.collation = collation
 
-    def _type_params(self) -> Tuple:
-        return (tuple(self.values), self.charset, self.collation)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return (self.values == other.values and
+                self.charset == other.charset and
+                self.collation == other.collation)
+
+    def __hash__(self) -> int:
+        return hash((type(self), tuple(self.values), self.charset, self.collation))
 
     def _default_sql(self) -> str:
         values_str = ",".join(f"'{v}'" for v in self.values)
@@ -295,7 +346,7 @@ class MySQLEnumType(DataType):
 # SET
 # ---------------------------------------------------------------------------
 
-class MySQLSetType(DataType):
+class MySQLSetType(DataType, backend="mysql"):
     """MySQL ``SET('val', ...)`` with optional CHARACTER SET / COLLATE."""
 
     values: List[str]
@@ -311,8 +362,15 @@ class MySQLSetType(DataType):
         self.charset = charset
         self.collation = collation
 
-    def _type_params(self) -> Tuple:
-        return (tuple(self.values), self.charset, self.collation)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return (self.values == other.values and
+                self.charset == other.charset and
+                self.collation == other.collation)
+
+    def __hash__(self) -> int:
+        return hash((type(self), tuple(self.values), self.charset, self.collation))
 
     def _default_sql(self) -> str:
         values_str = ",".join(f"'{v}'" for v in self.values)
@@ -332,7 +390,7 @@ class MySQLSetType(DataType):
 # Spatial / Geometry types
 # ---------------------------------------------------------------------------
 
-class MySQLGeometryType(DataType):
+class MySQLGeometryType(DataType, backend="mysql"):
     """MySQL ``GEOMETRY`` with optional SRID."""
 
     srid: Optional[int] = None
@@ -341,8 +399,13 @@ class MySQLGeometryType(DataType):
         super().__init__()
         self.srid = srid
 
-    def _type_params(self) -> Tuple:
-        return (self.srid,)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return self.srid == other.srid
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.srid))
 
     def _default_sql(self) -> str:
         if self.srid is not None:
@@ -350,7 +413,7 @@ class MySQLGeometryType(DataType):
         return "GEOMETRY"
 
 
-class MySQLPointType(MySQLGeometryType):
+class MySQLPointType(MySQLGeometryType, backend="mysql"):
     """MySQL ``POINT`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -359,7 +422,7 @@ class MySQLPointType(MySQLGeometryType):
         return "POINT"
 
 
-class MySQLLineStringType(MySQLGeometryType):
+class MySQLLineStringType(MySQLGeometryType, backend="mysql"):
     """MySQL ``LINESTRING`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -368,7 +431,7 @@ class MySQLLineStringType(MySQLGeometryType):
         return "LINESTRING"
 
 
-class MySQLPolygonType(MySQLGeometryType):
+class MySQLPolygonType(MySQLGeometryType, backend="mysql"):
     """MySQL ``POLYGON`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -377,7 +440,7 @@ class MySQLPolygonType(MySQLGeometryType):
         return "POLYGON"
 
 
-class MySQLMultiPointType(MySQLGeometryType):
+class MySQLMultiPointType(MySQLGeometryType, backend="mysql"):
     """MySQL ``MULTIPOINT`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -386,7 +449,7 @@ class MySQLMultiPointType(MySQLGeometryType):
         return "MULTIPOINT"
 
 
-class MySQLMultiLineStringType(MySQLGeometryType):
+class MySQLMultiLineStringType(MySQLGeometryType, backend="mysql"):
     """MySQL ``MULTILINESTRING`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -395,7 +458,7 @@ class MySQLMultiLineStringType(MySQLGeometryType):
         return "MULTILINESTRING"
 
 
-class MySQLMultiPolygonType(MySQLGeometryType):
+class MySQLMultiPolygonType(MySQLGeometryType, backend="mysql"):
     """MySQL ``MULTIPOLYGON`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -404,7 +467,7 @@ class MySQLMultiPolygonType(MySQLGeometryType):
         return "MULTIPOLYGON"
 
 
-class MySQLGeometryCollectionType(MySQLGeometryType):
+class MySQLGeometryCollectionType(MySQLGeometryType, backend="mysql"):
     """MySQL ``GEOMETRYCOLLECTION`` with optional SRID."""
 
     def _default_sql(self) -> str:
@@ -417,7 +480,7 @@ class MySQLGeometryCollectionType(MySQLGeometryType):
 # VECTOR type (MySQL 9.0+)
 # ---------------------------------------------------------------------------
 
-class MySQLVectorType(DataType):
+class MySQLVectorType(DataType, backend="mysql"):
     """MySQL ``VECTOR(n)`` — vector type (MySQL 9.0+)."""
 
     dim: int
@@ -426,15 +489,16 @@ class MySQLVectorType(DataType):
         super().__init__()
         self.dim = dim
 
-    def _type_params(self) -> Tuple:
-        return (self.dim,)
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not type(other):
+            return False
+        return self.dim == other.dim
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.dim))
 
     def _default_sql(self) -> str:
         return f"VECTOR({self.dim})"
 
 
-# ---------------------------------------------------------------------------
-# Synonyms for registry
-# ---------------------------------------------------------------------------
 
-builtin_synonym_map: ClassVar[dict] = {}
