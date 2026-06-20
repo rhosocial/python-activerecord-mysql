@@ -38,9 +38,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TransactionControlSupport,
     # Function Support Protocol
     SQLFunctionSupport,
-    # DataType Support Protocols
-    TypeFormattingSupport,
-    TypeParsingSupport,
+    # DataType Support Protocol
+    DDLTypeSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CollationMixin,
@@ -236,9 +235,8 @@ class MySQLDialect(
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
-    # DataType Support Protocols
-    TypeFormattingSupport,
-    TypeParsingSupport,
+    # DataType Support Protocol
+    DDLTypeSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
