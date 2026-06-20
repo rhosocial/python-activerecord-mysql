@@ -77,6 +77,10 @@ class MySQLTinyIntType(TinyIntType, backend="mysql"):
     def __hash__(self) -> int:
         return hash((type(self), self.unsigned, self.zerofill))
 
+    @classmethod
+    def synonyms(cls) -> Set[str]:
+        return {'TinyIntType'}
+
     def _default_sql(self) -> str:
         sql = super()._default_sql()
         if self.zerofill:
@@ -101,6 +105,10 @@ class MySQLSmallIntType(SmallIntType, backend="mysql"):
     def __hash__(self) -> int:
         return hash((type(self), self.unsigned, self.zerofill))
 
+    @classmethod
+    def synonyms(cls) -> Set[str]:
+        return {'SmallIntType'}
+
     def _default_sql(self) -> str:
         sql = super()._default_sql()
         if self.zerofill:
@@ -124,6 +132,10 @@ class MySQLBigIntType(BigIntType, backend="mysql"):
 
     def __hash__(self) -> int:
         return hash((type(self), self.unsigned, self.zerofill))
+
+    @classmethod
+    def synonyms(cls) -> Set[str]:
+        return {'BigIntType'}
 
     def _default_sql(self) -> str:
         sql = super()._default_sql()
