@@ -17,7 +17,7 @@ DDL definition expressions (``ColumnDefinition.data_type``).
 
 from __future__ import annotations
 
-from typing import ClassVar, List, Optional
+from typing import List, Optional, Set
 
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
@@ -48,6 +48,10 @@ class MySQLIntType(IntegerType, backend="mysql"):
 
     def __hash__(self) -> int:
         return hash((type(self), self.unsigned, self.zerofill))
+
+    @classmethod
+    def synonyms(cls) -> Set[str]:
+        return {'IntegerType'}
 
     def _default_sql(self) -> str:
         sql = "INT"
