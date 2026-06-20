@@ -82,7 +82,7 @@ class MySQLTinyIntType(TinyIntType, backend="mysql"):
         return {'TinyIntType'}
 
     def _default_sql(self) -> str:
-        sql = super()._default_sql()
+        sql = "TINYINT"
         if self.zerofill:
             return f"{sql} ZEROFILL"
         if self.unsigned:
@@ -110,7 +110,7 @@ class MySQLSmallIntType(SmallIntType, backend="mysql"):
         return {'SmallIntType'}
 
     def _default_sql(self) -> str:
-        sql = super()._default_sql()
+        sql = "SMALLINT"
         if self.zerofill:
             return f"{sql} ZEROFILL"
         if self.unsigned:
@@ -138,7 +138,7 @@ class MySQLBigIntType(BigIntType, backend="mysql"):
         return {'BigIntType'}
 
     def _default_sql(self) -> str:
-        sql = super()._default_sql()
+        sql = "BIGINT"
         if self.zerofill:
             return f"{sql} ZEROFILL"
         if self.unsigned:
