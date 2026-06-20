@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, List, Tuple, Type
 
+from rhosocial.activerecord.backend.dialect.mixins.ddl_type import DDLTypeMixin
 from rhosocial.activerecord.backend.dialect.protocols import (
     TypeFormattingSupport,
     TypeParsingSupport,
@@ -68,7 +69,7 @@ if TYPE_CHECKING:
     )
 
 
-class MySQLTypeSupportMixin(TypeFormattingSupport, TypeParsingSupport):
+class MySQLTypeSupportMixin(DDLTypeMixin, TypeFormattingSupport, TypeParsingSupport):
     """MySQL DataType formatting and parsing.
 
     Implements both ``TypeFormattingSupport`` and ``TypeParsingSupport`` so
@@ -77,16 +78,21 @@ class MySQLTypeSupportMixin(TypeFormattingSupport, TypeParsingSupport):
     """
 
     # ------------------------------------------------------------------
-    # TypeFormattingSupport
+    # TypeFormattingSupport / DDLTypeMixin
     # ------------------------------------------------------------------
 
-    def render_type(self, data_type: DataType) -> str:
+    def format_data_type(self, data_type: DataType) -> str:
+        """Primary entry point — tries legacy dispatch, falls back to core."""
         for type_class, suffix in self.supports_data_types():
             if isinstance(data_type, type_class):
                 formatter = getattr(self, f"format_data_type_{suffix}", None)
                 if formatter is not None:
                     return formatter(data_type)
-        return data_type._default_sql()
+        return super().format_data_type(data_type)
+
+    def render_type(self, data_type: DataType) -> str:
+        """Legacy protocol method — delegates to format_data_type."""
+        return self.format_data_type(data_type)
 
     def supports_data_types(self) -> List[Tuple[Type[DataType], str]]:
         return [
