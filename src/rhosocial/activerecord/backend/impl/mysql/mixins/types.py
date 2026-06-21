@@ -73,207 +73,263 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
     # DDLTypeSupport — formatting
     # ------------------------------------------------------------------
 
-    # --- MySQL-specific type formatters (delegate to _default_sql) ---
+    # --- MySQL-specific type formatters ---
 
     @DDLTypeMixin.handles(MySQLTinyIntType)
-    def format_data_type_tiny_int(self, data_type: MySQLTinyIntType) -> str:
-        return data_type._default_sql()
+    def format_data_type_tiny_int(self, data_type: MySQLTinyIntType):
+        sql = "TINYINT"
+        if data_type.zerofill:
+            return f"{sql} ZEROFILL", ()
+        if data_type.unsigned:
+            return f"{sql} UNSIGNED", ()
+        return sql, ()
 
     @DDLTypeMixin.handles(MySQLSmallIntType)
-    def format_data_type_small_int(self, data_type: MySQLSmallIntType) -> str:
-        return data_type._default_sql()
+    def format_data_type_small_int(self, data_type: MySQLSmallIntType):
+        sql = "SMALLINT"
+        if data_type.zerofill:
+            return f"{sql} ZEROFILL", ()
+        if data_type.unsigned:
+            return f"{sql} UNSIGNED", ()
+        return sql, ()
 
     @DDLTypeMixin.handles(MySQLIntType)
-    def format_data_type_int(self, data_type: MySQLIntType) -> str:
-        return data_type._default_sql()
+    def format_data_type_int(self, data_type: MySQLIntType):
+        sql = "INT"
+        if data_type.zerofill:
+            return f"{sql} ZEROFILL", ()
+        if data_type.unsigned:
+            return f"{sql} UNSIGNED", ()
+        return sql, ()
 
     @DDLTypeMixin.handles(MySQLBigIntType)
-    def format_data_type_big_int(self, data_type: MySQLBigIntType) -> str:
-        return data_type._default_sql()
+    def format_data_type_big_int(self, data_type: MySQLBigIntType):
+        sql = "BIGINT"
+        if data_type.zerofill:
+            return f"{sql} ZEROFILL", ()
+        if data_type.unsigned:
+            return f"{sql} UNSIGNED", ()
+        return sql, ()
 
     @DDLTypeMixin.handles(MySQLTinyBlobType)
-    def format_data_type_tiny_blob(self, data_type: MySQLTinyBlobType) -> str:
-        return data_type._default_sql()
+    def format_data_type_tiny_blob(self, data_type: MySQLTinyBlobType):
+        return "TINYBLOB", ()
 
     @DDLTypeMixin.handles(MySQLBlobType)
-    def format_data_type_blob(self, data_type: MySQLBlobType) -> str:
-        return data_type._default_sql()
+    def format_data_type_blob(self, data_type: MySQLBlobType):
+        return "BLOB", ()
 
     @DDLTypeMixin.handles(MySQLMediumBlobType)
-    def format_data_type_medium_blob(self, data_type: MySQLMediumBlobType) -> str:
-        return data_type._default_sql()
+    def format_data_type_medium_blob(self, data_type: MySQLMediumBlobType):
+        return "MEDIUMBLOB", ()
 
     @DDLTypeMixin.handles(MySQLLongBlobType)
-    def format_data_type_long_blob(self, data_type: MySQLLongBlobType) -> str:
-        return data_type._default_sql()
+    def format_data_type_long_blob(self, data_type: MySQLLongBlobType):
+        return "LONGBLOB", ()
 
     @DDLTypeMixin.handles(MySQLTinyTextType)
-    def format_data_type_tiny_text(self, data_type: MySQLTinyTextType) -> str:
-        return data_type._default_sql()
+    def format_data_type_tiny_text(self, data_type: MySQLTinyTextType):
+        return "TINYTEXT", ()
 
     @DDLTypeMixin.handles(MySQLTextType)
-    def format_data_type_text(self, data_type: MySQLTextType) -> str:
-        return data_type._default_sql()
+    def format_data_type_text(self, data_type: MySQLTextType):
+        return "TEXT", ()
 
     @DDLTypeMixin.handles(MySQLMediumTextType)
-    def format_data_type_medium_text(self, data_type: MySQLMediumTextType) -> str:
-        return data_type._default_sql()
+    def format_data_type_medium_text(self, data_type: MySQLMediumTextType):
+        return "MEDIUMTEXT", ()
 
     @DDLTypeMixin.handles(MySQLLongTextType)
-    def format_data_type_long_text(self, data_type: MySQLLongTextType) -> str:
-        return data_type._default_sql()
+    def format_data_type_long_text(self, data_type: MySQLLongTextType):
+        return "LONGTEXT", ()
 
     @DDLTypeMixin.handles(MySQLBitType)
-    def format_data_type_bit(self, data_type: MySQLBitType) -> str:
-        return data_type._default_sql()
+    def format_data_type_bit(self, data_type: MySQLBitType):
+        if data_type.n is not None:
+            return f"BIT({data_type.n})", ()
+        return "BIT", ()
 
     @DDLTypeMixin.handles(MySQLYearType)
-    def format_data_type_year(self, data_type: MySQLYearType) -> str:
-        return data_type._default_sql()
+    def format_data_type_year(self, data_type: MySQLYearType):
+        if data_type.display_width is not None:
+            return f"YEAR({data_type.display_width})", ()
+        return "YEAR", ()
 
     @DDLTypeMixin.handles(MySQLBinaryType)
-    def format_data_type_binary(self, data_type: MySQLBinaryType) -> str:
-        return data_type._default_sql()
+    def format_data_type_binary(self, data_type: MySQLBinaryType):
+        if data_type.length is not None:
+            return f"BINARY({data_type.length})", ()
+        return "BINARY", ()
 
     @DDLTypeMixin.handles(MySQLVarBinaryType)
-    def format_data_type_var_binary(self, data_type: MySQLVarBinaryType) -> str:
-        return data_type._default_sql()
+    def format_data_type_var_binary(self, data_type: MySQLVarBinaryType):
+        if data_type.length is not None:
+            return f"VARBINARY({data_type.length})", ()
+        return "VARBINARY", ()
 
     @DDLTypeMixin.handles(MySQLEnumType)
-    def format_data_type_enum(self, data_type: MySQLEnumType) -> str:
-        return data_type._default_sql()
+    def format_data_type_enum(self, data_type: MySQLEnumType):
+        values_str = ",".join(f"'{v}'" for v in data_type.values)
+        result = f"ENUM({values_str})"
+        if data_type.charset:
+            result += f" CHARACTER SET {data_type.charset}"
+        if data_type.collation:
+            result += f" COLLATE {data_type.collation}"
+        return result, ()
 
     @DDLTypeMixin.handles(MySQLSetType)
-    def format_data_type_set(self, data_type: MySQLSetType) -> str:
-        return data_type._default_sql()
+    def format_data_type_set(self, data_type: MySQLSetType):
+        values_str = ",".join(f"'{v}'" for v in data_type.values)
+        result = f"SET({values_str})"
+        if data_type.charset:
+            result += f" CHARACTER SET {data_type.charset}"
+        if data_type.collation:
+            result += f" COLLATE {data_type.collation}"
+        return result, ()
 
     @DDLTypeMixin.handles(MySQLGeometryType)
-    def format_data_type_geometry(self, data_type: MySQLGeometryType) -> str:
-        return data_type._default_sql()
+    def format_data_type_geometry(self, data_type: MySQLGeometryType):
+        if data_type.srid is not None:
+            return f"GEOMETRY SRID {data_type.srid}", ()
+        return "GEOMETRY", ()
 
     @DDLTypeMixin.handles(MySQLPointType)
-    def format_data_type_point(self, data_type: MySQLPointType) -> str:
-        return data_type._default_sql()
+    def format_data_type_point(self, data_type: MySQLPointType):
+        if data_type.srid is not None:
+            return f"POINT SRID {data_type.srid}", ()
+        return "POINT", ()
 
     @DDLTypeMixin.handles(MySQLLineStringType)
-    def format_data_type_line_string(self, data_type: MySQLLineStringType) -> str:
-        return data_type._default_sql()
+    def format_data_type_line_string(self, data_type: MySQLLineStringType):
+        if data_type.srid is not None:
+            return f"LINESTRING SRID {data_type.srid}", ()
+        return "LINESTRING", ()
 
     @DDLTypeMixin.handles(MySQLPolygonType)
-    def format_data_type_polygon(self, data_type: MySQLPolygonType) -> str:
-        return data_type._default_sql()
+    def format_data_type_polygon(self, data_type: MySQLPolygonType):
+        if data_type.srid is not None:
+            return f"POLYGON SRID {data_type.srid}", ()
+        return "POLYGON", ()
 
     @DDLTypeMixin.handles(MySQLMultiPointType)
-    def format_data_type_multi_point(self, data_type: MySQLMultiPointType) -> str:
-        return data_type._default_sql()
+    def format_data_type_multi_point(self, data_type: MySQLMultiPointType):
+        if data_type.srid is not None:
+            return f"MULTIPOINT SRID {data_type.srid}", ()
+        return "MULTIPOINT", ()
 
     @DDLTypeMixin.handles(MySQLMultiLineStringType)
-    def format_data_type_multi_line_string(self, data_type: MySQLMultiLineStringType) -> str:
-        return data_type._default_sql()
+    def format_data_type_multi_line_string(self, data_type: MySQLMultiLineStringType):
+        if data_type.srid is not None:
+            return f"MULTILINESTRING SRID {data_type.srid}", ()
+        return "MULTILINESTRING", ()
 
     @DDLTypeMixin.handles(MySQLMultiPolygonType)
-    def format_data_type_multi_polygon(self, data_type: MySQLMultiPolygonType) -> str:
-        return data_type._default_sql()
+    def format_data_type_multi_polygon(self, data_type: MySQLMultiPolygonType):
+        if data_type.srid is not None:
+            return f"MULTIPOLYGON SRID {data_type.srid}", ()
+        return "MULTIPOLYGON", ()
 
     @DDLTypeMixin.handles(MySQLGeometryCollectionType)
-    def format_data_type_geometry_collection(self, data_type: MySQLGeometryCollectionType) -> str:
-        return data_type._default_sql()
+    def format_data_type_geometry_collection(self, data_type: MySQLGeometryCollectionType):
+        if data_type.srid is not None:
+            return f"GEOMETRYCOLLECTION SRID {data_type.srid}", ()
+        return "GEOMETRYCOLLECTION", ()
 
     @DDLTypeMixin.handles(MySQLVectorType)
-    def format_data_type_vector(self, data_type: MySQLVectorType) -> str:
-        return data_type._default_sql()
+    def format_data_type_vector(self, data_type: MySQLVectorType):
+        return f"VECTOR({data_type.dim})", ()
 
     # --- Core type overrides (MySQL-specific SQL) ---
 
     @DDLTypeMixin.handles(DoubleType)
-    def format_data_type_double(self, data_type: DoubleType) -> str:
-        return "DOUBLE"
+    def format_data_type_double(self, data_type: DoubleType):
+        return "DOUBLE", ()
 
     @DDLTypeMixin.handles(BooleanType)
-    def format_data_type_boolean(self, data_type: BooleanType) -> str:
-        return "TINYINT(1)"
+    def format_data_type_boolean(self, data_type: BooleanType):
+        return "TINYINT(1)", ()
 
     @DDLTypeMixin.handles(TimeTzType)
-    def format_data_type_timetz(self, data_type: TimeTzType) -> str:
-        return f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"
+    def format_data_type_timetz(self, data_type: TimeTzType):
+        return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
 
     @DDLTypeMixin.handles(TimestampTzType)
-    def format_data_type_timestamptz(self, data_type: TimestampTzType) -> str:
-        return f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"
+    def format_data_type_timestamptz(self, data_type: TimestampTzType):
+        return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
 
     @DDLTypeMixin.handles(JsonBType)
-    def format_data_type_jsonb(self, data_type: JsonBType) -> str:
-        return "JSON"
+    def format_data_type_jsonb(self, data_type: JsonBType):
+        return "JSON", ()
 
     # --- Core type handlers (render standard types to MySQL SQL) ---
 
     @DDLTypeMixin.handles(IntegerType)
-    def format_data_type_integer(self, data_type: IntegerType) -> str:
-        return "INT"
+    def format_data_type_integer(self, data_type: IntegerType):
+        return "INT", ()
 
     @DDLTypeMixin.handles(BigIntType)
-    def format_data_type_bigint(self, data_type: BigIntType) -> str:
-        return "BIGINT"
+    def format_data_type_bigint(self, data_type: BigIntType):
+        return "BIGINT", ()
 
     @DDLTypeMixin.handles(SmallIntType)
-    def format_data_type_smallint(self, data_type: SmallIntType) -> str:
-        return "SMALLINT"
+    def format_data_type_smallint(self, data_type: SmallIntType):
+        return "SMALLINT", ()
 
     @DDLTypeMixin.handles(TinyIntType)
-    def format_data_type_tinyint(self, data_type: TinyIntType) -> str:
-        return "TINYINT"
+    def format_data_type_tinyint(self, data_type: TinyIntType):
+        return "TINYINT", ()
 
     @DDLTypeMixin.handles(VarCharType)
-    def format_data_type_varchar(self, data_type: VarCharType) -> str:
-        return f"VARCHAR({data_type.length})" if data_type.length is not None else "VARCHAR"
+    def format_data_type_varchar(self, data_type: VarCharType):
+        return (f"VARCHAR({data_type.length})" if data_type.length is not None else "VARCHAR"), ()
 
     @DDLTypeMixin.handles(CharType)
-    def format_data_type_char(self, data_type: CharType) -> str:
-        return f"CHAR({data_type.length})" if data_type.length is not None else "CHAR"
+    def format_data_type_char(self, data_type: CharType):
+        return (f"CHAR({data_type.length})" if data_type.length is not None else "CHAR"), ()
 
     @DDLTypeMixin.handles(TextType)
-    def format_data_type_text_core(self, data_type: TextType) -> str:
-        return "TEXT"
+    def format_data_type_text_core(self, data_type: TextType):
+        return "TEXT", ()
 
     @DDLTypeMixin.handles(DateTimeType)
-    def format_data_type_datetime(self, data_type: DateTimeType) -> str:
-        return f"DATETIME({data_type.precision})" if data_type.precision is not None else "DATETIME"
+    def format_data_type_datetime(self, data_type: DateTimeType):
+        return (f"DATETIME({data_type.precision})" if data_type.precision is not None else "DATETIME"), ()
 
     @DDLTypeMixin.handles(DateType)
-    def format_data_type_date(self, data_type: DateType) -> str:
-        return "DATE"
+    def format_data_type_date(self, data_type: DateType):
+        return "DATE", ()
 
     @DDLTypeMixin.handles(TimeType)
-    def format_data_type_time(self, data_type: TimeType) -> str:
-        return f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"
+    def format_data_type_time(self, data_type: TimeType):
+        return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
 
     @DDLTypeMixin.handles(TimestampType)
-    def format_data_type_timestamp(self, data_type: TimestampType) -> str:
-        return f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"
+    def format_data_type_timestamp(self, data_type: TimestampType):
+        return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
 
     @DDLTypeMixin.handles(FloatType)
-    def format_data_type_float(self, data_type: FloatType) -> str:
-        return f"FLOAT({data_type.precision})" if data_type.precision is not None else "FLOAT"
+    def format_data_type_float(self, data_type: FloatType):
+        return (f"FLOAT({data_type.precision})" if data_type.precision is not None else "FLOAT"), ()
 
     @DDLTypeMixin.handles(RealType)
-    def format_data_type_real(self, data_type: RealType) -> str:
-        return "REAL"
+    def format_data_type_real(self, data_type: RealType):
+        return "REAL", ()
 
     @DDLTypeMixin.handles(DecimalType)
-    def format_data_type_decimal(self, data_type: DecimalType) -> str:
+    def format_data_type_decimal(self, data_type: DecimalType):
         if data_type.precision is not None and data_type.scale is not None:
-            return f"DECIMAL({data_type.precision}, {data_type.scale})"
+            return f"DECIMAL({data_type.precision}, {data_type.scale})", ()
         if data_type.precision is not None:
-            return f"DECIMAL({data_type.precision})"
-        return "DECIMAL"
+            return f"DECIMAL({data_type.precision})", ()
+        return "DECIMAL", ()
 
     @DDLTypeMixin.handles(JsonType)
-    def format_data_type_json(self, data_type: JsonType) -> str:
-        return "JSON"
+    def format_data_type_json(self, data_type: JsonType):
+        return "JSON", ()
 
     @DDLTypeMixin.handles(BlobType)
-    def format_data_type_blob_core(self, data_type: BlobType) -> str:
-        return "BLOB"
+    def format_data_type_blob_core(self, data_type: BlobType):
+        return "BLOB", ()
 
     # ------------------------------------------------------------------
     # DDLTypeSupport — parsing

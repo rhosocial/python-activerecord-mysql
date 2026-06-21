@@ -53,14 +53,6 @@ class MySQLIntType(IntegerType, backend="mysql"):
     def synonyms(cls) -> Set[str]:
         return {'IntegerType'}
 
-    def _default_sql(self) -> str:
-        sql = "INT"
-        if self.zerofill:
-            return f"{sql} ZEROFILL"
-        if self.unsigned:
-            return f"{sql} UNSIGNED"
-        return sql
-
 
 class MySQLTinyIntType(TinyIntType, backend="mysql"):
     """MySQL ``TINYINT`` with optional UNSIGNED / ZEROFILL."""
@@ -80,14 +72,6 @@ class MySQLTinyIntType(TinyIntType, backend="mysql"):
     @classmethod
     def synonyms(cls) -> Set[str]:
         return {'TinyIntType'}
-
-    def _default_sql(self) -> str:
-        sql = "TINYINT"
-        if self.zerofill:
-            return f"{sql} ZEROFILL"
-        if self.unsigned:
-            return f"{sql} UNSIGNED"
-        return sql
 
 
 class MySQLSmallIntType(SmallIntType, backend="mysql"):
@@ -109,14 +93,6 @@ class MySQLSmallIntType(SmallIntType, backend="mysql"):
     def synonyms(cls) -> Set[str]:
         return {'SmallIntType'}
 
-    def _default_sql(self) -> str:
-        sql = "SMALLINT"
-        if self.zerofill:
-            return f"{sql} ZEROFILL"
-        if self.unsigned:
-            return f"{sql} UNSIGNED"
-        return sql
-
 
 class MySQLBigIntType(BigIntType, backend="mysql"):
     """MySQL ``BIGINT`` with optional UNSIGNED / ZEROFILL."""
@@ -137,14 +113,6 @@ class MySQLBigIntType(BigIntType, backend="mysql"):
     def synonyms(cls) -> Set[str]:
         return {'BigIntType'}
 
-    def _default_sql(self) -> str:
-        sql = "BIGINT"
-        if self.zerofill:
-            return f"{sql} ZEROFILL"
-        if self.unsigned:
-            return f"{sql} UNSIGNED"
-        return sql
-
 
 # ---------------------------------------------------------------------------
 # BLOB size variants
@@ -153,29 +121,17 @@ class MySQLBigIntType(BigIntType, backend="mysql"):
 class MySQLTinyBlobType(BlobType, backend="mysql"):
     """MySQL ``TINYBLOB`` — maximum 255 bytes."""
 
-    def _default_sql(self) -> str:
-        return "TINYBLOB"
-
 
 class MySQLBlobType(BlobType, backend="mysql"):
     """MySQL ``BLOB`` — maximum 65,535 bytes."""
-
-    def _default_sql(self) -> str:
-        return "BLOB"
 
 
 class MySQLMediumBlobType(BlobType, backend="mysql"):
     """MySQL ``MEDIUMBLOB`` — maximum 16,777,215 bytes."""
 
-    def _default_sql(self) -> str:
-        return "MEDIUMBLOB"
-
 
 class MySQLLongBlobType(BlobType, backend="mysql"):
     """MySQL ``LONGBLOB`` — maximum 4,294,967,295 bytes."""
-
-    def _default_sql(self) -> str:
-        return "LONGBLOB"
 
 
 # ---------------------------------------------------------------------------
@@ -185,29 +141,17 @@ class MySQLLongBlobType(BlobType, backend="mysql"):
 class MySQLTinyTextType(TextType, backend="mysql"):
     """MySQL ``TINYTEXT`` — maximum 255 bytes."""
 
-    def _default_sql(self) -> str:
-        return "TINYTEXT"
-
 
 class MySQLTextType(TextType, backend="mysql"):
     """MySQL ``TEXT`` — maximum 65,535 bytes."""
-
-    def _default_sql(self) -> str:
-        return "TEXT"
 
 
 class MySQLMediumTextType(TextType, backend="mysql"):
     """MySQL ``MEDIUMTEXT`` — maximum 16,777,215 bytes."""
 
-    def _default_sql(self) -> str:
-        return "MEDIUMTEXT"
-
 
 class MySQLLongTextType(TextType, backend="mysql"):
     """MySQL ``LONGTEXT`` — maximum 4,294,967,295 bytes."""
-
-    def _default_sql(self) -> str:
-        return "LONGTEXT"
 
 
 # ---------------------------------------------------------------------------
@@ -231,11 +175,6 @@ class MySQLBitType(DataType, backend="mysql"):
     def __hash__(self) -> int:
         return hash((type(self), self.n))
 
-    def _default_sql(self) -> str:
-        if self.n is not None:
-            return f"BIT({self.n})"
-        return "BIT"
-
 
 # ---------------------------------------------------------------------------
 # Year type
@@ -257,11 +196,6 @@ class MySQLYearType(DataType, backend="mysql"):
 
     def __hash__(self) -> int:
         return hash((type(self), self.display_width))
-
-    def _default_sql(self) -> str:
-        if self.display_width is not None:
-            return f"YEAR({self.display_width})"
-        return "YEAR"
 
 
 # ---------------------------------------------------------------------------
@@ -285,11 +219,6 @@ class MySQLBinaryType(DataType, backend="mysql"):
     def __hash__(self) -> int:
         return hash((type(self), self.length))
 
-    def _default_sql(self) -> str:
-        if self.length is not None:
-            return f"BINARY({self.length})"
-        return "BINARY"
-
 
 class MySQLVarBinaryType(DataType, backend="mysql"):
     """MySQL ``VARBINARY(n)`` — variable-length binary."""
@@ -307,11 +236,6 @@ class MySQLVarBinaryType(DataType, backend="mysql"):
 
     def __hash__(self) -> int:
         return hash((type(self), self.length))
-
-    def _default_sql(self) -> str:
-        if self.length is not None:
-            return f"VARBINARY({self.length})"
-        return "VARBINARY"
 
 
 # ---------------------------------------------------------------------------
@@ -343,18 +267,6 @@ class MySQLEnumType(DataType, backend="mysql"):
 
     def __hash__(self) -> int:
         return hash((type(self), tuple(self.values), self.charset, self.collation))
-
-    def _default_sql(self) -> str:
-        values_str = ",".join(f"'{v}'" for v in self.values)
-        result = f"ENUM({values_str})"
-        if self.charset:
-            result += f" CHARACTER SET {self.charset}"
-        if self.collation:
-            result += f" COLLATE {self.collation}"
-        return result
-
-    def __str__(self) -> str:
-        return self._default_sql()
 
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(values={self.values!r}, "
@@ -391,18 +303,6 @@ class MySQLSetType(DataType, backend="mysql"):
     def __hash__(self) -> int:
         return hash((type(self), tuple(self.values), self.charset, self.collation))
 
-    def _default_sql(self) -> str:
-        values_str = ",".join(f"'{v}'" for v in self.values)
-        result = f"SET({values_str})"
-        if self.charset:
-            result += f" CHARACTER SET {self.charset}"
-        if self.collation:
-            result += f" COLLATE {self.collation}"
-        return result
-
-    def __str__(self) -> str:
-        return self._default_sql()
-
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(values={self.values!r}, "
                 f"charset={self.charset!r}, collation={self.collation!r})")
@@ -429,73 +329,33 @@ class MySQLGeometryType(DataType, backend="mysql"):
     def __hash__(self) -> int:
         return hash((type(self), self.srid))
 
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"GEOMETRY SRID {self.srid}"
-        return "GEOMETRY"
-
 
 class MySQLPointType(MySQLGeometryType, backend="mysql"):
     """MySQL ``POINT`` with optional SRID."""
-
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"POINT SRID {self.srid}"
-        return "POINT"
 
 
 class MySQLLineStringType(MySQLGeometryType, backend="mysql"):
     """MySQL ``LINESTRING`` with optional SRID."""
 
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"LINESTRING SRID {self.srid}"
-        return "LINESTRING"
-
 
 class MySQLPolygonType(MySQLGeometryType, backend="mysql"):
     """MySQL ``POLYGON`` with optional SRID."""
-
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"POLYGON SRID {self.srid}"
-        return "POLYGON"
 
 
 class MySQLMultiPointType(MySQLGeometryType, backend="mysql"):
     """MySQL ``MULTIPOINT`` with optional SRID."""
 
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"MULTIPOINT SRID {self.srid}"
-        return "MULTIPOINT"
-
 
 class MySQLMultiLineStringType(MySQLGeometryType, backend="mysql"):
     """MySQL ``MULTILINESTRING`` with optional SRID."""
-
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"MULTILINESTRING SRID {self.srid}"
-        return "MULTILINESTRING"
 
 
 class MySQLMultiPolygonType(MySQLGeometryType, backend="mysql"):
     """MySQL ``MULTIPOLYGON`` with optional SRID."""
 
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"MULTIPOLYGON SRID {self.srid}"
-        return "MULTIPOLYGON"
-
 
 class MySQLGeometryCollectionType(MySQLGeometryType, backend="mysql"):
     """MySQL ``GEOMETRYCOLLECTION`` with optional SRID."""
-
-    def _default_sql(self) -> str:
-        if self.srid is not None:
-            return f"GEOMETRYCOLLECTION SRID {self.srid}"
-        return "GEOMETRYCOLLECTION"
 
 
 # ---------------------------------------------------------------------------
@@ -518,9 +378,3 @@ class MySQLVectorType(DataType, backend="mysql"):
 
     def __hash__(self) -> int:
         return hash((type(self), self.dim))
-
-    def _default_sql(self) -> str:
-        return f"VECTOR({self.dim})"
-
-
-
