@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+from typing import Tuple
 
 from rhosocial.activerecord.backend.dialect.mixins.ddl_type import DDLTypeMixin
 from rhosocial.activerecord.backend.dialect.protocols import DDLTypeSupport
