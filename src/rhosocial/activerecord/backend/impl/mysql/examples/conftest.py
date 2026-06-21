@@ -263,4 +263,32 @@ EXAMPLES_META = {
         "min_version": "5.6",
         "max_version": "9.6",
     },
+    "schema_diff/table_changes.py": {
+        "title": "Schema Diff — Table Add/Remove",
+        "dialect_protocols": [],
+        "priority": 10,
+        "min_version": "5.6",
+        "max_version": "9.6",
+    },
+    "schema_diff/column_order.py": {
+        "title": "Schema Diff — MySQL Column Order Awareness",
+        "dialect_protocols": [],
+        "priority": 10,
+        "min_version": "5.6",
+        "max_version": "9.6",
+    },
+    "schema_diff/mysql56_json.py": {
+        "title": "Schema Diff — MySQL 5.6 vs 8.0 JSON Type",
+        "dialect_protocols": [],
+        "priority": 10,
+        "min_version": "5.6",
+        "max_version": "9.6",
+    },
+    "schema_diff/mysql80_charset.py": {
+        "title": "Schema Diff — MySQL 5.6 vs 8.0 Charset/Collation",
+        "dialect_protocols": [],
+        "priority": 10,
+        "min_version": "5.6",
+        "max_version": "9.6",
+    },
 }

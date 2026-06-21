@@ -7,6 +7,7 @@ This module tests the MySQL-specific LIKE syntax for CREATE TABLE statements.
 
 from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition
 from rhosocial.activerecord.backend.expression.statements import ColumnConstraint, ColumnConstraintType
+from rhosocial.activerecord.backend.expression.types import IntegerType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 
@@ -61,8 +62,8 @@ class TestMySQLCreateTableLike:
         """Test that LIKE syntax ignores columns parameter."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INTEGER", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("name", "VARCHAR(255)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("name", VarCharType(255)),
         ]
         create_expr = CreateTableExpression(
             dialect=dialect, table="users_copy", columns=columns, dialect_options={"like_table": "users"}
@@ -93,8 +94,8 @@ class TestMySQLCreateTableLike:
         """Test that base implementation is used when LIKE is not specified."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INTEGER", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("name", "VARCHAR(255)", constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("name", VarCharType(255), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
         ]
         create_expr = CreateTableExpression(dialect=dialect, table="users", columns=columns)
         sql, params = create_expr.to_sql()

@@ -8,11 +8,27 @@ import re
 from rhosocial.activerecord.backend.dialect.mixins.ddl_type import DDLTypeMixin
 from rhosocial.activerecord.backend.dialect.protocols import DDLTypeSupport
 from rhosocial.activerecord.backend.expression.types import (
+    BigIntType,
+    BlobType,
     BooleanType,
+    CharType,
+    DateType,
+    DateTimeType,
+    DecimalType,
     DoubleType,
+    FloatType,
+    IntegerType,
     JsonBType,
+    JsonType,
+    RealType,
+    SmallIntType,
+    TextType,
+    TimeType,
     TimeTzType,
+    TimestampType,
     TimestampTzType,
+    TinyIntType,
+    VarCharType,
 )
 from ..expression.types import (
     MySQLBigIntType,
@@ -188,6 +204,76 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
     @DDLTypeMixin.handles(JsonBType)
     def format_data_type_jsonb(self, data_type: JsonBType) -> str:
         return "JSON"
+
+    # --- Core type handlers (render standard types to MySQL SQL) ---
+
+    @DDLTypeMixin.handles(IntegerType)
+    def format_data_type_integer(self, data_type: IntegerType) -> str:
+        return "INT"
+
+    @DDLTypeMixin.handles(BigIntType)
+    def format_data_type_bigint(self, data_type: BigIntType) -> str:
+        return "BIGINT"
+
+    @DDLTypeMixin.handles(SmallIntType)
+    def format_data_type_smallint(self, data_type: SmallIntType) -> str:
+        return "SMALLINT"
+
+    @DDLTypeMixin.handles(TinyIntType)
+    def format_data_type_tinyint(self, data_type: TinyIntType) -> str:
+        return "TINYINT"
+
+    @DDLTypeMixin.handles(VarCharType)
+    def format_data_type_varchar(self, data_type: VarCharType) -> str:
+        return f"VARCHAR({data_type.length})" if data_type.length is not None else "VARCHAR"
+
+    @DDLTypeMixin.handles(CharType)
+    def format_data_type_char(self, data_type: CharType) -> str:
+        return f"CHAR({data_type.length})" if data_type.length is not None else "CHAR"
+
+    @DDLTypeMixin.handles(TextType)
+    def format_data_type_text_core(self, data_type: TextType) -> str:
+        return "TEXT"
+
+    @DDLTypeMixin.handles(DateTimeType)
+    def format_data_type_datetime(self, data_type: DateTimeType) -> str:
+        return f"DATETIME({data_type.precision})" if data_type.precision is not None else "DATETIME"
+
+    @DDLTypeMixin.handles(DateType)
+    def format_data_type_date(self, data_type: DateType) -> str:
+        return "DATE"
+
+    @DDLTypeMixin.handles(TimeType)
+    def format_data_type_time(self, data_type: TimeType) -> str:
+        return f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"
+
+    @DDLTypeMixin.handles(TimestampType)
+    def format_data_type_timestamp(self, data_type: TimestampType) -> str:
+        return f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"
+
+    @DDLTypeMixin.handles(FloatType)
+    def format_data_type_float(self, data_type: FloatType) -> str:
+        return f"FLOAT({data_type.precision})" if data_type.precision is not None else "FLOAT"
+
+    @DDLTypeMixin.handles(RealType)
+    def format_data_type_real(self, data_type: RealType) -> str:
+        return "REAL"
+
+    @DDLTypeMixin.handles(DecimalType)
+    def format_data_type_decimal(self, data_type: DecimalType) -> str:
+        if data_type.precision is not None and data_type.scale is not None:
+            return f"DECIMAL({data_type.precision}, {data_type.scale})"
+        if data_type.precision is not None:
+            return f"DECIMAL({data_type.precision})"
+        return "DECIMAL"
+
+    @DDLTypeMixin.handles(JsonType)
+    def format_data_type_json(self, data_type: JsonType) -> str:
+        return "JSON"
+
+    @DDLTypeMixin.handles(BlobType)
+    def format_data_type_blob_core(self, data_type: BlobType) -> str:
+        return "BLOB"
 
     # ------------------------------------------------------------------
     # DDLTypeSupport — parsing

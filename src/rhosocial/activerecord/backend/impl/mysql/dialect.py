@@ -852,6 +852,13 @@ class MySQLDialect(
 
         return " ".join(parts), tuple(all_params)
 
+    def format_add_column_action(self, action) -> Tuple[str, tuple]:
+        column_sql, column_params = self.format_column_definition(action.column)
+        after = action.dialect_options.get("after")
+        if after:
+            return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(after)}", column_params
+        return f"ADD COLUMN {column_sql}", column_params
+
     # endregion
 
     # region MySQL 8.0 Index Features

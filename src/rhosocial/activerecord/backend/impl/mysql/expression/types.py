@@ -353,6 +353,9 @@ class MySQLEnumType(DataType, backend="mysql"):
             result += f" COLLATE {self.collation}"
         return result
 
+    def __str__(self) -> str:
+        return self._default_sql()
+
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(values={self.values!r}, "
                 f"charset={self.charset!r}, collation={self.collation!r})")
@@ -396,6 +399,9 @@ class MySQLSetType(DataType, backend="mysql"):
         if self.collation:
             result += f" COLLATE {self.collation}"
         return result
+
+    def __str__(self) -> str:
+        return self._default_sql()
 
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(values={self.values!r}, "

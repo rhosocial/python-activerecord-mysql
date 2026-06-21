@@ -6,6 +6,8 @@ import pytest
 
 from rhosocial.activerecord.backend.expression import (
     Column,
+    ColumnConstraint,
+    ColumnConstraintType,
     ColumnDefinition,
     CreateTableExpression,
     DropTableExpression,
@@ -21,6 +23,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
     WildcardExpression,
 )
+from rhosocial.activerecord.backend.expression.types import BigIntType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLAddPartitionExpression,
     MySQLDropPartitionExpression,
@@ -65,10 +68,10 @@ def _drop_named_table_expression(dialect, table_name: str):
 
 def _base_columns():
     return [
-        ColumnDefinition("id", "BIGINT NOT NULL"),
-        ColumnDefinition("shard_id", "BIGINT NOT NULL"),
-        ColumnDefinition("category", "VARCHAR(32) NOT NULL"),
-        ColumnDefinition("payload", "VARCHAR(255) NOT NULL"),
+        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("shard_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("category", VarCharType(32), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("payload", VarCharType(255), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
     ]
 
 
@@ -559,9 +562,9 @@ class TestMySQLPartitionStrategies:
         """
         table = "ar_mysql_null_range"
         columns = [
-            ColumnDefinition("id", "BIGINT NOT NULL"),
-            ColumnDefinition("shard_id", "BIGINT"),  # nullable
-            ColumnDefinition("payload", "VARCHAR(255)"),
+            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("shard_id", BigIntType()),  # nullable
+            ColumnDefinition("payload", VarCharType(255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -603,9 +606,9 @@ class TestMySQLPartitionStrategies:
         """LIST partition that explicitly includes NULL in VALUES IN should accept NULL."""
         table = "ar_mysql_null_list"
         columns = [
-            ColumnDefinition("id", "BIGINT NOT NULL"),
-            ColumnDefinition("shard_id", "BIGINT"),
-            ColumnDefinition("payload", "VARCHAR(255)"),
+            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("shard_id", BigIntType()),
+            ColumnDefinition("payload", VarCharType(255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -653,9 +656,9 @@ class TestMySQLPartitionStrategies:
         """HASH partition should accept NULL keys without error."""
         table = "ar_mysql_null_hash"
         columns = [
-            ColumnDefinition("id", "BIGINT NOT NULL"),
-            ColumnDefinition("shard_id", "BIGINT"),
-            ColumnDefinition("payload", "VARCHAR(255)"),
+            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("shard_id", BigIntType()),
+            ColumnDefinition("payload", VarCharType(255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -694,9 +697,9 @@ class TestMySQLPartitionStrategies:
         """KEY partition should accept NULL keys without error."""
         table = "ar_mysql_null_key"
         columns = [
-            ColumnDefinition("id", "BIGINT NOT NULL"),
-            ColumnDefinition("shard_id", "BIGINT"),
-            ColumnDefinition("payload", "VARCHAR(255)"),
+            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("shard_id", BigIntType()),
+            ColumnDefinition("payload", VarCharType(255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -747,9 +750,9 @@ class TestMySQLPartitionStrategies:
                 dialect=mysql_backend.dialect,
                 table=table,
                 columns=[
-                    ColumnDefinition("id", "BIGINT NOT NULL"),
-                    ColumnDefinition("created_at", "DATE NOT NULL"),
-                    ColumnDefinition("payload", "VARCHAR(255)"),
+                    ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+                    ColumnDefinition("created_at", DateType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+                    ColumnDefinition("payload", VarCharType(255)),
                 ],
                 table_constraints=[
                     TableConstraint(TableConstraintType.PRIMARY_KEY, columns=["id", "created_at"]),
