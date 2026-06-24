@@ -38,6 +38,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TransactionControlSupport,
     # Function Support Protocol
     SQLFunctionSupport,
+    # DataType Support Protocol
+    DDLTypeSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CollationMixin,
@@ -109,6 +111,7 @@ from .mixins import (
     MySQLJsonDualityViewMixin,
     MySQLOptimizerHintMixin,
     MySQLPartitionMixin,
+    MySQLTypeSupportMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -175,6 +178,7 @@ class MySQLDialect(
     MySQLShowDialectMixin,  # MySQL SHOW commands
     MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
     MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
+    MySQLTypeSupportMixin,  # DataType formatting and parsing
     MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
     IntrospectionMixin,
     # New Mixins
@@ -231,6 +235,8 @@ class MySQLDialect(
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
     # Function Support Protocol
     SQLFunctionSupport,
+    # DataType Support Protocol
+    DDLTypeSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -845,6 +851,13 @@ class MySQLDialect(
                 all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
+
+    def format_add_column_action(self, action) -> Tuple[str, tuple]:
+        column_sql, column_params = self.format_column_definition(action.column)
+        after = action.dialect_options.get("after")
+        if after:
+            return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(after)}", column_params
+        return f"ADD COLUMN {column_sql}", column_params
 
     # endregion
 

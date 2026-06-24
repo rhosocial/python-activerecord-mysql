@@ -8,6 +8,8 @@ import pytest
 
 from rhosocial.activerecord.backend.expression import (
     Column,
+    ColumnConstraint,
+    ColumnConstraintType,
     ColumnDefinition,
     CreateTableExpression,
     DropTableExpression,
@@ -24,6 +26,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
     WildcardExpression,
 )
+from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql import ShowCreateTableExpression
 from rhosocial.activerecord.backend.impl.mysql.expression import (
@@ -70,9 +73,9 @@ def _create_partitioned_table_expression(dialect):
         dialect=dialect,
         table=PARTITION_TABLE,
         columns=[
-            ColumnDefinition("id", "BIGINT NOT NULL"),
-            ColumnDefinition("created_at", "DATETIME NOT NULL"),
-            ColumnDefinition("payload", "VARCHAR(255)"),
+            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("created_at", DateTimeType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("payload", VarCharType(255)),
         ],
         indexes=[
             IndexDefinition(name="idx_created_at", columns=["created_at"]),
@@ -282,9 +285,9 @@ NEGATIVE_HASH_TABLE = "ar_mysql_partition_negative_hash"
 
 def _base_columns_without_pk():
     return [
-        ColumnDefinition("id", "BIGINT NOT NULL"),
-        ColumnDefinition("shard_id", "BIGINT NOT NULL"),
-        ColumnDefinition("payload", "VARCHAR(255)"),
+        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("shard_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("payload", VarCharType(255)),
     ]
 
 
@@ -369,10 +372,10 @@ def _drop_named_table_expression(dialect, table_name: str):
 
 def _production_columns():
     return [
-        ColumnDefinition("id", "BIGINT NOT NULL"),
-        ColumnDefinition("created_at", "DATETIME(6) NOT NULL"),
-        ColumnDefinition("tenant_id", "BIGINT NOT NULL"),
-        ColumnDefinition("payload", "VARCHAR(255) NOT NULL"),
+        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("created_at", DateTimeType(6), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("tenant_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("payload", VarCharType(255), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
     ]
 
 
@@ -1199,10 +1202,10 @@ SUBPARTITION_TABLE = "ar_mysql_partition_subpart"
 
 def _subpartition_columns():
     return [
-        ColumnDefinition("id", "BIGINT NOT NULL"),
-        ColumnDefinition("created_at", "DATE NOT NULL"),
-        ColumnDefinition("region", "VARCHAR(32) NOT NULL"),
-        ColumnDefinition("payload", "VARCHAR(255)"),
+        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("created_at", DateType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("region", VarCharType(32), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("payload", VarCharType(255)),
     ]
 
 

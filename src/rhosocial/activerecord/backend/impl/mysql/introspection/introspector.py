@@ -51,6 +51,7 @@ from rhosocial.activerecord.backend.introspection.types import (
     TriggerInfo,
     IntrospectionScope,
 )
+from rhosocial.activerecord.backend.expression.types import DataType
 from .show_introspector import (
     SyncShowIntrospector,
     AsyncShowIntrospector,
@@ -139,6 +140,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         for row in rows:
             nullable = ColumnNullable.NULLABLE if row.get("IS_NULLABLE") == "YES" else ColumnNullable.NOT_NULL
             col_type = row.get("COLUMN_TYPE") or row.get("DATA_TYPE") or "VARCHAR"
+            parsed = DataType.parse_data_type_str(self._backend.dialect, col_type)
             columns.append(
                 ColumnInfo(
                     name=row["COLUMN_NAME"],
@@ -147,6 +149,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
                     ordinal_position=row["ORDINAL_POSITION"],
                     data_type=col_type.split("(")[0].lower(),
                     data_type_full=col_type,
+                    parsed_data_type=parsed,
                     nullable=nullable,
                     default_value=row.get("COLUMN_DEFAULT"),
                     is_primary_key=row.get("COLUMN_KEY") == "PRI",

@@ -89,43 +89,20 @@ class MySQLTableMixin:
 
     def format_column_definition(self, col_def, ColumnConstraintType=None) -> Tuple[str, List[Any]]:
         """Format a single column definition with MySQL-specific syntax."""
-        # Call via class, not self, because SQLDialectBase._validate_data_type
-        # appears earlier in the MRO and would shadow this override.
-        if not MySQLTableMixin._validate_data_type(col_def.data_type):
-            raise ValueError(f"Invalid data type: {col_def.data_type}")
         if ColumnConstraintType is None:
             from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType
-        parts = [self.format_identifier(col_def.name), col_def.data_type]
-        params: List[Any] = []
+        type_sql, type_params = col_def.data_type.to_sql(self)
+        parts = [self.format_identifier(col_def.name), type_sql]
+        params: List[Any] = list(type_params)
 
-        constraint_parts = []
         for constraint in col_def.constraints:
-            if constraint.constraint_type == ColumnConstraintType.PRIMARY_KEY:
-                constraint_parts.append("PRIMARY KEY")
-            elif constraint.constraint_type == ColumnConstraintType.NOT_NULL:
-                constraint_parts.append("NOT NULL")
-            elif constraint.constraint_type == ColumnConstraintType.UNIQUE:
-                constraint_parts.append("UNIQUE")
-            elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
-                if constraint.default_value is not None:
-                    from rhosocial.activerecord.backend.expression import bases
-                    if isinstance(constraint.default_value, bases.BaseExpression):
-                        default_sql, default_params = constraint.default_value.to_sql()
-                        constraint_parts.append(f"DEFAULT {default_sql}")
-                        params.extend(default_params)
-                    elif isinstance(constraint.default_value, str):
-                        escaped = self._escape_sql_string(constraint.default_value)
-                        constraint_parts.append(f"DEFAULT '{escaped}'")
-                    else:
-                        constraint_parts.append(f"DEFAULT {constraint.default_value}")
-            elif constraint.constraint_type == ColumnConstraintType.NULL:
-                constraint_parts.append("NULL")
-
+            suffix, cp = self.format_column_constraint(constraint)
+            constraint_text = suffix.strip()
+            if constraint_text:
+                parts.append(constraint_text)
+            params.extend(list(cp))
             if constraint.is_auto_increment:
-                constraint_parts.append("AUTO_INCREMENT")
-
-        if constraint_parts:
-            parts.append(" ".join(constraint_parts))
+                parts.append("AUTO_INCREMENT")
 
         if col_def.comment:
             escaped_comment = self._escape_sql_string(col_def.comment)

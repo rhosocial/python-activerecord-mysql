@@ -16,6 +16,7 @@ Directory structure:
 - match_against.py - MATCH...AGAINST expression
 - locking.py        - Row-level locking expressions (FOR UPDATE, FOR SHARE)
 - json_duality_view.py - JSON Duality View expressions (MySQL 9.7+)
+- types.py          - MySQL-specific DataType subclasses for DDL
 """
 
 from .load_data import MySQLLoadDataExpression, LoadDataOptions
@@ -90,6 +91,37 @@ from .partition_lifecycle import (
     MySQLReorganizePartitionHelper,
 )
 
+# DataType subclasses for DDL
+from .types import (
+    MySQLBigIntType,
+    MySQLBinaryType,
+    MySQLBitType,
+    MySQLBlobType,
+    MySQLEnumType,
+    MySQLGeometryCollectionType,
+    MySQLGeometryType,
+    MySQLIntType,
+    MySQLLineStringType,
+    MySQLLongBlobType,
+    MySQLLongTextType,
+    MySQLMediumBlobType,
+    MySQLMediumTextType,
+    MySQLMultiLineStringType,
+    MySQLMultiPointType,
+    MySQLMultiPolygonType,
+    MySQLPointType,
+    MySQLPolygonType,
+    MySQLSetType,
+    MySQLSmallIntType,
+    MySQLTextType,
+    MySQLTinyBlobType,
+    MySQLTinyIntType,
+    MySQLTinyTextType,
+    MySQLVarBinaryType,
+    MySQLVectorType,
+    MySQLYearType,
+)
+
 __all__ = [
     "MySQLLoadDataExpression",
     "LoadDataOptions",
@@ -147,4 +179,32 @@ __all__ = [
     "MySQLSubpartitionStrategy",
     "MySQLSubpartitionDefinition",
     "MySQLSubpartitionClause",
+    # DataType subclasses for DDL
+    "MySQLBigIntType",
+    "MySQLBinaryType",
+    "MySQLBitType",
+    "MySQLBlobType",
+    "MySQLEnumType",
+    "MySQLGeometryCollectionType",
+    "MySQLGeometryType",
+    "MySQLIntType",
+    "MySQLLineStringType",
+    "MySQLLongBlobType",
+    "MySQLLongTextType",
+    "MySQLMediumBlobType",
+    "MySQLMediumTextType",
+    "MySQLMultiLineStringType",
+    "MySQLMultiPointType",
+    "MySQLMultiPolygonType",
+    "MySQLPointType",
+    "MySQLPolygonType",
+    "MySQLSetType",
+    "MySQLSmallIntType",
+    "MySQLTextType",
+    "MySQLTinyBlobType",
+    "MySQLTinyIntType",
+    "MySQLTinyTextType",
+    "MySQLVarBinaryType",
+    "MySQLVectorType",
+    "MySQLYearType",
 ]
