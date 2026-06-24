@@ -22,6 +22,12 @@ from rhosocial.activerecord.backend.expression import (
     TableConstraint,
     TableConstraintType,
 )
+from rhosocial.activerecord.backend.expression.types import (
+    BigIntType,
+    DateTimeType,
+    IntegerType,
+    VarCharType,
+)
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.types import MySQLEnumType, MySQLSetType
 
@@ -32,7 +38,7 @@ class TestMySQLStorageOptions:
     def test_engine_option(self):
         """Test ENGINE storage option."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect, table="test_table", columns=columns, storage_options={"ENGINE": "InnoDB"}
         )
@@ -42,7 +48,7 @@ class TestMySQLStorageOptions:
     def test_charset_option(self):
         """Test DEFAULT CHARSET storage option."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect, table="test_table", columns=columns, storage_options={"DEFAULT CHARSET": "utf8mb4"}
         )
@@ -52,7 +58,7 @@ class TestMySQLStorageOptions:
     def test_collate_option(self):
         """Test COLLATE storage option."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect, table="test_table", columns=columns, storage_options={"COLLATE": "utf8mb4_unicode_ci"}
         )
@@ -62,7 +68,7 @@ class TestMySQLStorageOptions:
     def test_multiple_storage_options(self):
         """Test multiple storage options combined."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect,
             table="test_table",
@@ -77,7 +83,7 @@ class TestMySQLStorageOptions:
     def test_storage_options_with_if_not_exists(self):
         """Test storage options with IF NOT EXISTS."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect,
             table="test_table",
@@ -96,7 +102,7 @@ class TestMySQLTableComment:
     def test_table_comment(self):
         """Test table-level COMMENT."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect, table="users", columns=columns, dialect_options={"comment": "用户信息表"}
         )
@@ -106,7 +112,7 @@ class TestMySQLTableComment:
     def test_table_comment_with_storage_options(self):
         """Test table COMMENT with storage options."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect,
             table="users",
@@ -122,7 +128,7 @@ class TestMySQLTableComment:
     def test_table_comment_special_characters(self):
         """Test table COMMENT with special characters."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
             dialect=dialect, table="test", columns=columns, dialect_options={"comment": "测试's表"}
         )
@@ -138,9 +144,9 @@ class TestMySQLColumnComment:
         dialect = MySQLDialect()
         columns = [
             ColumnDefinition(
-                "id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)], comment="主键ID"
+                "id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)], comment="主键ID"
             ),
-            ColumnDefinition("name", "VARCHAR(100)", comment="用户名"),
+            ColumnDefinition("name", VarCharType(100), comment="用户名"),
         ]
         expr = CreateTableExpression(dialect=dialect, table="users", columns=columns)
         sql, params = expr.to_sql()
@@ -152,9 +158,9 @@ class TestMySQLColumnComment:
         dialect = MySQLDialect()
         columns = [
             ColumnDefinition(
-                "id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)], comment="主键"
+                "id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)], comment="主键"
             ),
-            ColumnDefinition("name", "VARCHAR(100)", comment="名称"),
+            ColumnDefinition("name", VarCharType(100), comment="名称"),
         ]
         expr = CreateTableExpression(
             dialect=dialect, table="users", columns=columns, dialect_options={"comment": "用户表"}
@@ -174,7 +180,7 @@ class TestMySQLAutoIncrement:
         columns = [
             ColumnDefinition(
                 "id",
-                "BIGINT",
+                BigIntType(),
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.NOT_NULL),
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
@@ -192,7 +198,7 @@ class TestMySQLAutoIncrement:
         columns = [
             ColumnDefinition(
                 "id",
-                "BIGINT",
+                BigIntType(),
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.NOT_NULL),
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
@@ -211,7 +217,7 @@ class TestMySQLAutoIncrement:
         columns = [
             ColumnDefinition(
                 "id",
-                "BIGINT",
+                BigIntType(),
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.NOT_NULL),
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
@@ -231,8 +237,8 @@ class TestMySQLInlineIndex:
         """Test simple INDEX definition."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("name", "VARCHAR(100)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("name", VarCharType(100)),
         ]
         indexes = [IndexDefinition("idx_name", ["name"])]
         expr = CreateTableExpression(dialect=dialect, table="users", columns=columns, indexes=indexes)
@@ -244,8 +250,8 @@ class TestMySQLInlineIndex:
         """Test UNIQUE INDEX definition."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("email", "VARCHAR(100)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("email", VarCharType(100)),
         ]
         indexes = [IndexDefinition("idx_email", ["email"], unique=True)]
         expr = CreateTableExpression(dialect=dialect, table="users", columns=columns, indexes=indexes)
@@ -257,9 +263,9 @@ class TestMySQLInlineIndex:
         """Test composite index on multiple columns."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("user_id", "INT"),
-            ColumnDefinition("created_at", "DATETIME"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("user_id", IntegerType()),
+            ColumnDefinition("created_at", DateTimeType()),
         ]
         indexes = [IndexDefinition("idx_user_created", ["user_id", "created_at"])]
         expr = CreateTableExpression(dialect=dialect, table="orders", columns=columns, indexes=indexes)
@@ -270,8 +276,8 @@ class TestMySQLInlineIndex:
         """Test INDEX with USING clause."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("name", "VARCHAR(100)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("name", VarCharType(100)),
         ]
         indexes = [IndexDefinition("idx_name", ["name"], type="BTREE")]
         expr = CreateTableExpression(dialect=dialect, table="users", columns=columns, indexes=indexes)
@@ -282,8 +288,8 @@ class TestMySQLInlineIndex:
         """Test HASH index type."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("key", "VARCHAR(100)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("key", VarCharType(100)),
         ]
         indexes = [IndexDefinition("idx_key", ["key"], type="HASH")]
         expr = CreateTableExpression(dialect=dialect, table="cache", columns=columns, indexes=indexes)
@@ -294,9 +300,9 @@ class TestMySQLInlineIndex:
         """Test multiple inline indexes."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("email", "VARCHAR(100)"),
-            ColumnDefinition("username", "VARCHAR(50)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("email", VarCharType(100)),
+            ColumnDefinition("username", VarCharType(50)),
         ]
         indexes = [IndexDefinition("idx_email", ["email"], unique=True), IndexDefinition("idx_username", ["username"])]
         expr = CreateTableExpression(dialect=dialect, table="users", columns=columns, indexes=indexes)
@@ -309,34 +315,40 @@ class TestMySQLEnumType:
     """Tests for MySQL ENUM type helper."""
 
     def test_simple_enum(self):
-        """Test simple ENUM definition."""
+        """Test simple ENUM SQL representation via to_sql()."""
+        dialect = MySQLDialect()
         enum_type = MySQLEnumType(["pending", "processing", "completed"])
-        sql = enum_type.to_sql()
+        sql, _ = enum_type.to_sql(dialect)
         assert sql == "ENUM('pending','processing','completed')"
 
     def test_enum_with_charset(self):
-        """Test ENUM with CHARACTER SET."""
+        """Test ENUM with CHARACTER SET via to_sql()."""
+        dialect = MySQLDialect()
         enum_type = MySQLEnumType(["active", "inactive"], charset="utf8mb4")
-        sql = enum_type.to_sql()
+        sql, _ = enum_type.to_sql(dialect)
         assert "CHARACTER SET utf8mb4" in sql
 
     def test_enum_with_collation(self):
-        """Test ENUM with COLLATE."""
+        """Test ENUM with COLLATE via to_sql()."""
+        dialect = MySQLDialect()
         enum_type = MySQLEnumType(["a", "b"], collation="utf8mb4_bin")
-        sql = enum_type.to_sql()
+        sql, _ = enum_type.to_sql(dialect)
         assert "COLLATE utf8mb4_bin" in sql
 
     def test_enum_with_charset_and_collation(self):
-        """Test ENUM with both CHARACTER SET and COLLATE."""
+        """Test ENUM with both CHARACTER SET and COLLATE via to_sql()."""
+        dialect = MySQLDialect()
         enum_type = MySQLEnumType(["pending", "done"], charset="utf8mb4", collation="utf8mb4_unicode_ci")
-        sql = enum_type.to_sql()
+        sql, _ = enum_type.to_sql(dialect)
         assert "CHARACTER SET utf8mb4" in sql
         assert "COLLATE utf8mb4_unicode_ci" in sql
 
     def test_enum_str_representation(self):
-        """Test ENUM string representation."""
+        """Test ENUM SQL representation via to_sql()."""
+        dialect = MySQLDialect()
         enum_type = MySQLEnumType(["yes", "no"])
-        assert str(enum_type) == "ENUM('yes','no')"
+        sql, _ = enum_type.to_sql(dialect)
+        assert sql == "ENUM('yes','no')"
 
     def test_enum_repr(self):
         """Test ENUM repr."""
@@ -355,9 +367,9 @@ class TestMySQLEnumType:
         dialect = MySQLDialect()
         status_enum = MySQLEnumType(["draft", "published", "archived"])
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
             ColumnDefinition(
-                "status", status_enum.to_sql(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]
+                "status", status_enum, constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]
             ),
         ]
         expr = CreateTableExpression(dialect=dialect, table="articles", columns=columns)
@@ -369,27 +381,32 @@ class TestMySQLSetType:
     """Tests for MySQL SET type helper."""
 
     def test_simple_set(self):
-        """Test simple SET definition."""
+        """Test simple SET SQL representation via to_sql()."""
+        dialect = MySQLDialect()
         set_type = MySQLSetType(["read", "write", "execute"])
-        sql = set_type.to_sql()
+        sql, _ = set_type.to_sql(dialect)
         assert sql == "SET('read','write','execute')"
 
     def test_set_with_charset(self):
-        """Test SET with CHARACTER SET."""
+        """Test SET with CHARACTER SET via to_sql()."""
+        dialect = MySQLDialect()
         set_type = MySQLSetType(["tag1", "tag2"], charset="utf8mb4")
-        sql = set_type.to_sql()
+        sql, _ = set_type.to_sql(dialect)
         assert "CHARACTER SET utf8mb4" in sql
 
     def test_set_with_collation(self):
-        """Test SET with COLLATE."""
+        """Test SET with COLLATE via to_sql()."""
+        dialect = MySQLDialect()
         set_type = MySQLSetType(["a", "b"], collation="utf8mb4_bin")
-        sql = set_type.to_sql()
+        sql, _ = set_type.to_sql(dialect)
         assert "COLLATE utf8mb4_bin" in sql
 
     def test_set_str_representation(self):
-        """Test SET string representation."""
+        """Test SET SQL representation via to_sql()."""
+        dialect = MySQLDialect()
         set_type = MySQLSetType(["x", "y"])
-        assert str(set_type) == "SET('x','y')"
+        sql, _ = set_type.to_sql(dialect)
+        assert sql == "SET('x','y')"
 
     def test_set_repr(self):
         """Test SET repr."""
@@ -409,7 +426,7 @@ class TestMySQLTableConstraints:
     def test_primary_key_constraint(self):
         """Test PRIMARY KEY table constraint."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("id", "INT"), ColumnDefinition("name", "VARCHAR(100)")]
+        columns = [ColumnDefinition("id", IntegerType()), ColumnDefinition("name", VarCharType(100))]
         table_constraints = [TableConstraint(TableConstraintType.PRIMARY_KEY, columns=["id"])]
         expr = CreateTableExpression(
             dialect=dialect, table="users", columns=columns, table_constraints=table_constraints
@@ -421,8 +438,8 @@ class TestMySQLTableConstraints:
         """Test UNIQUE table constraint."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition("id", "INT", constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition("email", "VARCHAR(100)"),
+            ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition("email", VarCharType(100)),
         ]
         table_constraints = [TableConstraint(TableConstraintType.UNIQUE, columns=["email"])]
         expr = CreateTableExpression(
@@ -434,7 +451,7 @@ class TestMySQLTableConstraints:
     def test_composite_primary_key(self):
         """Test composite PRIMARY KEY."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition("user_id", "INT"), ColumnDefinition("role_id", "INT")]
+        columns = [ColumnDefinition("user_id", IntegerType()), ColumnDefinition("role_id", IntegerType())]
         table_constraints = [TableConstraint(TableConstraintType.PRIMARY_KEY, columns=["user_id", "role_id"])]
         expr = CreateTableExpression(
             dialect=dialect, table="user_roles", columns=columns, table_constraints=table_constraints
@@ -476,7 +493,7 @@ class TestMySQLCompleteTableCreation:
         columns = [
             ColumnDefinition(
                 "id",
-                "BIGINT",
+                BigIntType(),
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.NOT_NULL),
                     ColumnConstraint(ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
@@ -485,23 +502,23 @@ class TestMySQLCompleteTableCreation:
             ),
             ColumnDefinition(
                 "name",
-                "VARCHAR(100)",
+                VarCharType(100),
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
                 comment="User name",
             ),
             ColumnDefinition(
                 "email",
-                "VARCHAR(255)",
+                VarCharType(255),
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
                 comment="Email address",
             ),
             ColumnDefinition(
                 "status",
-                status_enum.to_sql(),
+                status_enum,
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
                 comment="User status",
             ),
-            ColumnDefinition("created_at", "DATETIME", comment="Creation timestamp"),
+            ColumnDefinition("created_at", DateTimeType(), comment="Creation timestamp"),
         ]
 
         indexes = [IndexDefinition("idx_email", ["email"], unique=True), IndexDefinition("idx_status", ["status"])]

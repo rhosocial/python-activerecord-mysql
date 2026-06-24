@@ -11,6 +11,8 @@ import pytest
 from rhosocial.activerecord.backend.expression import (
     Column,
     ColumnDefinition,
+    ColumnConstraint,
+    ColumnConstraintType,
     CreateTableExpression,
     DropTableExpression,
     IndexDefinition,
@@ -21,6 +23,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
     WildcardExpression,
 )
+from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql import MySQLExplainResult, MySQLExplainRow
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByRangeColumns,
@@ -45,10 +48,10 @@ def _create_partition_explain_table_expression(dialect):
         dialect=dialect,
         table=PARTITION_EXPLAIN_TABLE,
         columns=[
-            ColumnDefinition("id", "BIGINT NOT NULL"),
-            ColumnDefinition("tenant_id", "BIGINT NOT NULL"),
-            ColumnDefinition("created_at", "DATETIME NOT NULL"),
-            ColumnDefinition("payload", "VARCHAR(255)"),
+            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("tenant_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("created_at", DateTimeType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition("payload", VarCharType(255)),
         ],
         indexes=[
             IndexDefinition(name="idx_created_at", columns=["created_at"]),
