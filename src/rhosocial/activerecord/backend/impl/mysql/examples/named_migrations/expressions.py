@@ -67,3 +67,31 @@ def create_posts_table(dialect):
 def drop_posts_table(dialect):
     """DROP TABLE IF EXISTS posts."""
     return DropTableExpression(dialect, table="posts", if_exists=True)
+
+
+def create_custom_table(dialect, table_name: str = "custom_table"):
+    """CREATE TABLE <table_name> (id INT PRIMARY KEY AUTO_INCREMENT, value TEXT).
+
+    This expression accepts an extra ``table_name`` parameter, allowing
+    the migration to control the target table name at runtime.
+    """
+    return CreateTableExpression(
+        dialect,
+        table=table_name,
+        columns=[
+            ColumnDefinition(
+                "id",
+                MySQLIntType(),
+                constraints=[
+                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                    ColumnConstraint(ColumnConstraintType.AUTO_INCREMENT),
+                ],
+            ),
+            ColumnDefinition("value", MySQLTextType()),
+        ],
+    )
+
+
+def drop_custom_table(dialect, table_name: str = "custom_table"):
+    """DROP TABLE IF EXISTS <table_name>."""
+    return DropTableExpression(dialect, table=table_name, if_exists=True)

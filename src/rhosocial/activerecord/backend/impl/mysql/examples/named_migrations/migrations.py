@@ -44,3 +44,30 @@ class V002CreatePosts(NamedMigration):
             "rhosocial.activerecord.backend.impl.mysql.examples.named_migrations"
             ".expressions.drop_posts_table"
         )
+
+
+class V003CreateCustomTable(NamedMigration):
+    """Create a table with a user-specified name.
+
+    Accepts a ``table_name`` parameter (default ``custom_table``).
+    Usage::
+
+        named-migration ... V003CreateCustomTable --param table_name=my_config
+    """
+
+    version = "v003_create_custom_table"
+    table_name: str = "custom_table"
+
+    def up(self, ctx: MigrationContext) -> None:
+        ctx.execute(
+            "rhosocial.activerecord.backend.impl.mysql.examples.named_migrations"
+            ".expressions.create_custom_table",
+            {"table_name": self.table_name},
+        )
+
+    def down(self, ctx: MigrationContext) -> None:
+        ctx.execute(
+            "rhosocial.activerecord.backend.impl.mysql.examples.named_migrations"
+            ".expressions.drop_custom_table",
+            {"table_name": self.table_name},
+        )
