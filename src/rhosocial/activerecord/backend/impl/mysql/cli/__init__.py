@@ -11,6 +11,7 @@ COMMAND_NAMES = [
     "named-expression",
     "named-procedure",
     "named-procedure-graph",
+    "named-migration",
     "named-connection",
 ]
 
@@ -24,6 +25,7 @@ def register_commands(subparsers):
     from .named_expression import create_parser as nq_parser
     from .named_procedure import create_parser as np_parser
     from .named_procedure_graph import create_parser as npg_parser
+    from .named_migration import create_parser as nm_parser
     from .named_connection import create_parser as nc_parser
 
     info_parser(subparsers)
@@ -33,6 +35,7 @@ def register_commands(subparsers):
     nq_parser(subparsers)
     np_parser(subparsers)
     npg_parser(subparsers)
+    nm_parser(subparsers)
     nc_parser(subparsers)
 
 
