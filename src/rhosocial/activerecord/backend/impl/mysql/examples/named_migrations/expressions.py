@@ -29,8 +29,10 @@ def create_users_table(dialect):
                 "id",
                 MySQLIntType(),
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.AUTO_INCREMENT),
+                    ColumnConstraint(
+                        ColumnConstraintType.PRIMARY_KEY,
+                        is_auto_increment=True,
+                    ),
                 ],
             ),
             ColumnDefinition("name", MySQLTextType()),
@@ -54,8 +56,10 @@ def create_posts_table(dialect):
                 "id",
                 MySQLIntType(),
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.AUTO_INCREMENT),
+                    ColumnConstraint(
+                        ColumnConstraintType.PRIMARY_KEY,
+                        is_auto_increment=True,
+                    ),
                 ],
             ),
             ColumnDefinition("title", MySQLTextType()),
@@ -83,8 +87,10 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
                 "id",
                 MySQLIntType(),
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.AUTO_INCREMENT),
+                    ColumnConstraint(
+                        ColumnConstraintType.PRIMARY_KEY,
+                        is_auto_increment=True,
+                    ),
                 ],
             ),
             ColumnDefinition("value", MySQLTextType()),
