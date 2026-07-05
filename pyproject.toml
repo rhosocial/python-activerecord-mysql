@@ -93,6 +93,12 @@ markers = [
     "basic_mapped_models: marks tests for models with custom column name mappings",
     "mysql_json: marks MySQL-specific JSON tests",
     "benchmark_fastapi: marks FastAPI benchmark tests",
+    "benchmark: marks benchmark tests",
+    "benchmark_backend: marks backend benchmark tests",
+    "benchmark_async: marks async benchmark tests",
+    "benchmark_sync: marks sync benchmark tests",
+    "benchmark_write: marks write benchmark tests",
+    "benchmark_read: marks read benchmark tests",
 ]
 
 [tool.coverage.run]

@@ -8,11 +8,13 @@ from rhosocial.activerecord.testsuite.feature.composite_pk.fixtures.models impor
     OrderItem as OrderItemBase,
     StoreInventory as StoreInventoryBase,
     Order as OrderBase,
+    MappedOrderItem as MappedOrderItemBase,
 )
 from rhosocial.activerecord.testsuite.feature.composite_pk.fixtures.models import (
     AsyncOrderItem as AsyncOrderItemBase,
     AsyncStoreInventory as AsyncStoreInventoryBase,
     AsyncOrder as AsyncOrderBase,
+    AsyncMappedOrderItem as AsyncMappedOrderItemBase,
 )
 
 from .scenarios import get_enabled_scenarios, get_scenario
@@ -96,6 +98,12 @@ class CompositePKProvider:
 
     async def setup_async_order_model(self, scenario_name: str) -> Type[ActiveRecord]:
         return await self._setup_async_model(AsyncOrderBase, scenario_name, "orders")
+
+    def setup_mapped_order_item_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        return self._setup_model(MappedOrderItemBase, scenario_name, "order_items")
+
+    async def setup_async_mapped_order_item_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        return await self._setup_async_model(AsyncMappedOrderItemBase, scenario_name, "order_items")
 
     def _drop_tables(self, backend, tables):
         try:
