@@ -6,7 +6,18 @@ class MySQLFullTextSearchMixin:
     """MySQL full-text search mixin."""
 
     def supports_fulltext_index(self) -> bool:
+        """Whether FULLTEXT index is supported (MySQL 5.6+ InnoDB)."""
         return self.version >= (5, 6, 0)
+
+    def supports_fulltext_search(self) -> bool:
+        """Whether full-text search (MATCH ... AGAINST) is supported.
+
+        MySQL exposes FULLTEXT indexes and ``MATCH ... AGAINST`` together,
+        so this delegates to :meth:`supports_fulltext_index`. Override in
+        subclasses only if a future MySQL-flavoured backend decouples the
+        two.
+        """
+        return self.supports_fulltext_index()
 
     def supports_fulltext_parser(self) -> bool:
         return self.version >= (5, 1, 0)
