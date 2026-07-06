@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     )
 
 from rhosocial.activerecord.backend.dialect.protocols import (
+    IndexSupport,
     JSONSupport,
     LockingSupport,
     PartitionSupport,
@@ -1040,7 +1041,7 @@ class MySQLVectorSupport(Protocol):
 
 
 @runtime_checkable
-class MySQLFullTextSearchSupport(Protocol):
+class MySQLFullTextSearchSupport(IndexSupport, Protocol):
     """MySQL full-text search protocol.
 
     Note: Most interfaces are defined in generic IndexSupport protocol.
@@ -1067,6 +1068,15 @@ class MySQLFullTextSearchSupport(Protocol):
 
     def supports_fulltext_index(self) -> bool:
         """Whether FULLTEXT index is supported (MySQL 5.6+ InnoDB)."""
+        ...
+
+    def supports_fulltext_search(self) -> bool:
+        """Whether ``MATCH ... AGAINST`` querying is supported (MySQL 5.6+).
+
+        MySQL couples DDL and query capabilities — a FULLTEXT index
+        enables MATCH ... AGAINST. This delegates to
+        :meth:`supports_fulltext_index`.
+        """
         ...
 
     def supports_fulltext_parser(self) -> bool:
