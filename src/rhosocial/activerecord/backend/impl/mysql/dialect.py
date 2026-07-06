@@ -30,7 +30,6 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     JoinSupport,
     ViewSupport,
     SchemaSupport,
-    IndexSupport,
     SequenceSupport,
     ConstraintSupport,
     IntrospectionSupport,
@@ -215,7 +214,6 @@ class MySQLDialect(
     JoinSupport,
     ViewSupport,
     SchemaSupport,
-    IndexSupport,
     SequenceSupport,
     MySQLTableSupport,  # extends TableSupport
     ConstraintSupport,
