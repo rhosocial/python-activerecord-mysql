@@ -361,6 +361,8 @@ class AsyncMySQLBackend(
             cursor = await self._get_cursor()
             await cursor.execute("SELECT VERSION()")
             version_row = await cursor.fetchone()
+            # Defensively consume remaining results to prevent cursor.description pollution
+            remaining = await cursor.fetchall()
             version_str = version_row[0] if version_row else "8.0.0"
 
             # Parse version string (e.g., "8.0.26" or "8.0.26-log")

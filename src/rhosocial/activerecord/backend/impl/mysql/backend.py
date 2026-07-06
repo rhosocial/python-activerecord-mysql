@@ -347,6 +347,8 @@ class MySQLBackend(
             cursor = self._get_cursor()
             cursor.execute("SELECT VERSION()")
             version_row = cursor.fetchone()
+            # Defensively consume remaining results to prevent cursor.description pollution
+            cursor.fetchall()
             version_str = version_row[0] if version_row else "8.0.0"
 
             # Parse version string (e.g., "8.0.26" or "8.0.26-log")
