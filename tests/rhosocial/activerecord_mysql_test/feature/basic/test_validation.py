@@ -21,3 +21,5 @@ tests against our specific (SQLite) backend.
 # parameterized to run against the scenarios defined in `providers/scenarios.py`.
 
 from rhosocial.activerecord.testsuite.feature.basic.test_validation import *  # noqa: F403
+from rhosocial.activerecord.testsuite.feature.basic.test_validation_async import *  # noqa: F403
+

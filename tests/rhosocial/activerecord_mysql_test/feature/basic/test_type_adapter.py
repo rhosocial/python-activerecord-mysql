@@ -11,3 +11,5 @@ package and make them discoverable by `pytest` within this project's test run.
 
 # Import all tests from the generic testsuite file.
 from rhosocial.activerecord.testsuite.feature.basic.test_type_adapter import *  # noqa: F403
+from rhosocial.activerecord.testsuite.feature.basic.test_type_adapter_async import *  # noqa: F403
+

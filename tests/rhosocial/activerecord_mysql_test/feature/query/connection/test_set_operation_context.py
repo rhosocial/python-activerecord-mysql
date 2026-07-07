@@ -9,3 +9,5 @@ ensuring MySQL backend compatibility for SetOperationQuery connection pool conte
 
 # Import shared tests from testsuite package
 from rhosocial.activerecord.testsuite.feature.query.connection.test_set_operation_context import *  # noqa: F403
+from rhosocial.activerecord.testsuite.feature.query.connection.test_set_operation_context_async import *  # noqa: F403
+

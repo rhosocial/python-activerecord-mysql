@@ -3,3 +3,5 @@
 Bridge file for nested eager loading tests from the testsuite.
 """
 from rhosocial.activerecord.testsuite.feature.query.test_eager_loading_nested import *  # noqa: F401, F403
+from rhosocial.activerecord.testsuite.feature.query.test_eager_loading_nested_async import *  # noqa: F403
+
