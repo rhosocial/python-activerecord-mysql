@@ -316,7 +316,40 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
 
     def setup_order_item_model(self, scenario_name: str) -> Type[ActiveRecord]:
         """Set up the composite-PK OrderItem model for the query feature tests."""
-        return self._setup_model(CompositeOrderItemBase, scenario_name, "order_items")
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.basic import TABLE_EXPRESSIONS as BASIC_EXPRS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        backend_class, config = get_scenario(scenario_name)
+        CompositeOrderItemBase.configure(config, backend_class)
+        backend_instance = CompositeOrderItemBase.__backend__
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, "order_items"),
+                    if_exists=True,
+                )
+                backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                backend_instance.execute("DROP TABLE IF EXISTS `order_items`")
+        except Exception:
+            pass
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := BASIC_EXPRS.get("order_items"):
+            create_expr = fn(backend_instance.dialect, "order_items")
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            backend_instance.execute(create_sql, params, options=options)
+        return CompositeOrderItemBase
 
     def cleanup_after_test(self, scenario_name: str):
         for backend_instance in self._active_backends:
@@ -588,7 +621,41 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
 
     async def setup_order_item_model(self, scenario_name: str) -> Type[AsyncActiveRecord]:
         """Set up the composite-PK AsyncOrderItem model for the query feature tests."""
-        return await self._setup_model_async(AsyncCompositeOrderItemBase, scenario_name, "order_items")
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        from providers.fixtures.basic import TABLE_EXPRESSIONS as BASIC_EXPRS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        _, config = get_scenario(scenario_name)
+        await AsyncCompositeOrderItemBase.configure(config, AsyncMySQLBackend)
+        backend_instance = AsyncCompositeOrderItemBase.__backend__
+        if backend_instance not in self._active_async_backends:
+            self._active_async_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        try:
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, "order_items"),
+                    if_exists=True,
+                )
+                await backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                await backend_instance.execute("DROP TABLE IF EXISTS `order_items`")
+        except Exception:
+            pass
+        try:
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := BASIC_EXPRS.get("order_items"):
+            create_expr = fn(backend_instance.dialect, "order_items")
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            await backend_instance.execute(create_sql, params, options=options)
+        return AsyncCompositeOrderItemBase
 
     async def cleanup_after_test(self, scenario_name: str) -> None:
         from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
