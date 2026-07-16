@@ -30,6 +30,10 @@ from rhosocial.activerecord.testsuite.feature.mixins.fixtures.models import (  #
     VersionedProduct as VersionedProductBase,
     Task as TaskBase,
     CombinedArticle as CombinedArticleBase,
+    AsyncTimestampedPost as AsyncTimestampedPostBase,
+    AsyncVersionedProduct as AsyncVersionedProductBase,
+    AsyncTask as AsyncTaskBase,
+    AsyncCombinedArticle as AsyncCombinedArticleBase,
 )
 
 # Conditionally import Python 3.10+ models
@@ -95,6 +99,12 @@ Task = _select_model_class(TaskBase, Task312, Task311, Task310, "Task")
 CombinedArticle = _select_model_class(
     CombinedArticleBase, CombinedArticle312, CombinedArticle311, CombinedArticle310, "CombinedArticle"
 )
+
+# Async models (no version-specific selection needed)
+AsyncTimestampedPost = AsyncTimestampedPostBase
+AsyncVersionedProduct = AsyncVersionedProductBase
+AsyncTask = AsyncTaskBase
+AsyncCombinedArticle = AsyncCombinedArticleBase
 
 from rhosocial.activerecord.testsuite.feature.mixins.interfaces import IMixinsSyncProvider, IMixinsAsyncProvider  # noqa: E402
 
@@ -251,16 +261,16 @@ class MixinsAsyncProvider(MixinsProviderBase, IMixinsAsyncProvider):
         return model_class
 
     async def setup_timestamped_post_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        return await self._setup_async_model(TimestampedPost, scenario_name, "timestamped_posts")
+        return await self._setup_async_model(AsyncTimestampedPost, scenario_name, "timestamped_posts")
 
     async def setup_versioned_product_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        return await self._setup_async_model(VersionedProduct, scenario_name, "versioned_products")
+        return await self._setup_async_model(AsyncVersionedProduct, scenario_name, "versioned_products")
 
     async def setup_task_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        return await self._setup_async_model(Task, scenario_name, "tasks")
+        return await self._setup_async_model(AsyncTask, scenario_name, "tasks")
 
     async def setup_combined_article_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        return await self._setup_async_model(CombinedArticle, scenario_name, "combined_articles")
+        return await self._setup_async_model(AsyncCombinedArticle, scenario_name, "combined_articles")
 
     async def cleanup_after_test(self, scenario_name: str):
         for backend_instance in self._active_async_backends:
