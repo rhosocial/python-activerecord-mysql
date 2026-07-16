@@ -2,4 +2,4 @@
 """
 Bridge file for async relation 'with' tests.
 """
-from rhosocial.activerecord.testsuite.feature.query.test_relations_with_async import *  # noqa: F401, F403
+from rhosocial.activerecord.testsuite.feature.query.relations.test_relations_with_async import *  # noqa: F401, F403
