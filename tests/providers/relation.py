@@ -294,11 +294,39 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
         self._sync_relation_boundary_setup = False
 
     def cleanup_after_test(self, scenario_name: str) -> None:
+        tables_to_drop = [
+            "employees",
+            "departments",
+            "authors",
+            "books",
+            "chapters",
+            "profiles",
+            "users",
+            "posts",
+            "comments",
+            "relation_boundary_owners",
+            "relation_boundary_profiles",
+            "relation_boundary_posts",
+        ]
         for backend in self._active_backends:
             try:
-                backend.disconnect()
+                backend.execute("SET FOREIGN_KEY_CHECKS = 0")
+                for table in tables_to_drop:
+                    try:
+                        backend.execute(f"DROP TABLE IF EXISTS `{table}`")
+                    except Exception:
+                        pass
+                backend.execute("SET FOREIGN_KEY_CHECKS = 1")
             except Exception:
-                pass
+                try:
+                    backend.execute("SET FOREIGN_KEY_CHECKS = 1")
+                except Exception:
+                    pass
+            finally:
+                try:
+                    backend.disconnect()
+                except Exception:
+                    pass
         self._active_backends.clear()
         self._reset_sync_setup_state()
 
@@ -462,10 +490,39 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
         self._async_relation_boundary_setup = False
 
     async def cleanup_after_test(self, scenario_name: str):
+        tables_to_drop = [
+            "employees",
+            "departments",
+            "authors",
+            "books",
+            "chapters",
+            "profiles",
+            "users",
+            "posts",
+            "comments",
+            "relation_boundary_owners",
+            "relation_boundary_profiles",
+            "relation_boundary_posts",
+        ]
         for backend in self._active_async_backends:
             try:
-                await backend.disconnect()
-            except Exception:
-                pass
+                try:
+                    await backend.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    for table in tables_to_drop:
+                        try:
+                            await backend.execute(f"DROP TABLE IF EXISTS `{table}`")
+                        except Exception:
+                            pass
+                    await backend.execute("SET FOREIGN_KEY_CHECKS = 1")
+                except Exception:
+                    try:
+                        await backend.execute("SET FOREIGN_KEY_CHECKS = 1")
+                    except Exception:
+                        pass
+            finally:
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    pass
         self._active_async_backends.clear()
         self._reset_async_setup_state()
