@@ -555,6 +555,9 @@ class BasicSyncProvider(BasicProviderBase, IBasicSyncProvider, WorkerTestProtoco
             "comments",
             "column_mapping_items",
             "mixed_annotation_items",
+            "order_items",
+            "orders",
+            "product",
         ]
         for backend_instance in self._active_backends:
             try:
@@ -726,6 +729,9 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
             "comments",
             "column_mapping_items",
             "mixed_annotation_items",
+            "order_items",
+            "orders",
+            "product",
         ]
         for backend_instance in self._active_async_backends:
             try:

@@ -366,6 +366,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
                     "extended_orders",
                     "extended_order_items",
                     "searchable_items",
+                    "profiles",
                 ]:
                     try:
                         backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
@@ -673,6 +674,7 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
                     "extended_orders",
                     "extended_order_items",
                     "searchable_items",
+                    "profiles",
                 ]:
                     try:
                         await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
