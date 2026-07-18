@@ -1,3 +1,3 @@
-from rhosocial.activerecord.testsuite.feature.relation.derived.test_derived_field import *  # noqa: F401,F403
-from rhosocial.activerecord.testsuite.feature.relation.derived.test_derived_field_async import *  # noqa: F403
-
+# tests/rhosocial/activerecord_mysql_test/feature/relation/derived/test_derived_field.py
+"""Bridge file for sync relation derived field tests."""
+from rhosocial.activerecord.testsuite.feature.relation.derived.test_derived_field import *  # noqa: F401, F403
