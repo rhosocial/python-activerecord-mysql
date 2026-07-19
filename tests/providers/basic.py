@@ -14,7 +14,7 @@ Its main responsibilities are:
 import os
 import sys
 import logging
-from typing import Type, List, Tuple, Optional
+from typing import Type, List, Tuple, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -336,6 +336,7 @@ from .scenarios import get_enabled_scenarios, get_scenario  # noqa: E402
 class BasicProviderBase:
     def __init__(self):
         self._scenario_db_files = {}
+        self._created_tables: Set[str] = set()
 
     def get_test_scenarios(self) -> List[str]:
         return list(get_enabled_scenarios().keys())
@@ -367,6 +368,7 @@ class BasicSyncProvider(BasicProviderBase, IBasicSyncProvider, WorkerTestProtoco
         backend_instance = model_class.__backend__
         self._track_backend(backend_instance, self._active_backends)
         self._reset_table_sync(model_class, table_name)
+        self._created_tables.add(table_name)
         return model_class
 
     def _reset_table_sync(self, model_class: Type[ActiveRecord], table_name: str) -> None:
@@ -420,6 +422,7 @@ class BasicSyncProvider(BasicProviderBase, IBasicSyncProvider, WorkerTestProtoco
             model_class.__backend__ = shared_backend
             self._track_backend(shared_backend, self._active_backends)
             self._initialize_model_schema(model_class, table_name)
+            self._created_tables.add(table_name)
             result.append(model_class)
         return tuple(result)
 
@@ -542,38 +545,23 @@ class BasicSyncProvider(BasicProviderBase, IBasicSyncProvider, WorkerTestProtoco
         return self._load_mysql_schema(f"{table_name}.sql")
 
     def cleanup_after_test(self, scenario_name: str):
-        tables_to_drop = [
-            "users",
-            "type_cases",
-            "type_tests",
-            "validated_field_users",
-            "validated_users",
-            "pydantic_validated_models",
-            "type_adapter_tests",
-            "bulk_users",
-            "posts",
-            "comments",
-            "column_mapping_items",
-            "mixed_annotation_items",
-            "order_items",
-            "orders",
-            "product",
-        ]
         for backend_instance in self._active_backends:
             try:
-                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table_name in tables_to_drop:
-                    try:
-                        backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-                    except Exception:
-                        pass
-                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                if self._created_tables:
+                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    for table_name in list(self._created_tables):
+                        try:
+                            backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                        except Exception:
+                            pass
+                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
             finally:
                 try:
                     backend_instance.disconnect()
                 except Exception:
                     pass
         self._active_backends.clear()
+        self._created_tables.clear()
 
 
 class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
@@ -590,6 +578,7 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
         backend_instance = model_class.__backend__
         self._track_backend(backend_instance, self._active_async_backends)
         await self._reset_table_async(model_class, table_name)
+        self._created_tables.add(table_name)
         return model_class
 
     async def _reset_table_async(self, model_class: Type[ActiveRecord], table_name: str) -> None:
@@ -665,11 +654,13 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
         post_model_class.__backend_class__ = user.__backend_class__
         post_model_class.__backend__ = shared_backend
         await self._initialize_async_model_schema(post_model_class, "posts")
+        self._created_tables.add("posts")
         comment_model_class = AsyncMappedComment
         comment_model_class.__connection_config__ = user.__connection_config__
         comment_model_class.__backend_class__ = user.__backend_class__
         comment_model_class.__backend__ = shared_backend
         await self._initialize_async_model_schema(comment_model_class, "comments")
+        self._created_tables.add("comments")
         return user, post_model_class, comment_model_class
 
     async def setup_mixed_models(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
@@ -682,6 +673,7 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
         mixed_annotation_model_class.__backend_class__ = column_mapping_model.__backend_class__
         mixed_annotation_model_class.__backend__ = shared_backend
         await self._initialize_async_model_schema(mixed_annotation_model_class, "mixed_annotation_items")
+        self._created_tables.add("mixed_annotation_items")
         return column_mapping_model, mixed_annotation_model_class
 
     async def setup_type_adapter_model_and_schema(self, scenario_name: str) -> Type[ActiveRecord]:
@@ -716,33 +708,17 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
         return await self._setup_async_model(AsyncProductWithColumnAndAdapterModel, scenario_name, "product")
 
     async def cleanup_after_test(self, scenario_name: str):
-        tables_to_drop = [
-            "users",
-            "type_cases",
-            "type_tests",
-            "validated_field_users",
-            "validated_users",
-            "pydantic_validated_models",
-            "type_adapter_tests",
-            "bulk_users",
-            "posts",
-            "comments",
-            "column_mapping_items",
-            "mixed_annotation_items",
-            "order_items",
-            "orders",
-            "product",
-        ]
         for backend_instance in self._active_async_backends:
             try:
                 try:
-                    await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                    for table_name in tables_to_drop:
-                        try:
-                            await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-                        except Exception:
-                            pass
-                    await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                    if self._created_tables:
+                        await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+                        for table_name in list(self._created_tables):
+                            try:
+                                await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                            except Exception:
+                                pass
+                        await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
                 except Exception:
                     pass
             finally:
@@ -751,6 +727,7 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
                 except Exception:
                     pass
         self._active_async_backends.clear()
+        self._created_tables.clear()
 
     async def _safe_async_disconnect(self, backend_instance):
         connection = backend_instance._connection

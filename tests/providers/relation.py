@@ -1,6 +1,6 @@
 # tests/providers/relation.py
 import asyncio
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, Set
 
 from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
 from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
@@ -119,6 +119,7 @@ RELATION_BOUNDARY_SCHEMA = """
 class RelationProviderBase:
     def __init__(self):
         self._scenario_db_files: Dict[str, List[str]] = {}
+        self._created_tables: Set[str] = set()
 
     def get_test_scenarios(self) -> List[str]:
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -166,6 +167,7 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
         self._active_backends.append(backend)
         self._execute_script(backend, EMPLOYEE_DEPARTMENT_SCHEMA)
         self._configure_with_shared_backend(Department, config, backend_class, backend)
+        self._created_tables.update(["employees", "departments"])
         return Employee, Department
 
     def _setup_author_book(self, scenario_name):
@@ -179,6 +181,7 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
         self._configure_with_shared_backend(Book, config, backend_class, backend)
         self._configure_with_shared_backend(Chapter, config, backend_class, backend)
         self._configure_with_shared_backend(Profile, config, backend_class, backend)
+        self._created_tables.update(["authors", "books", "chapters", "profiles"])
         return Author, Book, Chapter, Profile
 
     def _setup_user_post_comment_sync(self, scenario_name):
@@ -193,6 +196,7 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
             self._configure_with_shared_backend(Post, config, backend_class, backend)
             self._configure_with_shared_backend(Comment, config, backend_class, backend)
             self._sync_user_post_comment_setup = True
+            self._created_tables.update(["users", "posts", "comments"])
 
     def _setup_relation_boundary_sync(self, scenario_name):
         if not self._sync_relation_boundary_setup:
@@ -216,6 +220,7 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
                 backend,
             )
             self._sync_relation_boundary_setup = True
+            self._created_tables.update(["relation_boundary_owners", "relation_boundary_profiles", "relation_boundary_posts"])
 
     def setup_employee_department_fixtures(
         self,
@@ -294,29 +299,16 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
         self._sync_relation_boundary_setup = False
 
     def cleanup_after_test(self, scenario_name: str) -> None:
-        tables_to_drop = [
-            "employees",
-            "departments",
-            "authors",
-            "books",
-            "chapters",
-            "profiles",
-            "users",
-            "posts",
-            "comments",
-            "relation_boundary_owners",
-            "relation_boundary_profiles",
-            "relation_boundary_posts",
-        ]
         for backend in self._active_backends:
             try:
-                backend.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table in tables_to_drop:
-                    try:
-                        backend.execute(f"DROP TABLE IF EXISTS `{table}`")
-                    except Exception:
-                        pass
-                backend.execute("SET FOREIGN_KEY_CHECKS = 1")
+                if self._created_tables:
+                    backend.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    for table in list(self._created_tables):
+                        try:
+                            backend.execute(f"DROP TABLE IF EXISTS `{table}`")
+                        except Exception:
+                            pass
+                    backend.execute("SET FOREIGN_KEY_CHECKS = 1")
             except Exception:
                 try:
                     backend.execute("SET FOREIGN_KEY_CHECKS = 1")
@@ -328,6 +320,7 @@ class RelationSyncProvider(RelationProviderBase, IRelationSyncProvider):
                 except Exception:
                     pass
         self._active_backends.clear()
+        self._created_tables.clear()
         self._reset_sync_setup_state()
 
 
@@ -360,6 +353,7 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
         await backend.connect()
         await backend.introspect_and_adapt()
         await self._execute_script_async(backend, EMPLOYEE_DEPARTMENT_SCHEMA)
+        self._created_tables.update(["employees", "departments"])
         return Employee, Department
 
     async def _setup_author_book_async(self, scenario_name):
@@ -372,6 +366,7 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
         await backend.connect()
         await backend.introspect_and_adapt()
         await self._execute_script_async(backend, AUTHOR_BOOK_SCHEMA)
+        self._created_tables.update(["authors", "books", "chapters", "profiles"])
         return Author, Book, Chapter, Profile
 
     async def _setup_user_post_comment_async(self, scenario_name):
@@ -385,6 +380,7 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
             await backend.introspect_and_adapt()
             await self._execute_script_async(backend, USER_POST_COMMENT_SCHEMA)
             self._async_user_post_comment_setup = True
+            self._created_tables.update(["users", "posts", "comments"])
 
     async def _setup_relation_boundary_async(self, scenario_name):
         if not self._async_relation_boundary_setup:
@@ -407,6 +403,7 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
             await backend.connect()
             await backend.introspect_and_adapt()
             await self._execute_script_async(backend, RELATION_BOUNDARY_SCHEMA)
+            self._created_tables.update(["relation_boundary_owners", "relation_boundary_profiles", "relation_boundary_posts"])
             self._async_relation_boundary_setup = True
 
     async def setup_employee_department_fixtures(
@@ -490,30 +487,17 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
         self._async_relation_boundary_setup = False
 
     async def cleanup_after_test(self, scenario_name: str):
-        tables_to_drop = [
-            "employees",
-            "departments",
-            "authors",
-            "books",
-            "chapters",
-            "profiles",
-            "users",
-            "posts",
-            "comments",
-            "relation_boundary_owners",
-            "relation_boundary_profiles",
-            "relation_boundary_posts",
-        ]
         for backend in self._active_async_backends:
             try:
                 try:
-                    await backend.execute("SET FOREIGN_KEY_CHECKS = 0")
-                    for table in tables_to_drop:
-                        try:
-                            await backend.execute(f"DROP TABLE IF EXISTS `{table}`")
-                        except Exception:
-                            pass
-                    await backend.execute("SET FOREIGN_KEY_CHECKS = 1")
+                    if self._created_tables:
+                        await backend.execute("SET FOREIGN_KEY_CHECKS = 0")
+                        for table in list(self._created_tables):
+                            try:
+                                await backend.execute(f"DROP TABLE IF EXISTS `{table}`")
+                            except Exception:
+                                pass
+                        await backend.execute("SET FOREIGN_KEY_CHECKS = 1")
                 except Exception:
                     try:
                         await backend.execute("SET FOREIGN_KEY_CHECKS = 1")
@@ -525,4 +509,5 @@ class RelationAsyncProvider(RelationProviderBase, IRelationAsyncProvider):
                 except Exception:
                     pass
         self._active_async_backends.clear()
+        self._created_tables.clear()
         self._reset_async_setup_state()
