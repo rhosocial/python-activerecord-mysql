@@ -598,7 +598,7 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
     async def setup_mapped_models(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_mapped_models import (
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import (
             AsyncMappedUser,
             AsyncMappedPost,
             AsyncMappedComment,
