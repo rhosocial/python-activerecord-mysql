@@ -206,8 +206,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { python-version: '3.15.0-beta.2', mysql-version: '9.7', port: 3320, freethreaded: false }
-          - { python-version: '3.15.0-beta.2', mysql-version: '9.7', port: 3321, freethreaded: true }
+          - { python-version: '3.15.0-beta.4', mysql-version: '9.7', port: 3320, freethreaded: false }
+          - { python-version: '3.15.0-beta.4', mysql-version: '9.7', port: 3321, freethreaded: true }
 
     services:
       mysql:
