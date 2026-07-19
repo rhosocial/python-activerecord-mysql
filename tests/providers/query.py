@@ -533,9 +533,10 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
 
     async def setup_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         import pytest
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_json_models import AsyncJsonUser
-        backend_class, config = get_scenario(scenario_name)
-        await AsyncJsonUser.configure(config, backend_class)
+        _, config = get_scenario(scenario_name)
+        await AsyncJsonUser.configure(config, AsyncMySQLBackend)
         backend_instance = AsyncJsonUser.__backend__
         if backend_instance not in self._active_async_backends:
             self._active_async_backends.append(backend_instance)
