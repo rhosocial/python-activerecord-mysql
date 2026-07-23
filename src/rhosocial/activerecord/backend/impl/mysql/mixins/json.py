@@ -1,5 +1,9 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/json.py
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression import bases
+    from rhosocial.activerecord.backend.expression.advanced_functions import JSONExpression
 
 
 class MySQLJSONFunctionMixin:
@@ -107,6 +111,41 @@ class MySQLJSONFunctionMixin:
         if path:
             return f"JSON_SEARCH({json_doc}, {one_or_all}, %s, NULL, %s)", (search_str, path)
         return f"JSON_SEARCH({json_doc}, {one_or_all}, %s)", (search_str,)
+
+    def format_json_expression(self, expr: "JSONExpression") -> Tuple[str, Tuple]:
+        """Format JSON expression for MySQL.
+
+        MySQL's -> and ->> operators require:
+        1. The JSON path as a string literal, not a parameter placeholder
+        2. No parentheses around the expression
+
+        Args:
+            expr: JSONExpression instance.
+
+        Returns:
+            Tuple of (SQL string, parameters tuple).
+        """
+        if isinstance(expr.column, bases.BaseExpression):
+            col_sql, col_params = expr.column.to_sql()
+        else:
+            col_sql, col_params = self.format_identifier(str(expr.column)), ()
+
+        if expr.operation in ("->", "->>"):
+            escaped_path = self._escape_sql_string(expr.path)
+            sql = f"{col_sql}{expr.operation}'{escaped_path}'"
+            params = col_params
+        else:
+            sql = f"({col_sql} {expr.operation} {self.get_parameter_placeholder()})"
+            params = col_params + (expr.path,)
+
+        if expr.cast_types:
+            for target_type in expr.cast_types:
+                sql, params = self.format_cast_expression(sql, target_type, params, None)
+
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+
+        return sql, params
 
     def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
         """Format JSON_TABLE expression."""
