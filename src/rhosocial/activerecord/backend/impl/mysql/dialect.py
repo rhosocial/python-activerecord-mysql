@@ -512,6 +512,17 @@ class MySQLDialect(
         """
         return "ON DUPLICATE KEY"
 
+    def supports_on_conflict_clause(self) -> bool:
+        """Whether INSERT can carry an ON CONFLICT style clause.
+
+        MySQL expresses upsert via the ON DUPLICATE KEY UPDATE clause.
+        """
+        return True
+
+    def supports_multiple_on_conflict_clauses(self) -> bool:
+        """MySQL ON DUPLICATE KEY UPDATE allows only a single clause."""
+        return False
+
     def supports_lateral_join(self) -> bool:
         """Whether LATERAL joins are supported."""
         return self.version >= (8, 0, 14)  # LATERAL joins added in 8.0.14
@@ -1610,7 +1621,7 @@ class MySQLDialect(
 
         # Handle ON CONFLICT (ON DUPLICATE KEY UPDATE for MySQL)
         if expr.on_conflict:
-            conflict_sql, conflict_params = expr.on_conflict.to_sql()
+            conflict_sql, conflict_params = self.format_on_conflict_clauses(expr)
             sql += f" {conflict_sql}"
             all_params.extend(conflict_params)
 
