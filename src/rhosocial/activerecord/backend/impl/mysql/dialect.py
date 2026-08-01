@@ -140,6 +140,7 @@ class MySQLDialect(
     CTEMixin,
     FilterClauseMixin,
     WindowFunctionMixin,
+    MySQLJSONFunctionMixin,  # MySQL JSON functions (before JSONMixin to override format_json_arrow/function_expression)
     JSONMixin,
     ReturningMixin,  # MySQL doesn't support RETURNING, but we'll override to indicate this
     AdvancedGroupingMixin,
@@ -170,7 +171,6 @@ class MySQLDialect(
     TableMixin,
     ConstraintMixin,
     MySQLSetTypeMixin,
-    MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
     MySQLVectorMixin,  # MySQL 9.0+ VECTOR type support
     MySQLIntrospectionMixin,  # Must be before IntrospectionMixin
