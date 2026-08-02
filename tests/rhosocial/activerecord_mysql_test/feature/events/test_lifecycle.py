@@ -17,3 +17,5 @@ ensuring MySQL backend compatibility.
 
 # Import shared tests from testsuite package
 from rhosocial.activerecord.testsuite.feature.events.test_lifecycle import *  # noqa: F403
+from rhosocial.activerecord.testsuite.feature.events.test_lifecycle_async import *  # noqa: F403
+
