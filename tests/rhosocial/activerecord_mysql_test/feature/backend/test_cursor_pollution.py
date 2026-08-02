@@ -28,7 +28,6 @@ class TestMySQLCursorPollution:
         cursor = backend._get_cursor()
         cursor.execute("SELECT 1 AS marker")
         rows = cursor.fetchall()
-        cursor.close()
 
         assert len(rows) > 0
         assert cursor.description is not None
@@ -36,6 +35,7 @@ class TestMySQLCursorPollution:
         assert col_name == "marker", (
             f"cursor.description polluted! expected 'marker', got: {col_name}"
         )
+        cursor.close()
 
     def test_introspect_and_adapt_then_query(self, mysql_backend):
         """introspect_and_adapt() then a normal query."""
@@ -45,7 +45,6 @@ class TestMySQLCursorPollution:
         cursor = backend._get_cursor()
         cursor.execute("SELECT 'ok' AS status")
         rows = cursor.fetchall()
-        cursor.close()
 
         assert len(rows) > 0
         assert cursor.description is not None
@@ -53,6 +52,7 @@ class TestMySQLCursorPollution:
         assert col_name == "status", (
             f"cursor.description polluted! expected 'status', got: {col_name}"
         )
+        cursor.close()
 
     def test_high_frequency_version_query_cycle(self, mysql_backend):
         """Repeated get_server_version → query cycle to expose state leaks."""
@@ -64,7 +64,6 @@ class TestMySQLCursorPollution:
             cursor = backend._get_cursor()
             cursor.execute(f"SELECT {i} AS cycle")
             rows = cursor.fetchall()
-            cursor.close()
 
             assert len(rows) > 0
             assert cursor.description is not None
@@ -73,6 +72,7 @@ class TestMySQLCursorPollution:
                 f"Iteration {i}: cursor.description polluted! "
                 f"expected 'cycle', got: {col_name}"
             )
+            cursor.close()
 
         logger.info("MySQL high-frequency version query cycle 200 iterations passed")
 
@@ -86,7 +86,6 @@ class TestMySQLCursorPollution:
         cursor = backend._get_cursor()
         cursor.execute("SELECT 'ping_ok' AS status")
         rows = cursor.fetchall()
-        cursor.close()
 
         assert len(rows) > 0
         assert cursor.description is not None
@@ -94,6 +93,7 @@ class TestMySQLCursorPollution:
         assert col_name == "status", (
             f"cursor.description polluted after ping! expected 'status', got: {col_name}"
         )
+        cursor.close()
 
 
 class TestAsyncMySQLCursorPollution:
@@ -109,7 +109,6 @@ class TestAsyncMySQLCursorPollution:
         cursor = await backend._get_cursor()
         await cursor.execute("SELECT 1 AS marker")
         rows = await cursor.fetchall()
-        await cursor.close()
 
         assert len(rows) > 0
         assert cursor.description is not None
@@ -117,6 +116,7 @@ class TestAsyncMySQLCursorPollution:
         assert col_name == "marker", (
             f"Async cursor.description polluted! expected 'marker', got: {col_name}"
         )
+        await cursor.close()
 
     @pytest.mark.asyncio
     async def test_introspect_and_adapt_then_query(self, async_mysql_backend):
@@ -127,7 +127,6 @@ class TestAsyncMySQLCursorPollution:
         cursor = await backend._get_cursor()
         await cursor.execute("SELECT 'ok' AS status")
         rows = await cursor.fetchall()
-        await cursor.close()
 
         assert len(rows) > 0
         assert cursor.description is not None
@@ -136,6 +135,7 @@ class TestAsyncMySQLCursorPollution:
             f"Async cursor.description polluted after introspect! "
             f"expected 'status', got: {col_name}"
         )
+        await cursor.close()
 
     @pytest.mark.asyncio
     async def test_context_entry_workflow(self, async_mysql_backend):
@@ -146,7 +146,6 @@ class TestAsyncMySQLCursorPollution:
             cursor = await backend._get_cursor()
             await cursor.execute("SELECT 'ctx_ok' AS ctx_status")
             rows = await cursor.fetchall()
-            await cursor.close()
 
             assert len(rows) > 0
             assert cursor.description is not None
@@ -155,6 +154,7 @@ class TestAsyncMySQLCursorPollution:
                 f"Async cursor.description polluted after context()! "
                 f"expected 'ctx_status', got: {col_name}"
             )
+            await cursor.close()
 
     @pytest.mark.asyncio
     async def test_high_frequency_version_query_cycle(self, async_mysql_backend):
@@ -167,7 +167,6 @@ class TestAsyncMySQLCursorPollution:
             cursor = await backend._get_cursor()
             await cursor.execute(f"SELECT {i} AS cycle")
             rows = await cursor.fetchall()
-            await cursor.close()
 
             assert len(rows) > 0
             assert cursor.description is not None
@@ -176,5 +175,6 @@ class TestAsyncMySQLCursorPollution:
                 f"Iteration {i}: async cursor.description polluted! "
                 f"expected 'cycle', got: {col_name}"
             )
+            await cursor.close()
 
         logger.info("Async MySQL high-frequency version query cycle 200 iterations passed")

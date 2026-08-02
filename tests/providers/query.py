@@ -122,67 +122,85 @@ MappedComment = _select_model_class(
     MappedCommentBase, MappedComment312, MappedComment311, MappedComment310, "MappedComment"
 )
 
-from rhosocial.activerecord.testsuite.feature.query.interfaces import IQueryProvider  # noqa: E402
+from rhosocial.activerecord.testsuite.feature.query.interfaces import IQuerySyncProvider, IQueryAsyncProvider  # noqa: E402
 from rhosocial.activerecord.testsuite.core.protocols import WorkerTestProtocol  # noqa: E402
+
+# Composite-PK model classes used by setup_order_item_model.
+from rhosocial.activerecord.testsuite.feature.basic.fixtures.models import (  # noqa: E402
+    OrderItem as CompositeOrderItemBase,
+    AsyncOrderItem as AsyncCompositeOrderItemBase,
+)
 
 # ...and the scenarios are defined specifically for this backend.
 from .scenarios import get_enabled_scenarios, get_scenario  # noqa: E402
 
 
-class QueryProvider(IQueryProvider, WorkerTestProtocol):
-    """
-    This is the MySQL backend's implementation for the query features test group.
-    It connects the generic tests in the testsuite with the actual MySQL database.
-    """
-
+class QueryProviderBase:
     def __init__(self):
-        # This list will track the backend instances created during the setup phase.
-        self._active_backends = []
+        self._scenario_db_files = {}
 
     def get_test_scenarios(self) -> List[str]:
-        """Returns a list of names for all enabled scenarios for this backend."""
         return list(get_enabled_scenarios().keys())
 
+    def _load_mysql_schema(self, filename: str) -> str:
+        schema_dir = os.path.join(
+            os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "query", "schema"
+        )
+        schema_path = os.path.join(schema_dir, filename)
+        with open(schema_path, "r", encoding="utf-8") as f:
+            return f.read()
+
+
+class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtocol):
+    def __init__(self):
+        super().__init__()
+        self._active_backends = []
+
     def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
-        """A generic helper method to handle the setup for any given model."""
-        # 1. Get the backend class (MySQLBackend) and connection config for the requested scenario.
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.query import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
         backend_class, config = get_scenario(scenario_name)
-
-        # 2. Configure the generic model class with our specific backend and config.
         model_class.configure(config, backend_class)
-
-        # --- Start of modification: Track the created backend instance ---
         backend_instance = model_class.__backend__
         if backend_instance not in self._active_backends:
             self._active_backends.append(backend_instance)
-        # --- End of modification ---
-
-        # 3. Prepare the database schema. To ensure tests are isolated, we disable foreign key checks,
-        #    drop the table if it exists, and recreate it from the schema file.
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
         try:
-            # Disable foreign key checks temporarily to avoid constraint issues
-            model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 0")
-            # Drop the table if it exists
-            model_class.__backend__.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-            # Re-enable foreign key checks
-            model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
-        except Exception:
-            # If there's an error, ensure foreign key checks are re-enabled
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
             try:
-                model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, table_name),
+                    if_exists=True,
+                )
+                backend_instance.execute(*drop_expr.to_sql(), options=options)
             except Exception:
-                pass  # Ignore any errors when re-enabling foreign key checks
-            # Continue anyway since the table might not exist
-
-        schema_sql = self._load_mysql_schema(f"{table_name}.sql")
-        model_class.__backend__.execute(schema_sql)
-
+                backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+        except Exception:
+            try:
+                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+            except Exception:
+                pass
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := TABLE_EXPRESSIONS.get(table_name):
+            create_expr = fn(backend_instance.dialect, table_name)
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            backend_instance.execute(create_sql, params, options=options)
+        else:
+            schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+            backend_instance.execute(schema_sql, options=options)
         return model_class
 
     def _setup_multiple_models(
         self, model_classes: List[Tuple[Type[ActiveRecord], str]], scenario_name: str
     ) -> Tuple[Type[ActiveRecord], ...]:
-        """Helper to set up multiple related models for a test, sharing a single backend."""
         result = []
         shared_backend = None
         for i, (model_class, table_name) in enumerate(model_classes):
@@ -194,54 +212,290 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
                 model_class.__connection_config__ = config
                 model_class.__backend_class__ = backend_class
                 model_class.__backend__ = shared_backend
-                backend_instance = shared_backend
-                if backend_instance not in self._active_backends:
-                    self._active_backends.append(backend_instance)
-                try:
-                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                    backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-                finally:
-                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-                schema_sql = self._load_mysql_schema(f"{table_name}.sql")
-                backend_instance.execute(schema_sql)
+                self._reset_schema(shared_backend, table_name)
                 configured_model = model_class
             result.append(configured_model)
         return tuple(result)
 
+    def _reset_schema(self, backend_instance, table_name: str) -> None:
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.query import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, table_name),
+                    if_exists=True,
+                )
+                backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+        finally:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        if fn := TABLE_EXPRESSIONS.get(table_name):
+            create_expr = fn(backend_instance.dialect, table_name)
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            backend_instance.execute(create_sql, params, options=options)
+        else:
+            schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+            backend_instance.execute(schema_sql, options=options)
+
+    def setup_order_fixtures(
+        self, scenario_name: str
+    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        return self._setup_multiple_models(
+            [(User, "users"), (Order, "orders"), (OrderItem, "order_items")], scenario_name
+        )
+
+    def setup_blog_fixtures(
+        self, scenario_name: str
+    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        return self._setup_multiple_models([(User, "users"), (Post, "posts"), (Comment, "comments")], scenario_name)
+
+    def setup_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        import pytest
+        backend_class, config = get_scenario(scenario_name)
+        JsonUser.configure(config, backend_class)
+        backend_instance = JsonUser.__backend__
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        if not backend_instance.dialect.supports_json_type():
+            pytest.skip(f"JSON type not supported by MySQL version {backend_instance.get_server_version()}")
+        json_user_model = self._setup_model(JsonUser, scenario_name, "json_users")
+        return (json_user_model,)
+
+    def setup_tree_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        node_model = self._setup_model(Node, scenario_name, "nodes")
+        return (node_model,)
+
+    def setup_extended_order_fixtures(
+        self, scenario_name: str
+    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        return self._setup_multiple_models(
+            [(User, "users"), (ExtendedOrder, "extended_orders"), (ExtendedOrderItem, "extended_order_items")],
+            scenario_name,
+        )
+
+    def setup_combined_fixtures(
+        self, scenario_name: str
+    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        return self._setup_multiple_models(
+            [(User, "users"), (Order, "orders"), (OrderItem, "order_items"), (Post, "posts"), (Comment, "comments")],
+            scenario_name,
+        )
+
+    def setup_annotated_query_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.annotated_adapter_models import SearchableItem
+        return self._setup_multiple_models(
+            [(SearchableItem, "searchable_items")],
+            scenario_name,
+        )
+
+    def setup_mapped_models(
+        self, scenario_name: str
+    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
+        return self._setup_multiple_models(
+            [(MappedUser, "users"), (MappedPost, "posts"), (MappedComment, "comments")], scenario_name
+        )
+
+    def setup_profile_fixtures(
+        self, scenario_name: str
+    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord]]:
+        Profile = User.get_relation('profile').get_related_model(User)
+        return self._setup_multiple_models([(User, "users"), (Profile, "profiles")], scenario_name)
+
+    # --- Composite PK setup ---
+
+    def setup_order_item_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        """Set up the composite-PK OrderItem model for the query feature tests."""
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.basic import TABLE_EXPRESSIONS as BASIC_EXPRS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        backend_class, config = get_scenario(scenario_name)
+        CompositeOrderItemBase.configure(config, backend_class)
+        backend_instance = CompositeOrderItemBase.__backend__
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, "order_items"),
+                    if_exists=True,
+                )
+                backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                backend_instance.execute("DROP TABLE IF EXISTS `order_items`")
+        except Exception:
+            pass
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := BASIC_EXPRS.get("order_items"):
+            create_expr = fn(backend_instance.dialect, "order_items")
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            backend_instance.execute(create_sql, params, options=options)
+        return CompositeOrderItemBase
+
+    def cleanup_after_test(self, scenario_name: str):
+        for backend_instance in self._active_backends:
+            try:
+                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+                for table_name in [
+                    "users",
+                    "orders",
+                    "order_items",
+                    "posts",
+                    "comments",
+                    "json_users",
+                    "nodes",
+                    "extended_orders",
+                    "extended_order_items",
+                    "searchable_items",
+                    "profiles",
+                ]:
+                    try:
+                        backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                    except Exception:
+                        pass
+                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+            except Exception:
+                try:
+                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                except Exception:
+                    pass
+            finally:
+                try:
+                    backend_instance.disconnect()
+                except Exception:
+                    pass
+        self._active_backends.clear()
+
+    # --- Implementation of WorkerTestProtocol ---
+
+    def get_worker_connection_params(self, scenario_name: str, fixture_type: str = "order") -> dict:
+        from .scenarios import SCENARIO_MAP
+        is_async = fixture_type and fixture_type.startswith("async_")
+        backend_class_name = "AsyncMySQLBackend" if is_async else "MySQLBackend"
+        base_fixture_type = fixture_type.replace("async_", "") if fixture_type else "order"
+        schema_sql = self._get_schema_sql_for_fixture_type(base_fixture_type)
+        if scenario_name not in SCENARIO_MAP:
+            if SCENARIO_MAP:
+                scenario_name = next(iter(SCENARIO_MAP))
+            else:
+                raise ValueError("No scenarios registered")
+        config_dict = SCENARIO_MAP[scenario_name]
+        return {
+            "backend_module": "rhosocial.activerecord.backend.impl.mysql",
+            "backend_class_name": backend_class_name,
+            "config_class_module": "rhosocial.activerecord.backend.impl.mysql.config",
+            "config_class_name": "MySQLConnectionConfig",
+            "config_kwargs": config_dict,
+            "schema_sql": schema_sql,
+        }
+
+    def get_worker_schema_sql(self, scenario_name: str, table_name: str) -> str:
+        from providers.fixtures.query import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
+        from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+        if fn := TABLE_EXPRESSIONS.get(table_name):
+            dialect = MySQLDialect()
+            sql, _ = to_mysql_ddl_sql(fn(dialect, table_name))
+            return sql
+        return self._load_mysql_schema(f"{table_name}.sql")
+
+    def _get_schema_sql_for_fixture_type(self, fixture_type: str) -> dict:
+        from providers.fixtures.query import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
+        from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+        if fixture_type == "order":
+            tables = ["users", "orders", "order_items"]
+        elif fixture_type == "blog":
+            tables = ["users", "posts", "comments"]
+        elif fixture_type == "user":
+            tables = ["users"]
+        elif fixture_type == "combined":
+            tables = ["users", "orders", "order_items", "posts", "comments"]
+        else:
+            tables = ["users"]
+        schemas = {}
+        dialect = MySQLDialect()
+        for table in tables:
+            if fn := TABLE_EXPRESSIONS.get(table):
+                sql, _ = to_mysql_ddl_sql(fn(dialect, table))
+                schemas[table] = sql
+            else:
+                schemas[table] = self._load_mysql_schema(f"{table}.sql")
+        return schemas
+
+
+class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
+    def __init__(self):
+        super().__init__()
+        self._active_async_backends = []
+
     async def _setup_model_async(
         self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str, shared_backend=None
     ) -> Type[ActiveRecord]:
-        """A generic helper method to handle the setup for any given async model."""
         from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.query import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
 
         _, config = get_scenario(scenario_name)
-
         if shared_backend is None:
             await model_class.configure(config, AsyncMySQLBackend)
         else:
             model_class.__connection_config__ = config
             model_class.__backend_class__ = AsyncMySQLBackend
             model_class.__backend__ = shared_backend
-
         backend_instance = model_class.__backend__
-        if backend_instance not in self._active_backends:
-            self._active_backends.append(backend_instance)
-
+        if backend_instance not in self._active_async_backends:
+            self._active_async_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
         try:
-            await model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 0")
-            await model_class.__backend__.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, table_name),
+                    if_exists=True,
+                )
+                await backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
         finally:
-            await model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
-
-        schema_sql = self._load_mysql_schema(f"{table_name}.sql")
-        await model_class.__backend__.execute(schema_sql)
-
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        if fn := TABLE_EXPRESSIONS.get(table_name):
+            create_expr = fn(backend_instance.dialect, table_name)
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            await backend_instance.execute(create_sql, params, options=options)
+        else:
+            schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+            await backend_instance.execute(schema_sql, options=options)
         return model_class
 
     async def _setup_multiple_models_async(
         self, model_classes: List[Tuple[Type[ActiveRecord], str]], scenario_name: str
     ) -> Tuple[Type[ActiveRecord], ...]:
-        """Helper to set up multiple related async models for a test."""
         result = []
         shared_backend = None
         for i, (model_class, table_name) in enumerate(model_classes):
@@ -256,161 +510,54 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
             result.append(configured_model)
         return tuple(result)
 
-    # --- Implementation of the IQueryProvider interface ---
-
-    def setup_order_fixtures(
+    async def setup_order_fixtures(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the order-related models (User, Order, OrderItem) tests."""
-        return self._setup_multiple_models(
-            [(User, "users"), (Order, "orders"), (OrderItem, "order_items")], scenario_name
-        )
-
-    def setup_blog_fixtures(
-        self, scenario_name: str
-    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the blog-related models (User, Post, Comment) tests."""
-        return self._setup_multiple_models([(User, "users"), (Post, "posts"), (Comment, "comments")], scenario_name)
-
-    def setup_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for the JSON user model tests."""
-        import pytest
-
-        backend_class, config = get_scenario(scenario_name)
-        JsonUser.configure(config, backend_class)
-        backend_instance = JsonUser.__backend__
-        if backend_instance not in self._active_backends:
-            self._active_backends.append(backend_instance)
-        if not backend_instance.dialect.supports_json_type():
-            pytest.skip(f"JSON type not supported by MySQL version {backend_instance.get_server_version()}")
-        json_user_model = self._setup_model(JsonUser, scenario_name, "json_users")
-        return (json_user_model,)
-
-    def setup_tree_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for the tree model (Node) tests."""
-        node_model = self._setup_model(Node, scenario_name, "nodes")
-        return (node_model,)
-
-    def setup_extended_order_fixtures(
-        self, scenario_name: str
-    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the extended order-related models (User, ExtendedOrder, ExtendedOrderItem) tests."""
-        return self._setup_multiple_models(
-            [(User, "users"), (ExtendedOrder, "extended_orders"), (ExtendedOrderItem, "extended_order_items")],
-            scenario_name,
-        )
-
-    def setup_combined_fixtures(
-        self, scenario_name: str
-    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the combined models (User, Order, OrderItem, Post, Comment) tests."""
-        return self._setup_multiple_models(
-            [(User, "users"), (Order, "orders"), (OrderItem, "order_items"), (Post, "posts"), (Comment, "comments")],
-            scenario_name,
-        )
-
-    def setup_annotated_query_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for the SearchableItem model tests."""
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.annotated_adapter_models import SearchableItem
-
-        return self._setup_multiple_models(
-            [
-                (SearchableItem, "searchable_items"),
-            ],
-            scenario_name,
-        )
-
-    def setup_mapped_models(
-        self, scenario_name: str
-    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for MappedUser, MappedPost, and MappedComment models."""
-        return self._setup_multiple_models(
-            [(MappedUser, "users"), (MappedPost, "posts"), (MappedComment, "comments")], scenario_name
-        )
-
-    # --- Profile fixtures ---
-
-    def setup_profile_fixtures(
-        self, scenario_name: str
-    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord]]:
-        # Resolve Profile via the relationship descriptor so we get the same
-        # class that batch loading will find (version-specific model files
-        # define their own Profile classes; importing models.Profile would
-        # target the wrong class on Python 3.10+).
-        Profile = User.get_relation('profile').get_related_model(User)
-
-        return self._setup_multiple_models([(User, "users"), (Profile, "profiles")], scenario_name)
-
-    async def setup_async_profile_fixtures(
-        self, scenario_name: str
-    ) -> Tuple[Type[AsyncActiveRecord], Type[AsyncActiveRecord]]:
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import (
-            AsyncUser,
-            AsyncProfile,
-        )
-
-        return await self._setup_multiple_models_async(
-            [(AsyncUser, "users"), (AsyncProfile, "profiles")], scenario_name
-        )
-    # --- Async implementations ---
-
-    async def setup_async_order_fixtures(
-        self, scenario_name: str
-    ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the async order-related models (AsyncUser, AsyncOrder, AsyncOrderItem) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import (
             AsyncUser,
             AsyncOrder,
             AsyncOrderItem,
         )
-
         return await self._setup_multiple_models_async(
             [(AsyncUser, "users"), (AsyncOrder, "orders"), (AsyncOrderItem, "order_items")], scenario_name
         )
 
-    async def setup_async_blog_fixtures(
+    async def setup_blog_fixtures(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the async blog-related models (AsyncUser, AsyncPost, AsyncComment) tests."""
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_blog_models import AsyncPost, AsyncComment
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import AsyncUser
-
         return await self._setup_multiple_models_async(
             [(AsyncUser, "users"), (AsyncPost, "posts"), (AsyncComment, "comments")], scenario_name
         )
 
-    async def setup_async_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for the async JSON user model tests."""
+    async def setup_json_user_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         import pytest
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_json_models import AsyncJsonUser
-
-        backend_class, config = get_scenario(scenario_name)
-        await AsyncJsonUser.configure(config, backend_class)
+        _, config = get_scenario(scenario_name)
+        await AsyncJsonUser.configure(config, AsyncMySQLBackend)
         backend_instance = AsyncJsonUser.__backend__
-        if backend_instance not in self._active_backends:
-            self._active_backends.append(backend_instance)
+        if backend_instance not in self._active_async_backends:
+            self._active_async_backends.append(backend_instance)
         if not backend_instance.dialect.supports_json_type():
             pytest.skip(f"JSON type not supported by MySQL version {backend_instance.get_server_version()}")
         json_user_model = await self._setup_model_async(AsyncJsonUser, scenario_name, "json_users")
         return (json_user_model,)
 
-    async def setup_async_tree_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for the async tree model (AsyncNode) tests."""
+    async def setup_tree_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_cte_models import AsyncNode
-
         node_model = await self._setup_model_async(AsyncNode, scenario_name, "nodes")
         return (node_model,)
 
-    async def setup_async_extended_order_fixtures(
+    async def setup_extended_order_fixtures(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the async extended order-related models (AsyncUser, AsyncExtendedOrder, AsyncExtendedOrderItem) tests."""  # noqa: E501
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_extended_models import (
             AsyncUser,
             AsyncExtendedOrder,
             AsyncExtendedOrderItem,
         )
-
         return await self._setup_multiple_models_async(
             [
                 (AsyncUser, "users"),
@@ -420,17 +567,15 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
             scenario_name,
         )
 
-    async def setup_async_combined_fixtures(
+    async def setup_combined_fixtures(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for the async combined models (AsyncUser, AsyncOrder, AsyncOrderItem, AsyncPost, AsyncComment) tests."""  # noqa: E501
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import (
             AsyncUser,
             AsyncOrder,
             AsyncOrderItem,
         )
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_blog_models import AsyncPost, AsyncComment
-
         return await self._setup_multiple_models_async(
             [
                 (AsyncUser, "users"),
@@ -442,43 +587,81 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
             scenario_name,
         )
 
-    async def setup_async_annotated_query_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
-        """Sets up the database for the async SearchableItem model tests."""
+    async def setup_annotated_query_fixtures(self, scenario_name: str) -> Tuple[Type[ActiveRecord], ...]:
         from rhosocial.activerecord.testsuite.feature.query.fixtures.async_annotated_adapter_models import (
             AsyncSearchableItem,
         )
-
         return await self._setup_multiple_models_async(
-            [
-                (AsyncSearchableItem, "searchable_items"),
-            ],
+            [(AsyncSearchableItem, "searchable_items")],
             scenario_name,
         )
 
-    async def setup_async_mapped_models(
+    async def setup_mapped_models(
         self, scenario_name: str
     ) -> Tuple[Type[ActiveRecord], Type[ActiveRecord], Type[ActiveRecord]]:
-        """Sets up the database for AsyncMappedUser, AsyncMappedPost, and AsyncMappedComment models."""
-        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_mapped_models import (
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.models import (
             AsyncMappedUser,
             AsyncMappedPost,
             AsyncMappedComment,
         )
-
         return await self._setup_multiple_models_async(
             [(AsyncMappedUser, "users"), (AsyncMappedPost, "posts"), (AsyncMappedComment, "comments")], scenario_name
         )
 
-    async def cleanup_after_test_async(self, scenario_name: str) -> None:
-        """
-        Performs async cleanup after a test, dropping all tables and disconnecting async backends.
-        """
-        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+    async def setup_profile_fixtures(
+        self, scenario_name: str
+    ) -> Tuple[Type[AsyncActiveRecord], Type[AsyncActiveRecord]]:
+        from rhosocial.activerecord.testsuite.feature.query.fixtures.async_models import (
+            AsyncUser,
+            AsyncProfile,
+        )
+        return await self._setup_multiple_models_async(
+            [(AsyncUser, "users"), (AsyncProfile, "profiles")], scenario_name
+        )
 
-        for backend_instance in self._active_backends:
-            is_async = isinstance(backend_instance, AsyncMySQLBackend)
-            if not is_async:
-                continue
+    # --- Composite PK async setup ---
+
+    async def setup_order_item_model(self, scenario_name: str) -> Type[AsyncActiveRecord]:
+        """Set up the composite-PK AsyncOrderItem model for the query feature tests."""
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        from providers.fixtures.basic import TABLE_EXPRESSIONS as BASIC_EXPRS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        _, config = get_scenario(scenario_name)
+        await AsyncCompositeOrderItemBase.configure(config, AsyncMySQLBackend)
+        backend_instance = AsyncCompositeOrderItemBase.__backend__
+        if backend_instance not in self._active_async_backends:
+            self._active_async_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        try:
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, "order_items"),
+                    if_exists=True,
+                )
+                await backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                await backend_instance.execute("DROP TABLE IF EXISTS `order_items`")
+        except Exception:
+            pass
+        try:
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := BASIC_EXPRS.get("order_items"):
+            create_expr = fn(backend_instance.dialect, "order_items")
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            await backend_instance.execute(create_sql, params, options=options)
+        return AsyncCompositeOrderItemBase
+
+    async def cleanup_after_test(self, scenario_name: str) -> None:
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        for backend_instance in self._active_async_backends:
             try:
                 await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
                 for table_name in [
@@ -492,6 +675,7 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
                     "extended_orders",
                     "extended_order_items",
                     "searchable_items",
+                    "profiles",
                 ]:
                     try:
                         await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
@@ -508,150 +692,4 @@ class QueryProvider(IQueryProvider, WorkerTestProtocol):
                     await backend_instance.disconnect()
                 except Exception:
                     pass
-
-        self._active_backends.clear()
-
-    def _load_mysql_schema(self, filename: str) -> str:
-        """Helper to load a SQL schema file from this project's fixtures."""
-        # Schemas are stored in the centralized location for query feature.
-        schema_dir = os.path.join(
-            os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "query", "schema"
-        )
-        schema_path = os.path.join(schema_dir, filename)
-
-        with open(schema_path, "r", encoding="utf-8") as f:
-            return f.read()
-
-    def cleanup_after_test(self, scenario_name: str):
-        """
-        Performs cleanup after a test. This now iterates through the backends
-        that were created during setup, drops tables, and explicitly disconnects them.
-        """
-        for backend_instance in self._active_backends:
-            try:
-                # Drop all tables that might have been created for query tests
-                # Disable foreign key checks to avoid constraint issues during cleanup
-                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
-                for table_name in [
-                    "users",
-                    "orders",
-                    "order_items",
-                    "posts",
-                    "comments",
-                    "json_users",
-                    "nodes",
-                    "extended_orders",
-                    "extended_order_items",
-                    "searchable_items",
-                ]:
-                    try:
-                        backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-                    except Exception:
-                        # Continue with other tables if one fails
-                        pass
-                # Re-enable foreign key checks
-                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-            except Exception:
-                # If there's an error, ensure foreign key checks are re-enabled
-                try:
-                    backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
-                except Exception:
-                    pass  # Ignore any errors when re-enabling foreign key checks
-            finally:
-                # Always disconnect the backend instance that was used in the test
-                try:
-                    backend_instance.disconnect()
-                except:  # noqa: E722
-                    # Ignore errors during disconnect
-                    pass
-
-        # Clear the list of active backends for the next test
-        self._active_backends.clear()
-
-    # --- Implementation of WorkerTestProtocol ---
-
-    def get_worker_connection_params(self, scenario_name: str, fixture_type: str = "order") -> dict:
-        """
-        Return serializable connection parameters for Worker processes.
-
-        This method provides all information needed to recreate the database
-        connection in a Worker process, including the schema SQL for table creation.
-
-        Args:
-            scenario_name: The test scenario name
-            fixture_type: Type of fixture ('order', 'blog', 'user', 'combined',
-                         or with 'async_' prefix for async backends)
-
-        Returns:
-            Dictionary with connection parameters and schema SQL
-        """
-        from .scenarios import SCENARIO_MAP
-
-        # Determine if async backend is needed based on fixture_type
-        is_async = fixture_type and fixture_type.startswith("async_")
-        backend_class_name = "AsyncMySQLBackend" if is_async else "MySQLBackend"
-
-        # Get base fixture type (remove 'async_' prefix if present)
-        base_fixture_type = fixture_type.replace("async_", "") if fixture_type else "order"
-
-        # Build schema SQL based on fixture type
-        schema_sql = self._get_schema_sql_for_fixture_type(base_fixture_type)
-
-        # Get connection config from scenario
-        if scenario_name not in SCENARIO_MAP:
-            if SCENARIO_MAP:
-                scenario_name = next(iter(SCENARIO_MAP))
-            else:
-                raise ValueError("No scenarios registered")
-
-        config_dict = SCENARIO_MAP[scenario_name]
-
-        return {
-            "backend_module": "rhosocial.activerecord.backend.impl.mysql",
-            "backend_class_name": backend_class_name,
-            "config_class_module": "rhosocial.activerecord.backend.impl.mysql.config",
-            "config_class_name": "MySQLConnectionConfig",
-            "config_kwargs": config_dict,
-            "schema_sql": schema_sql,
-        }
-
-    def get_worker_schema_sql(self, scenario_name: str, table_name: str) -> str:
-        """
-        Return the SQL statement to create a specific table.
-
-        Args:
-            scenario_name: The test scenario name (unused for MySQL as schema is fixed)
-            table_name: Name of the table to create
-
-        Returns:
-            CREATE TABLE SQL statement
-        """
-        return self._load_mysql_schema(f"{table_name}.sql")
-
-    def _get_schema_sql_for_fixture_type(self, fixture_type: str) -> dict:
-        """
-        Get schema SQL for a specific fixture type.
-
-        Args:
-            fixture_type: Type of fixture ('order', 'blog', 'user', 'combined')
-
-        Returns:
-            Dictionary mapping table names to CREATE TABLE statements
-        """
-        schemas = {}
-
-        if fixture_type == "order":
-            tables = ["users", "orders", "order_items"]
-        elif fixture_type == "blog":
-            tables = ["users", "posts", "comments"]
-        elif fixture_type == "user":
-            tables = ["users"]
-        elif fixture_type == "combined":
-            tables = ["users", "orders", "order_items", "posts", "comments"]
-        else:
-            tables = ["users"]
-
-        for table in tables:
-            schemas[table] = self._load_mysql_schema(f"{table}.sql")
-
-        return schemas
+        self._active_async_backends.clear()

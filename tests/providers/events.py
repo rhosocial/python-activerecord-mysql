@@ -28,6 +28,7 @@ from rhosocial.activerecord.testsuite.utils import select_fixture  # noqa: E402
 from rhosocial.activerecord.testsuite.feature.events.fixtures.models import (  # noqa: E402
     EventTestModel as EventTestModelBase,
     EventTrackingModel as EventTrackingModelBase,
+    AsyncEventTestModel as AsyncEventTestModelBase,
 )
 
 # Conditionally import Python 3.10+ models
@@ -80,118 +81,184 @@ def _select_model_class(base_cls, py312_cls, py311_cls, py310_cls, model_name: s
 EventTestModel = _select_model_class(
     EventTestModelBase, EventTestModel312, EventTestModel311, EventTestModel310, "EventTestModel"
 )
+AsyncEventTestModel = AsyncEventTestModelBase
 EventTrackingModel = _select_model_class(
     EventTrackingModelBase, EventTrackingModel312, EventTrackingModel311, EventTrackingModel310, "EventTrackingModel"
 )
 
-from rhosocial.activerecord.testsuite.feature.events.interfaces import IEventsProvider  # noqa: E402
+from rhosocial.activerecord.testsuite.feature.events.interfaces import IEventsSyncProvider, IEventsAsyncProvider  # noqa: E402
 
 # ...and the scenarios are defined specifically for this backend.
 from .scenarios import get_enabled_scenarios, get_scenario  # noqa: E402
 
 
-class EventsProvider(IEventsProvider):
-    """
-    This is the MySQL backend's implementation for the events features test group.
-    It connects the generic tests in the testsuite with the actual MySQL database.
-    """
-
+class EventsProviderBase:
     def __init__(self):
-        # This list will track the backend instances created during the setup phase.
-        self._active_backends = []
+        self._scenario_db_files = {}
 
     def get_test_scenarios(self) -> List[str]:
-        """Returns a list of names for all enabled scenarios for this backend."""
         return list(get_enabled_scenarios().keys())
 
-    def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
-        """A generic helper method to handle the setup for any given model."""
-        # 1. Get the backend class (MySQLBackend) and connection config for the requested scenario.
-        backend_class, config = get_scenario(scenario_name)
-
-        # 2. Configure the generic model class with our specific backend and config.
-        model_class.configure(config, backend_class)
-
-        # --- Start of modification: Track the created backend instance ---
-        backend_instance = model_class.__backend__
-        if backend_instance not in self._active_backends:
-            self._active_backends.append(backend_instance)
-        # --- End of modification ---
-
-        # 3. Prepare the database schema. To ensure tests are isolated, we disable foreign key checks,
-        #    drop the table if it exists, and recreate it from the schema file.
-        try:
-            # Disable foreign key checks temporarily to avoid constraint issues
-            model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 0")
-            # Drop the table if it exists
-            model_class.__backend__.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-            # Re-enable foreign key checks
-            model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
-        except Exception:
-            # If there's an error, ensure foreign key checks are re-enabled
-            try:
-                model_class.__backend__.execute("SET FOREIGN_KEY_CHECKS = 1")
-            except Exception:
-                pass  # Ignore any errors when re-enabling foreign key checks
-            # Continue anyway since the table might not exist
-
-        schema_sql = self._load_mysql_schema(f"{table_name}.sql")
-        model_class.__backend__.execute(schema_sql)
-
-        return model_class
-
-    # --- Implementation of the IEventsProvider interface ---
-
-    def setup_event_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for the event model tests."""
-        return self._setup_model(EventTestModel, scenario_name, "event_tests")
-
-    def setup_event_tracking_model(self, scenario_name: str) -> Type[ActiveRecord]:
-        """Sets up the database for the event tracking model tests."""
-        return self._setup_model(EventTrackingModel, scenario_name, "event_tracking_models")
-
     def _load_mysql_schema(self, filename: str) -> str:
-        """Helper to load a SQL schema file from this project's fixtures."""
-        # Schemas are stored in the centralized location for events feature.
         schema_dir = os.path.join(
             os.path.dirname(__file__), "..", "rhosocial", "activerecord_mysql_test", "feature", "events", "schema"
         )
         schema_path = os.path.join(schema_dir, filename)
-
         with open(schema_path, "r", encoding="utf-8") as f:
             return f.read()
 
+
+class EventsSyncProvider(EventsProviderBase, IEventsSyncProvider):
+    def __init__(self):
+        super().__init__()
+        self._active_backends = []
+
+    def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.events import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        backend_class, config = get_scenario(scenario_name)
+        model_class.configure(config, backend_class)
+        backend_instance = model_class.__backend__
+        if backend_instance not in self._active_backends:
+            self._active_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, table_name),
+                    if_exists=True,
+                )
+                backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+        except Exception:
+            try:
+                backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+            except Exception:
+                pass
+        try:
+            backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := TABLE_EXPRESSIONS.get(table_name):
+            create_expr = fn(backend_instance.dialect, table_name)
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            backend_instance.execute(create_sql, params, options=options)
+        else:
+            schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+            backend_instance.execute(schema_sql, options=options)
+        return model_class
+
+    def setup_event_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        return self._setup_model(EventTestModel, scenario_name, "event_tests")
+
+    def setup_event_tracking_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        return self._setup_model(EventTrackingModel, scenario_name, "event_tracking_models")
+
     def cleanup_after_test(self, scenario_name: str):
-        """
-        Performs cleanup after a test. This now iterates through the backends
-        that were created during setup, drops tables, and explicitly disconnects them.
-        """
         for backend_instance in self._active_backends:
             try:
-                # Drop all tables that might have been created for events tests
-                # Disable foreign key checks to avoid constraint issues during cleanup
                 backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
                 for table_name in ["event_tests", "event_tracking_models"]:
                     try:
                         backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
                     except Exception:
-                        # Continue with other tables if one fails
                         pass
-                # Re-enable foreign key checks
                 backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
             except Exception:
-                # If there's an error, ensure foreign key checks are re-enabled
                 try:
                     backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
                 except Exception:
-                    pass  # Ignore any errors when re-enabling foreign key checks
+                    pass
             finally:
-                # Always disconnect the backend instance that was used in the test
                 try:
                     backend_instance.disconnect()
                 except Exception:
-                    # Ignore errors during disconnect
                     pass
-
-        # Clear the list of active backends for the next test
         self._active_backends.clear()
+
+
+class EventsAsyncProvider(EventsProviderBase, IEventsAsyncProvider):
+    def __init__(self):
+        super().__init__()
+        self._active_async_backends = []
+
+    async def _setup_async_model(
+        self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str
+    ) -> Type[ActiveRecord]:
+        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.options import ExecutionOptions
+        from rhosocial.activerecord.backend.schema import StatementType
+        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from providers.fixtures.events import TABLE_EXPRESSIONS
+        from providers.fixtures._common import to_mysql_ddl_sql
+
+        _, config = get_scenario(scenario_name)
+        await model_class.configure(config, AsyncMySQLBackend)
+        backend_instance = model_class.__backend__
+        if backend_instance not in self._active_async_backends:
+            self._active_async_backends.append(backend_instance)
+        options = ExecutionOptions(stmt_type=StatementType.DDL)
+        try:
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+            try:
+                drop_expr = DropTableExpression(
+                    dialect=backend_instance.dialect,
+                    table=TableExpression(backend_instance.dialect, table_name),
+                    if_exists=True,
+                )
+                await backend_instance.execute(*drop_expr.to_sql(), options=options)
+            except Exception:
+                await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+        except Exception:
+            try:
+                await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+            except Exception:
+                pass
+        try:
+            await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+        except Exception:
+            pass
+        if fn := TABLE_EXPRESSIONS.get(table_name):
+            create_expr = fn(backend_instance.dialect, table_name)
+            create_sql, params = to_mysql_ddl_sql(create_expr)
+            await backend_instance.execute(create_sql, params, options=options)
+        else:
+            schema_sql = self._load_mysql_schema(f"{table_name}.sql")
+            await backend_instance.execute(schema_sql, options=options)
+        return model_class
+
+    async def setup_event_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        return await self._setup_async_model(AsyncEventTestModel, scenario_name, "event_tests")
+
+    async def setup_event_tracking_model(self, scenario_name: str) -> Type[ActiveRecord]:
+        return await self._setup_async_model(EventTrackingModel, scenario_name, "event_tracking_models")
+
+    async def cleanup_after_test(self, scenario_name: str):
+        for backend_instance in self._active_async_backends:
+            try:
+                try:
+                    await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
+                    for table_name in ["event_tests", "event_tracking_models"]:
+                        try:
+                            await backend_instance.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                        except Exception:
+                            pass
+                    await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                except Exception:
+                    try:
+                        await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 1")
+                    except Exception:
+                        pass
+            finally:
+                try:
+                    await backend_instance.disconnect()
+                except Exception:
+                    pass
+        self._active_async_backends.clear()
