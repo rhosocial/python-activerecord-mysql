@@ -862,11 +862,35 @@ class MySQLDialect(
         return " ".join(parts), tuple(all_params)
 
     def format_add_column_action(self, action) -> Tuple[str, tuple]:
+        if getattr(action, "if_not_exists", None) is True:
+            raise UnsupportedFeatureError(
+                self.name, "ALTER TABLE ADD COLUMN IF NOT EXISTS",
+                suggestion="MySQL does not support IF NOT EXISTS on ADD COLUMN. "
+                     "Pre-check information_schema.COLUMNS before ALTER."
+            )
         column_sql, column_params = self.format_column_definition(action.column)
         after = action.dialect_options.get("after")
         if after:
             return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(after)}", column_params
         return f"ADD COLUMN {column_sql}", column_params
+
+    def format_drop_column_action(self, action) -> Tuple[str, tuple]:
+        if getattr(action, "if_exists", None) is True:
+            raise UnsupportedFeatureError(
+                self.name, "DROP COLUMN IF EXISTS",
+                suggestion="MySQL does not support IF EXISTS on DROP COLUMN. "
+                     "Pre-check information_schema.COLUMNS before ALTER."
+            )
+        return super().format_drop_column_action(action)
+
+    def format_drop_table_constraint_action(self, action) -> Tuple[str, tuple]:
+        if getattr(action, "if_exists", None) is True:
+            raise UnsupportedFeatureError(
+                self.name, "DROP CONSTRAINT IF EXISTS",
+                suggestion="MySQL does not support IF EXISTS on DROP CONSTRAINT. "
+                     "Pre-check information_schema.TABLE_CONSTRAINTS before ALTER."
+            )
+        return super().format_drop_table_constraint_action(action)
 
     def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement for MySQL.
