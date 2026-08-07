@@ -861,6 +861,15 @@ class MySQLDialect(
 
         return " ".join(parts), tuple(all_params)
 
+    def supports_add_column_if_not_exists(self) -> bool:
+        return False
+
+    def supports_drop_column_if_exists(self) -> bool:
+        return False
+
+    def supports_drop_constraint_if_exists(self) -> bool:
+        return False
+
     def format_add_column_action(self, action) -> Tuple[str, tuple]:
         if getattr(action, "if_not_exists", None) is True:
             raise UnsupportedFeatureError(
