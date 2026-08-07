@@ -13,9 +13,13 @@ from rhosocial.activerecord.backend.expression.statements import (
     TableConstraint,
     TableConstraintType,
 )
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+    AddColumn,
     AlterTableExpression,
     ChangeColumn,
+    DropColumn,
+    DropTableConstraint,
     ModifyColumn,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
@@ -773,6 +777,62 @@ class TestMySQLColumnModificationExpressions:
         )
         sql, params = expr.to_sql()
         assert "NOT NULL" in sql
+
+
+class TestMySQLAlterTableModifierGuards:
+    """MySQL does not support any IF [NOT] EXISTS qualifiers on ALTER TABLE.
+
+    Requesting them via ``if_not_exists=True`` / ``if_exists=True`` on
+    ``AddColumn`` / ``DropColumn`` / ``DropTableConstraint`` must raise
+    ``UnsupportedFeatureError`` instead of emitting invalid SQL.
+    """
+
+    def test_add_column_if_not_exists_raises(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        action = AddColumn(
+            dialect=dialect,
+            column=ColumnDefinition("email", VarCharType(255)),
+            if_not_exists=True,
+        )
+        with pytest.raises(UnsupportedFeatureError):
+            action.to_sql()
+
+    def test_drop_column_if_exists_raises(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        action = DropColumn(dialect=dialect, column_name="email", if_exists=True)
+        with pytest.raises(UnsupportedFeatureError):
+            action.to_sql()
+
+    def test_drop_table_constraint_if_exists_raises(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        action = DropTableConstraint(
+            dialect=dialect, constraint_name="fk_users_email", if_exists=True
+        )
+        with pytest.raises(UnsupportedFeatureError):
+            action.to_sql()
+
+    def test_default_qualifiers_keep_behavior(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        add_action = AddColumn(
+            dialect=dialect,
+            column=ColumnDefinition("email", VarCharType(255)),
+        )
+        add_sql, _ = add_action.to_sql()
+        assert "ADD COLUMN" in add_sql
+        assert "IF NOT EXISTS" not in add_sql
+
+        drop_action = DropColumn(dialect=dialect, column_name="email")
+        drop_sql, _ = drop_action.to_sql()
+        assert "DROP COLUMN" in drop_sql
+        assert "IF EXISTS" not in drop_sql
+
+        drop_constraint = DropTableConstraint(
+            dialect=dialect, constraint_name="fk_users_email"
+        )
+        drop_constraint_sql, _ = drop_constraint.to_sql()
+        assert "DROP CONSTRAINT" in drop_constraint_sql
+        assert "IF EXISTS" not in drop_constraint_sql
 
 
 # ============================================================================
