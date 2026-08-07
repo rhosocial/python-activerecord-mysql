@@ -344,6 +344,16 @@ class BasicProviderBase:
     def get_yes_no_adapter(self) -> "BaseSQLTypeAdapter":
         return YesOrNoBooleanAdapter()
 
+    def get_dialect(self, scenario_name: str = "default"):
+        """Return a bare, fully-constructed MySQL dialect instance.
+
+        Used by the ``feature/basic/ddl`` subtopic (expression/dialect
+        contract). ``(8, 0, 0)`` is the version the ddl provider used.
+        """
+        from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+        return MySQLDialect(version=(8, 0, 0))
+
     def _track_backend(self, backend_instance, collection: List) -> None:
         if backend_instance not in collection:
             collection.append(backend_instance)
@@ -568,6 +578,10 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
     def __init__(self):
         super().__init__()
         self._active_async_backends = []
+
+    async def get_dialect(self, scenario_name: str = "default"):
+        """Async mirror of ``BasicProviderBase.get_dialect``."""
+        return super().get_dialect(scenario_name)
 
     async def _setup_async_model(
         self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str
