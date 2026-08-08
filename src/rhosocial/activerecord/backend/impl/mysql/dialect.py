@@ -33,6 +33,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     SequenceSupport,
     ConstraintSupport,
     IntrospectionSupport,
+    # TRUNCATE TABLE support protocol
+    TruncateSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
     # Function Support Protocol
@@ -65,6 +67,7 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     SequenceMixin,
     TableMixin,
     ConstraintMixin,
+    TruncateMixin,
     IntrospectionMixin,
     PartitionMixin,
     # New Mixins
@@ -93,6 +96,12 @@ from .protocols import (
     MySQLJsonDualityViewSupport,
     MySQLOptimizerHintSupport,
     MySQLPartitionSupport,
+    MySQLRenameTableSupport,
+    MySQLTableStatementSupport,
+    MySQLMaintenanceSupport,
+    MySQLRoutineSupport,
+    MySQLLoadXMLSupport,
+    MySQLAdminCommandSupport,
 )
 from .mixins import (
     MySQLTransactionMixin,
@@ -111,6 +120,13 @@ from .mixins import (
     MySQLOptimizerHintMixin,
     MySQLPartitionMixin,
     MySQLTypeSupportMixin,
+    MySQLRenameTableMixin,
+    MySQLTruncateMixin,
+    MySQLTableStatementMixin,
+    MySQLMaintenanceMixin,
+    MySQLRoutineMixin,
+    MySQLLoadXMLLMixin,
+    MySQLAdminCommandMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -126,6 +142,10 @@ if TYPE_CHECKING:
         IndexDefinition,
         ExplainExpression,
         InsertExpression,
+    )
+    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
+        CreateTriggerExpression,
+        DropTriggerExpression,
     )
     from rhosocial.activerecord.backend.expression.transaction import (
         SetTransactionExpression,
@@ -168,7 +188,10 @@ class MySQLDialect(
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
     MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
+    MySQLRenameTableMixin,  # MySQL RENAME TABLE (before TableMixin to override supports_rename_table)
     TableMixin,
+    MySQLTruncateMixin,  # MySQL TRUNCATE support (before TruncateMixin to override)
+    TruncateMixin,
     ConstraintMixin,
     MySQLSetTypeMixin,
     MySQLSpatialMixin,
@@ -179,6 +202,11 @@ class MySQLDialect(
     MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
     MySQLTypeSupportMixin,  # DataType formatting and parsing
     MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
+    MySQLTableStatementMixin,  # MySQL TABLE / VALUES statements (8.0.19+)
+    MySQLMaintenanceMixin,  # MySQL ANALYZE/CHECK/CHECKSUM/OPTIMIZE/REPAIR TABLE
+    MySQLRoutineMixin,  # MySQL stored procedures/functions/CALL
+    MySQLLoadXMLLMixin,  # MySQL LOAD XML
+    MySQLAdminCommandMixin,  # MySQL admin/utility commands
     IntrospectionMixin,
     # New Mixins
     IdentifierMixin,
@@ -218,6 +246,8 @@ class MySQLDialect(
     MySQLTableSupport,  # extends TableSupport
     ConstraintSupport,
     IntrospectionSupport,
+    # TRUNCATE TABLE support protocol
+    TruncateSupport,
     # Transaction Control Protocol
     TransactionControlSupport,
     # MySQL-specific protocols
@@ -231,6 +261,12 @@ class MySQLDialect(
     MySQLOptimizerHintSupport,  # MySQL optimizer hints
     MySQLPartitionSupport,  # MySQL table partitioning
     MySQLDMLOperationSupport,  # MySQL DML operations (INSERT IGNORE, REPLACE INTO, LOAD DATA)
+    MySQLRenameTableSupport,  # MySQL RENAME TABLE
+    MySQLTableStatementSupport,  # MySQL TABLE / VALUES statements
+    MySQLMaintenanceSupport,  # MySQL table maintenance
+    MySQLRoutineSupport,  # MySQL stored routines / CALL
+    MySQLLoadXMLSupport,  # MySQL LOAD XML
+    MySQLAdminCommandSupport,  # MySQL admin/utility commands
     # Function Support Protocol
     SQLFunctionSupport,
     # DataType Support Protocol
@@ -901,6 +937,39 @@ class MySQLDialect(
             )
         return super().format_drop_table_constraint_action(action)
 
+    def format_alter_column_action(self, action) -> Tuple[str, tuple]:
+        """Format ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}.
+
+        MySQL 8.0 syntax is ``ALTER TABLE t ALTER [COLUMN] col {SET DEFAULT
+        literal | DROP DEFAULT}``. Unlike the generic SQL-standard renderer,
+        MySQL requires a literal for SET DEFAULT (no parenthesised
+        expressions / parameters), so we inline the value.
+        """
+        operation = getattr(action.operation, "value", None) or str(action.operation)
+        col_name = self.format_identifier(action.column_name)
+
+        if operation == "DROP DEFAULT":
+            return f"ALTER COLUMN {col_name} DROP DEFAULT", ()
+
+        if operation == "SET DEFAULT":
+            new_value = getattr(action, "new_value", None)
+            if isinstance(new_value, str):
+                escaped = self._escape_sql_string(new_value)
+                return f"ALTER COLUMN {col_name} SET DEFAULT '{escaped}'", ()
+            if isinstance(new_value, bool):
+                return f"ALTER COLUMN {col_name} SET DEFAULT {1 if new_value else 0}", ()
+            if new_value is None:
+                raise ValueError("SET DEFAULT requires a default value")
+            if isinstance(new_value, (int, float)):
+                return f"ALTER COLUMN {col_name} SET DEFAULT {new_value}", ()
+            if hasattr(new_value, "to_sql"):
+                value_sql, value_params = new_value.to_sql()
+                return f"ALTER COLUMN {col_name} SET DEFAULT {value_sql}", tuple(value_params)
+            return f"ALTER COLUMN {col_name} SET DEFAULT {new_value}", ()
+
+        # Fall through to the SQL-standard rendering for other operations.
+        return super().format_alter_column_action(action)
+
     def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement for MySQL.
 
@@ -1063,7 +1132,7 @@ class MySQLDialect(
 
     def format_create_trigger_statement(
         self,
-        expr
+        expr: "CreateTriggerExpression",
     ):
         """Format CREATE TRIGGER statement (MySQL syntax).
 
@@ -1138,7 +1207,7 @@ class MySQLDialect(
 
     def format_drop_trigger_statement(
         self,
-        expr
+        expr: "DropTriggerExpression",
     ):
         """Format DROP TRIGGER statement (MySQL syntax)."""
         if not self.supports_trigger():

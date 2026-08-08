@@ -107,6 +107,12 @@ MYSQL_PROTOCOLS = [
     mysql_protocols.MySQLJsonDualityViewSupport,
     mysql_protocols.MySQLOptimizerHintSupport,
     mysql_protocols.MySQLPartitionSupport,
+    mysql_protocols.MySQLRenameTableSupport,
+    mysql_protocols.MySQLTableStatementSupport,
+    mysql_protocols.MySQLMaintenanceSupport,
+    mysql_protocols.MySQLRoutineSupport,
+    mysql_protocols.MySQLLoadXMLSupport,
+    mysql_protocols.MySQLAdminCommandSupport,
 ]
 
 
@@ -156,6 +162,11 @@ class TestProtocolNonOverlap:
             # MySQL fulltext search includes index capabilities
             ("IndexSupport", "MySQLFullTextSearchSupport"),
             ("MySQLFullTextSearchSupport", "IndexSupport"),
+            # RENAME TABLE extends table DDL capabilities
+            ("TableSupport", "MySQLRenameTableSupport"),
+            ("MySQLRenameTableSupport", "TableSupport"),
+            ("MySQLTableSupport", "MySQLRenameTableSupport"),
+            ("MySQLRenameTableSupport", "MySQLTableSupport"),
         }
 
         violations = []
@@ -236,6 +247,31 @@ class TestMySQLExpressionDialectSeparation:
         ("MySQLTruncatePartitionExpression", "format_truncate_partition_statement"),
         ("MySQLReorganizePartitionExpression", "format_reorganize_partition_statement"),
         ("MySQLExchangePartitionExpression", "format_exchange_partition_statement"),
+        ("MySQLRenameTableExpression", "format_rename_table_statement"),
+        ("MySQLTableExpression", "format_table_statement"),
+        ("MySQLValuesExpression", "format_values_statement"),
+        ("MySQLAnalyzeTableExpression", "format_table_maintenance_statement"),
+        ("MySQLCheckTableExpression", "format_table_maintenance_statement"),
+        ("MySQLChecksumTableExpression", "format_table_maintenance_statement"),
+        ("MySQLOptimizeTableExpression", "format_table_maintenance_statement"),
+        ("MySQLRepairTableExpression", "format_table_maintenance_statement"),
+        ("MySQLCreateProcedureExpression", "format_create_procedure_statement"),
+        ("MySQLDropProcedureExpression", "format_drop_procedure_statement"),
+        ("MySQLCreateFunctionExpression", "format_create_function_statement"),
+        ("MySQLDropFunctionExpression", "format_drop_function_statement"),
+        ("MySQLCallExpression", "format_call_statement"),
+        ("MySQLLoadXMLEXpression", "format_load_xml_statement"),
+        ("MySQLFlushExpression", "format_flush_statement"),
+        ("MySQLResetExpression", "format_reset_statement"),
+        ("MySQLCacheIndexExpression", "format_cache_index_statement"),
+        ("MySQLKillExpression", "format_kill_statement"),
+        ("MySQLInstallPluginExpression", "format_install_plugin_statement"),
+        ("MySQLGrantExpression", "format_grant_statement"),
+        ("MySQLCreateUserExpression", "format_create_user_statement"),
+        ("MySQLCloneExpression", "format_clone_statement"),
+        ("MySQLRestartExpression", "format_restart_statement"),
+        ("MySQLHandlerOpenExpression", "format_handler_open_statement"),
+        ("MySQLDoExpression", "format_do_statement"),
     ]
 
     @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)
@@ -283,6 +319,12 @@ MYSQL_PROTOCOL_MIXIN_PAIRS = [
     (mysql_protocols.MySQLJsonDualityViewSupport, mysql_mixins.MySQLJsonDualityViewMixin),
     (mysql_protocols.MySQLOptimizerHintSupport, mysql_mixins.MySQLOptimizerHintMixin),
     (mysql_protocols.MySQLPartitionSupport, mysql_mixins.MySQLPartitionMixin),
+    (mysql_protocols.MySQLRenameTableSupport, mysql_mixins.MySQLRenameTableMixin),
+    (mysql_protocols.MySQLTableStatementSupport, mysql_mixins.MySQLTableStatementMixin),
+    (mysql_protocols.MySQLMaintenanceSupport, mysql_mixins.MySQLMaintenanceMixin),
+    (mysql_protocols.MySQLRoutineSupport, mysql_mixins.MySQLRoutineMixin),
+    (mysql_protocols.MySQLLoadXMLSupport, mysql_mixins.MySQLLoadXMLLMixin),
+    (mysql_protocols.MySQLAdminCommandSupport, mysql_mixins.MySQLAdminCommandMixin),
 ]
 
 

@@ -1,6 +1,9 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/table.py
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, TYPE_CHECKING, Tuple
 import re
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableExpression
 
 
 class MySQLTableMixin:
@@ -67,7 +70,7 @@ class MySQLTableMixin:
 
         return " ".join(parts), tuple(all_params)
 
-    def format_create_table_like(self, expr) -> Tuple[str, tuple]:
+    def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement."""
         like_table = expr.dialect_options["like_table"]
 

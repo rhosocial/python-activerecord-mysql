@@ -201,7 +201,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   test-experimental-python-315:
-    name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }} (experimental)
+    name: Python ${{ matrix.python-version }}${{ matrix.freethreaded && 't' || '' }} / MySQL ${{ matrix.mysql-version }} (experimental)
     runs-on: ubuntu-26.04
     permissions:
       contents: read

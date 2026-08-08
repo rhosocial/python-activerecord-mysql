@@ -17,6 +17,13 @@ from .concurrency import MySQLConcurrencyMixin, AsyncMySQLConcurrencyMixin
 from .json_duality_view import MySQLJsonDualityViewMixin
 from .optimizer_hint import MySQLOptimizerHintMixin
 from .types import MySQLTypeSupportMixin
+from .rename_table import MySQLRenameTableMixin
+from .truncate import MySQLTruncateMixin
+from .table_statement import MySQLTableStatementMixin
+from .maintenance import MySQLMaintenanceMixin
+from .routine import MySQLRoutineMixin
+from .load_xml import MySQLLoadXMLLMixin
+from .admin import MySQLAdminCommandMixin
 
 __all__ = [
     "MySQLIntrospectionMixin",
@@ -38,4 +45,11 @@ __all__ = [
     "MySQLJsonDualityViewMixin",
     "MySQLOptimizerHintMixin",
     "MySQLTypeSupportMixin",
+    "MySQLRenameTableMixin",
+    "MySQLTruncateMixin",
+    "MySQLTableStatementMixin",
+    "MySQLMaintenanceMixin",
+    "MySQLRoutineMixin",
+    "MySQLLoadXMLLMixin",
+    "MySQLAdminCommandMixin",
 ]
