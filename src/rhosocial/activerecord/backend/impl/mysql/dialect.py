@@ -188,6 +188,7 @@ class MySQLDialect(
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
     MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
+    MySQLRenameTableMixin,  # MySQL RENAME TABLE (before TableMixin to override supports_rename_table)
     TableMixin,
     MySQLTruncateMixin,  # MySQL TRUNCATE support (before TruncateMixin to override)
     TruncateMixin,
@@ -201,7 +202,6 @@ class MySQLDialect(
     MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
     MySQLTypeSupportMixin,  # DataType formatting and parsing
     MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
-    MySQLRenameTableMixin,  # MySQL RENAME TABLE (multi-table)
     MySQLTableStatementMixin,  # MySQL TABLE / VALUES statements (8.0.19+)
     MySQLMaintenanceMixin,  # MySQL ANALYZE/CHECK/CHECKSUM/OPTIMIZE/REPAIR TABLE
     MySQLRoutineMixin,  # MySQL stored procedures/functions/CALL

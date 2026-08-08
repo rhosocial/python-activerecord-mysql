@@ -1,7 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/load_xml.py
 from typing import TYPE_CHECKING, Tuple
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
         MySQLLoadXMLEXpression,
     )

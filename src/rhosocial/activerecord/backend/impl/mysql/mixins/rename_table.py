@@ -1,7 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/rename_table.py
 from typing import TYPE_CHECKING, Tuple
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
         MySQLRenameTableExpression,
     )

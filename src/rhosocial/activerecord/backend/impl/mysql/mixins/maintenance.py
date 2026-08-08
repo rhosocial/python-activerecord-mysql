@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     pass
 
 
