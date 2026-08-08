@@ -1,5 +1,11 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/dml.py
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements import OnConflictClause
+    from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+        MySQLLoadDataExpression,
+    )
 
 
 class MySQLDMLOperationMixin:
@@ -14,7 +20,7 @@ class MySQLDMLOperationMixin:
     def supports_load_data(self) -> bool:
         return True
 
-    def format_load_data_statement(self, expr) -> Tuple[str, tuple]:
+    def format_load_data_statement(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement."""
         expr.validate(strict=self.strict_validation)
 
@@ -74,7 +80,7 @@ class MySQLDMLOperationMixin:
 
         return " ".join(parts), ()
 
-    def format_on_conflict_clause(self, expr) -> Tuple[str, tuple]:
+    def format_on_conflict_clause(self, expr: "OnConflictClause") -> Tuple[str, tuple]:
         """Format ON DUPLICATE KEY UPDATE for MySQL."""
         all_params = []
         parts = ["ON DUPLICATE KEY UPDATE"]
