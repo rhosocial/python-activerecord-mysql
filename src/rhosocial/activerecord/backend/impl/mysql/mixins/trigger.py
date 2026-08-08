@@ -1,5 +1,11 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/trigger.py
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
+        CreateTriggerExpression,
+        DropTriggerExpression,
+    )
 
 
 class MySQLTriggerMixin:
@@ -29,7 +35,7 @@ class MySQLTriggerMixin:
         """MySQL 5.7+ supports IF NOT EXISTS."""
         return self.version >= (5, 7, 0)
 
-    def format_create_trigger_statement(self, expr) -> Tuple[str, tuple]:
+    def format_create_trigger_statement(self, expr: "CreateTriggerExpression") -> Tuple[str, tuple]:
         """Format CREATE TRIGGER statement (MySQL syntax)."""
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
@@ -77,7 +83,7 @@ class MySQLTriggerMixin:
 
         return " ".join(parts), ()
 
-    def format_drop_trigger_statement(self, expr) -> Tuple[str, tuple]:
+    def format_drop_trigger_statement(self, expr: "DropTriggerExpression") -> Tuple[str, tuple]:
         """Format DROP TRIGGER statement (MySQL syntax)."""
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 

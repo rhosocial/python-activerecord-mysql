@@ -13,9 +13,52 @@ the MySQL-specific protocol - isinstance checks for the generic protocol will st
 from typing import Protocol, runtime_checkable, Tuple, Any, Optional, List, Dict, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements import OnConflictClause
     from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
         ModifyColumn,
         ChangeColumn,
+    )
+    from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableExpression
+    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
+        CreateTriggerExpression,
+        DropTriggerExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
+        MySQLCacheIndexExpression,
+        MySQLCloneExpression,
+        MySQLCreateUserExpression,
+        MySQLDoExpression,
+        MySQLDropUserExpression,
+        MySQLFlushExpression,
+        MySQLGrantExpression,
+        MySQLHelpExpression,
+        MySQLHandlerCloseExpression,
+        MySQLHandlerOpenExpression,
+        MySQLHandlerReadExpression,
+        MySQLInstallComponentExpression,
+        MySQLInstallPluginExpression,
+        MySQLKillExpression,
+        MySQLLoadIndexIntoCacheExpression,
+        MySQLResetExpression,
+        MySQLRestartExpression,
+        MySQLRevokeExpression,
+        MySQLShutdownExpression,
+        MySQLBinlogExpression,
+        MySQLUninstallComponentExpression,
+        MySQLUninstallPluginExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+        CreateJsonDualityViewExpression,
+        DropJsonDualityViewExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+        MySQLLoadDataExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
+        MySQLLoadXMLEXpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.optimizer_hint import (
+        MySQLOptimizerHintExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
@@ -32,6 +75,20 @@ if TYPE_CHECKING:
         MySQLPartitionValue,
         MySQLReorganizePartitionExpression,
         MySQLTruncatePartitionExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
+        MySQLRenameTableExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
+        MySQLCallExpression,
+        MySQLCreateFunctionExpression,
+        MySQLCreateProcedureExpression,
+        MySQLDropFunctionExpression,
+        MySQLDropProcedureExpression,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
+        MySQLTableExpression,
+        MySQLValuesExpression,
     )
 
 from rhosocial.activerecord.backend.dialect.protocols import (
@@ -100,7 +157,7 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
-    def format_load_data_statement(self, expr: Any) -> Tuple[str, tuple]:
+    def format_load_data_statement(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement.
 
         Args:
@@ -111,7 +168,7 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
-    def format_on_conflict_clause(self, expr: Any) -> Tuple[str, tuple]:
+    def format_on_conflict_clause(self, expr: "OnConflictClause") -> Tuple[str, tuple]:
         """Format ON DUPLICATE KEY UPDATE clause (MySQL upsert).
 
         MySQL uses ON DUPLICATE KEY UPDATE instead of the SQL-standard
@@ -185,7 +242,7 @@ class MySQLTriggerSupport(Protocol):
         """
         ...
 
-    def format_create_trigger_statement(self, expr: Any) -> Tuple[str, tuple]:
+    def format_create_trigger_statement(self, expr: "CreateTriggerExpression") -> Tuple[str, tuple]:
         """Format CREATE TRIGGER statement.
 
         Args:
@@ -196,7 +253,7 @@ class MySQLTriggerSupport(Protocol):
         """
         ...
 
-    def format_drop_trigger_statement(self, expr: Any) -> Tuple[str, tuple]:
+    def format_drop_trigger_statement(self, expr: "DropTriggerExpression") -> Tuple[str, tuple]:
         """Format DROP TRIGGER statement.
 
         Args:
@@ -266,7 +323,7 @@ class MySQLTableSupport(TableSupport, Protocol):
         """Format CREATE TABLE statement."""
         ...
 
-    def format_create_table_like(self, expr: Any) -> Tuple[str, tuple]:
+    def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement."""
         ...
 
@@ -1245,7 +1302,7 @@ class MySQLJsonDualityViewSupport(Protocol):
         """Whether DML on JSON Duality Views is supported (MySQL 9.7+)."""
         ...
 
-    def format_create_json_duality_view_statement(self, expr: Any) -> Tuple[str, tuple]:
+    def format_create_json_duality_view_statement(self, expr: "CreateJsonDualityViewExpression") -> Tuple[str, tuple]:
         """Format CREATE JSON RELATIONAL DUALITY VIEW statement.
 
         Args:
@@ -1256,7 +1313,7 @@ class MySQLJsonDualityViewSupport(Protocol):
         """
         ...
 
-    def format_drop_json_duality_view_statement(self, expr: Any) -> Tuple[str, tuple]:
+    def format_drop_json_duality_view_statement(self, expr: "DropJsonDualityViewExpression") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for a JSON Duality View."""
         ...
 
@@ -1300,7 +1357,7 @@ class MySQLOptimizerHintSupport(Protocol):
         """Whether the hypergraph optimizer is available (MySQL 9.7+)."""
         ...
 
-    def format_optimizer_hint(self, expr: Any) -> Tuple[str, tuple]:
+    def format_optimizer_hint(self, expr: "MySQLOptimizerHintExpression") -> Tuple[str, tuple]:
         """Format optimizer hint expression.
 
         Args:
@@ -1309,4 +1366,308 @@ class MySQLOptimizerHintSupport(Protocol):
         Returns:
             Tuple of (SQL hint string, parameters tuple)
         """
+        ...
+
+
+@runtime_checkable
+class MySQLRenameTableSupport(Protocol):
+    """MySQL RENAME TABLE support protocol.
+
+    Feature Source: MySQL 5.0+
+
+    MySQL supports atomic multi-table renames in a single statement:
+
+        RENAME TABLE t1 TO t2 [, t3 TO t4, ...]
+
+    Official Documentation:
+    - RENAME TABLE: https://dev.mysql.com/doc/refman/8.0/en/rename-table.html
+    """
+
+    def supports_rename_table(self) -> bool:
+        """Whether RENAME TABLE is supported."""
+        ...
+
+    def supports_multi_table_rename(self) -> bool:
+        """Whether multiple rename pairs in one statement are supported."""
+        ...
+
+    def format_rename_table_statement(self, expr: "MySQLRenameTableExpression") -> Tuple[str, tuple]:
+        """Format a MySQL RENAME TABLE statement."""
+        ...
+
+
+@runtime_checkable
+class MySQLTableStatementSupport(Protocol):
+    """MySQL TABLE statement / VALUES constructor support protocol.
+
+    Feature Source: MySQL 8.0.19+
+
+    Official Documentation:
+    - TABLE statement: https://dev.mysql.com/doc/refman/8.0/en/table.html
+    - VALUES statement: https://dev.mysql.com/doc/refman/8.0/en/values.html
+    """
+
+    def supports_table_statement(self) -> bool:
+        """Whether the TABLE statement is supported."""
+        ...
+
+    def supports_values_table_constructor(self) -> bool:
+        """Whether VALUES as a table value constructor is supported."""
+        ...
+
+    def format_table_statement(self, expr: "MySQLTableExpression") -> Tuple[str, tuple]:
+        """Format a TABLE statement."""
+        ...
+
+    def format_values_statement(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
+        """Format a VALUES table value constructor."""
+        ...
+
+
+@runtime_checkable
+class MySQLMaintenanceSupport(Protocol):
+    """MySQL whole-table maintenance statements support protocol.
+
+    Feature Source: MySQL native
+
+    Covers ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR TABLE (whole-table,
+    distinct from the partition-level variants).
+
+    Official Documentation:
+    - Table maintenance: https://dev.mysql.com/doc/refman/8.0/en/table-maintenance-sql.html
+    """
+
+    def supports_analyze_table(self) -> bool:
+        """Whether ANALYZE TABLE is supported."""
+        ...
+
+    def supports_check_table(self) -> bool:
+        """Whether CHECK TABLE is supported."""
+        ...
+
+    def supports_checksum_table(self) -> bool:
+        """Whether CHECKSUM TABLE is supported."""
+        ...
+
+    def supports_optimize_table(self) -> bool:
+        """Whether OPTIMIZE TABLE is supported."""
+        ...
+
+    def supports_repair_table(self) -> bool:
+        """Whether REPAIR TABLE is supported."""
+        ...
+
+    def format_table_maintenance_statement(self, expr) -> Tuple[str, tuple]:
+        """Format a whole-table maintenance statement."""
+        ...
+
+
+@runtime_checkable
+class MySQLRoutineSupport(Protocol):
+    """MySQL stored routine support protocol.
+
+    Feature Source: MySQL 5.0+
+
+    Covers CREATE/DROP PROCEDURE, CREATE/DROP FUNCTION (stored), and CALL.
+
+    Official Documentation:
+    - Stored routines: https://dev.mysql.com/doc/refman/8.0/en/stored-programs-views.html
+    - CALL: https://dev.mysql.com/doc/refman/8.0/en/call.html
+    """
+
+    def supports_procedure(self) -> bool:
+        """Whether stored procedures are supported."""
+        ...
+
+    def supports_stored_function(self) -> bool:
+        """Whether stored functions are supported."""
+        ...
+
+    def supports_call(self) -> bool:
+        """Whether CALL is supported."""
+        ...
+
+    def format_create_procedure_statement(self, expr: "MySQLCreateProcedureExpression") -> Tuple[str, tuple]:
+        """Format CREATE PROCEDURE."""
+        ...
+
+    def format_drop_procedure_statement(self, expr: "MySQLDropProcedureExpression") -> Tuple[str, tuple]:
+        """Format DROP PROCEDURE."""
+        ...
+
+    def format_create_function_statement(self, expr: "MySQLCreateFunctionExpression") -> Tuple[str, tuple]:
+        """Format CREATE FUNCTION (stored function)."""
+        ...
+
+    def format_drop_function_statement(self, expr: "MySQLDropFunctionExpression") -> Tuple[str, tuple]:
+        """Format DROP FUNCTION."""
+        ...
+
+    def format_call_statement(self, expr: "MySQLCallExpression") -> Tuple[str, tuple]:
+        """Format CALL."""
+        ...
+
+
+@runtime_checkable
+class MySQLLoadXMLSupport(Protocol):
+    """MySQL LOAD XML statement support protocol.
+
+    Feature Source: MySQL 5.0+
+
+    Official Documentation:
+    - LOAD XML: https://dev.mysql.com/doc/refman/8.0/en/load-xml.html
+    """
+
+    def supports_load_xml(self) -> bool:
+        """Whether LOAD XML is supported."""
+        ...
+
+    def format_load_xml_statement(self, expr: "MySQLLoadXMLEXpression") -> Tuple[str, tuple]:
+        """Format a LOAD XML statement."""
+        ...
+
+
+@runtime_checkable
+class MySQLAdminCommandSupport(Protocol):
+    """MySQL administrative / utility command support protocol.
+
+    Feature Source: MySQL native (instance administration)
+
+    Covers FLUSH, RESET, CACHE INDEX, LOAD INDEX INTO CACHE, INSTALL /
+    UNINSTALL COMPONENT / PLUGIN, CLONE, RESTART, BINLOG, HANDLER, DO,
+    KILL, SHUTDOWN, HELP, and account management (CREATE/DROP USER, GRANT,
+    REVOKE).
+
+    Official Documentation:
+    - Administrative statements: https://dev.mysql.com/doc/refman/8.0/en/sql-statements.html#sql-statements-administrative
+    """
+
+    def supports_flush(self) -> bool:
+        ...
+
+    def format_flush_statement(self, expr: "MySQLFlushExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_reset(self) -> bool:
+        ...
+
+    def format_reset_statement(self, expr: "MySQLResetExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_cache_index(self) -> bool:
+        ...
+
+    def format_cache_index_statement(self, expr: "MySQLCacheIndexExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_load_index_into_cache(self) -> bool:
+        ...
+
+    def format_load_index_into_cache_statement(
+        self, expr: "MySQLLoadIndexIntoCacheExpression"
+    ) -> Tuple[str, tuple]:
+        ...
+
+    def supports_install_component(self) -> bool:
+        ...
+
+    def format_install_component_statement(self, expr: "MySQLInstallComponentExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_uninstall_component(self) -> bool:
+        ...
+
+    def format_uninstall_component_statement(
+        self, expr: "MySQLUninstallComponentExpression"
+    ) -> Tuple[str, tuple]:
+        ...
+
+    def supports_install_plugin(self) -> bool:
+        ...
+
+    def format_install_plugin_statement(self, expr: "MySQLInstallPluginExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_uninstall_plugin(self) -> bool:
+        ...
+
+    def format_uninstall_plugin_statement(self, expr: "MySQLUninstallPluginExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_clone(self) -> bool:
+        ...
+
+    def format_clone_statement(self, expr: "MySQLCloneExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_restart(self) -> bool:
+        ...
+
+    def format_restart_statement(self, expr: "MySQLRestartExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_binlog(self) -> bool:
+        ...
+
+    def format_binlog_statement(self, expr: "MySQLBinlogExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_handler(self) -> bool:
+        ...
+
+    def format_handler_open_statement(self, expr: "MySQLHandlerOpenExpression") -> Tuple[str, tuple]:
+        ...
+
+    def format_handler_read_statement(self, expr: "MySQLHandlerReadExpression") -> Tuple[str, tuple]:
+        ...
+
+    def format_handler_close_statement(self, expr: "MySQLHandlerCloseExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_do(self) -> bool:
+        ...
+
+    def format_do_statement(self, expr: "MySQLDoExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_kill(self) -> bool:
+        ...
+
+    def format_kill_statement(self, expr: "MySQLKillExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_shutdown(self) -> bool:
+        ...
+
+    def format_shutdown_statement(self, expr: "MySQLShutdownExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_help(self) -> bool:
+        ...
+
+    def format_help_statement(self, expr: "MySQLHelpExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_create_user(self) -> bool:
+        ...
+
+    def format_create_user_statement(self, expr: "MySQLCreateUserExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_drop_user(self) -> bool:
+        ...
+
+    def format_drop_user_statement(self, expr: "MySQLDropUserExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_grant(self) -> bool:
+        ...
+
+    def format_grant_statement(self, expr: "MySQLGrantExpression") -> Tuple[str, tuple]:
+        ...
+
+    def supports_revoke(self) -> bool:
+        ...
+
+    def format_revoke_statement(self, expr: "MySQLRevokeExpression") -> Tuple[str, tuple]:
         ...
