@@ -201,7 +201,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   test-experimental-python-315:
-    name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }} (experimental)
+    name: Python ${{ matrix.python-version }}${{ matrix.freethreaded && 't' || '' }} / MySQL ${{ matrix.mysql-version }} (experimental)
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -211,7 +211,7 @@ jobs:
       matrix:
         include:
           - { python-version: '3.15.0-rc.1', mysql-version: '9.7', port: 3320, freethreaded: false }
-          - { python-version: '3.15.0-rc.1t', mysql-version: '9.7', port: 3321, freethreaded: true }
+          - { python-version: '3.15.0-rc.1', mysql-version: '9.7', port: 3321, freethreaded: true }
 
     services:
       mysql:
