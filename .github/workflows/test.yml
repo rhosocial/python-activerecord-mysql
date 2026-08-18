@@ -289,7 +289,7 @@ jobs:
       - name: Run tests
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
+          python -m pytest tests/ -n 8 --dist=loadgroup --tb=short -x
 
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
@@ -395,14 +395,14 @@ jobs:
         if: matrix.mysql-version != '9.6'
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
+          python -m pytest tests/ -n 8 --dist=loadgroup --tb=short -x
 
       - name: Run tests with coverage (only for MySQL 9.6)
         if: matrix.mysql-version == '9.6'
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
-          python -m pytest tests/ -n auto --dist=loadgroup --cov=src --cov-branch --cov-report=xml --tb=short
+          python -m pytest tests/ -n 8 --dist=loadgroup --cov=src --cov-branch --cov-report=xml --tb=short
 
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.6'
