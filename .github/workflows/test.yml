@@ -57,8 +57,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install rhosocial-activerecord==1.0.0.dev29
-          pip install rhosocial-activerecord-testsuite==1.0.0.dev16
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/parallel-testing"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/parallel-testing"
 
       - name: Create and test database
         run: |
@@ -73,7 +73,7 @@ jobs:
               ssl_disabled=True
           )
           cursor = conn.cursor()
-          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db CHARACTER SET utf8mb4')
           cursor.execute('SELECT NOW()')
           result = cursor.fetchone()
           print('MySQL 9.7 connectivity test passed - Current time:', result[0])
@@ -247,8 +247,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install rhosocial-activerecord==1.0.0.dev29
-          pip install rhosocial-activerecord-testsuite==1.0.0.dev16
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/parallel-testing"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/parallel-testing"
 
       - name: Create and test database
         run: |
@@ -263,7 +263,7 @@ jobs:
               ssl_disabled=True
           )
           cursor = conn.cursor()
-          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db CHARACTER SET utf8mb4')
           cursor.execute('SELECT NOW()')
           result = cursor.fetchone()
           print('MySQL ${{ matrix.mysql-version }} connectivity test passed - Current time:', result[0])
@@ -289,7 +289,7 @@ jobs:
       - name: Run tests
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ --tb=short
+          python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
 
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
@@ -298,6 +298,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # MySQL 5.6/5.7 are intentionally excluded from CI. Both are past EOL
+          # (5.6 -> 2021-02, 5.7 -> 2023-10) and incompatible with the test
+          # suite, which targets MySQL 8.0 defaults: without innodb_large_prefix
+          # their 767-byte index limit rejects the VARCHAR(255) UNIQUE/INDEX
+          # columns used throughout the schema, and they lack WITH RECURSIVE
+          # CTEs, JSON and window-function support introduced in 8.0. Only 8.0+
+          # is tested here.
           - { python-version: '3.8', mysql-version: '8.0', port: 3306 }
           - { python-version: '3.9', mysql-version: '8.0', port: 3307 }
           - { python-version: '3.10', mysql-version: '8.4', port: 3308 }
@@ -345,8 +352,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install rhosocial-activerecord==1.0.0.dev29
-          pip install rhosocial-activerecord-testsuite==1.0.0.dev16
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/parallel-testing"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/parallel-testing"
 
       - name: Create and test database
         run: |
@@ -361,7 +368,7 @@ jobs:
               ssl_disabled=True
           )
           cursor = conn.cursor()
-          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db CHARACTER SET utf8mb4')
           cursor.execute('SELECT NOW()')
           result = cursor.fetchone()
           print('MySQL ${{ matrix.mysql-version }} connectivity test passed - Current time:', result[0])
@@ -388,16 +395,14 @@ jobs:
         if: matrix.mysql-version != '9.6'
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ --tb=short
+          python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
 
       - name: Run tests with coverage (only for MySQL 9.6)
         if: matrix.mysql-version == '9.6'
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
-          coverage run --source=src -m pytest tests/ --tb=short
-          coverage xml
-          coverage report
+          python -m pytest tests/ -n auto --dist=loadgroup --cov=src --cov-branch --cov-report=xml --tb=short
 
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.6'
