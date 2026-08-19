@@ -27,7 +27,7 @@ class TestCLIParseArgs:
             assert args.password == ""
             assert args.charset == "utf8mb4"
             assert args.output == "table"
-            assert args.use_async is False
+            assert args.is_async is False
             assert args.verbose == 0
 
     def test_parse_args_custom_values(self):
@@ -124,14 +124,14 @@ class TestCLIParseArgs:
                 assert args.type == introspect_type
 
     def test_parse_args_use_async(self):
-        """Test --use-async flag in query subcommand."""
+        """Test --async flag in query subcommand."""
         from rhosocial.activerecord.backend.impl.mysql.__main__ import parse_args
 
-        with patch.object(sys, "argv", ["mysql", "query", "--use-async", "SELECT 1"]):
+        with patch.object(sys, "argv", ["mysql", "query", "--async", "SELECT 1"]):
             args = parse_args()
 
             assert args.command == "query"
-            assert args.use_async is True
+            assert args.is_async is True
 
     def test_parse_args_verbose(self):
         """Test verbose flags with subcommand."""
@@ -977,7 +977,7 @@ class TestCLIQueryArgParsing:
                 "json",
                 "--log-level",
                 "DEBUG",
-                "--use-async",
+                "--async",
                 "--rich-ascii",
                 "SELECT 1",
             ],
@@ -993,7 +993,7 @@ class TestCLIQueryArgParsing:
             assert args.charset == "utf8mb4"
             assert args.output == "json"
             assert args.log_level == "DEBUG"
-            assert args.use_async is True
+            assert args.is_async is True
             assert args.rich_ascii is True
             assert args.sql == "SELECT 1"
 
