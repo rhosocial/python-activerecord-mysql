@@ -102,7 +102,7 @@ class TestNamedConnection:
             "    return MySQLConnectionConfig(host='192.168.1.3', port=14683, "
             "database='test_db', username='root', password='password')\n"
         )
-        env = dict(os.environ, PYTHONPATH=str(mod_dir))
+        env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(mod_dir)] + sys.path))
         proc = subprocess.run(
             [sys.executable, "-m", "rhosocial.activerecord.backend.impl.mysql",
              "named-connection", "--describe", "connections.prod_db"],
