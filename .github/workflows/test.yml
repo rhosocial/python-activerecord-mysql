@@ -298,16 +298,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # MySQL 5.6/5.7 are intentionally excluded from CI. Both are past EOL
-          # (5.6 -> 2021-02, 5.7 -> 2023-10) and incompatible with the test
-          # suite, which targets MySQL 8.0 defaults: without innodb_large_prefix
-          # their 767-byte index limit rejects the VARCHAR(255) UNIQUE/INDEX
-          # columns used throughout the schema, and they lack WITH RECURSIVE
-          # CTEs, JSON and window-function support introduced in 8.0. Only 8.0+
-          # is tested here.
-          - { python-version: '3.8', mysql-version: '8.0', port: 3306 }
-          - { python-version: '3.9', mysql-version: '8.0', port: 3307 }
-          - { python-version: '3.10', mysql-version: '8.4', port: 3308 }
+          # MySQL 5.6 (EOL 2021-02) and 5.7 (EOL 2023-10) are supported here
+          # because the test schema has been narrowed where required: any
+          # ``VARCHAR(255)`` UNIQUE/INDEX column in backend tests was shrunk
+          # to ``VARCHAR(191)`` (191 * 4 = 764 bytes, under 5.6's 767-byte
+          # default ``innodb_large_prefix`` cap). Tests that depend on
+          # version-specific behaviour (e.g. ``EXPLAIN PARTITIONS`` row
+          # format, ``EXCHANGE PARTITION ... WITH VALIDATION``) are skipped
+          # inline for unsupported versions.
+          - { python-version: '3.8', mysql-version: '5.6', port: 3306 }
+          - { python-version: '3.9', mysql-version: '5.7', port: 3307 }
+          - { python-version: '3.10', mysql-version: '8.0', port: 3308 }
           - { python-version: '3.11', mysql-version: '8.4', port: 3309 }
           - { python-version: '3.12', mysql-version: '9.0', port: 3310 }
           - { python-version: '3.13', mysql-version: '9.1', port: 3311 }

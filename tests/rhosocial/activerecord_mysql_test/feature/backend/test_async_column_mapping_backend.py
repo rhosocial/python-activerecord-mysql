@@ -15,7 +15,7 @@ async def setup_mapped_users_table(async_mysql_backend):
         CREATE TABLE mapped_users (
             user_id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL UNIQUE,
+            email VARCHAR(191) NOT NULL UNIQUE,
             created_at DATETIME NOT NULL,
             user_uuid VARCHAR(36),
             is_active TINYINT(1)
