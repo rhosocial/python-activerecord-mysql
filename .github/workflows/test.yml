@@ -93,6 +93,7 @@ jobs:
               password: password
               charset: utf8mb4
               autocommit: true
+              ssl_disabled: true
           EOF
           echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
@@ -283,6 +284,7 @@ jobs:
               password: password
               charset: utf8mb4
               autocommit: true
+              ssl_disabled: true
           EOF
           echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
@@ -389,6 +391,7 @@ jobs:
               password: password
               charset: utf8mb4
               autocommit: true
+              ssl_disabled: true
           EOF
           echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
