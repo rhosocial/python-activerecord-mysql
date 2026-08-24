@@ -16,7 +16,7 @@ Key design:
 - Dialect handles actual SQL generation
 """
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLQueryAndParams
 
@@ -31,9 +31,9 @@ class ShowExpression(BaseExpression):
     fluent API for setting parameters.
     """
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(self, dialect: "MySQLDialect", *, schema: Optional[str] = None):
         super().__init__(dialect)
-        self._schema: Optional[str] = None
+        self._schema: Optional[str] = schema
 
     def schema(self, name: str) -> "ShowExpression":
         """Set the schema/database name.
@@ -47,17 +47,6 @@ class ShowExpression(BaseExpression):
         self._schema = name
         return self
 
-    def get_params(self) -> Dict[str, Any]:
-        """Get all parameters.
-
-        Returns:
-            Dictionary containing all parameters.
-        """
-        params: Dict[str, Any] = {}
-        if self._schema is not None:
-            params["schema"] = self._schema
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         """Generate SQL. Subclasses must implement this method."""
         raise NotImplementedError("Subclasses must implement to_sql() method")
@@ -70,11 +59,6 @@ class ShowCreateTableExpression(ShowExpression):
         super().__init__(dialect)
         self._table_name = table_name
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["table_name"] = self._table_name
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_create_table(self)
 
@@ -86,11 +70,6 @@ class ShowCreateViewExpression(ShowExpression):
         super().__init__(dialect)
         self._view_name = view_name
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["view_name"] = self._view_name
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_create_view(self)
 
@@ -98,11 +77,18 @@ class ShowCreateViewExpression(ShowExpression):
 class ShowColumnsExpression(ShowExpression):
     """Expression for SHOW [FULL] COLUMNS command."""
 
-    def __init__(self, dialect: "MySQLDialect", table_name: str):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table_name: str,
+        *,
+        full: bool = False,
+        like_pattern: Optional[str] = None,
+    ):
         super().__init__(dialect)
         self._table_name = table_name
-        self._full: bool = False
-        self._like_pattern: Optional[str] = None
+        self._full = full
+        self._like_pattern = like_pattern
 
     def full(self, value: bool = True) -> "ShowColumnsExpression":
         """Include additional column information (privileges, comments)."""
@@ -113,14 +99,6 @@ class ShowColumnsExpression(ShowExpression):
         """Filter columns by name pattern."""
         self._like_pattern = pattern
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["table_name"] = self._table_name
-        params["full"] = self._full
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_columns(self)
@@ -133,11 +111,6 @@ class ShowIndexExpression(ShowExpression):
         super().__init__(dialect)
         self._table_name = table_name
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["table_name"] = self._table_name
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_index(self)
 
@@ -145,10 +118,16 @@ class ShowIndexExpression(ShowExpression):
 class ShowTablesExpression(ShowExpression):
     """Expression for SHOW [FULL] TABLES command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        full: bool = False,
+        like_pattern: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._full: bool = False
-        self._like_pattern: Optional[str] = None
+        self._full = full
+        self._like_pattern = like_pattern
 
     def full(self, value: bool = True) -> "ShowTablesExpression":
         """Include table type (BASE TABLE or VIEW)."""
@@ -160,13 +139,6 @@ class ShowTablesExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["full"] = self._full
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_tables(self)
 
@@ -174,20 +146,19 @@ class ShowTablesExpression(ShowExpression):
 class ShowDatabasesExpression(ShowExpression):
     """Expression for SHOW DATABASES command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        like_pattern: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._like_pattern: Optional[str] = None
+        self._like_pattern = like_pattern
 
     def like(self, pattern: str) -> "ShowDatabasesExpression":
         """Filter databases by name pattern."""
         self._like_pattern = pattern
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_databases(self)
@@ -196,20 +167,19 @@ class ShowDatabasesExpression(ShowExpression):
 class ShowTableStatusExpression(ShowExpression):
     """Expression for SHOW TABLE STATUS command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        like_pattern: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._like_pattern: Optional[str] = None
+        self._like_pattern = like_pattern
 
     def like(self, pattern: str) -> "ShowTableStatusExpression":
         """Filter tables by name pattern."""
         self._like_pattern = pattern
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_table_status(self)
@@ -218,20 +188,19 @@ class ShowTableStatusExpression(ShowExpression):
 class ShowTriggersExpression(ShowExpression):
     """Expression for SHOW TRIGGERS command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        table_name: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._table_name: Optional[str] = None
+        self._table_name = table_name
 
     def for_table(self, table_name: str) -> "ShowTriggersExpression":
         """Filter triggers for a specific table."""
         self._table_name = table_name
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._table_name:
-            params["table_name"] = self._table_name
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_triggers(self)
@@ -244,11 +213,6 @@ class ShowCreateTriggerExpression(ShowExpression):
         super().__init__(dialect)
         self._trigger_name = trigger_name
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["trigger_name"] = self._trigger_name
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_create_trigger(self)
 
@@ -256,10 +220,16 @@ class ShowCreateTriggerExpression(ShowExpression):
 class ShowVariablesExpression(ShowExpression):
     """Expression for SHOW VARIABLES command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        like_pattern: Optional[str] = None,
+        session: bool = True,
+    ):
         super().__init__(dialect)
-        self._like_pattern: Optional[str] = None
-        self._session: bool = True
+        self._like_pattern = like_pattern
+        self._session = session
 
     def like(self, pattern: str) -> "ShowVariablesExpression":
         """Filter variables by name pattern."""
@@ -276,13 +246,6 @@ class ShowVariablesExpression(ShowExpression):
         self._session = False
         return self
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["session"] = self._session
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_variables(self)
 
@@ -290,10 +253,16 @@ class ShowVariablesExpression(ShowExpression):
 class ShowStatusExpression(ShowExpression):
     """Expression for SHOW STATUS command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        like_pattern: Optional[str] = None,
+        session: bool = True,
+    ):
         super().__init__(dialect)
-        self._like_pattern: Optional[str] = None
-        self._session: bool = True
+        self._like_pattern = like_pattern
+        self._session = session
 
     def like(self, pattern: str) -> "ShowStatusExpression":
         """Filter status by name pattern."""
@@ -310,13 +279,6 @@ class ShowStatusExpression(ShowExpression):
         self._session = False
         return self
 
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["session"] = self._session
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
-
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_status(self)
 
@@ -324,19 +286,19 @@ class ShowStatusExpression(ShowExpression):
 class ShowProcessListExpression(ShowExpression):
     """Expression for SHOW PROCESSLIST command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        full: bool = False,
+    ):
         super().__init__(dialect)
-        self._full: bool = False
+        self._full = full
 
     def full(self, value: bool = True) -> "ShowProcessListExpression":
         """Include full query text."""
         self._full = value
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        params["full"] = self._full
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_processlist(self)
@@ -345,20 +307,19 @@ class ShowProcessListExpression(ShowExpression):
 class ShowWarningsExpression(ShowExpression):
     """Expression for SHOW WARNINGS command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        limit: Optional[int] = None,
+    ):
         super().__init__(dialect)
-        self._limit: Optional[int] = None
+        self._limit = limit
 
     def limit(self, count: int) -> "ShowWarningsExpression":
         """Limit number of warnings returned."""
         self._limit = count
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._limit is not None:
-            params["limit"] = self._limit
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_warnings(self)
@@ -367,20 +328,19 @@ class ShowWarningsExpression(ShowExpression):
 class ShowErrorsExpression(ShowExpression):
     """Expression for SHOW ERRORS command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        limit: Optional[int] = None,
+    ):
         super().__init__(dialect)
-        self._limit: Optional[int] = None
+        self._limit = limit
 
     def limit(self, count: int) -> "ShowErrorsExpression":
         """Limit number of errors returned."""
         self._limit = count
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._limit is not None:
-            params["limit"] = self._limit
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_errors(self)
@@ -396,20 +356,19 @@ class ShowEnginesExpression(ShowExpression):
 class ShowCharsetExpression(ShowExpression):
     """Expression for SHOW CHARACTER SET command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        like_pattern: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._like_pattern: Optional[str] = None
+        self._like_pattern = like_pattern
 
     def like(self, pattern: str) -> "ShowCharsetExpression":
         """Filter character sets by name pattern."""
         self._like_pattern = pattern
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_charset(self)
@@ -418,20 +377,19 @@ class ShowCharsetExpression(ShowExpression):
 class ShowCollationExpression(ShowExpression):
     """Expression for SHOW COLLATION command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        like_pattern: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._like_pattern: Optional[str] = None
+        self._like_pattern = like_pattern
 
     def like(self, pattern: str) -> "ShowCollationExpression":
         """Filter collations by name pattern."""
         self._like_pattern = pattern
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._like_pattern:
-            params["like_pattern"] = self._like_pattern
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_collation(self)
@@ -440,24 +398,22 @@ class ShowCollationExpression(ShowExpression):
 class ShowGrantsExpression(ShowExpression):
     """Expression for SHOW GRANTS command."""
 
-    def __init__(self, dialect: "MySQLDialect"):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        *,
+        user: Optional[str] = None,
+        host: Optional[str] = None,
+    ):
         super().__init__(dialect)
-        self._user: Optional[str] = None
-        self._host: Optional[str] = None
+        self._user = user
+        self._host = host
 
     def for_user(self, user: str, host: Optional[str] = None) -> "ShowGrantsExpression":
         """Show grants for a specific user."""
         self._user = user
         self._host = host
         return self
-
-    def get_params(self) -> Dict[str, Any]:
-        params = super().get_params()
-        if self._user:
-            params["user"] = self._user
-        if self._host:
-            params["host"] = self._host
-        return params
 
     def to_sql(self) -> SQLQueryAndParams:
         return self._dialect.format_show_grants(self)
