@@ -69,6 +69,63 @@ def _register_mysql_specials():
         )
         return MySQLSTDistanceExpression(d, "g1", "g2")
 
+    def partition_clause(d):
+        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionClause,
+        )
+        return MySQLPartitionClause(d, "RANGE", [Column(d, "id")])
+
+    def partition_by_range(d):
+        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionByRange,
+        )
+        return MySQLPartitionByRange(d, [Column(d, "id")])
+
+    def partition_by_range_columns(d):
+        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionByRangeColumns,
+        )
+        return MySQLPartitionByRangeColumns(d, [Column(d, "a"), Column(d, "b")])
+
+    def partition_by_list(d):
+        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionByList,
+        )
+        return MySQLPartitionByList(d, [Column(d, "id")])
+
+    def partition_by_list_columns(d):
+        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionByListColumns,
+        )
+        return MySQLPartitionByListColumns(d, [Column(d, "a"), Column(d, "b")])
+
+    def partition_by_hash(d):
+        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionByHash,
+        )
+        return MySQLPartitionByHash(d, [Column(d, "id")], partitions_count=4)
+
+    def subpartition_clause(d):
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLSubpartitionClause,
+            MySQLSubpartitionStrategy,
+        )
+        return MySQLSubpartitionClause(
+            d, MySQLSubpartitionStrategy.HASH, count=4
+        )
+
+    def coalesce_partition(d):
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLCoalescePartitionExpression,
+        )
+        return MySQLCoalescePartitionExpression(d, table="t", count=2)
+
     register_special_constructor(
         "match_against.MySQLMatchAgainstExpression", match_against
     )
@@ -77,6 +134,22 @@ def _register_mysql_specials():
     register_special_constructor("json.MySQLJSONExtractExpression", json_extract)
     register_special_constructor("json.MySQLJSONContainsExpression", json_contains)
     register_special_constructor("spatial.MySQLSTDistanceExpression", st_distance)
+    register_special_constructor("partition.MySQLPartitionClause", partition_clause)
+    register_special_constructor("partition.MySQLPartitionByRange", partition_by_range)
+    register_special_constructor(
+        "partition.MySQLPartitionByRangeColumns", partition_by_range_columns
+    )
+    register_special_constructor("partition.MySQLPartitionByList", partition_by_list)
+    register_special_constructor(
+        "partition.MySQLPartitionByListColumns", partition_by_list_columns
+    )
+    register_special_constructor("partition.MySQLPartitionByHash", partition_by_hash)
+    register_special_constructor(
+        "partition.MySQLSubpartitionClause", subpartition_clause
+    )
+    register_special_constructor(
+        "partition.MySQLCoalescePartitionExpression", coalesce_partition
+    )
 
 
 _register_mysql_specials()
