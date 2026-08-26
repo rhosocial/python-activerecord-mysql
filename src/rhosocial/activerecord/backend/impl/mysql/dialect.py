@@ -765,6 +765,15 @@ class MySQLDialect(
     # endregion
 
     # region Schema Support
+    def supports_schema(self) -> bool:
+        """Whether MySQL models an independent schema namespace layer.
+
+        Strictly False: a MySQL "schema" is only an alias for DATABASE, not a
+        namespace inside a database. The granular flags below stay True because
+        servers do accept CREATE/DROP SCHEMA as synonyms.
+        """
+        return False
+
     def supports_create_schema(self) -> bool:
         """Whether CREATE SCHEMA is supported."""
         return True  # MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
