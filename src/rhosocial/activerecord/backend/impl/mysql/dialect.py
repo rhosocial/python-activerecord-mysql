@@ -599,6 +599,10 @@ class MySQLDialect(
         """NATURAL JOIN is supported."""
         return True
 
+    def supports_straight_join(self) -> bool:
+        """MySQL-specific STRAIGHT_JOIN is supported."""
+        return True
+
     def supports_wildcard(self) -> bool:
         """Wildcard (*) is supported."""
         return True
