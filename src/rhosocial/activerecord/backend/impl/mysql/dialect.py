@@ -286,7 +286,8 @@ class MySQLDialect(
     - MERGE statement (not supported, use ON DUPLICATE KEY UPDATE or REPLACE)
     """
 
-    def __init__(self, version: Optional[Tuple[int, int, int]] = None):
+    def __init__(self, version: Optional[Tuple[int, int, int]] = None,
+                 sql_mode: Optional[str] = None):
         """
         Initialize MySQL dialect with specific version.
 
@@ -295,10 +296,24 @@ class MySQLDialect(
                 If None, the dialect must be adapted via
                 backend.introspect_and_adapt() before version-dependent
                 features can be used.
+            sql_mode: MySQL SQL mode string (e.g. "STRICT_TRANS_TABLES" or
+                "...NO_BACKSLASH_ESCAPES"). Controls whether string literal
+                escaping must double backslashes.
         """
         super().__init__()
         if version is not None:
             self.version = version
+        self.sql_mode = sql_mode or "STRICT_TRANS_TABLES"
+
+    @property
+    def no_backslash_escapes(self) -> bool:
+        """Whether ``NO_BACKSLASH_ESCAPES`` is in the active SQL mode.
+
+        When active, backslash is a literal character (not an escape), so
+        string literals must NOT double backslashes; only single quotes need
+        doubling.
+        """
+        return "NO_BACKSLASH_ESCAPES" in self.sql_mode.upper()
 
     def get_parameter_placeholder(self, position: int = 0) -> str:
         """MySQL uses '%s' for placeholders."""
@@ -365,13 +380,14 @@ class MySQLDialect(
             raise UnsupportedFeatureError(self.name, f"COLLATE options: {unsupported}")
         return validate_mysql_collation_name(expr.collation_name, getattr(self, "version", None))
 
-    @staticmethod
-    def _escape_sql_string(value: str) -> str:
+    def _escape_sql_string(self, value: str) -> str:
         """Escape string for MySQL with backslash support.
 
         MySQL default SQL mode (STRICT_TRANS_TABLES) treats backslash as an
-        escape character. This method properly escapes backslashes first,
-        then single quotes, to ensure correct handling under default mode.
+        escape character, so backslashes are doubled. Under
+        ``NO_BACKSLASH_ESCAPES`` backslash is a literal character and must
+        NOT be doubled (only single quotes are doubled). Single quotes are
+        always escaped by doubling regardless of SQL mode.
 
         Args:
             value: The string value to escape
@@ -379,7 +395,8 @@ class MySQLDialect(
         Returns:
             Escaped string safe for use in MySQL SQL statements
         """
-        value = value.replace("\\", "\\\\")
+        if not self.no_backslash_escapes:
+            value = value.replace("\\", "\\\\")
         value = value.replace("'", "''")
         return value
 
