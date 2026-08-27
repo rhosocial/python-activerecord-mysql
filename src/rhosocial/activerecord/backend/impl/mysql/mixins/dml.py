@@ -1,5 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/dml.py
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Any, List, Tuple
+
+from rhosocial.activerecord.backend.expression.core import Literal
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
@@ -24,6 +26,8 @@ class MySQLDMLOperationMixin:
         """Format LOAD DATA INFILE statement."""
         expr.validate(strict=self.strict_validation)
 
+        all_params: List[Any] = []
+
         parts = ["LOAD DATA"]
 
         if expr.options.local:
@@ -47,20 +51,20 @@ class MySQLDMLOperationMixin:
 
         field_parts = []
         if expr.options.fields_terminated_by is not None:
-            field_parts.append(f"TERMINATED BY '{expr.options.fields_terminated_by}'")
+            field_parts.append(f"TERMINATED BY '{self._escape_sql_string(expr.options.fields_terminated_by)}'")
         if expr.options.fields_enclosed_by is not None:
-            field_parts.append(f"ENCLOSED BY '{expr.options.fields_enclosed_by}'")
+            field_parts.append(f"ENCLOSED BY '{self._escape_sql_string(expr.options.fields_enclosed_by)}'")
         if expr.options.fields_escaped_by is not None:
-            field_parts.append(f"ESCAPED BY '{expr.options.fields_escaped_by}'")
+            field_parts.append(f"ESCAPED BY '{self._escape_sql_string(expr.options.fields_escaped_by)}'")
         if field_parts:
             parts.append("FIELDS")
             parts.append(" ".join(field_parts))
 
         line_parts = []
         if expr.options.lines_starting_by is not None:
-            line_parts.append(f"STARTING BY '{expr.options.lines_starting_by}'")
+            line_parts.append(f"STARTING BY '{self._escape_sql_string(expr.options.lines_starting_by)}'")
         if expr.options.lines_terminated_by is not None:
-            line_parts.append(f"TERMINATED BY '{expr.options.lines_terminated_by}'")
+            line_parts.append(f"TERMINATED BY '{self._escape_sql_string(expr.options.lines_terminated_by)}'")
         if line_parts:
             parts.append("LINES")
             parts.append(" ".join(line_parts))
@@ -75,10 +79,17 @@ class MySQLDMLOperationMixin:
         if expr.options.set_assignments:
             set_parts = []
             for col, val in expr.options.set_assignments.items():
-                set_parts.append(f"{self.format_identifier(col)} = {val}")
+                col_sql = self.format_identifier(col)
+                if hasattr(val, "to_sql"):
+                    val_sql, val_params = val.to_sql()
+                    all_params.extend(val_params)
+                else:
+                    val_sql, val_params = Literal(self, val).to_sql()
+                    all_params.extend(val_params)
+                set_parts.append(f"{col_sql} = {val_sql}")
             parts.append("SET " + ", ".join(set_parts))
 
-        return " ".join(parts), ()
+        return " ".join(parts), tuple(all_params)
 
     def format_on_conflict_clause(self, expr: "OnConflictClause") -> Tuple[str, tuple]:
         """Format ON DUPLICATE KEY UPDATE for MySQL."""
@@ -91,9 +102,9 @@ class MySQLDMLOperationMixin:
                 col_sql = self.format_identifier(col_name)
                 if hasattr(value_expr, "to_sql"):
                     val_sql, val_params = value_expr.to_sql()
-                    all_params.extend(val_params)
                 else:
-                    val_sql = str(value_expr)
+                    val_sql, val_params = Literal(self, value_expr).to_sql()
+                all_params.extend(val_params)
                 update_parts.append(f"{col_sql} = {val_sql}")
 
         if update_parts:

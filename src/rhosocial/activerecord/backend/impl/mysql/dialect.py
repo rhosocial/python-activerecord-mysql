@@ -137,7 +137,6 @@ if TYPE_CHECKING:
         CreateTableExpression,
         CreateViewExpression,
         DropViewExpression,
-        ColumnDefinition,
         TableConstraint,
         IndexDefinition,
         ExplainExpression,
@@ -865,8 +864,6 @@ class MySQLDialect(
             return self.format_create_table_like(expr)
 
         # Build standard CREATE TABLE statement
-        from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType, TableConstraintType
-
         all_params: List[Any] = []
 
         # Build CREATE TABLE header
@@ -1018,43 +1015,6 @@ class MySQLDialect(
         parts.append(f"LIKE {like_table_str}")
         return ' '.join(parts), ()
 
-    def _format_column_definition_mysql(
-        self,
-        col_def: "ColumnDefinition",
-        ColumnConstraintType
-    ) -> Tuple[str, List[Any]]:
-        """Format a single column definition with MySQL-specific syntax."""
-        parts = [self.format_identifier(col_def.name), col_def.data_type]
-        params: List[Any] = []
-
-        # Build constraint parts
-        constraint_parts = []
-        for constraint in col_def.constraints:
-            if constraint.constraint_type == ColumnConstraintType.PRIMARY_KEY:
-                constraint_parts.append("PRIMARY KEY")
-            elif constraint.constraint_type == ColumnConstraintType.NOT_NULL:
-                constraint_parts.append("NOT NULL")
-            elif constraint.constraint_type == ColumnConstraintType.UNIQUE:
-                constraint_parts.append("UNIQUE")
-            elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
-                if constraint.default_value is not None:
-                    constraint_parts.append(f"DEFAULT {constraint.default_value}")
-            elif constraint.constraint_type == ColumnConstraintType.NULL:
-                constraint_parts.append("NULL")
-
-            # Handle AUTO_INCREMENT (MySQL-specific)
-            if constraint.is_auto_increment:
-                constraint_parts.append("AUTO_INCREMENT")
-
-        if constraint_parts:
-            parts.append(' '.join(constraint_parts))
-
-        # Add column comment (MySQL-specific)
-        if col_def.comment:
-            parts.append(f"COMMENT '{col_def.comment}'")
-
-        return ' '.join(parts), params
-
     def _format_table_constraint_mysql(
         self,
         t_const: "TableConstraint",
@@ -1107,23 +1067,6 @@ class MySQLDialect(
 
         return ' '.join(parts)
 
-    def _format_storage_options_mysql(self, storage_options: Dict[str, Any]) -> str:
-        """
-        Format storage options for MySQL.
-
-        Args:
-            storage_options: Dict with keys like 'ENGINE', 'DEFAULT CHARSET', 'COLLATE'
-
-        Returns:
-            Formatted storage options string (e.g., "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
-        """
-        parts = []
-        for key, value in storage_options.items():
-            if isinstance(value, str):
-                parts.append(f"{key}={value}")
-            else:
-                parts.append(f"{key}={value}")
-        return ' '.join(parts)
     # endregion
 
     # region Trigger Support (MySQL-specific)
