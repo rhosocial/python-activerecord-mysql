@@ -57,8 +57,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install rhosocial-activerecord==1.0.0.dev29
-          pip install rhosocial-activerecord-testsuite==1.0.0.dev16
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
 
       - name: Create and test database
         run: |
@@ -73,7 +73,7 @@ jobs:
               ssl_disabled=True
           )
           cursor = conn.cursor()
-          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db CHARACTER SET utf8mb4')
           cursor.execute('SELECT NOW()')
           result = cursor.fetchone()
           print('MySQL 9.7 connectivity test passed - Current time:', result[0])
@@ -93,6 +93,7 @@ jobs:
               password: password
               charset: utf8mb4
               autocommit: true
+              ssl_disabled: true
           EOF
           echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
@@ -247,8 +248,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install rhosocial-activerecord==1.0.0.dev29
-          pip install rhosocial-activerecord-testsuite==1.0.0.dev16
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
 
       - name: Create and test database
         run: |
@@ -263,7 +264,7 @@ jobs:
               ssl_disabled=True
           )
           cursor = conn.cursor()
-          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db CHARACTER SET utf8mb4')
           cursor.execute('SELECT NOW()')
           result = cursor.fetchone()
           print('MySQL ${{ matrix.mysql-version }} connectivity test passed - Current time:', result[0])
@@ -283,13 +284,14 @@ jobs:
               password: password
               charset: utf8mb4
               autocommit: true
+              ssl_disabled: true
           EOF
           echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
       - name: Run tests
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ --tb=short
+          python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
 
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
@@ -298,9 +300,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { python-version: '3.8', mysql-version: '8.0', port: 3306 }
-          - { python-version: '3.9', mysql-version: '8.0', port: 3307 }
-          - { python-version: '3.10', mysql-version: '8.4', port: 3308 }
+          # MySQL 5.6 (EOL 2021-02) and 5.7 (EOL 2023-10) are supported here
+          # because the test schema has been narrowed where required: any
+          # ``VARCHAR(255)`` UNIQUE/INDEX column in backend tests was shrunk
+          # to ``VARCHAR(191)`` (191 * 4 = 764 bytes, under 5.6's 767-byte
+          # default ``innodb_large_prefix`` cap). Tests that depend on
+          # version-specific behaviour (e.g. ``EXPLAIN PARTITIONS`` row
+          # format, ``EXCHANGE PARTITION ... WITH VALIDATION``) are skipped
+          # inline for unsupported versions.
+          - { python-version: '3.8', mysql-version: '5.6', port: 3306 }
+          - { python-version: '3.9', mysql-version: '5.7', port: 3307 }
+          - { python-version: '3.10', mysql-version: '8.0', port: 3308 }
           - { python-version: '3.11', mysql-version: '8.4', port: 3309 }
           - { python-version: '3.12', mysql-version: '9.0', port: 3310 }
           - { python-version: '3.13', mysql-version: '9.1', port: 3311 }
@@ -345,8 +355,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install rhosocial-activerecord==1.0.0.dev29
-          pip install rhosocial-activerecord-testsuite==1.0.0.dev16
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
 
       - name: Create and test database
         run: |
@@ -361,7 +371,7 @@ jobs:
               ssl_disabled=True
           )
           cursor = conn.cursor()
-          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db')
+          cursor.execute('CREATE DATABASE IF NOT EXISTS test_db CHARACTER SET utf8mb4')
           cursor.execute('SELECT NOW()')
           result = cursor.fetchone()
           print('MySQL ${{ matrix.mysql-version }} connectivity test passed - Current time:', result[0])
@@ -381,6 +391,7 @@ jobs:
               password: password
               charset: utf8mb4
               autocommit: true
+              ssl_disabled: true
           EOF
           echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
 
@@ -388,16 +399,14 @@ jobs:
         if: matrix.mysql-version != '9.6'
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ --tb=short
+          python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
 
       - name: Run tests with coverage (only for MySQL 9.6)
         if: matrix.mysql-version == '9.6'
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
-          coverage run --source=src -m pytest tests/ --tb=short
-          coverage xml
-          coverage report
+          python -m pytest tests/ -n auto --dist=loadgroup --cov=src --cov-branch --cov-report=xml --tb=short
 
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.6'

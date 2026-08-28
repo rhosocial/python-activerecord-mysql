@@ -55,8 +55,26 @@ def _load_scenarios_from_config():
         for scenario_name, config in config_data["scenarios"].items():
             register_scenario(scenario_name, config)
 
+        _apply_scenario_filter()
+
     except ImportError:
         raise ImportError("PyYAML is required to load MySQL scenario configuration files")  # noqa: B904
+
+
+def _apply_scenario_filter():
+    """Filter SCENARIO_MAP based on the active scenarios env var.
+
+    Keeps the backend-feature scenarios consistent with the scenarios active
+    for the rest of the test run (set via ``--scenarios``).
+    """
+    filter_str = os.getenv("MYSQL_ACTIVE_SCENARIOS") or os.getenv("TESTSUITE_ACTIVE_SCENARIOS")
+    if not filter_str:
+        return
+    allowed = set(s.strip() for s in filter_str.split(",") if s.strip())
+    if not allowed:
+        return
+    for name in [n for n in SCENARIO_MAP if n not in allowed]:
+        del SCENARIO_MAP[name]
 
 
 _load_scenarios_from_config()
@@ -69,6 +87,12 @@ def get_scenario(name: str) -> Tuple[Type[MySQLBackend], MySQLConnectionConfig]:
         else:
             raise ValueError("No scenarios registered")
     scenario_config = SCENARIO_MAP[name].copy()
+    # Apply the pooled database name so parallel workers never share a schema.
+    from providers.pooling import resolve_database_name
+
+    pooled_db = resolve_database_name(name)
+    if pooled_db:
+        scenario_config["database"] = pooled_db
     # Extract ssl_disabled if present, otherwise it will be None
     ssl_disabled = scenario_config.pop("ssl_disabled", None)
     config = MySQLConnectionConfig(**scenario_config)
@@ -203,6 +227,24 @@ def mysql_control_backend(mysql_backend):
     backend.disconnect()
 
 
+@pytest.fixture(scope="function")
+def mysql_control_backend_single(mysql_backend_single):
+    """
+    Non-parameterized control backend following mysql_backend_single.
+
+    Must be used together with mysql_backend_single (or async_mysql_backend_single
+    counterpart) so that KILL CONNECTION / SET GLOBAL operations target the same
+    scenario the main backend is pinned to. Mixing a parameterized control backend
+    with the single (first-scenario) backend makes KILL target a different server
+    under multi-scenario runs.
+    """
+    backend = MySQLBackend(connection_config=mysql_backend_single.config)
+    backend.connect()
+    backend.introspect_and_adapt()
+    yield backend
+    backend.disconnect()
+
+
 @pytest_asyncio.fixture(scope="function")
 async def async_mysql_control_backend(async_mysql_backend):
     """
@@ -217,6 +259,21 @@ async def async_mysql_control_backend(async_mysql_backend):
     Automatically follows the same scenario parametrization as async_mysql_backend.
     """
     backend = AsyncMySQLBackend(connection_config=async_mysql_backend.config)
+    await backend.connect()
+    await backend.introspect_and_adapt()
+    yield backend
+    await backend.disconnect()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_mysql_control_backend_single(async_mysql_backend_single):
+    """
+    Non-parameterized async control backend following async_mysql_backend_single.
+
+    See mysql_control_backend_single for the rationale: it must stay on the same
+    scenario as the pinned single backend.
+    """
+    backend = AsyncMySQLBackend(connection_config=async_mysql_backend_single.config)
     await backend.connect()
     await backend.introspect_and_adapt()
     yield backend

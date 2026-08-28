@@ -394,6 +394,15 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Whether ALTER TABLE ... EXCHANGE PARTITION is supported."""
         ...
 
+    def supports_exchange_partition_with_validation(self) -> bool:
+        """Whether ``EXCHANGE PARTITION ... WITH VALIDATION`` is accepted.
+
+        MySQL 5.7.0 and later accept the ``WITH VALIDATION`` clause on
+        ``ALTER TABLE ... EXCHANGE PARTITION``; earlier releases (notably
+        5.6) reject it as a syntax error.
+        """
+        ...
+
     def supports_analyze_partition(self) -> bool:
         """Whether ALTER TABLE ... ANALYZE PARTITION is supported."""
         ...
