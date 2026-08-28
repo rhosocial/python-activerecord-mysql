@@ -120,6 +120,7 @@ from .mixins import (
     MySQLOptimizerHintMixin,
     MySQLPartitionMixin,
     MySQLTypeSupportMixin,
+    MySQLTypeSuggestionMixin,
     MySQLRenameTableMixin,
     MySQLTruncateMixin,
     MySQLTableStatementMixin,
@@ -200,6 +201,7 @@ class MySQLDialect(
     MySQLModifyColumnMixin,  # MySQL MODIFY/CHANGE COLUMN support
     MySQLJsonDualityViewMixin,  # MySQL 9.7+ JSON Duality Views
     MySQLTypeSupportMixin,  # DataType formatting and parsing
+    MySQLTypeSuggestionMixin,  # MySQL-native column type suggestions (DDL generation)
     MySQLOptimizerHintMixin,  # MySQL optimizer hints (SET_VAR)
     MySQLTableStatementMixin,  # MySQL TABLE / VALUES statements (8.0.19+)
     MySQLMaintenanceMixin,  # MySQL ANALYZE/CHECK/CHECKSUM/OPTIMIZE/REPAIR TABLE
@@ -912,14 +914,16 @@ class MySQLDialect(
         # Combine all parts
         parts.append(f"({', '.join(column_parts)})")
 
-        # Add storage options (MySQL-specific format)
-        if expr.storage_options:
-            storage_sql = self.format_storage_options(expr.storage_options)
-            if storage_sql:
-                parts.append(storage_sql)
+        # Table-level options: structured TableOptions take precedence over the
+        # raw storage_options dict, then the legacy dialect_options["comment"].
+        table_opts_sql = self._format_table_options(expr)
+        if table_opts_sql:
+            parts.append(table_opts_sql)
 
-        # Add table-level comment (from dialect_options)
-        if "comment" in expr.dialect_options:
+        # Add table-level comment (from dialect_options) if not already covered
+        if "comment" in expr.dialect_options and not (
+            expr.table_options is not None and expr.table_options.comment
+        ):
             escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
             parts.append(f"COMMENT '{escaped_comment}'")
 
@@ -931,6 +935,35 @@ class MySQLDialect(
                 all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
+
+    def _format_table_options(self, expr) -> str:
+        """Render MySQL table options from ``expr.table_options`` (if any).
+
+        The structured ``TableOptions`` (charset/collation/engine/comment/
+        tablespace) are rendered in MySQL syntax. When ``expr.table_options``
+        is set it fully owns the "tail" options; the raw ``expr.storage_options``
+        dict is only consulted as a fallback when no ``TableOptions`` is present.
+        """
+        opts = getattr(expr, "table_options", None)
+        if opts is not None and getattr(opts, "has_options", lambda: False)():
+            parts = []
+            if opts.engine:
+                parts.append(f"ENGINE={opts.engine}")
+            if opts.charset:
+                parts.append(f"DEFAULT CHARACTER SET={opts.charset}")
+            if opts.collation:
+                parts.append(f"COLLATE={opts.collation}")
+            if opts.tablespace:
+                parts.append(f"TABLESPACE={opts.tablespace}")
+            if opts.comment:
+                escaped = self._escape_sql_string(opts.comment)
+                parts.append(f"COMMENT='{escaped}'")
+            return " ".join(parts)
+
+        # Fallback: raw storage_options dict (legacy path)
+        if expr.storage_options:
+            return self.format_storage_options(expr.storage_options)
+        return ""
 
     def supports_add_column_if_not_exists(self) -> bool:
         return False

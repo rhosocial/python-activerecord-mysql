@@ -88,6 +88,46 @@ class MySQLUUIDAdapter(SQLTypeAdapter):
         return uuid.UUID(value)
 
 
+class MySQLUUIDBinaryAdapter(SQLTypeAdapter):
+    """
+    Adapts Python UUID to MySQL BINARY(16) and vice-versa.
+
+    UUIDs are stored as the 16 raw bytes of ``uuid.UUID.bytes`` (compact and
+    index-friendly). ``from_database`` is tolerant: it accepts the 16-byte
+    binary form, an already-parsed ``UUID``, or a legacy 36-char hex string
+    (for reading rows written by the older ``MySQLUUIDAdapter`` / ``CHAR(36)``
+    schema).
+    """
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {uuid.UUID: [bytes]}
+
+    def to_database(
+        self, value: uuid.UUID, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
+        if value is None:
+            return None
+        return value.bytes
+
+    def from_database(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
+    ) -> Optional[uuid.UUID]:
+        if value is None:
+            return None
+        if isinstance(value, uuid.UUID):
+            return value
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            raw = bytes(value)
+            # MySQL may pad to the declared width; strip trailing NULs
+            # when reading a shorter 16-byte UUID out of a wider BINARY(n).
+            if len(raw) == 16:
+                return uuid.UUID(bytes=raw)
+            return uuid.UUID(bytes=raw[:16])
+        # Legacy CHAR(36) hex-string fallback
+        return uuid.UUID(str(value))
+
+
 class MySQLBooleanAdapter(SQLTypeAdapter):
     """
     Adapts Python bool to MySQL TINYINT(1) (or similar integer type) and vice-versa.

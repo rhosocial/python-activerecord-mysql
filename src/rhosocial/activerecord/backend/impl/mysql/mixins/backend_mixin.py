@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/backend_mixin.py
 import logging
-from typing import Any, Dict, Tuple, Type
+from typing import Dict, Tuple, Type
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
@@ -21,6 +21,7 @@ class MySQLBackendMixin:
             MySQLSetAdapter,
             MySQLTimeAdapter,
             MySQLUUIDAdapter,
+            MySQLUUIDBinaryAdapter,
         )
 
         mysql_adapters = [
@@ -34,6 +35,7 @@ class MySQLBackendMixin:
             MySQLSetAdapter(),
             MySQLTimeAdapter(),
             MySQLUUIDAdapter(),
+            MySQLUUIDBinaryAdapter(),
         ]
 
         for adapter in mysql_adapters:
@@ -99,7 +101,7 @@ class MySQLBackendMixin:
             (date, str),
             (time, str),
             (Decimal, float),
-            (UUID, str),
+            (UUID, bytes),
             (dict, str),
             (list, str),
             (Enum, str),

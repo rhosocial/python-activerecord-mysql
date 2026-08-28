@@ -19,6 +19,7 @@ from rhosocial.activerecord.backend.impl.mysql.adapters import (
     MySQLJSONAdapter,
     MySQLTimeAdapter,
     MySQLUUIDAdapter,
+    MySQLUUIDBinaryAdapter,
     MySQLVectorAdapter,
 )
 
@@ -29,6 +30,8 @@ def blob(): return MySQLBlobAdapter()
 def json_a(): return MySQLJSONAdapter()
 @pytest.fixture
 def uuid_a(): return MySQLUUIDAdapter()
+@pytest.fixture
+def uuid_bin(): return MySQLUUIDBinaryAdapter()
 @pytest.fixture
 def bool_a(): return MySQLBooleanAdapter()
 @pytest.fixture
@@ -66,6 +69,32 @@ class TestUUID:
         result = uuid_a.to_database(u, str)
         assert result == str(u)
         assert uuid_a.from_database(str(u), uuid.UUID) == u
+
+
+class TestUUIDBinary:
+    def test_roundtrip_binary(self, uuid_bin):
+        u = uuid.uuid4()
+        result = uuid_bin.to_database(u, bytes)
+        assert isinstance(result, bytes)
+        assert len(result) == 16
+        assert uuid_bin.from_database(result, uuid.UUID) == u
+
+    def test_roundtrip_equals_bytes(self, uuid_bin):
+        u = uuid.uuid4()
+        assert uuid_bin.to_database(u, bytes) == u.bytes
+
+    def test_legacy_hex_string_fallback(self, uuid_bin):
+        u = uuid.uuid4()
+        assert uuid_bin.from_database(str(u), uuid.UUID) == u
+
+    def test_wider_binary_padding(self, uuid_bin):
+        u = uuid.uuid4()
+        padded = u.bytes + b"\x00\x00\x00\x00"  # e.g. from BINARY(20)
+        assert uuid_bin.from_database(padded, uuid.UUID) == u
+
+    def test_none(self, uuid_bin):
+        assert uuid_bin.to_database(None, bytes) is None
+        assert uuid_bin.from_database(None, uuid.UUID) is None
 
 class TestBoolean:
     def test_true(self, bool_a):

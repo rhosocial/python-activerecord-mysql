@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import re
-from typing import Tuple
+from typing import Optional, Tuple
 
-from rhosocial.activerecord.backend.dialect.mixins.ddl_type import DDLTypeMixin
+from rhosocial.activerecord.backend.dialect.mixins.ddl_type import (
+    DDLTypeMixin,
+    DDLTypeSuggestionMixin,
+)
 from rhosocial.activerecord.backend.dialect.protocols import DDLTypeSupport
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
     BlobType,
     BooleanType,
     CharType,
+    DataType,
     DateType,
     DateTimeType,
     DecimalType,
@@ -592,3 +596,63 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
         # Fallback
         from rhosocial.activerecord.backend.expression.types import CustomType
         return CustomType(stripped)
+
+class MySQLTypeSuggestionMixin(DDLTypeSuggestionMixin):
+    """MySQL-native ``suggest_column_type()``.
+
+    Provides MySQL-specific default ``DataType`` suggestions for DDL
+    generation. Version-gated types follow the backend server version:
+
+    - ``dict`` / ``list`` → ``JsonType`` on MySQL 5.7+; ``MySQLLongTextType``
+      on older servers. When *version* is unknown, no guess is made and the
+      caller falls back (per the ``ColumnTypeSuggestion`` contract).
+    - ``uuid.UUID`` → ``MySQLBinaryType(16)`` (binary storage, matching the
+      ``MySQLUUIDBinaryAdapter`` default value conversion).
+
+    All other mappings mirror the backend-neutral defaults but select the
+    MySQL-native ``DataType`` subclass where one exists.
+    """
+
+    def suggest_column_type(
+        self, python_type: type, version: "Optional[Tuple[int, int, int]]" = None
+    ) -> "Optional[DataType]":
+        import datetime as _dt
+        import decimal as _dec
+        import enum as _enum
+        import uuid as _uuid
+
+        # When the caller does not supply a version, fall back to the dialect's
+        # own configured server version (None if never introspected/adapted).
+        if version is None:
+            version = getattr(self, "_version", None)
+
+        mapping = {
+            str: MySQLTextType,
+            int: MySQLIntType,
+            bool: MySQLTinyIntType,
+            float: DoubleType,
+            bytes: MySQLBlobType,
+            _dt.datetime: DateTimeType,
+            _dt.date: DateType,
+            _dt.time: TimeType,
+            _dec.Decimal: DecimalType,
+            _uuid.UUID: MySQLBinaryType,
+            _enum.Enum: VarCharType,
+        }
+        factory = mapping.get(python_type)
+        if factory is not None:
+            if python_type is _uuid.UUID:
+                return MySQLBinaryType(16)
+            if python_type is _enum.Enum:
+                return VarCharType(64)
+            return factory()
+
+        if python_type in (dict, list):
+            if version is None:
+                # Per the contract: do not silently guess the version.
+                return None
+            if version >= (5, 7, 0):
+                return JsonType()
+            return MySQLLongTextType()
+
+        return super().suggest_column_type(python_type, version)

@@ -16,7 +16,7 @@ from .column import MySQLModifyColumnMixin
 from .concurrency import MySQLConcurrencyMixin, AsyncMySQLConcurrencyMixin
 from .json_duality_view import MySQLJsonDualityViewMixin
 from .optimizer_hint import MySQLOptimizerHintMixin
-from .types import MySQLTypeSupportMixin
+from .types import MySQLTypeSupportMixin, MySQLTypeSuggestionMixin
 from .rename_table import MySQLRenameTableMixin
 from .truncate import MySQLTruncateMixin
 from .table_statement import MySQLTableStatementMixin
@@ -45,6 +45,7 @@ __all__ = [
     "MySQLJsonDualityViewMixin",
     "MySQLOptimizerHintMixin",
     "MySQLTypeSupportMixin",
+    "MySQLTypeSuggestionMixin",
     "MySQLRenameTableMixin",
     "MySQLTruncateMixin",
     "MySQLTableStatementMixin",
