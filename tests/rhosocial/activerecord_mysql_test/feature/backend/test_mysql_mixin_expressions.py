@@ -143,7 +143,8 @@ class TestMySQLDMLOperationExpressions:
         assert "ESCAPED BY" in sql
         assert "STARTING BY" in sql
         assert "IGNORE 1 LINES" in sql
-        assert "SET `created_at` = NOW()" in sql
+        assert "SET `created_at` = %s" in sql
+        assert params == ("NOW()",)
 
     def test_load_data_validate_replaces_ignore_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))

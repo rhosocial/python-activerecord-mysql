@@ -331,7 +331,10 @@ class MySQLAddPartitionExpression(BaseExpression):
         partitions: List[MySQLPartitionDefinition],
     ):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = partitions
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -343,7 +346,10 @@ class MySQLDropPartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -355,7 +361,10 @@ class MySQLTruncatePartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -373,7 +382,10 @@ class MySQLReorganizePartitionExpression(BaseExpression):
         into: List[MySQLPartitionDefinition],
     ):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partition = partition
         self.into = into
 
@@ -394,9 +406,15 @@ class MySQLExchangePartitionExpression(BaseExpression):
         with_validation: bool = True,
     ):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partition = partition
-        self.exchange_table = TableExpression(dialect, exchange_table)
+        if isinstance(exchange_table, TableExpression):
+            self.exchange_table = exchange_table
+        else:
+            self.exchange_table = TableExpression(dialect, exchange_table)
         self.with_validation = with_validation
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -408,7 +426,10 @@ class MySQLRemovePartitioningExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
 
     def to_sql(self) -> SQLQueryAndParams:
         return self.dialect.format_remove_partitioning_statement(self)
@@ -421,7 +442,10 @@ class MySQLCoalescePartitionExpression(BaseExpression):
         super().__init__(dialect)
         if not isinstance(count, int) or count <= 0:
             raise ValueError("count must be a positive integer")
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.count = count
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -433,7 +457,10 @@ class MySQLAnalyzePartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -445,7 +472,10 @@ class MySQLCheckPartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -457,7 +487,10 @@ class MySQLOptimizePartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -469,7 +502,10 @@ class MySQLRebuildPartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:
@@ -481,7 +517,10 @@ class MySQLRepairPartitionExpression(BaseExpression):
 
     def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
         super().__init__(dialect)
-        self.table = TableExpression(dialect, table)
+        if isinstance(table, TableExpression):
+            self.table = table
+        else:
+            self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
     def to_sql(self) -> SQLQueryAndParams:

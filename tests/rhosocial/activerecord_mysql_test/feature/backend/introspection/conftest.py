@@ -22,7 +22,7 @@ _TABLES_SQL = """
     CREATE TABLE users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
-        email VARCHAR(255) NOT NULL,
+        email VARCHAR(191) NOT NULL,
         age INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE INDEX idx_users_email (email),

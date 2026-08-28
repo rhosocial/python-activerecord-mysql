@@ -196,6 +196,14 @@ class TestMySQLPartitionExplain:
     ):
         """Range predicate on partition key should expose the pruned partition."""
         dialect = mysql_partition_explain_backend.dialect
+        # MySQL 5.6 EXPLAIN output omits the ``partitions`` column entirely,
+        # so partition-pruning assertions cannot be made against it. The
+        # 8.0+ row format (EXPLAIN ... FORMAT=TREE; or the standard
+        # EXPLAIN PARTITIONS output) is required.
+        if dialect.version < (5, 7, 0):
+            pytest.skip(
+                "MySQL < 5.7 does not expose pruned partitions in EXPLAIN output"
+            )
         expr = _partition_range_query_expression(
             dialect,
             datetime(2026, 2, 1),
@@ -249,6 +257,14 @@ class TestAsyncMySQLPartitionExplain:
     ):
         """Range predicate on partition key should expose the pruned partition."""
         dialect = async_mysql_partition_explain_backend.dialect
+        # MySQL 5.6 EXPLAIN output omits the ``partitions`` column entirely,
+        # so partition-pruning assertions cannot be made against it. The
+        # 8.0+ row format (EXPLAIN ... FORMAT=TREE; or the standard
+        # EXPLAIN PARTITIONS output) is required.
+        if dialect.version < (5, 7, 0):
+            pytest.skip(
+                "MySQL < 5.7 does not expose pruned partitions in EXPLAIN output"
+            )
         expr = _partition_range_query_expression(
             dialect,
             datetime(2026, 2, 1),

@@ -186,6 +186,36 @@ class TestMySQLEscapeSqlStringBackslash:
         assert 'test"double"value' in result
 
 
+def test_escape_sql_string_no_backslash_escapes_mode():
+    """Under NO_BACKSLASH_ESCAPES backslash is literal and NOT doubled."""
+    from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+    d = MySQLDialect((8, 0, 0), sql_mode="NO_BACKSLASH_ESCAPES")
+    assert d.no_backslash_escapes is True
+    # Backslash preserved (literal), quotes still doubled
+    assert d._escape_sql_string(r"C:\path") == r"C:\path"
+    assert d._escape_sql_string("it's") == "it''s"
+
+
+def test_escape_sql_string_default_mode_doubles_backslash():
+    """Under default SQL mode backslash is doubled, quotes doubled."""
+    from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+    d = MySQLDialect((8, 0, 0), sql_mode="STRICT_TRANS_TABLES")
+    assert d.no_backslash_escapes is False
+    assert d._escape_sql_string(r"C:\path") == r"C:\\path"
+    assert d._escape_sql_string("it's") == "it''s"
+
+
+def test_escape_sql_string_mode_whitelist_default():
+    """Dialect defaults to STRICT_TRANS_TABLES (backslash escapes)."""
+    from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+    d = MySQLDialect((8, 0, 0))
+    assert d.no_backslash_escapes is False
+    assert d._escape_sql_string(r"C:\path") == r"C:\\path"
+
+
 class TestMySQLJSONTableTypeValidation:
     """Tests for JSON_TABLE col.type validation."""
 

@@ -173,15 +173,15 @@ run_named_expression() {
     echo ""
 
     echo "--- List named expressions (module may not exist) ---"
-    $PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions 2>/dev/null || echo "(No named expression examples found)"
+    $PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions.order_expressions 2>/dev/null || echo "(No named expression examples found)"
 
     echo ""
     echo "--- List with dialect version ---"
-    $PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions --dialect-version 8.0.0 2>/dev/null || echo "(No named expression examples found)"
+    $PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions.order_expressions --dialect-version 8.0.0 2>/dev/null || echo "(No named expression examples found)"
 
     echo ""
     echo "--- Describe expression ---"
-    $PYTHON_CMD named-expression --describe rhosocial.activerecord.backend.impl.mysql.examples.named_expressions.some_expression 2>/dev/null || echo "(No named expression examples found)"
+    $PYTHON_CMD named-expression --describe rhosocial.activerecord.backend.impl.mysql.examples.named_expressions.order_expressions.get_order 2>/dev/null || echo "(No named expression examples found)"
 }
 
 # Command: named-procedure
@@ -193,15 +193,15 @@ run_named_procedure() {
     echo ""
 
     echo "--- List named procedures (module may not exist) ---"
-    $PYTHON_CMD named-procedure --list rhosocial.activerecord.backend.impl.mysql.examples.named_procedures 2>/dev/null || echo "(No named procedure examples found)"
+    $PYTHON_CMD named-procedure --list rhosocial.activerecord.backend.impl.mysql.examples.named_procedures.order_workflow 2>/dev/null || echo "(No named procedure examples found)"
 
     echo ""
     echo "--- Describe procedure ---"
-    $PYTHON_CMD named-procedure --describe rhosocial.activerecord.backend.impl.mysql.examples.named_procedures.SomeProcedure 2>/dev/null || echo "(No named procedure examples found)"
+    $PYTHON_CMD named-procedure --describe rhosocial.activerecord.backend.impl.mysql.examples.named_procedures.order_workflow.OrderProcessingProcedure 2>/dev/null || echo "(No named procedure examples found)"
 
     echo ""
     echo "--- Dry run procedure ---"
-    $PYTHON_CMD named-procedure rhosocial.activerecord.backend.impl.mysql.examples.named_procedures.SomeProcedure --dry-run 2>/dev/null || echo "(No named procedure examples found)"
+    $PYTHON_CMD named-procedure rhosocial.activerecord.backend.impl.mysql.examples.named_procedures.order_workflow.OrderProcessingProcedure --dry-run 2>/dev/null || echo "(No named procedure examples found)"
 }
 
 # Command: named-procedure-graph

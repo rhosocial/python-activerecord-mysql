@@ -35,7 +35,7 @@ async def setup_test_table(async_mysql_backend):
         CREATE TABLE error_test (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) UNIQUE
+            email VARCHAR(191) UNIQUE
         )
     """)
     yield
@@ -58,7 +58,7 @@ class TestAsyncHandleError:
         await async_mysql_backend.execute("""
             CREATE TABLE unique_test_err (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                email VARCHAR(255) UNIQUE
+                email VARCHAR(191) UNIQUE
             )
         """)
 

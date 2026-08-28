@@ -54,8 +54,8 @@ def _create_products_view(backend, spec, *, replace=False):
 def _select_products_view_metadata(backend):
     return backend.execute(
         "SELECT * FROM information_schema.JSON_DUALITY_VIEWS "
-        "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv'",
-        (),
+        "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'products_dv'",
+        (backend.config.database,),
     )
 
 
@@ -138,8 +138,8 @@ class TestJsonDualityViewDDL:
         result = backend.execute(
             "SELECT ALLOW_INSERT, ALLOW_UPDATE, ALLOW_DELETE "
             "FROM information_schema.JSON_DUALITY_VIEW_TABLES "
-            "WHERE TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'products_dv' AND IS_ROOT_TABLE = 1",
-            (),
+            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'products_dv' AND IS_ROOT_TABLE = 1",
+            (backend.config.database,),
         )
         assert len(result.data) > 0
         row = result.data[0]

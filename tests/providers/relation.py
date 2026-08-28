@@ -25,7 +25,7 @@ from rhosocial.activerecord.testsuite.feature.relation.fixtures.models import (
     AsyncBoundaryProfile,
     AsyncBoundaryPost,
 )
-from .scenarios import get_enabled_scenarios, get_scenario
+from .scenarios import get_enabled_scenarios, get_scenario, get_scenario_raw
 
 
 EMPLOYEE_DEPARTMENT_SCHEMA = """
@@ -126,7 +126,11 @@ class RelationProviderBase:
         scenarios = []
         for name in get_enabled_scenarios().keys():
             try:
-                backend_class, config = get_scenario(name)
+                # Probe against the scenario's own configured database (raw
+                # config), NOT the pooled ``test_db_*`` name: this is a
+                # connectivity/capability probe that runs during collection and
+                # on every worker before pooled databases are created.
+                backend_class, config = get_scenario_raw(name)
                 backend = backend_class(connection_config=config)
                 backend.connect()
                 version = backend.get_server_version()

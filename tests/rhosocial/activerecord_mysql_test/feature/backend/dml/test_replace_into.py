@@ -26,9 +26,9 @@ class TestMySQLReplaceInto:
         mysql_backend.execute("""
             CREATE TABLE test_replace_into (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                email VARCHAR(255) UNIQUE,
+                email VARCHAR(191) UNIQUE,
                 name VARCHAR(255)
-            ) ENGINE=InnoDB
+        ) ENGINE=InnoDB
         """)
         yield "test_replace_into"
         mysql_backend.execute("DROP TABLE IF EXISTS test_replace_into")
@@ -188,9 +188,9 @@ class TestMySQLAsyncReplaceInto:
         await async_mysql_backend.execute("""
             CREATE TABLE test_replace_into_async (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                email VARCHAR(255) UNIQUE,
+                email VARCHAR(191) UNIQUE,
                 name VARCHAR(255)
-            ) ENGINE=InnoDB
+        ) ENGINE=InnoDB
         """)
         yield "test_replace_into_async"
         await async_mysql_backend.execute("DROP TABLE IF EXISTS test_replace_into_async")

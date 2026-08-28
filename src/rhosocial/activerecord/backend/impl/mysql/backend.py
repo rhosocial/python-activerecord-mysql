@@ -161,7 +161,10 @@ class MySQLBackend(
         actual_version = self.get_server_version()
         if self._version != actual_version:
             self._version = actual_version
-            self._dialect = MySQLDialect(actual_version)
+            self._dialect = MySQLDialect(
+                actual_version,
+                sql_mode=getattr(self.config, "sql_mode", None),
+            )
             self._register_mysql_adapters()
             self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
 

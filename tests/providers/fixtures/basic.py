@@ -75,10 +75,10 @@ def create_users_table(dialect, table_name: str = "users") -> CreateTableExpress
         columns=[
             ColumnDefinition("id", IntegerType(),
                 constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True)]),
-            ColumnDefinition("username", VarCharType(255),
+            ColumnDefinition("username", VarCharType(191),
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL),
                              ColumnConstraint(ColumnConstraintType.UNIQUE)]),
-            ColumnDefinition("email", VarCharType(255),
+            ColumnDefinition("email", VarCharType(191),
                 constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL),
                              ColumnConstraint(ColumnConstraintType.UNIQUE)]),
             ColumnDefinition("age", IntegerType()),

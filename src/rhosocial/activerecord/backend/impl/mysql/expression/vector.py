@@ -11,7 +11,7 @@ This module provides expression classes for MySQL vector functions:
 Note: Vector support requires MySQL 9.0+
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from rhosocial.activerecord.backend.expression.bases import SQLQueryAndParams, SQLValueExpression
 from rhosocial.activerecord.backend.expression.mixins import (
@@ -36,10 +36,12 @@ class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
         self,
         dialect: "SQLDialectBase",
         vector: str,
+        *,
+        alias: Optional[str] = None,
     ):
         super().__init__(dialect)
         self.vector = vector
-        self.alias = None
+        self.alias = alias
 
     def to_sql(self) -> "SQLQueryAndParams":
         sql, params = self.dialect.format_vector_literal(self.vector)
@@ -60,11 +62,13 @@ class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue
         dialect: "SQLDialectBase",
         vec1: str,
         vec2: str,
+        *,
+        alias: Optional[str] = None,
     ):
         super().__init__(dialect)
         self.vec1 = vec1
         self.vec2 = vec2
-        self.alias = None
+        self.alias = alias
 
     def to_sql(self) -> "SQLQueryAndParams":
         sql, params = self.dialect.format_distance_euclidean(self.vec1, self.vec2)
@@ -85,11 +89,13 @@ class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExp
         dialect: "SQLDialectBase",
         vec1: str,
         vec2: str,
+        *,
+        alias: Optional[str] = None,
     ):
         super().__init__(dialect)
         self.vec1 = vec1
         self.vec2 = vec2
-        self.alias = None
+        self.alias = alias
 
     def to_sql(self) -> "SQLQueryAndParams":
         sql, params = self.dialect.format_distance_cosine(self.vec1, self.vec2)
@@ -110,11 +116,13 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         dialect: "SQLDialectBase",
         vec1: str,
         vec2: str,
+        *,
+        alias: Optional[str] = None,
     ):
         super().__init__(dialect)
         self.vec1 = vec1
         self.vec2 = vec2
-        self.alias = None
+        self.alias = alias
 
     def to_sql(self) -> "SQLQueryAndParams":
         sql, params = self.dialect.format_distance_dot(self.vec1, self.vec2)

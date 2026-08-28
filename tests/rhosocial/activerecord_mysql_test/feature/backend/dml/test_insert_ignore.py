@@ -26,9 +26,9 @@ class TestMySQLInsertIgnore:
         mysql_backend.execute("""
             CREATE TABLE test_insert_ignore (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                email VARCHAR(255) UNIQUE,
+                email VARCHAR(191) UNIQUE,
                 name VARCHAR(255)
-            ) ENGINE=InnoDB
+        ) ENGINE=InnoDB
         """)
         yield "test_insert_ignore"
         mysql_backend.execute("DROP TABLE IF EXISTS test_insert_ignore")
@@ -170,9 +170,9 @@ class TestMySQLAsyncInsertIgnore:
         await async_mysql_backend.execute("""
             CREATE TABLE test_insert_ignore_async (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                email VARCHAR(255) UNIQUE,
+                email VARCHAR(191) UNIQUE,
                 name VARCHAR(255)
-            ) ENGINE=InnoDB
+        ) ENGINE=InnoDB
         """)
         yield "test_insert_ignore_async"
         await async_mysql_backend.execute("DROP TABLE IF EXISTS test_insert_ignore_async")

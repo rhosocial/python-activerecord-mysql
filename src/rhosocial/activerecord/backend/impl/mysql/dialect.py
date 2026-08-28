@@ -137,7 +137,6 @@ if TYPE_CHECKING:
         CreateTableExpression,
         CreateViewExpression,
         DropViewExpression,
-        ColumnDefinition,
         TableConstraint,
         IndexDefinition,
         ExplainExpression,
@@ -287,7 +286,8 @@ class MySQLDialect(
     - MERGE statement (not supported, use ON DUPLICATE KEY UPDATE or REPLACE)
     """
 
-    def __init__(self, version: Optional[Tuple[int, int, int]] = None):
+    def __init__(self, version: Optional[Tuple[int, int, int]] = None,
+                 sql_mode: Optional[str] = None):
         """
         Initialize MySQL dialect with specific version.
 
@@ -296,10 +296,24 @@ class MySQLDialect(
                 If None, the dialect must be adapted via
                 backend.introspect_and_adapt() before version-dependent
                 features can be used.
+            sql_mode: MySQL SQL mode string (e.g. "STRICT_TRANS_TABLES" or
+                "...NO_BACKSLASH_ESCAPES"). Controls whether string literal
+                escaping must double backslashes.
         """
         super().__init__()
         if version is not None:
             self.version = version
+        self.sql_mode = sql_mode or "STRICT_TRANS_TABLES"
+
+    @property
+    def no_backslash_escapes(self) -> bool:
+        """Whether ``NO_BACKSLASH_ESCAPES`` is in the active SQL mode.
+
+        When active, backslash is a literal character (not an escape), so
+        string literals must NOT double backslashes; only single quotes need
+        doubling.
+        """
+        return "NO_BACKSLASH_ESCAPES" in self.sql_mode.upper()
 
     def get_parameter_placeholder(self, position: int = 0) -> str:
         """MySQL uses '%s' for placeholders."""
@@ -366,13 +380,14 @@ class MySQLDialect(
             raise UnsupportedFeatureError(self.name, f"COLLATE options: {unsupported}")
         return validate_mysql_collation_name(expr.collation_name, getattr(self, "version", None))
 
-    @staticmethod
-    def _escape_sql_string(value: str) -> str:
+    def _escape_sql_string(self, value: str) -> str:
         """Escape string for MySQL with backslash support.
 
         MySQL default SQL mode (STRICT_TRANS_TABLES) treats backslash as an
-        escape character. This method properly escapes backslashes first,
-        then single quotes, to ensure correct handling under default mode.
+        escape character, so backslashes are doubled. Under
+        ``NO_BACKSLASH_ESCAPES`` backslash is a literal character and must
+        NOT be doubled (only single quotes are doubled). Single quotes are
+        always escaped by doubling regardless of SQL mode.
 
         Args:
             value: The string value to escape
@@ -380,7 +395,8 @@ class MySQLDialect(
         Returns:
             Escaped string safe for use in MySQL SQL statements
         """
-        value = value.replace("\\", "\\\\")
+        if not self.no_backslash_escapes:
+            value = value.replace("\\", "\\\\")
         value = value.replace("'", "''")
         return value
 
@@ -599,6 +615,10 @@ class MySQLDialect(
         """NATURAL JOIN is supported."""
         return True
 
+    def supports_straight_join(self) -> bool:
+        """MySQL-specific STRAIGHT_JOIN is supported."""
+        return True
+
     def supports_wildcard(self) -> bool:
         """Wildcard (*) is supported."""
         return True
@@ -765,6 +785,15 @@ class MySQLDialect(
     # endregion
 
     # region Schema Support
+    def supports_schema(self) -> bool:
+        """Whether MySQL models an independent schema namespace layer.
+
+        Strictly False: a MySQL "schema" is only an alias for DATABASE, not a
+        namespace inside a database. The granular flags below stay True because
+        servers do accept CREATE/DROP SCHEMA as synonyms.
+        """
+        return False
+
     def supports_create_schema(self) -> bool:
         """Whether CREATE SCHEMA is supported."""
         return True  # MySQL supports CREATE SCHEMA (alias for CREATE DATABASE)
@@ -852,8 +881,6 @@ class MySQLDialect(
             return self.format_create_table_like(expr)
 
         # Build standard CREATE TABLE statement
-        from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType, TableConstraintType
-
         all_params: List[Any] = []
 
         # Build CREATE TABLE header
@@ -1005,43 +1032,6 @@ class MySQLDialect(
         parts.append(f"LIKE {like_table_str}")
         return ' '.join(parts), ()
 
-    def _format_column_definition_mysql(
-        self,
-        col_def: "ColumnDefinition",
-        ColumnConstraintType
-    ) -> Tuple[str, List[Any]]:
-        """Format a single column definition with MySQL-specific syntax."""
-        parts = [self.format_identifier(col_def.name), col_def.data_type]
-        params: List[Any] = []
-
-        # Build constraint parts
-        constraint_parts = []
-        for constraint in col_def.constraints:
-            if constraint.constraint_type == ColumnConstraintType.PRIMARY_KEY:
-                constraint_parts.append("PRIMARY KEY")
-            elif constraint.constraint_type == ColumnConstraintType.NOT_NULL:
-                constraint_parts.append("NOT NULL")
-            elif constraint.constraint_type == ColumnConstraintType.UNIQUE:
-                constraint_parts.append("UNIQUE")
-            elif constraint.constraint_type == ColumnConstraintType.DEFAULT:
-                if constraint.default_value is not None:
-                    constraint_parts.append(f"DEFAULT {constraint.default_value}")
-            elif constraint.constraint_type == ColumnConstraintType.NULL:
-                constraint_parts.append("NULL")
-
-            # Handle AUTO_INCREMENT (MySQL-specific)
-            if constraint.is_auto_increment:
-                constraint_parts.append("AUTO_INCREMENT")
-
-        if constraint_parts:
-            parts.append(' '.join(constraint_parts))
-
-        # Add column comment (MySQL-specific)
-        if col_def.comment:
-            parts.append(f"COMMENT '{col_def.comment}'")
-
-        return ' '.join(parts), params
-
     def _format_table_constraint_mysql(
         self,
         t_const: "TableConstraint",
@@ -1094,23 +1084,6 @@ class MySQLDialect(
 
         return ' '.join(parts)
 
-    def _format_storage_options_mysql(self, storage_options: Dict[str, Any]) -> str:
-        """
-        Format storage options for MySQL.
-
-        Args:
-            storage_options: Dict with keys like 'ENGINE', 'DEFAULT CHARSET', 'COLLATE'
-
-        Returns:
-            Formatted storage options string (e.g., "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")
-        """
-        parts = []
-        for key, value in storage_options.items():
-            if isinstance(value, str):
-                parts.append(f"{key}={value}")
-            else:
-                parts.append(f"{key}={value}")
-        return ' '.join(parts)
     # endregion
 
     # region Trigger Support (MySQL-specific)

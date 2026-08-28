@@ -39,6 +39,10 @@ from .mixin_benchmark import MixinBenchmarkProvider
 from .query_benchmark import QueryBenchmarkProvider
 from .transaction_benchmark import TransactionBenchmarkProvider
 
+# Importing the pooling module registers the MySQL-specific pool reset handler
+# (a side effect of the import), mirroring SQLite's tests/providers/pooling.py.
+from . import pooling  # noqa: F401
+
 # Create a single, global instance of the ProviderRegistry.
 provider_registry = ProviderRegistry()
 

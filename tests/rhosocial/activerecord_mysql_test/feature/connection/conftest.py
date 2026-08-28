@@ -22,6 +22,8 @@ from rhosocial.activerecord.connection.pool import (
     AsyncBackendPool,
 )
 
+from providers.pooling import resolve_database_name
+
 
 def ensure_compatible_event_loop():
     """Ensure event loop compatibility on Windows."""
@@ -75,8 +77,26 @@ def _load_scenarios_from_config():
             if config:
                 register_scenario(scenario_name, config)
 
+        _apply_scenario_filter()
+
     except ImportError:
         raise ImportError("PyYAML is required to load scenario configuration files")  # noqa: B904
+
+
+def _apply_scenario_filter():
+    """Filter SCENARIO_MAP based on the active scenarios env var.
+
+    Keeps the connection-pool scenarios consistent with the scenarios active
+    for the rest of the test run (set via ``--scenarios``).
+    """
+    filter_str = os.getenv("MYSQL_ACTIVE_SCENARIOS") or os.getenv("TESTSUITE_ACTIVE_SCENARIOS")
+    if not filter_str:
+        return
+    allowed = set(s.strip() for s in filter_str.split(",") if s.strip())
+    if not allowed:
+        return
+    for name in [n for n in SCENARIO_MAP if n not in allowed]:
+        del SCENARIO_MAP[name]
 
 
 _load_scenarios_from_config()
@@ -93,6 +113,19 @@ def get_scenario_config(name: str) -> Dict[str, Any]:
 
 def get_scenario_names():
     return list(SCENARIO_MAP.keys())
+
+
+def scenario_config_for_test(scenario_name: str) -> Dict[str, Any]:
+    """Return the scenario config with the pooled database name applied.
+
+    Each concurrent test acquires its own pooled database (``test_db_{index}``)
+    so tests running in parallel on different workers never share a schema.
+    """
+    config_dict = get_scenario_config(scenario_name).copy()
+    pooled = resolve_database_name(scenario_name)
+    if pooled:
+        config_dict["database"] = pooled
+    return config_dict
 
 
 # --- Pool Fixtures ---
@@ -134,7 +167,7 @@ def create_async_mysql_backend_factory(config_dict: Dict[str, Any]):
 def mysql_pool(request) -> Generator[BackendPool, None, None]:
     """Create a BackendPool with MySQL backends for testing."""
     scenario_name = request.param
-    config_dict = get_scenario_config(scenario_name).copy()
+    config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
         min_size=1,
@@ -154,7 +187,7 @@ def mysql_pool(request) -> Generator[BackendPool, None, None]:
 async def async_mysql_pool(request) -> AsyncBackendPool:
     """Create an AsyncBackendPool with MySQL backends for testing."""
     scenario_name = request.param
-    config_dict = get_scenario_config(scenario_name).copy()
+    config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
         min_size=1,
@@ -174,7 +207,7 @@ async def async_mysql_pool(request) -> AsyncBackendPool:
 def mysql_pool_large(request) -> Generator[BackendPool, None, None]:
     """Create a larger BackendPool for stress testing."""
     scenario_name = request.param
-    config_dict = get_scenario_config(scenario_name).copy()
+    config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
         min_size=1,
@@ -193,7 +226,7 @@ def mysql_pool_large(request) -> Generator[BackendPool, None, None]:
 async def async_mysql_pool_large(request) -> AsyncBackendPool:
     """Create a larger AsyncBackendPool for stress testing."""
     scenario_name = request.param
-    config_dict = get_scenario_config(scenario_name).copy()
+    config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
         min_size=1,

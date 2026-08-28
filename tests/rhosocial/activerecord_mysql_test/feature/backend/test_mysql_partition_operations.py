@@ -1706,6 +1706,13 @@ class TestMySQLProductionTimePartitionOperations:
         """
         if not mysql_backend.dialect.supports_exchange_partition():
             pytest.skip("MySQL scenario does not support EXCHANGE PARTITION")
+        # ``WITH VALIDATION`` was added in MySQL 5.7. 5.6 only accepts the
+        # ``WITHOUT VALIDATION`` form (which is the default for the
+        # expression), so this specific scenario requires 5.7+.
+        if not mysql_backend.dialect.supports_exchange_partition_with_validation():
+            pytest.skip(
+                "EXCHANGE PARTITION WITH VALIDATION requires MySQL 5.7+"
+            )
 
         mysql_backend.execute(*_create_production_archive_table_expression(mysql_backend.dialect).to_sql())
         mysql_backend.execute(
@@ -2038,6 +2045,13 @@ class TestAsyncMySQLProductionTimePartitionOperations:
         """
         if not async_mysql_backend.dialect.supports_exchange_partition():
             pytest.skip("MySQL scenario does not support EXCHANGE PARTITION")
+        # ``WITH VALIDATION`` was added in MySQL 5.7. 5.6 only accepts the
+        # ``WITHOUT VALIDATION`` form (which is the default for the
+        # expression), so this specific scenario requires 5.7+.
+        if not async_mysql_backend.dialect.supports_exchange_partition_with_validation():
+            pytest.skip(
+                "EXCHANGE PARTITION WITH VALIDATION requires MySQL 5.7+"
+            )
 
         await async_mysql_backend.execute(
             *_create_production_archive_table_expression(async_mysql_backend.dialect).to_sql()

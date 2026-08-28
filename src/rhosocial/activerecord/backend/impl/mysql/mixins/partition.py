@@ -107,6 +107,16 @@ class MySQLPartitionMixin:
     def supports_exchange_partition(self) -> bool:
         return True
 
+    def supports_exchange_partition_with_validation(self) -> bool:
+        """Whether ``EXCHANGE PARTITION ... WITH VALIDATION`` is accepted.
+
+        MySQL 5.7.0 and later accept the ``WITH VALIDATION`` clause on
+        ``ALTER TABLE ... EXCHANGE PARTITION``. Earlier releases (notably
+        5.6) reject it as a syntax error. See MySQL 5.7 release notes for
+        "InnoDB online DDL" support of EXCHANGE PARTITION WITH VALIDATION.
+        """
+        return self.version >= (5, 7, 0)
+
     def supports_analyze_partition(self) -> bool:
         return True
 

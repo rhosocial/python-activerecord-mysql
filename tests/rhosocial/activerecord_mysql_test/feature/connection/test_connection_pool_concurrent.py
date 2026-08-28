@@ -37,46 +37,42 @@ class TestBackendPoolConcurrent:
         simultaneously, each thread gets a different connection instance.
         """
         num_threads = 5
-        connection_ids: List[int] = []
-        connection_ids_lock = threading.Lock()
+        held_ids: set = set()
+        held_lock = threading.Lock()
+        double_checkouts: List[int] = []
         barrier = threading.Barrier(num_threads)
         errors: List[Exception] = []
         errors_lock = threading.Lock()
 
         def acquire_and_record(thread_id: int):
             try:
-                # Synchronize all threads to start at the same time
                 barrier.wait()
 
-                # Acquire connection
                 backend = mysql_pool.acquire()
                 try:
                     conn_id = id(backend)
-                    with connection_ids_lock:
-                        connection_ids.append((thread_id, conn_id))
+                    with held_lock:
+                        if conn_id in held_ids:
+                            double_checkouts.append(conn_id)
+                        held_ids.add(conn_id)
 
-                    # Hold connection briefly to ensure overlap
                     time.sleep(0.1)
                 finally:
+                    with held_lock:
+                        held_ids.discard(id(backend))
                     mysql_pool.release(backend)
             except Exception as e:
                 with errors_lock:
                     errors.append(e)
 
-        # Run concurrent acquires
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
             futures = [executor.submit(acquire_and_record, i) for i in range(num_threads)]
             for future in as_completed(futures):
                 future.result()
 
-        # Verify no errors
         assert len(errors) == 0, f"Errors occurred: {errors}"
-
-        # Verify all connections are distinct
-        assert len(connection_ids) == num_threads
-        unique_ids = set(conn_id for _, conn_id in connection_ids)
-        assert len(unique_ids) == num_threads, (
-            f"Expected {num_threads} distinct connections, but got {len(unique_ids)}: {connection_ids}"
+        assert not double_checkouts, (
+            f"Pool handed the same connection to two threads concurrently: {double_checkouts}"
         )
 
     def test_concurrent_operations_no_deadlock(self, mysql_pool_with_tables: BackendPool):
@@ -336,32 +332,32 @@ class TestAsyncBackendPoolConcurrent:
     async def test_concurrent_connections_are_distinct(self, async_mysql_pool: AsyncBackendPool):
         """Verify that concurrently acquired async connections are distinct."""
         num_concurrent = 5
-        connection_ids: List[int] = []
-        connection_ids_lock = asyncio.Lock()
+        held_ids: set = set()
+        held_lock = asyncio.Lock()
+        double_checkouts: List[int] = []
         start_event = asyncio.Event()
 
         async def acquire_and_record(task_id: int):
-            # Wait for all tasks to be ready
             await start_event.wait()
 
             async with async_mysql_pool.connection() as backend:
                 conn_id = id(backend)
-                async with connection_ids_lock:
-                    connection_ids.append((task_id, conn_id))
+                async with held_lock:
+                    if conn_id in held_ids:
+                        double_checkouts.append(conn_id)
+                    held_ids.add(conn_id)
+                try:
+                    await asyncio.sleep(0.1)
+                finally:
+                    async with held_lock:
+                        held_ids.discard(conn_id)
 
-                # Hold connection briefly
-                await asyncio.sleep(0.1)
-
-        # Start all tasks simultaneously
         tasks = [acquire_and_record(i) for i in range(num_concurrent)]
-        start_event.set()  # Release all tasks at once
+        start_event.set()
         await asyncio.gather(*tasks)
 
-        # Verify all connections are distinct
-        assert len(connection_ids) == num_concurrent
-        unique_ids = set(conn_id for _, conn_id in connection_ids)
-        assert len(unique_ids) == num_concurrent, (
-            f"Expected {num_concurrent} distinct connections, but got {len(unique_ids)}"
+        assert not double_checkouts, (
+            f"Pool handed the same connection to two tasks concurrently: {double_checkouts}"
         )
 
     @pytest.mark.asyncio

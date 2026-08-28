@@ -64,6 +64,8 @@ _INDEX_USAGES = {"index_with_lookup", "covering_index"}
 
 @pytest.fixture(scope="function")
 def temporal_indexed_backend(mysql_backend_single):
+    if not mysql_backend_single.dialect.supports_recursive_cte():
+        pytest.skip("MySQL version does not support recursive CTEs (8.0+)")
     mysql_backend_single.executescript(_SETUP_SQL)
     yield mysql_backend_single
     try:
@@ -74,6 +76,8 @@ def temporal_indexed_backend(mysql_backend_single):
 
 @pytest_asyncio.fixture(scope="function")
 async def async_temporal_indexed_backend(async_mysql_backend):
+    if not async_mysql_backend.dialect.supports_recursive_cte():
+        pytest.skip("MySQL version does not support recursive CTEs (8.0+)")
     await async_mysql_backend.executescript(_SETUP_SQL)
     yield async_mysql_backend
     try:

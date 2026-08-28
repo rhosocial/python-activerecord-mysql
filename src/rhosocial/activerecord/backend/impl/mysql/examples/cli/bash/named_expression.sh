@@ -24,7 +24,7 @@ echo "=========================================="
 
 echo ""
 echo "--- List named expressions in examples module ---"
-$PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions 2>/dev/null || echo "(No named expressions found)"
+$PYTHON_CMD named-expression --list rhosocial.activerecord.backend.impl.mysql.examples.named_expressions.order_expressions 2>/dev/null || echo "(No named expressions found)"
 
 echo ""
 echo "--- List named connections module for reference ---"

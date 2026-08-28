@@ -49,7 +49,10 @@ class MySQLBackendMixin:
         from ..dialect import MySQLDialect
 
         if self._dialect is None:
-            self._dialect = MySQLDialect(self._version)
+            self._dialect = MySQLDialect(
+                self._version,
+                sql_mode=getattr(self.config, "sql_mode", None),
+            )
         return self._dialect
 
     @property
