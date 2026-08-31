@@ -317,28 +317,28 @@ class TestMySQLEnumType:
     def test_simple_enum(self):
         """Test simple ENUM SQL representation via to_sql()."""
         dialect = MySQLDialect()
-        enum_type = MySQLEnumType(["pending", "processing", "completed"])
+        enum_type = MySQLEnumType(values=["pending", "processing", "completed"])
         sql, _ = enum_type.to_sql(dialect)
         assert sql == "ENUM('pending','processing','completed')"
 
     def test_enum_with_charset(self):
         """Test ENUM with CHARACTER SET via to_sql()."""
         dialect = MySQLDialect()
-        enum_type = MySQLEnumType(["active", "inactive"], charset="utf8mb4")
+        enum_type = MySQLEnumType(values=["active", "inactive"], charset="utf8mb4")
         sql, _ = enum_type.to_sql(dialect)
         assert "CHARACTER SET utf8mb4" in sql
 
     def test_enum_with_collation(self):
         """Test ENUM with COLLATE via to_sql()."""
         dialect = MySQLDialect()
-        enum_type = MySQLEnumType(["a", "b"], collation="utf8mb4_bin")
+        enum_type = MySQLEnumType(values=["a", "b"], collation="utf8mb4_bin")
         sql, _ = enum_type.to_sql(dialect)
         assert "COLLATE utf8mb4_bin" in sql
 
     def test_enum_with_charset_and_collation(self):
         """Test ENUM with both CHARACTER SET and COLLATE via to_sql()."""
         dialect = MySQLDialect()
-        enum_type = MySQLEnumType(["pending", "done"], charset="utf8mb4", collation="utf8mb4_unicode_ci")
+        enum_type = MySQLEnumType(values=["pending", "done"], charset="utf8mb4", collation="utf8mb4_unicode_ci")
         sql, _ = enum_type.to_sql(dialect)
         assert "CHARACTER SET utf8mb4" in sql
         assert "COLLATE utf8mb4_unicode_ci" in sql
@@ -346,13 +346,13 @@ class TestMySQLEnumType:
     def test_enum_str_representation(self):
         """Test ENUM SQL representation via to_sql()."""
         dialect = MySQLDialect()
-        enum_type = MySQLEnumType(["yes", "no"])
+        enum_type = MySQLEnumType(values=["yes", "no"])
         sql, _ = enum_type.to_sql(dialect)
         assert sql == "ENUM('yes','no')"
 
     def test_enum_repr(self):
         """Test ENUM repr."""
-        enum_type = MySQLEnumType(["a", "b"])
+        enum_type = MySQLEnumType(values=["a", "b"])
         repr_str = repr(enum_type)
         assert "MySQLEnumType" in repr_str
         assert "a" in repr_str
@@ -360,12 +360,12 @@ class TestMySQLEnumType:
     def test_enum_empty_values_raises_error(self):
         """Test that empty values list raises ValueError."""
         with pytest.raises(ValueError, match="ENUM must have at least one value"):
-            MySQLEnumType([])
+            MySQLEnumType(values=[])
 
     def test_enum_in_column_definition(self):
         """Test ENUM type used in column definition."""
         dialect = MySQLDialect()
-        status_enum = MySQLEnumType(["draft", "published", "archived"])
+        status_enum = MySQLEnumType(values=["draft", "published", "archived"])
         columns = [
             ColumnDefinition("id", IntegerType(), constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]),
             ColumnDefinition(
@@ -383,41 +383,41 @@ class TestMySQLSetType:
     def test_simple_set(self):
         """Test simple SET SQL representation via to_sql()."""
         dialect = MySQLDialect()
-        set_type = MySQLSetType(["read", "write", "execute"])
+        set_type = MySQLSetType(values=["read", "write", "execute"])
         sql, _ = set_type.to_sql(dialect)
         assert sql == "SET('read','write','execute')"
 
     def test_set_with_charset(self):
         """Test SET with CHARACTER SET via to_sql()."""
         dialect = MySQLDialect()
-        set_type = MySQLSetType(["tag1", "tag2"], charset="utf8mb4")
+        set_type = MySQLSetType(values=["tag1", "tag2"], charset="utf8mb4")
         sql, _ = set_type.to_sql(dialect)
         assert "CHARACTER SET utf8mb4" in sql
 
     def test_set_with_collation(self):
         """Test SET with COLLATE via to_sql()."""
         dialect = MySQLDialect()
-        set_type = MySQLSetType(["a", "b"], collation="utf8mb4_bin")
+        set_type = MySQLSetType(values=["a", "b"], collation="utf8mb4_bin")
         sql, _ = set_type.to_sql(dialect)
         assert "COLLATE utf8mb4_bin" in sql
 
     def test_set_str_representation(self):
         """Test SET SQL representation via to_sql()."""
         dialect = MySQLDialect()
-        set_type = MySQLSetType(["x", "y"])
+        set_type = MySQLSetType(values=["x", "y"])
         sql, _ = set_type.to_sql(dialect)
         assert sql == "SET('x','y')"
 
     def test_set_repr(self):
         """Test SET repr."""
-        set_type = MySQLSetType(["a", "b"])
+        set_type = MySQLSetType(values=["a", "b"])
         repr_str = repr(set_type)
         assert "MySQLSetType" in repr_str
 
     def test_set_empty_values_raises_error(self):
         """Test that empty values list raises ValueError."""
         with pytest.raises(ValueError, match="SET must have at least one value"):
-            MySQLSetType([])
+            MySQLSetType(values=[])
 
 
 class TestMySQLTableConstraints:
@@ -488,7 +488,7 @@ class TestMySQLCompleteTableCreation:
     def test_complete_table_creation(self):
         """Test complete table creation with all MySQL features."""
         dialect = MySQLDialect()
-        status_enum = MySQLEnumType(["active", "inactive", "deleted"])
+        status_enum = MySQLEnumType(values=["active", "inactive", "deleted"])
 
         columns = [
             ColumnDefinition(
