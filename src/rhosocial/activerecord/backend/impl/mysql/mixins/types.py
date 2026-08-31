@@ -392,7 +392,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             nums = re.findall(r"\d+", stripped)
             n = int(nums[0]) if nums else None
             from ..expression.types import MySQLBitType
-            return MySQLBitType(n)
+            return MySQLBitType(dialect=self, n=n)
 
         # Integer family
         if self._MYSQL_INTEGER_TYPES.match(upper):
@@ -402,34 +402,34 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 nums = re.findall(r"\d+", stripped)
                 display_width = int(nums[0]) if nums else None
                 from ..expression.types import MySQLTinyIntType
-                t = MySQLTinyIntType()
+                t = MySQLTinyIntType(dialect=self)
                 t.unsigned = unsigned
                 t.zerofill = zerofill
                 # TINYINT(1) is commonly used as BOOLEAN
                 if display_width == 1 and not unsigned and not zerofill:
-                    return BooleanType()
+                    return BooleanType(dialect=self)
                 return t
             if upper.startswith("SMALLINT"):
                 from ..expression.types import MySQLSmallIntType
-                t = MySQLSmallIntType()
+                t = MySQLSmallIntType(dialect=self)
                 t.unsigned = unsigned
                 t.zerofill = zerofill
                 return t
             if upper.startswith("MEDIUMINT"):
                 from ..expression.types import MySQLIntType
-                t = MySQLIntType()
+                t = MySQLIntType(dialect=self)
                 t.unsigned = unsigned
                 t.zerofill = zerofill
                 return t
             if upper.startswith("BIGINT"):
                 from ..expression.types import MySQLBigIntType
-                t = MySQLBigIntType()
+                t = MySQLBigIntType(dialect=self)
                 t.unsigned = unsigned
                 t.zerofill = zerofill
                 return t
             # INT / INTEGER
             from ..expression.types import MySQLIntType
-            t = MySQLIntType()
+            t = MySQLIntType(dialect=self)
             t.unsigned = unsigned
             t.zerofill = zerofill
             return t
@@ -437,37 +437,37 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
         # Float family
         if self._MYSQL_FLOAT_TYPES.match(upper):
             if upper.startswith("DOUBLE"):
-                return DoubleType()
+                return DoubleType(dialect=self)
             if upper.startswith("REAL"):
-                return RealType()
+                return RealType(dialect=self)
             # FLOAT
             nums = re.findall(r"\d+", stripped)
             precision = int(nums[0]) if nums else None
-            return FloatType(precision)
+            return FloatType(dialect=self, precision=precision)
 
         # Decimal family
         if self._MYSQL_DECIMAL_TYPES.match(upper):
             nums = re.findall(r"\d+", stripped)
             if len(nums) >= 2:
-                return DecimalType(int(nums[0]), int(nums[1]))
+                return DecimalType(dialect=self, precision=int(nums[0]), scale=int(nums[1]))
             if len(nums) == 1:
-                return DecimalType(int(nums[0]))
-            return DecimalType()
+                return DecimalType(dialect=self, precision=int(nums[0]))
+            return DecimalType(dialect=self)
 
         # String family
         if self._MYSQL_STRING_TYPES.match(upper):
             if upper.startswith("TINYTEXT"):
                 from ..expression.types import MySQLTinyTextType
-                return MySQLTinyTextType()
+                return MySQLTinyTextType(dialect=self)
             if upper.startswith("MEDIUMTEXT"):
                 from ..expression.types import MySQLMediumTextType
-                return MySQLMediumTextType()
+                return MySQLMediumTextType(dialect=self)
             if upper.startswith("LONGTEXT"):
                 from ..expression.types import MySQLLongTextType
-                return MySQLLongTextType()
+                return MySQLLongTextType(dialect=self)
             if upper.startswith("TEXT"):
                 from ..expression.types import MySQLTextType
-                return MySQLTextType()
+                return MySQLTextType(dialect=self)
             if upper.startswith("ENUM"):
                 from ..expression.types import MySQLEnumType
                 values = re.findall(r"'([^']*)'", stripped)
@@ -479,7 +479,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 col_match = re.search(r"COLLATE\s+(\w+)", upper)
                 if col_match:
                     collation = col_match.group(1)
-                return MySQLEnumType(values, charset=charset, collation=collation)
+                return MySQLEnumType(dialect=self, values=values, charset=charset, collation=collation)
             if upper.startswith("SET"):
                 from ..expression.types import MySQLSetType
                 values = re.findall(r"'([^']*)'", stripped)
@@ -491,37 +491,37 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 col_match = re.search(r"COLLATE\s+(\w+)", upper)
                 if col_match:
                     collation = col_match.group(1)
-                return MySQLSetType(values, charset=charset, collation=collation)
+                return MySQLSetType(dialect=self, values=values, charset=charset, collation=collation)
             if upper.startswith("BINARY"):
                 nums = re.findall(r"\d+", stripped)
                 length = int(nums[0]) if nums else None
                 from ..expression.types import MySQLBinaryType
-                return MySQLBinaryType(length)
+                return MySQLBinaryType(dialect=self, length=length)
             if upper.startswith("VARBINARY"):
                 nums = re.findall(r"\d+", stripped)
                 length = int(nums[0]) if nums else None
                 from ..expression.types import MySQLVarBinaryType
-                return MySQLVarBinaryType(length)
+                return MySQLVarBinaryType(dialect=self, length=length)
             # CHAR / VARCHAR
             length_match = re.search(r"\((\d+)\)", stripped)
             length = int(length_match.group(1)) if length_match else None
             if upper.startswith("VARCHAR"):
-                return VarCharType(length)
-            return CharType(length)
+                return VarCharType(dialect=self, length=length)
+            return CharType(dialect=self, length=length)
 
         # BLOB family
         if self._MYSQL_BLOB_TYPES.match(upper):
             if upper.startswith("TINYBLOB"):
                 from ..expression.types import MySQLTinyBlobType
-                return MySQLTinyBlobType()
+                return MySQLTinyBlobType(dialect=self)
             if upper.startswith("MEDIUMBLOB"):
                 from ..expression.types import MySQLMediumBlobType
-                return MySQLMediumBlobType()
+                return MySQLMediumBlobType(dialect=self)
             if upper.startswith("LONGBLOB"):
                 from ..expression.types import MySQLLongBlobType
-                return MySQLLongBlobType()
+                return MySQLLongBlobType(dialect=self)
             from ..expression.types import MySQLBlobType
-            return MySQLBlobType()
+            return MySQLBlobType(dialect=self)
 
         # Date/time family
         if self._MYSQL_DATE_TYPES.match(upper):
@@ -529,31 +529,31 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 nums = re.findall(r"\d+", stripped)
                 display_width = int(nums[0]) if nums else None
                 from ..expression.types import MySQLYearType
-                return MySQLYearType(display_width)
+                return MySQLYearType(dialect=self, display_width=display_width)
             if upper.startswith("DATE"):
                 if upper.strip() == "DATE":
-                    return DateType()
-                return DateTimeType()
+                    return DateType(dialect=self)
+                return DateTimeType(dialect=self)
             if upper.startswith("DATETIME"):
                 nums = re.findall(r"\d+", stripped)
                 precision = int(nums[0]) if nums else None
-                return DateTimeType(precision)
+                return DateTimeType(dialect=self, precision=precision)
             if upper.startswith("TIMESTAMP"):
                 nums = re.findall(r"\d+", stripped)
                 precision = int(nums[0]) if nums else None
                 if "WITH TIME ZONE" in upper:
-                    return TimestampTzType(precision)
-                return TimestampType(precision)
+                    return TimestampTzType(dialect=self, precision=precision)
+                return TimestampType(dialect=self, precision=precision)
             if upper.startswith("TIME"):
                 nums = re.findall(r"\d+", stripped)
                 precision = int(nums[0]) if nums else None
                 if "WITH TIME ZONE" in upper:
-                    return TimeTzType(precision)
-                return TimeType(precision)
+                    return TimeTzType(dialect=self, precision=precision)
+                return TimeType(dialect=self, precision=precision)
 
         # JSON
         if self._MYSQL_JSON_TYPES.match(upper):
-            return JsonType()
+            return JsonType(dialect=self)
 
         # Spatial
         if self._MYSQL_SPATIAL_TYPES.match(upper):
@@ -583,19 +583,19 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             }
             for name, cls in spatial_map.items():
                 if upper.startswith(name):
-                    return cls(srid)
-            return MySQLGeometryType(srid)
+                    return cls(dialect=self, srid=srid)
+            return MySQLGeometryType(dialect=self, srid=srid)
 
         # Vector (MySQL 9.0+)
         if self._MYSQL_VECTOR_TYPES.match(upper):
             nums = re.findall(r"\d+", stripped)
             dim = int(nums[0]) if nums else 0
             from ..expression.types import MySQLVectorType
-            return MySQLVectorType(dim)
+            return MySQLVectorType(dialect=self, dim=dim)
 
         # Fallback
         from rhosocial.activerecord.backend.expression.types import CustomType
-        return CustomType(stripped)
+        return CustomType(dialect=self, raw=stripped)
 
 class MySQLTypeSuggestionMixin(DDLTypeSuggestionMixin):
     """MySQL-native ``suggest_column_type()``.
@@ -642,17 +642,17 @@ class MySQLTypeSuggestionMixin(DDLTypeSuggestionMixin):
         factory = mapping.get(python_type)
         if factory is not None:
             if python_type is _uuid.UUID:
-                return MySQLBinaryType(16)
+                return MySQLBinaryType(dialect=self, length=16)
             if python_type is _enum.Enum:
-                return VarCharType(64)
-            return factory()
+                return VarCharType(dialect=self, length=64)
+            return factory(dialect=self)
 
         if python_type in (dict, list):
             if version is None:
                 # Per the contract: do not silently guess the version.
                 return None
             if version >= (5, 7, 0):
-                return JsonType()
-            return MySQLLongTextType()
+                return JsonType(dialect=self)
+            return MySQLLongTextType(dialect=self)
 
         return super().suggest_column_type(python_type, version)

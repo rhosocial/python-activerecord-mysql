@@ -217,7 +217,7 @@ class TestMySQLNiladicDDLContext:
                 ),
                 ColumnDefinition(
                     "ts",
-                    TimestampType(6),
+                    TimestampType(precision=6),
                     constraints=[
                         ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect, 6)),
                     ],

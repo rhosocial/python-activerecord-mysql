@@ -518,7 +518,7 @@ class TestMySQLTableDDLExpressions:
         columns = [
             ColumnDefinition(
                 "status",
-                VarCharType(20),
+                VarCharType(length=20),
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.DEFAULT, default_value="active")
                 ],
@@ -550,7 +550,7 @@ class TestMySQLTableDDLExpressions:
         columns = [
             ColumnDefinition(
                 "optional",
-                VarCharType(100),
+                VarCharType(length=100),
                 constraints=[ColumnConstraint(ColumnConstraintType.NULL)],
             ),
         ]
@@ -564,7 +564,7 @@ class TestMySQLTableDDLExpressions:
         columns = [
             ColumnDefinition(
                 "email",
-                VarCharType(255),
+                VarCharType(length=255),
                 constraints=[ColumnConstraint(ColumnConstraintType.UNIQUE)],
             ),
         ]
@@ -681,7 +681,7 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition("name", VarCharType(200)),
+            column=ColumnDefinition("name", VarCharType(length=200)),
         )
         expr = AlterTableExpression(
             dialect=dialect, table_name="users", actions=[action]
@@ -694,7 +694,7 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition("name", VarCharType(200)),
+            column=ColumnDefinition("name", VarCharType(length=200)),
             first=True,
         )
         expr = AlterTableExpression(
@@ -708,7 +708,7 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition("name", VarCharType(200)),
+            column=ColumnDefinition("name", VarCharType(length=200)),
             after_column="id",
         )
         expr = AlterTableExpression(
@@ -723,7 +723,7 @@ class TestMySQLColumnModificationExpressions:
         action = ChangeColumn(
             dialect=dialect,
             old_name="username",
-            column=ColumnDefinition("login_name", VarCharType(150)),
+            column=ColumnDefinition("login_name", VarCharType(length=150)),
         )
         expr = AlterTableExpression(
             dialect=dialect, table_name="users", actions=[action]
@@ -736,7 +736,7 @@ class TestMySQLColumnModificationExpressions:
         action = ChangeColumn(
             dialect=dialect,
             old_name="name",
-            column=ColumnDefinition("full_name", VarCharType(300)),
+            column=ColumnDefinition("full_name", VarCharType(length=300)),
             first=True,
         )
         expr = AlterTableExpression(
@@ -751,7 +751,7 @@ class TestMySQLColumnModificationExpressions:
         action = ChangeColumn(
             dialect=dialect,
             old_name="name",
-            column=ColumnDefinition("full_name", VarCharType(300)),
+            column=ColumnDefinition("full_name", VarCharType(length=300)),
             after_column="id",
         )
         expr = AlterTableExpression(
@@ -767,7 +767,7 @@ class TestMySQLColumnModificationExpressions:
             dialect=dialect,
             column=ColumnDefinition(
                 "email",
-                VarCharType(255),
+                VarCharType(length=255),
                 constraints=[
                     ColumnConstraint(ColumnConstraintType.NOT_NULL),
                 ],
@@ -792,7 +792,7 @@ class TestMySQLAlterTableModifierGuards:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = AddColumn(
             dialect=dialect,
-            column=ColumnDefinition("email", VarCharType(255)),
+            column=ColumnDefinition("email", VarCharType(length=255)),
             if_not_exists=True,
         )
         with pytest.raises(UnsupportedFeatureError):
@@ -817,7 +817,7 @@ class TestMySQLAlterTableModifierGuards:
 
         add_action = AddColumn(
             dialect=dialect,
-            column=ColumnDefinition("email", VarCharType(255)),
+            column=ColumnDefinition("email", VarCharType(length=255)),
         )
         add_sql, _ = add_action.to_sql()
         assert "ADD COLUMN" in add_sql

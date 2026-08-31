@@ -75,7 +75,7 @@ def _create_partitioned_table_expression(dialect):
         columns=[
             ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition("created_at", DateTimeType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition("payload", VarCharType(255)),
+            ColumnDefinition("payload", VarCharType(length=255)),
         ],
         indexes=[
             IndexDefinition(name="idx_created_at", columns=["created_at"]),
@@ -287,7 +287,7 @@ def _base_columns_without_pk():
     return [
         ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition("shard_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("payload", VarCharType(255)),
+        ColumnDefinition("payload", VarCharType(length=255)),
     ]
 
 
@@ -373,9 +373,9 @@ def _drop_named_table_expression(dialect, table_name: str):
 def _production_columns():
     return [
         ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("created_at", DateTimeType(6), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("created_at", DateTimeType(precision=6), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition("tenant_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("payload", VarCharType(255), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("payload", VarCharType(length=255), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
     ]
 
 
@@ -1204,8 +1204,8 @@ def _subpartition_columns():
     return [
         ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition("created_at", DateType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("region", VarCharType(32), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("payload", VarCharType(255)),
+        ColumnDefinition("region", VarCharType(length=32), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition("payload", VarCharType(length=255)),
     ]
 
 

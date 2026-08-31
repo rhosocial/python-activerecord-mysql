@@ -51,7 +51,7 @@ def _create_partition_explain_table_expression(dialect):
             ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition("tenant_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition("created_at", DateTimeType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition("payload", VarCharType(255)),
+            ColumnDefinition("payload", VarCharType(length=255)),
         ],
         indexes=[
             IndexDefinition(name="idx_created_at", columns=["created_at"]),
