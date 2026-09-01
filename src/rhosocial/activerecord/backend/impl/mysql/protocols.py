@@ -1569,6 +1569,10 @@ class MySQLAdminCommandSupport(Protocol):
     def format_cache_index_statement(self, expr: "MySQLCacheIndexExpression") -> Tuple[str, tuple]:
         ...
 
+    def format_cache_entries(self, cache_entries) -> str:
+        """Format the partition-list fragment of CACHE INDEX statements."""
+        ...
+
     def supports_load_index_into_cache(self) -> bool:
         ...
 
