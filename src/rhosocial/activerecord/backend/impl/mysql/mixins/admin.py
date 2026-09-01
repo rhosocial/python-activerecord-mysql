@@ -59,7 +59,7 @@ class MySQLAdminCommandMixin:
     def supports_cache_index(self) -> bool:
         return True
 
-    def _format_cache_entries(self, cache_entries) -> str:
+    def format_cache_entries(self, cache_entries) -> str:
         entries = []
         for entry in cache_entries:
             table = entry["table"]
@@ -76,7 +76,7 @@ class MySQLAdminCommandMixin:
     ) -> Tuple[str, tuple]:
         """Format ``CACHE INDEX table [INDEX (...)] IN key_cache``."""
         expr.validate(strict=self.strict_validation)
-        entries = self._format_cache_entries(expr.cache_entries)
+        entries = self.format_cache_entries(expr.cache_entries)
         return f"CACHE INDEX {entries} IN {self.format_identifier(expr.key_cache)}", ()
 
     def supports_load_index_into_cache(self) -> bool:
@@ -88,7 +88,7 @@ class MySQLAdminCommandMixin:
     ) -> Tuple[str, tuple]:
         """Format ``LOAD INDEX INTO CACHE table [INDEX (...)]``."""
         expr.validate(strict=self.strict_validation)
-        entries = self._format_cache_entries(expr.cache_entries)
+        entries = self.format_cache_entries(expr.cache_entries)
         return f"LOAD INDEX INTO CACHE {entries}", ()
 
     # --- INSTALL / UNINSTALL COMPONENT / PLUGIN ---
@@ -282,7 +282,7 @@ class MySQLAdminCommandMixin:
         parts = ["CREATE USER"]
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(format_accounts(self, expr.accounts))
         if expr.identified_by:
             parts.append(f"IDENTIFIED BY '{expr.identified_by}'")
         return " ".join(parts), ()
@@ -295,7 +295,7 @@ class MySQLAdminCommandMixin:
         parts = ["DROP USER"]
         if expr.if_exists:
             parts.append("IF EXISTS")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(format_accounts(self, expr.accounts))
         return " ".join(parts), ()
 
     def supports_grant(self) -> bool:
@@ -314,7 +314,7 @@ class MySQLAdminCommandMixin:
         parts.append("ON")
         parts.append(expr.on_object or "*.*")
         parts.append("TO")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(format_accounts(self, expr.accounts))
         if expr.with_grant_option:
             parts.append("WITH GRANT OPTION")
         return " ".join(parts), ()
@@ -335,7 +335,7 @@ class MySQLAdminCommandMixin:
         parts.append("ON")
         parts.append(expr.on_object or "*.*")
         parts.append("FROM")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(format_accounts(self, expr.accounts))
         return " ".join(parts), ()
 
 
@@ -347,7 +347,7 @@ def _fmt_table(dialect, table):
     return dialect.format_identifier(table)
 
 
-def _format_accounts(dialect, accounts) -> str:
+def format_accounts(dialect, accounts) -> str:
     """Format account specifications as ``'user'@'host'``."""
     parts = []
     for acct in accounts:

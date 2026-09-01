@@ -916,7 +916,7 @@ class MySQLDialect(
 
         # Table-level options: structured TableOptions take precedence over the
         # raw storage_options dict, then the legacy dialect_options["comment"].
-        table_opts_sql = self._format_table_options(expr)
+        table_opts_sql = self.format_table_options(expr)
         if table_opts_sql:
             parts.append(table_opts_sql)
 
@@ -936,7 +936,7 @@ class MySQLDialect(
 
         return " ".join(parts), tuple(all_params)
 
-    def _format_table_options(self, expr) -> str:
+    def format_table_options(self, expr) -> str:
         """Render MySQL table options from ``expr.table_options`` (if any).
 
         The structured ``TableOptions`` (charset/collation/engine/comment/
@@ -1065,7 +1065,7 @@ class MySQLDialect(
         parts.append(f"LIKE {like_table_str}")
         return ' '.join(parts), ()
 
-    def _format_table_constraint_mysql(
+    def format_table_constraint_mysql(
         self,
         t_const: "TableConstraint",
         TableConstraintType
@@ -1098,7 +1098,7 @@ class MySQLDialect(
 
         return ' '.join(parts), params
 
-    def _format_inline_index_mysql(self, idx_def: "IndexDefinition") -> str:
+    def format_inline_index_mysql(self, idx_def: "IndexDefinition") -> str:
         """Format an inline index definition (MySQL-specific)."""
         parts = []
 

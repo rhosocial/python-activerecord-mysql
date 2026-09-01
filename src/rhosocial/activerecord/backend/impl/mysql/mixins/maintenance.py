@@ -7,7 +7,7 @@ if TYPE_CHECKING:  # pragma: no cover
     pass
 
 
-def _format_table_name(dialect, table):
+def format_table_name(dialect, table):
     if isinstance(table, tuple):
         schema, name = table
         return f"{dialect.format_identifier(schema)}.{dialect.format_identifier(name)}"
@@ -50,7 +50,7 @@ class MySQLMaintenanceMixin:
         if hasattr(expr, "no_write_to_binlog") and expr.no_write_to_binlog.value:
             parts.append(expr.no_write_to_binlog.value)
 
-        table_parts = [_format_table_name(self, t) for t in expr.tables]
+        table_parts = [format_table_name(self, t) for t in expr.tables]
         parts.append(", ".join(table_parts))
 
         if operation == "CHECK" and getattr(expr, "options", None):

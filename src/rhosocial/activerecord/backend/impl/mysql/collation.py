@@ -329,11 +329,11 @@ class MySQLCollationValidator:
 
         min_version = _COLLATION_MIN_VERSIONS.get(normalized)
         if version is not None and min_version is not None and version < min_version:
-            raise ValueError(f"MySQL collation requires MySQL {cls._format_version(min_version)}+: {name!r}")
+            raise ValueError(f"MySQL collation requires MySQL {cls.format_version(min_version)}+: {name!r}")
         return normalized
 
     @staticmethod
-    def _format_version(version: Tuple[int, ...]) -> str:
+    def format_version(version: Tuple[int, ...]) -> str:
         return ".".join(str(part) for part in version[:2])
 
 

@@ -8,7 +8,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 
-def _format_table_limit(parts: List[str], order_by, limit, offset, format_identifier):
+def format_table_limit(parts: List[str], order_by, limit, offset, format_identifier):
     """Append ORDER BY / LIMIT / OFFSET to a TABLE / VALUES statement."""
     if order_by:
         cols = ", ".join(format_identifier(c) for c in order_by)
@@ -38,7 +38,7 @@ class MySQLTableStatementMixin:
         """Format ``TABLE <table> [ORDER BY ...] [LIMIT ...]``."""
         expr.validate(strict=self.strict_validation)
         parts = ["TABLE", self.format_identifier(expr.table_name)]
-        _format_table_limit(parts, expr.order_by, expr.limit, expr.offset, self.format_identifier)
+        format_table_limit(parts, expr.order_by, expr.limit, expr.offset, self.format_identifier)
         return " ".join(parts), ()
 
     def format_values_statement(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
@@ -58,5 +58,5 @@ class MySQLTableStatementMixin:
                     params.append(value)
             row_parts.append(f"({', '.join(cell_parts)})")
         parts = ["VALUES", ", ".join(row_parts)]
-        _format_table_limit(parts, expr.order_by, expr.limit, expr.offset, self.format_identifier)
+        format_table_limit(parts, expr.order_by, expr.limit, expr.offset, self.format_identifier)
         return " ".join(parts), tuple(params)

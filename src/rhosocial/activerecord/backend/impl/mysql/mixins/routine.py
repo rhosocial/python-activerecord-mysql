@@ -1,8 +1,8 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/routine.py
 from typing import TYPE_CHECKING, Tuple
 
-if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
+from rhosocial.activerecord.backend.dialect.mixins.routine import RoutineSupportMixin
+from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
         MySQLCallExpression,
         MySQLCreateProcedureExpression,
         MySQLDropProcedureExpression,
@@ -11,24 +11,9 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 
-def _format_param(dialect, param) -> str:
-    """Format a stored-routine parameter definition.
-
-    A param may be a plain string (``IN name TYPE``), a tuple
-    ``(mode, name, type)``, or ``(name, type)``.
-    """
-    if isinstance(param, tuple):
-        if len(param) == 3:
-            mode, name, type_sql = param
-            return f"{mode} {dialect.format_identifier(name)} {type_sql}"
-        if len(param) == 2:
-            name, type_sql = param
-            return f"{dialect.format_identifier(name)} {type_sql}"
-        raise ValueError(f"Invalid parameter definition: {param!r}")
-    return str(param)
 
 
-class MySQLRoutineMixin:
+class MySQLRoutineMixin(RoutineSupportMixin):
     """MySQL stored routine (procedure / function / CALL) support."""
 
     def supports_procedure(self) -> bool:
@@ -47,7 +32,7 @@ class MySQLRoutineMixin:
         """Format ``CREATE PROCEDURE name(params) body``."""
         expr.validate(strict=self.strict_validation)
         parts = ["CREATE PROCEDURE", expr._format_name()]
-        params = ", ".join(_format_param(self, p) for p in expr.params)
+        params = ", ".join(self.format_param(p) for p in expr.params)
         parts.append(f"({params})")
         if expr.body:
             parts.append(expr.body)
@@ -72,7 +57,7 @@ class MySQLRoutineMixin:
         """Format ``CREATE FUNCTION name(params) RETURNS type body``."""
         expr.validate(strict=self.strict_validation)
         parts = ["CREATE FUNCTION", expr._format_name()]
-        params = ", ".join(_format_param(self, p) for p in expr.params)
+        params = ", ".join(self.format_param(p) for p in expr.params)
         parts.append(f"({params})")
         parts.append(f"RETURNS {expr.returns}")
         if expr.deterministic:
