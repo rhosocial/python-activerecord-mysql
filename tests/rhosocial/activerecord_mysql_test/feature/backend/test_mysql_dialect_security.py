@@ -477,7 +477,7 @@ class TestMySQLCreateTableCommentEscaping:
 
 
 # ============================================================
-# _format_storage_options_mysql — key quoting and value escaping
+# format_storage_options_mysql — key quoting and value escaping
 # ============================================================
 
 
