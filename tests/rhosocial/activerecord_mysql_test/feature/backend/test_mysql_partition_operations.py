@@ -120,7 +120,7 @@ def _select_payload_by_id_expression(dialect, row_id):
 
 
 def _partition_names_expression(dialect, table=None):
-    table_name = table_name or PARTITION_TABLE
+    table = table or PARTITION_TABLE
     partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
     return QueryExpression(
         dialect,
@@ -130,7 +130,7 @@ def _partition_names_expression(dialect, table=None):
             dialect,
             "AND",
             Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
+            Column(dialect, "TABLE_NAME") == Literal(dialect, table),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
@@ -220,12 +220,12 @@ async def _async_create_partitioned_table(backend):
 
 
 def _partition_names(backend, table=None):
-    rows = backend.fetch_all(*_partition_names_expression(backend.dialect, table_name).to_sql())
+    rows = backend.fetch_all(*_partition_names_expression(backend.dialect, table).to_sql())
     return [row["name"] for row in rows]
 
 
 async def _async_partition_names(backend, table=None):
-    rows = await backend.fetch_all(*_partition_names_expression(backend.dialect, table_name).to_sql())
+    rows = await backend.fetch_all(*_partition_names_expression(backend.dialect, table).to_sql())
     return [row["name"] for row in rows]
 
 
@@ -538,7 +538,7 @@ def _partition_metadata_expression_for_table(dialect, table_name: str):
             dialect,
             "AND",
             Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
+            Column(dialect, "TABLE_NAME") == Literal(dialect, table),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
