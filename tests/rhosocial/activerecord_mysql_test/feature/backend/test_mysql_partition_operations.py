@@ -520,7 +520,7 @@ def _select_archive_count_expression(dialect):
     )
 
 
-def _partition_metadata_expression_for_table(dialect, table_name: str):
+def _partition_metadata_expression_for_table(dialect, table: str):
     partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
     return QueryExpression(
         dialect,
