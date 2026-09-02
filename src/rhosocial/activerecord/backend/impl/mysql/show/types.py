@@ -24,7 +24,7 @@ class ShowCreateTableResult:
         create_statement: Complete CREATE TABLE statement.
     """
 
-    table: str
+    table_name: str
     create_statement: str
 
 
@@ -61,7 +61,7 @@ class ShowCreateTriggerResult:
         database_collation: Database collation.
     """
 
-    trigger: str
+    trigger_name: str
     create_statement: str
     character_set_client: Optional[str] = None
     collation_connection: Optional[str] = None
@@ -218,7 +218,7 @@ class ShowIndexResult:
         expression: Expression for functional index (MySQL 8.0+).
     """
 
-    table: str
+    table_name: str
     non_unique: int
     key_name: str
     seq_in_index: int
@@ -285,9 +285,9 @@ class ShowTriggerResult:
         database_collation: Database collation.
     """
 
-    trigger: str
+    trigger_name: str
     event: str
-    table: str
+    table_name: str
     statement: str
     timing: str
     created: Optional[str] = None
@@ -478,7 +478,7 @@ class ShowOpenTableResult:
     """
 
     database: str
-    table: str
+    table_name: str
     in_use: int
     name_locked: int
 
