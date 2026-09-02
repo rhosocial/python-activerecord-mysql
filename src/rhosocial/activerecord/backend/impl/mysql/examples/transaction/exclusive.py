@@ -46,13 +46,13 @@ dialect = backend.dialect
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 
-drop_table = DropTableExpression(dialect=dialect, table_name="accounts", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table="accounts", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="accounts",
+    table="accounts",
     columns=[
         ColumnDefinition(
             "id",
@@ -222,7 +222,7 @@ with backend.transaction():
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name="accounts", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table="accounts", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

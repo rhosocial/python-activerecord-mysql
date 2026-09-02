@@ -20,11 +20,11 @@ class ShowCreateTableResult:
     Contains the complete CREATE TABLE statement for a table.
 
     Attributes:
-        table_name: Name of the table.
+        table: Name of the table.
         create_statement: Complete CREATE TABLE statement.
     """
 
-    table_name: str
+    table: str
     create_statement: str
 
 
@@ -54,14 +54,14 @@ class ShowCreateTriggerResult:
     Contains the CREATE TRIGGER statement for a trigger.
 
     Attributes:
-        trigger_name: Name of the trigger.
+        trigger: Name of the trigger.
         create_statement: Complete CREATE TRIGGER statement.
         character_set_client: Client character set.
         collation_connection: Connection collation.
         database_collation: Database collation.
     """
 
-    trigger_name: str
+    trigger: str
     create_statement: str
     character_set_client: Optional[str] = None
     collation_connection: Optional[str] = None

@@ -53,13 +53,13 @@ class MySQLShowDialectMixin:
     def format_show_create_table(self, expr: "ShowCreateTableExpression") -> Tuple[str, tuple]:
         """Format SHOW CREATE TABLE statement."""
         params = expr.get_params()
-        table_name = params["table_name"]
+        table = params["table"]
         schema = params.get("schema")
 
         if schema:
-            sql = f"SHOW CREATE TABLE {self.format_identifier(schema)}.{self.format_identifier(table_name)}"
+            sql = f"SHOW CREATE TABLE {self.format_identifier(schema)}.{self.format_identifier(table)}"
         else:
-            sql = f"SHOW CREATE TABLE {self.format_identifier(table_name)}"
+            sql = f"SHOW CREATE TABLE {self.format_identifier(table)}"
         return sql, ()
 
     def format_show_create_view(self, expr: "ShowCreateViewExpression") -> Tuple[str, tuple]:
@@ -77,13 +77,13 @@ class MySQLShowDialectMixin:
     def format_show_create_trigger(self, expr: "ShowCreateTriggerExpression") -> Tuple[str, tuple]:
         """Format SHOW CREATE TRIGGER statement."""
         params = expr.get_params()
-        trigger_name = params["trigger_name"]
+        trigger = params["trigger"]
         schema = params.get("schema")
 
         if schema:
-            sql = f"SHOW CREATE TRIGGER {self.format_identifier(schema)}.{self.format_identifier(trigger_name)}"
+            sql = f"SHOW CREATE TRIGGER {self.format_identifier(schema)}.{self.format_identifier(trigger)}"
         else:
-            sql = f"SHOW CREATE TRIGGER {self.format_identifier(trigger_name)}"
+            sql = f"SHOW CREATE TRIGGER {self.format_identifier(trigger)}"
         return sql, ()
 
     # ========== SHOW COLUMNS/INDEX ==========
@@ -91,7 +91,7 @@ class MySQLShowDialectMixin:
     def format_show_columns(self, expr: "ShowColumnsExpression") -> Tuple[str, tuple]:
         """Format SHOW [FULL] COLUMNS statement."""
         params = expr.get_params()
-        table_name = params["table_name"]
+        table = params["table"]
         schema = params.get("schema")
         full = params.get("full", False)
         like_pattern = params.get("like_pattern")
@@ -102,7 +102,7 @@ class MySQLShowDialectMixin:
         parts.append("COLUMNS FROM")
         if schema:
             parts.append(f"{self.format_identifier(schema)}.")
-        parts.append(self.format_identifier(table_name))
+        parts.append(self.format_identifier(table))
 
         sql_params = ()
         if like_pattern:
@@ -114,13 +114,13 @@ class MySQLShowDialectMixin:
     def format_show_index(self, expr: "ShowIndexExpression") -> Tuple[str, tuple]:
         """Format SHOW INDEX statement."""
         params = expr.get_params()
-        table_name = params["table_name"]
+        table = params["table"]
         schema = params.get("schema")
 
         if schema:
-            sql = f"SHOW INDEX FROM {self.format_identifier(schema)}.{self.format_identifier(table_name)}"
+            sql = f"SHOW INDEX FROM {self.format_identifier(schema)}.{self.format_identifier(table)}"
         else:
-            sql = f"SHOW INDEX FROM {self.format_identifier(table_name)}"
+            sql = f"SHOW INDEX FROM {self.format_identifier(table)}"
         return sql, ()
 
     # ========== SHOW TABLES/DATABASES ==========
@@ -178,16 +178,16 @@ class MySQLShowDialectMixin:
         """Format SHOW TRIGGERS statement."""
         params = expr.get_params()
         schema = params.get("schema")
-        table_name = params.get("table_name")
+        table = params.get("table")
 
         parts = ["SHOW TRIGGERS"]
         if schema:
             parts.append(f"FROM {self.format_identifier(schema)}")
 
         sql_params = ()
-        if table_name:
+        if table:
             parts.append("LIKE %s")
-            sql_params = (table_name,)
+            sql_params = (table,)
 
         return " ".join(parts), sql_params
 

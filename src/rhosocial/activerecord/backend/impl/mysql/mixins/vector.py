@@ -43,14 +43,14 @@ class MySQLVectorMixin:
     def format_distance_dot(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
         return f"DISTANCE_DOT({vector1}, {vector2})", ()
 
-    def format_create_vector_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
+    def format_create_vector_index(self, index: str, table: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE VECTOR INDEX statement."""
         if not self.supports_vector_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "VECTOR indexes (requires MySQL 9.0.1+)")
         return (
-            f"CREATE VECTOR INDEX {self.format_identifier(index_name)} "
-            f"ON {self.format_identifier(table_name)} "
+            f"CREATE VECTOR INDEX {self.format_identifier(index)} "
+            f"ON {self.format_identifier(table)} "
             f"({self.format_identifier(column)})",
             (),
         )

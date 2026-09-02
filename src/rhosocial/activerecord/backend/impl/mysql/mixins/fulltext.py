@@ -26,11 +26,11 @@ class MySQLFullTextSearchMixin:
         return True
 
     def format_fulltext_index_options(
-        self, index_name: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
+        self, index: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
     ) -> Tuple[str, tuple]:
         """Format FULLTEXT index options for CREATE TABLE / ALTER TABLE."""
         col_parts = [self.format_identifier(c) for c in columns]
-        sql = f"FULLTEXT {self.format_identifier(index_name)} ({', '.join(col_parts)})"
+        sql = f"FULLTEXT {self.format_identifier(index)} ({', '.join(col_parts)})"
         if parser_name:
             sql += f" WITH PARSER {self.format_identifier(parser_name)}"
         return sql, ()

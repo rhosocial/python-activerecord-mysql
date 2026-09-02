@@ -891,7 +891,7 @@ class MySQLDialect(
             parts.append("TEMPORARY")
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(self.format_identifier(expr.table))
 
         # Build column definitions
         column_parts = []
@@ -1054,7 +1054,7 @@ class MySQLDialect(
             parts.append("TEMPORARY")
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(self.format_identifier(expr.table))
 
         if isinstance(like_table, tuple):
             schema, table = like_table
@@ -1206,7 +1206,7 @@ class MySQLDialect(
         if expr.if_not_exists and self.supports_trigger_if_not_exists():
             parts.append("IF NOT EXISTS")
 
-        parts.append(self.format_identifier(expr.trigger_name))
+        parts.append(self.format_identifier(expr.trigger))
 
         parts.append(expr.timing.value)
 
@@ -1214,7 +1214,7 @@ class MySQLDialect(
             parts.append(expr.events[0].value)
 
         parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(self.format_identifier(expr.table))
 
         parts.append("FOR EACH ROW")
 
@@ -1237,7 +1237,7 @@ class MySQLDialect(
         if expr.if_exists:
             parts.append("IF EXISTS")
 
-        parts.append(self.format_identifier(expr.trigger_name))
+        parts.append(self.format_identifier(expr.trigger))
 
         return " ".join(parts), ()
     # endregion
@@ -1293,7 +1293,7 @@ class MySQLDialect(
         """Format CREATE FULLTEXT INDEX expression for MySQL.
 
         Args:
-            expr: CreateFulltextIndexExpression object with index_name, table_name,
+            expr: CreateFulltextIndexExpression object with index, table,
                   columns, if_not_exists, and parser attributes.
 
         Returns:
@@ -1306,9 +1306,9 @@ class MySQLDialect(
         parts = ["CREATE FULLTEXT INDEX"]
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.index_name))
+        parts.append(self.format_identifier(expr.index))
         parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(self.format_identifier(expr.table))
         cols_str = ", ".join(self.format_identifier(c) for c in expr.columns)
         parts.append(f"({cols_str})")
         if expr.parser:
@@ -1321,7 +1321,7 @@ class MySQLDialect(
         MySQL uses DROP INDEX ... ON syntax for dropping FULLTEXT indexes.
 
         Args:
-            expr: DropFulltextIndexExpression object with index_name, table_name,
+            expr: DropFulltextIndexExpression object with index, table,
                   and if_exists attributes.
 
         Returns:
@@ -1334,9 +1334,9 @@ class MySQLDialect(
         parts = ["DROP INDEX"]
         if expr.if_exists:
             parts.append("IF EXISTS")
-        parts.append(self.format_identifier(expr.index_name))
+        parts.append(self.format_identifier(expr.index))
         parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(self.format_identifier(expr.table))
         return " ".join(parts), ()
 
     # endregion

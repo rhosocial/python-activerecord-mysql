@@ -125,7 +125,7 @@ class MySQLIntrospectionMixin:
     def format_column_info_query(self, expr: "ColumnInfoExpression") -> Tuple[str, tuple]:
         """Format column information query."""
         params = expr.get_params()
-        table_name = params.get("table_name", "")
+        table = params.get("table", "")
         schema = params.get("schema", "")
         sql = (
             "SELECT COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, "
@@ -136,12 +136,12 @@ class MySQLIntrospectionMixin:
             "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
             "ORDER BY ORDINAL_POSITION"
         )
-        return (sql, (schema, table_name))
+        return (sql, (schema, table))
 
     def format_index_info_query(self, expr: "IndexInfoExpression") -> Tuple[str, tuple]:
         """Format index information query."""
         params = expr.get_params()
-        table_name = params.get("table_name", "")
+        table = params.get("table", "")
         schema = params.get("schema", "")
         sql = (
             "SELECT INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, "
@@ -150,12 +150,12 @@ class MySQLIntrospectionMixin:
             "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
             "ORDER BY INDEX_NAME, SEQ_IN_INDEX"
         )
-        return (sql, (schema, table_name))
+        return (sql, (schema, table))
 
     def format_foreign_key_query(self, expr: "ForeignKeyExpression") -> Tuple[str, tuple]:
         """Format foreign key information query."""
         params = expr.get_params()
-        table_name = params.get("table_name", "")
+        table = params.get("table", "")
         schema = params.get("schema", "")
         sql = (
             "SELECT kcu.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.ORDINAL_POSITION, "
@@ -169,7 +169,7 @@ class MySQLIntrospectionMixin:
             "  AND kcu.REFERENCED_TABLE_NAME IS NOT NULL "
             "ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION"
         )
-        return (sql, (schema, table_name))
+        return (sql, (schema, table))
 
     def format_view_list_query(self, expr: "ViewListExpression") -> Tuple[str, tuple]:
         """Format view list query."""
@@ -206,15 +206,15 @@ class MySQLIntrospectionMixin:
     def format_trigger_list_query(self, expr: "TriggerListExpression") -> Tuple[str, tuple]:
         """Format trigger list query."""
         params = expr.get_params()
-        table_name = params.get("table_name")
+        table = params.get("table")
         schema = params.get("schema", "")
 
         conditions = ["TRIGGER_SCHEMA = %s"]
         sql_params: list = [schema]
 
-        if table_name:
+        if table:
             conditions.append("EVENT_OBJECT_TABLE = %s")
-            sql_params.append(table_name)
+            sql_params.append(table)
 
         where = " AND ".join(conditions)
         sql = (

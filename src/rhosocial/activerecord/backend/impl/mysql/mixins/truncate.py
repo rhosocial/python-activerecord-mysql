@@ -43,5 +43,5 @@ class MySQLTruncateMixin:
                 "TRUNCATE ... CASCADE",
                 suggestion="MySQL does not support CASCADE on TRUNCATE.",
             )
-        sql = f"TRUNCATE TABLE {self.format_identifier(expr.table_name)}"
+        sql = f"TRUNCATE TABLE {self.format_identifier(expr.table)}"
         return sql, ()

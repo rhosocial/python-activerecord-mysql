@@ -69,14 +69,14 @@ class MySQLSpatialMixin:
     def format_st_contains(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
         return f"ST_Contains({geom1}, {geom2})", ()
 
-    def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
+    def format_create_spatial_index(self, index: str, table: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE SPATIAL INDEX statement."""
         if not self.supports_spatial_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
         return (
-            f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
-            f"ON {self.format_identifier(table_name)} "
+            f"CREATE SPATIAL INDEX {self.format_identifier(index)} "
+            f"ON {self.format_identifier(table)} "
             f"({self.format_identifier(column)})",
             (),
         )

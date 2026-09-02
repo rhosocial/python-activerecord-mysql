@@ -965,12 +965,12 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
+    def format_create_spatial_index(self, index: str, table: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE SPATIAL INDEX statement.
 
         Args:
-            index_name: Index name
-            table_name: Table name
+            index: Index name
+            table: Table name
             column: Column name
 
         Returns:
@@ -1092,12 +1092,12 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_create_vector_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
+    def format_create_vector_index(self, index: str, table: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE VECTOR INDEX statement.
 
         Args:
-            index_name: Index name
-            table_name: Table name
+            index: Index name
+            table: Table name
             column: Column name
 
         Returns:
@@ -1169,12 +1169,12 @@ class MySQLFullTextSearchSupport(IndexSupport, Protocol):
         ...
 
     def format_fulltext_index_options(
-        self, index_name: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
+        self, index: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
     ) -> Tuple[str, tuple]:
         """Format FULLTEXT index options.
 
         Args:
-            index_name: Index name (usually 'FULLTEXT')
+            index: Index name (usually 'FULLTEXT')
             columns: Indexed columns
             index_type: Index type (BTREE, HASH - ignored for FULLTEXT)
             parser_name: Parser name for full-text search

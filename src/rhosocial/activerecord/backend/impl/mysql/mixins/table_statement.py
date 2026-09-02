@@ -37,7 +37,7 @@ class MySQLTableStatementMixin:
     def format_table_statement(self, expr: "MySQLTableExpression") -> Tuple[str, tuple]:
         """Format ``TABLE <table> [ORDER BY ...] [LIMIT ...]``."""
         expr.validate(strict=self.strict_validation)
-        parts = ["TABLE", self.format_identifier(expr.table_name)]
+        parts = ["TABLE", self.format_identifier(expr.table)]
         format_table_limit(parts, expr.order_by, expr.limit, expr.offset, self.format_identifier)
         return " ".join(parts), ()
 

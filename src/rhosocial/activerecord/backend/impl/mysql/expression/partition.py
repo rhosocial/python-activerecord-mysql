@@ -535,14 +535,14 @@ class MySQLGetPartitionsExpression(BaseExpression):
     Delegates SQL generation to the dialect's ``format_get_partitions_expression``.
 
     Raises:
-        ValueError: if table_name is empty.
+        ValueError: if table is empty.
     """
 
-    def __init__(self, dialect: "MySQLDialect", table_name: str):
+    def __init__(self, dialect: "MySQLDialect", table: str):
         super().__init__(dialect)
-        if not table_name or not table_name.strip():
-            raise ValueError("table_name must not be empty")
-        self.table_name = table_name
+        if not table or not table.strip():
+            raise ValueError("table must not be empty")
+        self.table = table
 
     def to_sql(self) -> SQLQueryAndParams:
         return self.dialect.format_get_partitions_expression(self)

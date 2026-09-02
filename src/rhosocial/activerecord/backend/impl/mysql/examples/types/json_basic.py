@@ -37,14 +37,14 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name="documents", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table="documents", if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 # Create table with JSON column (MySQL 5.7+)
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="documents",
+    table="documents",
     columns=[
         ColumnDefinition(
             "id",
