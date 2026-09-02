@@ -1065,12 +1065,17 @@ class MySQLDialect(
         parts.append(f"LIKE {like_table_str}")
         return ' '.join(parts), ()
 
-    def format_table_constraint_mysql(
+    def format_table_constraint(
         self,
         t_const: "TableConstraint",
-        TableConstraintType
+        constraint_type=None
     ) -> Tuple[str, List[Any]]:
         """Format a table-level constraint."""
+        from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+            TableConstraintType,
+        )
+        if constraint_type is None:
+            constraint_type = TableConstraintType
         parts = []
         params: List[Any] = []
 
@@ -1098,7 +1103,7 @@ class MySQLDialect(
 
         return ' '.join(parts), params
 
-    def format_inline_index_mysql(self, idx_def: "IndexDefinition") -> str:
+    def format_inline_index(self, idx_def: "IndexDefinition") -> str:
         """Format an inline index definition (MySQL-specific)."""
         parts = []
 
