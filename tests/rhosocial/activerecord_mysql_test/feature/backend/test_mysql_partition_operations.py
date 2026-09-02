@@ -119,7 +119,7 @@ def _select_payload_by_id_expression(dialect, row_id):
     )
 
 
-def _partition_names_expression(dialect, table_name=None):
+def _partition_names_expression(dialect, table=None):
     table_name = table_name or PARTITION_TABLE
     partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
     return QueryExpression(
@@ -219,12 +219,12 @@ async def _async_create_partitioned_table(backend):
     await backend.execute(*_create_partitioned_table_expression(backend.dialect).to_sql())
 
 
-def _partition_names(backend, table_name=None):
+def _partition_names(backend, table=None):
     rows = backend.fetch_all(*_partition_names_expression(backend.dialect, table_name).to_sql())
     return [row["name"] for row in rows]
 
 
-async def _async_partition_names(backend, table_name=None):
+async def _async_partition_names(backend, table=None):
     rows = await backend.fetch_all(*_partition_names_expression(backend.dialect, table_name).to_sql())
     return [row["name"] for row in rows]
 

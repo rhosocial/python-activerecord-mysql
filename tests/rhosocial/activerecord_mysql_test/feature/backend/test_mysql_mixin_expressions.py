@@ -235,8 +235,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="before_insert_user",
-            table_name="users",
+            trigger="before_insert_user",
+            table="users",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
             function_name="validate_user",
@@ -251,8 +251,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="after_update_log",
-            table_name="orders",
+            trigger="after_update_log",
+            table="orders",
             timing=TriggerTiming.AFTER,
             events=[TriggerEvent.UPDATE],
             function_name="log_change",
@@ -265,8 +265,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="my_trigger",
-            table_name="t",
+            trigger="my_trigger",
+            table="t",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
             function_name="my_func",
@@ -279,8 +279,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="bad_trigger",
-            table_name="t",
+            trigger="bad_trigger",
+            table="t",
             timing=TriggerTiming.INSTEAD_OF,
             events=[TriggerEvent.INSERT],
             function_name="f",
@@ -292,8 +292,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="bad_trigger",
-            table_name="t",
+            trigger="bad_trigger",
+            table="t",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
             function_name="f",
@@ -306,8 +306,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="bad_trigger",
-            table_name="t",
+            trigger="bad_trigger",
+            table="t",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
             function_name="f",
@@ -320,8 +320,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="bad_trigger",
-            table_name="t",
+            trigger="bad_trigger",
+            table="t",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
             function_name="f",
@@ -334,8 +334,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="bad_trigger",
-            table_name="t",
+            trigger="bad_trigger",
+            table="t",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT, TriggerEvent.UPDATE],
             function_name="f",
@@ -347,8 +347,8 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTriggerExpression(
             dialect=dialect,
-            trigger_name="bad_trigger",
-            table_name="t",
+            trigger="bad_trigger",
+            table="t",
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.UPDATE],
             function_name="f",
@@ -361,7 +361,7 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = DropTriggerExpression(
             dialect=dialect,
-            trigger_name="old_trigger",
+            trigger="old_trigger",
         )
         sql, params = expr.to_sql()
         assert sql == "DROP TRIGGER `old_trigger`"
@@ -370,7 +370,7 @@ class TestMySQLTriggerExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = DropTriggerExpression(
             dialect=dialect,
-            trigger_name="old_trigger",
+            trigger="old_trigger",
             if_exists=True,
         )
         sql, params = expr.to_sql()
@@ -684,7 +684,7 @@ class TestMySQLColumnModificationExpressions:
             column=ColumnDefinition("name", VarCharType(length=200)),
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "ALTER TABLE" in sql
@@ -698,7 +698,7 @@ class TestMySQLColumnModificationExpressions:
             first=True,
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "MODIFY COLUMN" in sql
@@ -712,7 +712,7 @@ class TestMySQLColumnModificationExpressions:
             after_column="id",
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "MODIFY COLUMN" in sql
@@ -726,7 +726,7 @@ class TestMySQLColumnModificationExpressions:
             column=ColumnDefinition("login_name", VarCharType(length=150)),
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -740,7 +740,7 @@ class TestMySQLColumnModificationExpressions:
             first=True,
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -755,7 +755,7 @@ class TestMySQLColumnModificationExpressions:
             after_column="id",
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -774,7 +774,7 @@ class TestMySQLColumnModificationExpressions:
             ),
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table="users", actions=[action]
         )
         sql, params = expr.to_sql()
         assert "NOT NULL" in sql
