@@ -62,3 +62,21 @@ def test_declaration_order_overrides_version_preference():
         dialect = MySQLDialect(version=version)
         expr = ModelSchemaGenerator.generate_create_table(_LongFirst, dialect)
         assert type(expr.columns[0].data_type).__name__ == "MySQLLongTextType"
+
+
+def test_mixed_sqlite_and_mysql_types_same_model():
+    """A mysql-typed declaration also renders on SQLite (core) — the backend
+    example mixes sqlite + this backend's types, never three+ backends.
+
+    The shared model carries a MySQL-specific type plus a generic type; on
+    SQLite the MySQL type is skipped and JsonType renders as TEXT.
+    """
+    from rhosocial.activerecord.backend.impl.sqlite.dialect import SQLiteDialect
+
+    class _Mixed(ActiveRecord):
+        payload: Annotated[dict, UseSqlType(JsonType(), MySQLLongTextType())]
+
+    expr = ModelSchemaGenerator.generate_create_table(_Mixed, SQLiteDialect())
+    assert type(expr.columns[0].data_type).__name__ == "JsonType"
+    sql, _ = expr.to_sql()
+    assert '"payload" TEXT NOT NULL' in sql
