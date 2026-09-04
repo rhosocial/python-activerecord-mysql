@@ -143,6 +143,7 @@ if TYPE_CHECKING:
         ExplainExpression,
         InsertExpression,
     )
+    from rhosocial.activerecord.backend.expression.statements.ddl_alter import ModifyColumn
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
         CreateTriggerExpression,
         DropTriggerExpression,
@@ -1004,6 +1005,15 @@ class MySQLDialect(
                      "Pre-check information_schema.TABLE_CONSTRAINTS before ALTER."
             )
         return super().format_drop_table_constraint_action(action)
+
+    def _supports_alter_column_type(self) -> bool:
+        """MySQL changes column types in place via MODIFY COLUMN."""
+        return True
+
+    def alter_column_type_action(self, old_col, new_col) -> "ModifyColumn":
+        """Build the in-place type-change action (MODIFY COLUMN <new def>)."""
+        from rhosocial.activerecord.backend.expression.statements.ddl_alter import ModifyColumn
+        return ModifyColumn(self, column=new_col)
 
     def format_alter_column_action(self, action) -> Tuple[str, tuple]:
         """Format ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}.

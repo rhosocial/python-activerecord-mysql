@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_test/feature/backend/mysql/test_expressions_transaction.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/expression/test_expressions_transaction.py
 """Tests for MySQL transaction expression classes.
 
 MySQL Transaction Behavior:
