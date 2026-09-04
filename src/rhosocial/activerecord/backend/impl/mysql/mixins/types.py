@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 from typing import Optional, Tuple
 
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.dialect.mixins.ddl_type import (
     DDLTypeMixin,
     DDLTypeSuggestionMixin,
@@ -317,7 +318,42 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
 
     @DDLTypeMixin.handles(JsonType)
     def format_data_type_json(self, data_type: JsonType) -> Tuple[str, tuple]:
+        if not self._supports_json_type():
+            raise UnsupportedFeatureError(
+                type(self).__name__,
+                "JSON column type",
+                "MySQL < 5.7 has no native JSON type; declare a non-JSON "
+                "type (e.g. MySQLLongTextType) or use the suggestion path.",
+            )
         return "JSON", ()
+
+    def _supports_json_type(self) -> bool:
+        """Whether this dialect can render ``JsonType`` as native JSON.
+
+        MySQL 5.7 introduced the native ``JSON`` type; on earlier versions the
+        type is unavailable. An unknown (never-adapted) server version is
+        treated optimistically as supporting JSON, matching the previous
+        behaviour and keeping offline rendering stable.
+        """
+        version = getattr(self, "_version", None)
+        if version is None:
+            return True
+        return version >= (5, 7, 0)
+
+    def supports_data_type(self, data_type_or_class) -> bool:
+        """Version-aware capability check.
+
+        Base ``supports_data_type`` is registration-only; MySQL additionally
+        reports ``JsonType`` (and subclasses) as unsupported on servers older
+        than 5.7 so that multi-type ``UseSqlType`` selection falls through to
+        a non-JSON type.
+        """
+        if not super().supports_data_type(data_type_or_class):
+            return False
+        dt_cls = data_type_or_class if isinstance(data_type_or_class, type) else type(data_type_or_class)
+        if issubclass(dt_cls, JsonType):
+            return self._supports_json_type()
+        return True
 
     @DDLTypeMixin.handles(BlobType)
     def format_data_type_blob_core(self, data_type: BlobType) -> Tuple[str, tuple]:
