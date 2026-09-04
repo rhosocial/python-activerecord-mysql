@@ -6,7 +6,12 @@ through to a non-JSON declared type (or the version-aware suggestion). A
 never-adapted dialect (version=None) is treated optimistically.
 """
 
-from typing import Annotated
+import sys
+
+if sys.version_info >= (3, 9):
+    from typing import Annotated
+else:  # pragma: no cover - Python 3.8
+    from typing_extensions import Annotated
 
 import pytest
 
