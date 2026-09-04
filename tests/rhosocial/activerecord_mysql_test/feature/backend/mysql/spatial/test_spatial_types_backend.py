@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/spatial/test_spatial_types_backend.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/mysql/spatial/test_spatial_types_backend.py
 """
 MySQL spatial data type integration tests using real database connection.
 

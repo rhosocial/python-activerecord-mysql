@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/async/test_async_transaction_isolation_effect.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/transactions/test_isolation_effect_async.py
 """
 Async tests for MySQL transaction isolation level and mode effects.
 

@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/adapters/test_column_mapping_backend.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/dml/test_column_mapping_backend.py
 import pytest
 from datetime import datetime
 import uuid

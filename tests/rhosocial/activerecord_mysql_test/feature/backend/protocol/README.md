@@ -1,7 +1,7 @@
 # protocol tests
 
-ConcurrencyAware protocol conformance: MySQLBackend and AsyncMySQLBackend expose the concurrency-aware surface required by the core protocol.
+Capability-protocol conformance for the MySQL backend: MySQLBackend and AsyncMySQLBackend expose the protocol surface required by the core library.
 
 ## Key files
 
-- `test_concurrency_protocol.py` — ConcurrencyAware implementation checks (sync/async)
+- `test_protocol_conformance.py` — protocol conformance, non-overlap, mixin coverage

@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/async/test_async_column_mapping_backend.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/dml/test_column_mapping_backend_async.py
 import pytest
 import pytest_asyncio
 from datetime import datetime

@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/backend/test_backend_explain.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/query/test_explain.py
 """
 Integration tests for MySQLBackend.explain() and AsyncMySQLBackend.explain().
 

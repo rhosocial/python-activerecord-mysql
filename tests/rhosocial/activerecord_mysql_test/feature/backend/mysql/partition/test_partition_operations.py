@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/extensions/test_partition_operations.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/mysql/partition/test_partition_operations.py
 """Real MySQL partition operation tests."""
 
 from datetime import datetime

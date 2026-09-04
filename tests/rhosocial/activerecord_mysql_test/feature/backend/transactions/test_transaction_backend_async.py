@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/async/test_async_transaction_backend.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/transactions/test_transaction_backend_async.py
 import pytest
 import pytest_asyncio
 

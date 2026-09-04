@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/protocol/test_concurrency_protocol.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/concurrency/test_concurrency_protocol.py
 """
 Test for ConcurrencyAware protocol implementation in MySQL backend.
 

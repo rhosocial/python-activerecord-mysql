@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/extensions/test_partition_explain.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/mysql/partition/test_partition_explain.py
 """Real MySQL EXPLAIN tests for partitioned tables."""
 
 from __future__ import annotations

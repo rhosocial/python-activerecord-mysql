@@ -1,4 +1,4 @@
-# spatial tests
+# mysql/spatial tests
 
 MySQL spatial support: ST_* expression rendering (ST_GeomFromText, ST_Distance, ST_Within, ST_Contains), spatial type protocol / literal / function / index formatting and real-database spatial type integration.
 

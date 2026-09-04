@@ -4,5 +4,7 @@ Real-server transaction behavior: the actual effects of isolation levels, transa
 
 ## Key files
 
-- `test_isolation_effect.py` — isolation level / mode effects and nesting
-- `test_transaction_backend.py` — begin/commit/rollback against a live server
+- `test_isolation_effect.py` — isolation level / mode effects and nesting (sync)
+- `test_isolation_effect_async.py` — async twin of `test_isolation_effect.py`
+- `test_transaction_backend.py` — begin/commit/rollback against a live server (sync)
+- `test_transaction_backend_async.py` — async begin/commit/rollback

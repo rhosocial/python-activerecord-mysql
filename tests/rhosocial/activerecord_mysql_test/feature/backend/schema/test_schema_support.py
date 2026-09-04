@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/dialect/test_schema_support.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/schema/test_schema_support.py
 """Tests for the SchemaSupport capability declared on the MySQL dialect.
 
 Under strict semantics MySQL has no schema namespace layer inside a database:

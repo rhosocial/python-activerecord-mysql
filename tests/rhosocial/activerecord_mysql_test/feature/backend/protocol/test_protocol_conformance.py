@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/dialect/test_protocol_conformance.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/protocol/test_protocol_conformance.py
 """
 Tests to verify MySQLDialect protocol conformance and protocol non-overlap.
 

@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/adapters/test_set_vector_adapters.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/adapters/test_adapters_backend.py
 """
 Unit tests for MySQL SET and VECTOR type adapters.
 

@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/dml/test_dialect_security_integration.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/dialect/test_dialect_security_integration.py
 """
 Integration tests for MySQL dialect SQL injection security fixes.
 

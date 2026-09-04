@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/spatial/test_spatial_expressions.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/mysql/spatial/test_spatial_expressions.py
 """
 Tests for MySQL spatial expression classes.
 

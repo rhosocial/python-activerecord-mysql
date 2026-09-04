@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/backend/test_datetime_interval_explain_examples.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/query/test_datetime_interval_explain_examples.py
 """MySQL EXPLAIN examples for datetime interval expressions and indexes."""
 
 import pytest
