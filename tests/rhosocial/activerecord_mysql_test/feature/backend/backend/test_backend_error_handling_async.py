@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_mysql_test/feature/backend/backend/test_error_handling_async.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/backend/test_backend_error_handling_async.py
 """
 Async MySQL Backend Error Handling Tests
 

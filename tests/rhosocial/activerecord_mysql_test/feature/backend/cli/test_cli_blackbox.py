@@ -1,4 +1,4 @@
-# tests/rhosocial/activerecord_test/feature/backend/cli/test_cli_blackbox.py
+# tests/rhosocial/activerecord_mysql_test/feature/backend/cli/test_cli_blackbox.py
 """Black-box CLI tests for the MySQL backend.
 
 Strategy: run the CLI entry in-process via main(argv) and assert on stdout.
