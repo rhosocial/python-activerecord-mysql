@@ -40,6 +40,9 @@ dependencies = [
     "mysql-connector-python>=9.0.0"
 ]
 
+[project.scripts]
+rhosocial-activerecord-mysql = "rhosocial.activerecord.backend.impl.mysql.__main__:main"
+
 [project.optional-dependencies]
 # Development dependencies
 test = [
