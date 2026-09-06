@@ -66,16 +66,16 @@ MySQL 后端负责将 MySQL 数据库中的数据类型转换为 Python 对象�
 ```python
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.base import FieldProxy
-from rhosocial.activerecord.field import UUIDMixin, TimestampMixin
+from rhosocial.activerecord.field import UUIDMixin, DefaultTimestampMixin
 from typing import ClassVar
 from decimal import Decimal
 
 
-class Product(UUIDMixin, TimestampMixin, ActiveRecord):
+class Product(UUIDMixin, DefaultTimestampMixin, ActiveRecord):
     name: str
     price: Decimal  # 自动映射为 DECIMAL
     description: str  # 自动映射为 TEXT
-    metadata: dict  # 自动映射为 JSON (MySQL 5.7+)
+    metadata: dict  # 自动映射为 JSON (MySQL 5.7+) 或 TEXT (MySQL 5.6)
     
     c: ClassVar[FieldProxy] = FieldProxy()
     
@@ -84,4 +84,63 @@ class Product(UUIDMixin, TimestampMixin, ActiveRecord):
         return 'products'
 ```
 
-💡 *AI 提示词：* "为什么推荐使用 DECIMAL 而不是 FLOAT 来存储金额？"
+## dict/list 类型处理（MySQL 5.6 vs 5.7+）
+
+`MySQLJSONAdapter` 负责处理 Python `dict` 和 `list` 类型。不同 MySQL 版本的存储行为有显著差异：
+
+| 特性 | MySQL 5.6 | MySQL 5.7+ |
+|------|-----------|------------|
+| 列类型 | TEXT | JSON |
+| 存储格式 | JSON 字符串 | 二进制 JSON |
+| 验证 | 无 | 自动验证 |
+| JSON 函数 | 不可用 | JSON_EXTRACT、JSON_SET 等 |
+| 索引 | 不支持 | 通过生成列 |
+| 最大大小 | 65,535 字节 | 1 GB |
+| 查询语法 | 字符串比较 | 原生 JSON 操作符 |
+
+### MySQL 5.6 行为
+
+```python
+# MySQL 5.6: dict/list 存储为 TEXT
+# 无验证、无 JSON 函数、查询能力有限
+
+data = {"name": "Tom", "tags": ["admin", "user"]}
+
+# 存储: TEXT 列，存储 JSON 字符串
+# '{"name": "Tom", "tags": ["admin", "user"]}'
+
+# 查询: 只能使用字符串比较
+User.query().where(User.c.metadata.like('%admin%')).all()
+```
+
+### MySQL 5.7+ 行为
+
+```python
+# MySQL 5.7+: dict/list 存储为原生 JSON 类型
+# 自动验证，完整 JSON 函数支持
+
+data = {"name": "Tom", "tags": ["admin", "user"]}
+
+# 存储: 二进制 JSON 格式（更高效）
+# 自动验证确保 JSON 有效性
+
+# 查询: 原生 JSON 操作符
+User.query().where(User.c.metadata['$.name'] == 'Tom').all()
+User.query().where(User.c.metadata['$.tags'].contains('admin')).all()
+```
+
+### 版本检测
+
+适配器自动处理版本差异：
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLJSONAdapter
+
+adapter = MySQLJSONAdapter()
+
+# 两个版本产生相同的 Python 结果
+db_value = adapter.to_database(data, dict)  # JSON 字符串
+python_value = adapter.from_database(db_value, dict)  # Python dict
+```
+
+💡 *AI 提示：* "为什么推荐使用 DECIMAL 而不是 FLOAT 来存储金额？"

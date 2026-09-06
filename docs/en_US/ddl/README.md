@@ -1,29 +1,67 @@
-# MySQL DDL Operations
+# DDL Operations
 
-The MySQL backend supports the same type-safe DDL expressions as the core library.
+The MySQL backend supports the same type-safe DDL expressions as the core library, extended with MySQL-specific features.
 
 ## Supported Operations
 
 | Operation | MySQL Support | Notes |
-|----------|--------------|-------|
-| `CreateTableExpression` | ✅ Full | PRIMARY KEY, NOT NULL, UNIQUE, etc. |
-| `DropTableExpression` | ✅ Full | IF EXISTS support |
-| `AlterTableExpression` | ✅ Full | ADD/DROP COLUMN |
-| `CreateIndexExpression` | ✅ Full | Index types (BTREE, HASH) |
-| `DropIndexExpression` | ✅ Full | |
-| `CreateViewExpression` | ✅ Full | MySQL ALGORITHM options |
-| `DropViewExpression` | ✅ Full | |
-| `CreateTableExpression` | ✅ Full | Partition support (RANGE, LIST, HASH, KEY) |
-| `PartitionByRange` | ✅ Full | RANGE and RANGE COLUMNS partitioning |
-| `PartitionByList` | ✅ Full | LIST and LIST COLUMNS partitioning |
-| `PartitionByHash` | ✅ Full | HASH and LINEAR HASH partitioning |
-| `PartitionByKey` | ✅ Full | KEY and LINEAR KEY partitioning |
+|-----------|--------------|-------|
+| `CreateTableExpression` | Full | PRIMARY KEY, NOT NULL, UNIQUE, DEFAULT |
+| `DropTableExpression` | Full | IF EXISTS support |
+| `AlterTableExpression` | Full | ADD/DROP COLUMN |
+| `CreateIndexExpression` | Full | BTREE, HASH index types |
+| `DropIndexExpression` | Full | |
+| `CreateViewExpression` | Full | MySQL ALGORITHM options |
+| `DropViewExpression` | Full | |
+| Partition support | Full | RANGE, LIST, HASH, KEY partitioning |
 
-## MySQL-Specific Features
+## Basic Examples
 
-### Partition Support
+### CREATE TABLE
 
-MySQL supports rich table partitioning strategies. See [Partition Documentation](../mysql_specific_features/partition.md).
+```python
+from rhosocial.activerecord.backend.expression import CreateTableExpression, ColumnDefinition
+
+columns = [
+    ColumnDefinition(name='id', data_type='INT', auto_increment=True, primary_key=True),
+    ColumnDefinition(name='username', data_type='VARCHAR(50)', nullable=False, unique=True),
+    ColumnDefinition(name='email', data_type='VARCHAR(255)', nullable=False),
+    ColumnDefinition(name='created_at', data_type='DATETIME', default='CURRENT_TIMESTAMP'),
+]
+
+create_table = CreateTableExpression(
+    dialect,
+    table_name='users',
+    columns=columns,
+    dialect_options={'engine': 'InnoDB'},
+)
+```
+
+### ALTER TABLE
+
+```python
+from rhosocial.activerecord.backend.expression import AlterTableExpression, AddColumnOperation
+
+alter = AlterTableExpression(
+    dialect,
+    table_name='users',
+    operations=[
+        AddColumnOperation(ColumnDefinition(name='phone', data_type='VARCHAR(20)')),
+    ],
+)
+```
+
+### DROP TABLE
+
+```python
+from rhosocial.activerecord.backend.expression import DropTableExpression
+
+drop = DropTableExpression(dialect, table_name='temp_data', if_exists=True)
+```
+
+## Partition Support
+
+MySQL supports rich table partitioning. See [Partition Documentation](../backend_specific_features/partition.md):
 
 ```python
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
@@ -47,9 +85,9 @@ create_table = CreateTableExpression(
 )
 ```
 
-### ALGORITHM Option
+## ALGORITHM Option
 
-MySQL views support ALGORITHM to control execution:
+MySQL views support ALGORITHM to control execution strategy:
 
 ```python
 from rhosocial.activerecord.backend.expression import ViewOptions, ViewAlgorithm
@@ -58,37 +96,10 @@ create_view = CreateViewExpression(
     dialect,
     view_name="optimized_view",
     query=query,
-    options=ViewOptions(algorithm=ViewAlgorithm.MERGE)
+    options=ViewOptions(algorithm=ViewAlgorithm.MERGE),
 )
 ```
 
-### Storage Engine
+> **Note**: MySQL ALTER TABLE capabilities differ from SQLite. For full DDL capabilities, refer to the [MySQL 9.6 Documentation](https://dev.mysql.com/doc/refman/9.6/en/sql-statements.html).
 
-MySQL supports specifying storage engine:
-
-```python
-create_table = CreateTableExpression(
-    dialect,
-    table_name="users",
-    columns=columns,
-    dialect_options={"engine": "InnoDB"}
-)
-```
-
-## Running the Example
-
-```bash
-cd python-activerecord-mysql
-source .venv3.8/bin/activate
-PYTHONPATH=src python docs/examples/chapter_04_ddl/ddl.py
-```
-
-The example tests:
-1. Create table with constraints
-2. Create table with IF NOT EXISTS
-3. Alter table - add column
-4. Alter table - drop column
-5. Drop table with IF EXISTS
-6. Introspection to verify schema changes
-
-> **Note**: MySQL has different ALTER TABLE support than SQLite. For full MySQL DDL capabilities, refer to [MySQL 9.6 Documentation](https://dev.mysql.com/doc/refman/9.6/en/sql-statements.html).
+AI Prompt: "What is the difference between InnoDB and MyISAM for DDL operations?"

@@ -4,37 +4,36 @@
 
 | MySQL Version | Support Status | Notes |
 |--------------|----------------|-------|
-| 5.6.x | ✅ Supported | Some features may differ, e.g., JSON type not supported |
-| 5.7.x | ✅ Supported | Recommended for legacy systems |
-| 8.0.x | ✅ Recommended | Current stable mainstream version |
-| 8.4.x | ✅ Supported | Latest LTS version |
-| 9.0.x | ✅ Supported | Latest stable version |
-| 9.6.x | ✅ Supported | Latest minor version |
+| 5.6.x | ❌ End of Life | No longer supported by Oracle |
+| 5.7.x | ❌ End of Life | No longer supported by Oracle |
+| 8.0.x | ⚠️ Extended Support | Extended support ends April 2026; recommend upgrading to 8.4 LTS |
+| 8.4.x | ✅ Recommended | Current LTS version, active premier support |
+| 9.0.x | ✅ Supported | Innovation release, adds VECTOR type support |
+| 9.6.x | ✅ Supported | Innovation release |
+| 9.7.x | ✅ Supported | Latest LTS version, adds JSON Duality Views |
+
+> **Important**: This backend is designed exclusively for MySQL databases. The dialect behavior is tightly coupled with MySQL version-specific features. **Do not use this backend with other MySQL-compatible databases**, including but not limited to MariaDB, TiDB, CockroachDB, PlanetScale, or any other MySQL protocol-compatible systems. Using it with non-MySQL databases may result in incorrect SQL generation, unexpected behavior, or data corruption.
 
 ⚠️ **Note**:
 
-- MySQL 5.6 does not support JSON data type, related features cannot be used
+- MySQL 5.6 and 5.7 have reached End of Life; using them is not recommended
+- MySQL 8.0 is in Extended Support phase; consider upgrading to 8.4 LTS for new deployments
 - Some features may have subtle differences between versions, refer to specific feature documentation
-
-## MariaDB Support
-
-| MariaDB Version | Support Status | Notes |
-|----------------|----------------|-------|
-| 10.x | ⚠️ Partial Support | Only supports MySQL-compatible features, not fully tested |
-
-⚠️ **Note**: MariaDB only supports features compatible with MySQL. Some MySQL-specific features may not work properly. MySQL is recommended for production environments.
 
 ## Python Version Requirements
 
-| Python Version | Support Status |
-|---------------|----------------|
-| 3.8 | ✅ Supported |
-| 3.9 | ✅ Supported |
-| 3.10 | ✅ Supported |
-| 3.11 | ✅ Supported |
-| 3.12 | ✅ Supported |
-| 3.13 | ✅ Supported |
-| 3.14 | ✅ Supported |
+| Python Version | Support Status | Notes |
+|---------------|----------------|-------|
+| 3.8 | ✅ Supported | |
+| 3.9 | ✅ Supported | |
+| 3.10 | ✅ Supported | |
+| 3.11 | ✅ Supported | |
+| 3.12 | ✅ Supported | |
+| 3.13 | ✅ Supported | Supports free-threaded build (3.13t) |
+| 3.14 | ✅ Supported | Supports free-threaded build (3.14t) |
+| 3.15 | ✅ Tested | Pre-release; supports free-threaded build (3.15t) |
+
+**Free-Threaded Python**: Starting from Python 3.13, a free-threaded (no-GIL) build is available as `python3.13t`, `python3.14t`, etc. This backend is compatible with free-threaded Python, though some threading-specific features may behave differently. See documentation for details.
 
 ## Dependency Requirements
 

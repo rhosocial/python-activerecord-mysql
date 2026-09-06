@@ -10,7 +10,7 @@ _src = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..",
 if _src not in sys.path:
     sys.path.insert(0, _src)
 
-from rhosocial.activerecord.field import IntegerPKMixin, TimestampMixin
+from rhosocial.activerecord.field import IntegerPKMixin, DefaultTimestampMixin
 from rhosocial.activerecord.model import AsyncActiveRecord
 from rhosocial.activerecord.relation import BelongsTo, HasMany
 from rhosocial.activerecord.relation.async_descriptors import (
@@ -19,7 +19,7 @@ from rhosocial.activerecord.relation.async_descriptors import (
 )
 
 
-class AsyncUser(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
+class AsyncUser(IntegerPKMixin, DefaultTimestampMixin, AsyncActiveRecord):
     """Async User model."""
     __table_name__ = "users"
 
@@ -36,7 +36,7 @@ class AsyncUser(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
     )
 
 
-class AsyncPost(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
+class AsyncPost(IntegerPKMixin, DefaultTimestampMixin, AsyncActiveRecord):
     """Async Post model."""
     __table_name__ = "posts"
 
@@ -55,7 +55,7 @@ class AsyncPost(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
     )
 
 
-class AsyncComment(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
+class AsyncComment(IntegerPKMixin, DefaultTimestampMixin, AsyncActiveRecord):
     """Async Comment model."""
     __table_name__ = "comments"
 

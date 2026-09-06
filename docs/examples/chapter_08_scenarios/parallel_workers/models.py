@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import ClassVar, Optional
 
 from rhosocial.activerecord.base.field_proxy import FieldProxy
-from rhosocial.activerecord.field import IntegerPKMixin, TimestampMixin
+from rhosocial.activerecord.field import IntegerPKMixin, DefaultTimestampMixin
 from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
 from rhosocial.activerecord.relation import BelongsTo, HasMany
 from rhosocial.activerecord.relation.async_descriptors import (
@@ -32,7 +32,7 @@ from rhosocial.activerecord.relation.async_descriptors import (
 # ─────────────────────────────────────────
 
 
-class User(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class User(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """Blog user (synchronous)"""
 
     __table_name__ = "users"
@@ -48,7 +48,7 @@ class User(IntegerPKMixin, TimestampMixin, ActiveRecord):
     comments: ClassVar[HasMany[Comment]] = HasMany(foreign_key="user_id", inverse_of="author")
 
 
-class Post(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class Post(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """Blog post (synchronous)"""
 
     __table_name__ = "posts"
@@ -66,7 +66,7 @@ class Post(IntegerPKMixin, TimestampMixin, ActiveRecord):
     comments: ClassVar[HasMany[Comment]] = HasMany(foreign_key="post_id", inverse_of="post")
 
 
-class Comment(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class Comment(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """Comment (synchronous)"""
 
     __table_name__ = "comments"
@@ -88,7 +88,7 @@ class Comment(IntegerPKMixin, TimestampMixin, ActiveRecord):
 # ─────────────────────────────────────────
 
 
-class AsyncUser(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
+class AsyncUser(IntegerPKMixin, DefaultTimestampMixin, AsyncActiveRecord):
     """Blog user (asynchronous)"""
 
     __table_name__ = "users"
@@ -104,7 +104,7 @@ class AsyncUser(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
     comments: ClassVar[AsyncHasMany[AsyncComment]] = AsyncHasMany(foreign_key="user_id", inverse_of="author")
 
 
-class AsyncPost(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
+class AsyncPost(IntegerPKMixin, DefaultTimestampMixin, AsyncActiveRecord):
     """Blog post (asynchronous)"""
 
     __table_name__ = "posts"
@@ -122,7 +122,7 @@ class AsyncPost(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
     comments: ClassVar[AsyncHasMany[AsyncComment]] = AsyncHasMany(foreign_key="post_id", inverse_of="post")
 
 
-class AsyncComment(IntegerPKMixin, TimestampMixin, AsyncActiveRecord):
+class AsyncComment(IntegerPKMixin, DefaultTimestampMixin, AsyncActiveRecord):
     """Comment (asynchronous)"""
 
     __table_name__ = "comments"

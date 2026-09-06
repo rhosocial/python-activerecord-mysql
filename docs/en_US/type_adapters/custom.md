@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import field_validator
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.base import FieldProxy
-from rhosocial.activerecord.field import UUIDMixin, TimestampMixin
+from rhosocial.activerecord.field import UUIDMixin, DefaultTimestampMixin
 from typing import ClassVar
 import json
 
@@ -36,7 +36,7 @@ class Address:
         )
 
 
-class User(UUIDMixin, TimestampMixin, ActiveRecord):
+class User(UUIDMixin, DefaultTimestampMixin, ActiveRecord):
     name: str
     address: str  # Stored as JSON string
     
@@ -76,7 +76,7 @@ user = User(
 user.save()
 
 # Read user
-user = User.query().first()
+user = User.query().one()
 address = user.get_address()
 print(address.city)  # Beijing
 ```

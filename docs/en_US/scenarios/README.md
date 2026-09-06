@@ -1,26 +1,28 @@
 # Scenarios
 
-This chapter provides complete application examples of the MySQL backend in real-world business scenarios, helping developers understand how to correctly use rhosocial-activerecord in actual projects.
+This section covers specific usage scenarios for the MySQL backend.
 
-## Scenario List
+## Contents
 
-### [Parallel Worker Processing](parallel_workers.md)
+- [Parallel Workers](parallel_workers.md): Multi-process and async concurrency patterns
 
-Demonstrates correct usage of MySQL backend in multi-process/async concurrent scenarios:
+## Overview
 
-- **Multi-process Correct Usage**: `configure()` must be called within child processes
-- **MySQL Async Advantage**: Native network I/O async, completely different from SQLite's thread pool simulation
-- **Deadlock Handling**: InnoDB automatically detects deadlocks, recommended retry mechanism for production
-- **Multi-threading Pitfalls**: MySQL has no `check_same_thread` protection, requires special attention
+The parallel worker scenario demonstrates correct usage of the MySQL backend in multi-process and async concurrent environments. Key MySQL-specific characteristics include:
 
-> 📖 **Companion Code**: Complete runnable experiment code is located in the `docs/examples/chapter_08_scenarios/parallel_workers/` directory.
+- **Row-level locking**: InnoDB supports concurrent writes to different rows (unlike SQLite's file-level lock)
+- **Native async I/O**: `mysql-connector-python` provides genuine network I/O async (unlike SQLite's thread-pool simulation)
+- **Deadlock auto-detection**: InnoDB detects deadlocks and rolls back the cheaper transaction
+- **Single-connection model**: Each ActiveRecord class binds to one connection; multi-process is the correct approach for concurrency
 
 ## Relationship with Core Library Scenarios
 
-This chapter is a MySQL-specific supplement to the [Core Library Scenarios Documentation](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US/scenarios), focusing on:
+This section is a MySQL-specific supplement to the [Core Library Scenarios](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US/scenarios), focusing on:
 
 - MySQL-specific concurrent behavior (row-level locking, deadlock detection)
 - True advantages of async I/O (network latency scenarios)
 - Key differences compared to SQLite
 
-The general ActiveRecord usage patterns introduced in the core library scenarios (such as relationships, query building) also apply to the MySQL backend.
+The general ActiveRecord usage patterns introduced in the core library scenarios (relationships, query building, worker pools) also apply to the MySQL backend.
+
+AI Prompt: "What is the difference between multiprocessing and multithreading for MySQL concurrency?"

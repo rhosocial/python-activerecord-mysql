@@ -15,11 +15,11 @@ from pydantic import Field, EmailStr
 
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.base.field_proxy import FieldProxy
-from rhosocial.activerecord.field import IntegerPKMixin, TimestampMixin
+from rhosocial.activerecord.field import IntegerPKMixin, DefaultTimestampMixin
 from rhosocial.activerecord.relation import HasMany, BelongsTo
 
 
-class User(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class User(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """User model for isolation experiment."""
     c: ClassVar[FieldProxy] = FieldProxy()
     __table_name__ = "users"
@@ -35,7 +35,7 @@ class User(IntegerPKMixin, TimestampMixin, ActiveRecord):
     posts: ClassVar[HasMany['Post']] = HasMany(foreign_key='user_id', inverse_of='user')
 
 
-class Order(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class Order(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """Order model for isolation experiment."""
     c: ClassVar[FieldProxy] = FieldProxy()
     __table_name__ = "orders"
@@ -49,7 +49,7 @@ class Order(IntegerPKMixin, TimestampMixin, ActiveRecord):
     user: ClassVar[BelongsTo['User']] = BelongsTo(foreign_key='user_id', inverse_of='orders')
 
 
-class Post(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class Post(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """Post model for isolation experiment."""
     c: ClassVar[FieldProxy] = FieldProxy()
     __table_name__ = "posts"
@@ -63,7 +63,7 @@ class Post(IntegerPKMixin, TimestampMixin, ActiveRecord):
     user: ClassVar[BelongsTo['User']] = BelongsTo(foreign_key='user_id', inverse_of='posts')
 
 
-class Comment(IntegerPKMixin, TimestampMixin, ActiveRecord):
+class Comment(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
     """Comment model for isolation experiment."""
     c: ClassVar[FieldProxy] = FieldProxy()
     __table_name__ = "comments"

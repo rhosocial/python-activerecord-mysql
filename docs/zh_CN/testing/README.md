@@ -1,51 +1,75 @@
 # 测试
 
-本节介绍 MySQL 后端的测试相关内容。
+本节介绍 MySQL 后端的测试。
 
-## 目录
+## 内容
 
-- [测试配置](configuration.md): 测试环境设置
-- [本地 MySQL 测试](local.md): 本地数据库测试
+- [测试配置](configuration.md)：MySQL 特定的测试设置
+- [本地测试](local.md)：基于 Docker 的本地测试环境
 
-## 提供者职责
+## 测试原则
 
-作为后端实现，MySQL 后端必须实现 Provider 接口来处理测试环境的设置和清理。这对于测试隔离和正确性至关重要。
+### 同步/异步对等
 
-### 关键原则
+所有涉及 IO 操作的测试必须为等效场景准备成对的同步和异步测试：
 
-1. **环境准备**: 提供者必须：
-   - 创建数据库 schema（表、索引）
-   - 建立数据库连接
-   - 使用 MySQL 特定实现配置测试模型
+```python
+# 同步测试
+def test_create_user():
+    user = User(name="Alice").create()
+    assert user.id is not None
 
-2. **环境清理**: 提供者必须：
-   - 在每个测试后删除所有测试表
-   - 正确关闭所有游标
-   - 断开数据库连接
-
-### 关键：清理顺序
-
-清理必须按以下顺序进行以避免问题：
-
-```
-正确顺序：
-1. DROP TABLE 语句（清理数据）
-2. 关闭游标
-3. 断开连接
-
-错误顺序：
-1. 先断开连接  ❌
-2. 然后清理  ❌ (连接已关闭！)
+# 异步测试 -- 相同逻辑，异步 API
+async def test_async_create_user():
+    user = await AsyncUser(name="Alice").create()
+    assert user.id is not None
 ```
 
-### 常见问题
+### 表达式测试 -- 无 IO
 
-- **MySQL 异步**：在断开连接前未关闭游标可能导致 `RuntimeError: Set changed size during iteration`
-- **表冲突**：不删除表可能导致"表已存在"错误
-- **数据污染**：不清理可能导致上下文相关测试失败
-- **连接问题**：不当清理可能导致资源耗尽
+表达式测试不涉及数据库 IO -- 它们只构建 SQL 并验证生成的 SQL：
 
-### 实现参考
+```python
+def test_expression_sql():
+    expr = Eq(User.name, "Alice")
+    assert expr.to_sql(dialect) == "`name` = %s"
+    assert expr.params == ["Alice"]
+```
 
-详细实现指南请参阅测试套件文档：
-- `python-activerecord-testsuite/docs/zh_CN/README.md`
+表达式测试不需要异步对应部分。
+
+### ActiveRecord 测试 -- 使用测试套件
+
+ActiveRecord 功能测试（模型 CRUD、关系、查询）使用测试套件：
+
+```bash
+cd python-activerecord-mysql
+PYTHONPATH=tests .venv3.14-ubuntu26.04/bin/pytest \
+    ../python-activerecord-testsuite/src/rhosocial/activerecord/testsuite/feature/relation/
+```
+
+### 测试类别摘要
+
+| 测试内容 | 方法 | IO？ | 异步？ |
+|---------|------|------|--------|
+| 表达式类（方言 SQL 生成） | 单元测试，无数据库 | 否 | 否 |
+| 类型适配器（类型转换） | 单元测试，无数据库 | 否 | 否 |
+| 命名功能（表达式、过程、迁移） | CLI 脚本 | 是 | 支持则为是 |
+| ActiveRecord 功能（CRUD、关系、查询） | 测试套件 + provider | 是 | 是 |
+| MySQL 特有功能（JSON、空间等） | 项目特定测试 | 是 | 是 |
+
+## MySQL 特定注意事项
+
+### 异步游标清理
+
+在断开连接前未能关闭游标可能导致 `RuntimeError: Set changed size during iteration`。始终确保在异步测试拆解中正确关闭游标。
+
+### 表冲突
+
+测试运行之间不删除表会导致 "table already exists" 错误。在测试设置或夹具中使用 `DROP TABLE IF EXISTS`。
+
+### Provider 实现
+
+Provider 实现指南请参阅[核心测试套件 Provider 指南](provider_guide.md)。
+
+AI 提示: "如何使用 Docker 为 CI 设置 MySQL 测试数据库？"

@@ -66,22 +66,81 @@ The MySQL backend is responsible for converting MySQL database data types to Pyt
 ```python
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.base import FieldProxy
-from rhosocial.activerecord.field import UUIDMixin, TimestampMixin
+from rhosocial.activerecord.field import UUIDMixin, DefaultTimestampMixin
 from typing import ClassVar
 from decimal import Decimal
 
 
-class Product(UUIDMixin, TimestampMixin, ActiveRecord):
+class Product(UUIDMixin, DefaultTimestampMixin, ActiveRecord):
     name: str
     price: Decimal  # Automatically maps to DECIMAL
     description: str  # Automatically maps to TEXT
-    metadata: dict  # Automatically maps to JSON (MySQL 5.7+)
+    metadata: dict  # Automatically maps to JSON (MySQL 5.7+) or TEXT (MySQL 5.6)
     
     c: ClassVar[FieldProxy] = FieldProxy()
     
     @classmethod
     def table_name(cls) -> str:
         return 'products'
+```
+
+## dict/list Type Handling (MySQL 5.6 vs 5.7+)
+
+The `MySQLJSONAdapter` handles Python `dict` and `list` types. The storage behavior differs significantly between MySQL versions:
+
+| Feature | MySQL 5.6 | MySQL 5.7+ |
+|---------|-----------|------------|
+| Column type | TEXT | JSON |
+| Storage format | JSON string | Binary JSON |
+| Validation | None | Automatic |
+| JSON functions | Not available | JSON_EXTRACT, JSON_SET, etc. |
+| Indexing | Not supported | Via generated columns |
+| Max size | 65,535 bytes | 1 GB |
+| Query syntax | String comparison | Native JSON operators |
+
+### MySQL 5.6 Behavior
+
+```python
+# MySQL 5.6: dict/list stored as TEXT
+# No validation, no JSON functions, limited query capabilities
+
+data = {"name": "Tom", "tags": ["admin", "user"]}
+
+# Storage: TEXT column with JSON string
+# '{"name": "Tom", "tags": ["admin", "user"]}'
+
+# Query:只能使用字符串比较
+User.query().where(User.c.metadata.like('%admin%')).all()
+```
+
+### MySQL 5.7+ Behavior
+
+```python
+# MySQL 5.7+: dict/list stored as native JSON type
+# Automatic validation, full JSON function support
+
+data = {"name": "Tom", "tags": ["admin", "user"]}
+
+# Storage: Binary JSON format (more efficient)
+# Automatic validation ensures valid JSON
+
+# Query: Native JSON operators
+User.query().where(User.c.metadata['$.name'] == 'Tom').all()
+User.query().where(User.c.metadata['$.tags'].contains('admin')).all()
+```
+
+### Version Detection
+
+The adapter automatically handles version differences:
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLJSONAdapter
+
+adapter = MySQLJSONAdapter()
+
+# Both versions produce the same Python result
+db_value = adapter.to_database(data, dict)  # JSON string
+python_value = adapter.from_database(db_value, dict)  # Python dict
 ```
 
 💡 *AI Prompt:* "Why is DECIMAL recommended over FLOAT for storing monetary values?"
