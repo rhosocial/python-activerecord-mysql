@@ -1,6 +1,8 @@
 # Parallel Workers: Best Practices (MySQL)
 
-In data processing, task queues, and bulk import scenarios, developers often run multiple workers in parallel to improve throughput. This chapter focuses on parallel worker patterns for MySQL, explains the fundamental differences between MySQL and SQLite for concurrent processing, and provides validated, safe solutions.
+In data processing, task queues, and bulk import scenarios, developers often run multiple workers in parallel to improve throughput. This chapter focuses on parallel worker patterns for MySQL.
+
+For general patterns (multi-process lifecycle, async behavior, deadlock prevention principles, application separation), see [Core Parallel Worker Patterns](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US/scenarios/parallel_workers.md).
 
 > **Design principle throughout this chapter**: The synchronous `BaseActiveRecord` and asynchronous `AsyncBaseActiveRecord` have **identical method names** — `configure()`, `backend()`, `transaction()`, `save()`, and so on. The async version simply requires `await` or `async with`. All examples in this chapter provide both versions.
 

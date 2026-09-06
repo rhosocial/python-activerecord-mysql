@@ -4,54 +4,7 @@
 
 This section describes how to configure the testing environment for the MySQL backend.
 
-## Unit Testing with Dummy Backend
-
-The `dummy` backend is recommended for unit tests as it does not require a real database connection:
-
-```python
-from rhosocial.activerecord.model import ActiveRecord
-from rhosocial.activerecord.backend.impl.dummy import DummyBackend, DummyConnectionConfig
-
-
-class User(ActiveRecord):
-    name: str
-    email: str
-    
-    c: ClassVar[FieldProxy] = FieldProxy()
-    
-    @classmethod
-    def table_name(cls) -> str:
-        return 'users'
-
-
-# Configure Dummy backend
-config = DummyConnectionConfig()
-User.configure(config, DummyBackend)
-```
-
-## Integration Testing with SQLite Backend
-
-For tests requiring real database behavior, use the SQLite backend:
-
-```python
-from rhosocial.activerecord.backend.impl.sqlite import SQLiteBackend, SQLiteConnectionConfig
-
-
-class User(ActiveRecord):
-    name: str
-    email: str
-    
-    c: ClassVar[FieldProxy] = FieldProxy()
-    
-    @classmethod
-    def table_name(cls) -> str:
-        return 'users'
-
-
-# Configure SQLite in-memory database
-config = SQLiteConnectionConfig(database=':memory:')
-User.configure(config, SQLiteBackend)
-```
+For general testing strategies (DummyBackend, SQLite integration testing), see the [Core Backend Testing Guide](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US/testing/backend_testing.md).
 
 ## End-to-End Testing with MySQL Backend
 
