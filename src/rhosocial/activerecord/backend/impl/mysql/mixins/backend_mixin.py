@@ -101,6 +101,9 @@ class MySQLBackendMixin:
             (date, str),
             (time, str),
             (Decimal, float),
+            # UUID uses the string adapter, matching the default VARCHAR(36)
+            # storage. (Binary storage via UseSqlType(BinaryType(16), ...)
+            # requires UseAdapter(MySQLUUIDBinaryAdapter, bytes).)
             (UUID, str),
             (dict, str),
             (list, str),

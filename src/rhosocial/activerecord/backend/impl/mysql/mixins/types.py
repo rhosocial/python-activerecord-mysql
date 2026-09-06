@@ -14,17 +14,21 @@ from rhosocial.activerecord.backend.dialect.mixins.ddl_type import (
 from rhosocial.activerecord.backend.dialect.protocols import DDLTypeSupport
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
+    BinaryType,
     BlobType,
     BooleanType,
     CharType,
+    CidrType,
     DataType,
     DateType,
     DateTimeType,
     DecimalType,
     DoubleType,
     FloatType,
+    InetType,
     IntegerType,
     JsonType,
+    MacAddrType,
     RealType,
     SmallIntType,
     TextType,
@@ -33,6 +37,8 @@ from rhosocial.activerecord.backend.expression.types import (
     TimestampType,
     TimestampTzType,
     TinyIntType,
+    UUIDType,
+    VarBinaryType,
     VarCharType,
 )
 from ..expression.types import (
@@ -326,6 +332,35 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 "type (e.g. MySQLLongTextType) or use the suggestion path.",
             )
         return "JSON", ()
+
+    @DDLTypeMixin.handles(UUIDType)
+    def format_data_type_uuid(self, data_type: UUIDType) -> Tuple[str, tuple]:
+        # MySQL/MariaDB store UUIDs as CHAR(36)/VARCHAR(36) by default: the
+        # string adapter and string-form UUID query parameters both round-trip
+        # correctly. BINARY(16) is compact but requires column-aware query
+        # parameter adaptation (a framework feature not yet present), so it is
+        # opt-in only via UseSqlType(BinaryType(16), UUIDType()).
+        return "VARCHAR(36)", ()
+
+    @DDLTypeMixin.handles(InetType)
+    def format_data_type_inet(self, data_type: InetType) -> Tuple[str, tuple]:
+        return "VARBINARY(16)", ()
+
+    @DDLTypeMixin.handles(CidrType)
+    def format_data_type_cidr(self, data_type: CidrType) -> Tuple[str, tuple]:
+        return "VARCHAR(45)", ()
+
+    @DDLTypeMixin.handles(MacAddrType)
+    def format_data_type_mac_addr(self, data_type: MacAddrType) -> Tuple[str, tuple]:
+        return "BINARY(6)", ()
+
+    @DDLTypeMixin.handles(BinaryType)
+    def format_data_type_core_binary(self, data_type: BinaryType) -> Tuple[str, tuple]:
+        return f"BINARY({data_type.length})", ()
+
+    @DDLTypeMixin.handles(VarBinaryType)
+    def format_data_type_core_var_binary(self, data_type: VarBinaryType) -> Tuple[str, tuple]:
+        return f"VARBINARY({data_type.length})", ()
 
     def _supports_json_type(self) -> bool:
         """Whether this dialect can render ``JsonType`` as native JSON.
@@ -642,6 +677,7 @@ class MySQLTypeSuggestionMixin(DDLTypeSuggestionMixin):
         import datetime as _dt
         import decimal as _dec
         import enum as _enum
+        import ipaddress as _ip
         import uuid as _uuid
 
         # When the caller does not supply a version, fall back to the dialect's
@@ -659,18 +695,20 @@ class MySQLTypeSuggestionMixin(DDLTypeSuggestionMixin):
             _dt.date: DateType,
             _dt.time: TimeType,
             _dec.Decimal: DecimalType,
-            _uuid.UUID: MySQLBinaryType,
+            _uuid.UUID: UUIDType,
             _enum.Enum: VarCharType,
+            _ip.IPv4Address: InetType,
+            _ip.IPv6Address: InetType,
+            _ip.IPv4Network: CidrType,
+            _ip.IPv6Network: CidrType,
         }
         factory = mapping.get(python_type)
         if factory is not None:
-            if python_type is _uuid.UUID:
-                return MySQLBinaryType(dialect=self, length=16)
             if python_type is _enum.Enum:
                 return VarCharType(dialect=self, length=64)
             return factory(dialect=self)
 
-        if python_type in (dict, list):
+        if python_type in (dict, list, set, frozenset, tuple):
             if version is None:
                 # Per the contract: do not silently guess the version.
                 return None
