@@ -15,6 +15,30 @@ MySQL 支持以下分区策略：
 | HASH | `MySQLPartitionByHash` | 哈希分区，支持 LINEAR |
 | KEY | `MySQLPartitionByKey` | 类似 HASH，使用 MySQL 内置哈希函数 |
 
+### 声明式分区 Spec（模型级）
+
+MySQL 分区可在模型上通过后端定义的 Spec 声明；MySQL 方言在
+`generate_create_table(dialect)` 时认领，其他后端自动忽略（如 SQLite 建普通表）：
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.ddl_spec import (
+    MySQLRangePartition, MySQLPartitionDefinitionSpec, MySQLPartitionBound,
+)
+
+class Orders(ActiveRecord):
+    __table_partition__ = [
+        MySQLRangePartition("created_at", [
+            MySQLPartitionDefinitionSpec("p2026", less_than=[MySQLPartitionBound(2027)]),
+            MySQLPartitionDefinitionSpec("p_max", less_than=[MySQLPartitionBound("MAXVALUE")]),
+        ]),
+    ]
+
+expr = Orders.generate_create_table(dialect)  # 自动附带分区子句
+```
+
+`MySQLListPartition`（VALUES IN）与 `MySQLHashPartition`（PARTITIONS N）用法相同。
+下方表达式层类仍完全支持，作为逃生舱保留。
+
 ### 创建分区表
 
 ```python

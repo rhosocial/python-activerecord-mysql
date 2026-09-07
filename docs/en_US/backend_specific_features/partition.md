@@ -13,6 +13,32 @@ MySQL supports table partitioning to improve management and query performance fo
 | HASH | `MySQLPartitionByHash` | Hash partitioning, supports LINEAR |
 | KEY | `MySQLPartitionByKey` | Like HASH, uses MySQL built-in hash function |
 
+### Declarative Partition Specs (model level)
+
+MySQL partitioning can be declared on the model via backend-defined Specs;
+the MySQL dialect claims them at `generate_create_table(dialect)` time and
+other backends silently ignore them (e.g. SQLite builds a plain table):
+
+```python
+from rhosocial.activerecord.backend.impl.mysql.ddl_spec import (
+    MySQLRangePartition, MySQLPartitionDefinitionSpec, MySQLPartitionBound,
+)
+
+class Orders(ActiveRecord):
+    __table_partition__ = [
+        MySQLRangePartition("created_at", [
+            MySQLPartitionDefinitionSpec("p2026", less_than=[MySQLPartitionBound(2027)]),
+            MySQLPartitionDefinitionSpec("p_max", less_than=[MySQLPartitionBound("MAXVALUE")]),
+        ]),
+    ]
+
+expr = Orders.generate_create_table(dialect)  # partition clause attached automatically
+```
+
+`MySQLListPartition` (VALUES IN) and `MySQLHashPartition` (PARTITIONS N)
+follow the same pattern. The expression-level classes below remain fully
+supported as the escape hatch.
+
 ### Creating a Partitioned Table
 
 ```python
