@@ -11,6 +11,7 @@
 - [EXPLAIN](explain.md)：查询执行计划分析
 - [自省](introspection.md)：数据库元数据查询
 - [分区](partition.md)：表分区策略
+- [DDL 特征 Spec](ddl_spec.md)：MySQL 方言认领的声明式 DDL Spec
 
 ## 概述
 

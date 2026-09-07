@@ -11,6 +11,7 @@ This section covers MySQL-specific features that extend the core ActiveRecord fu
 - [EXPLAIN](explain.md): Query execution plan analysis
 - [Introspection](introspection.md): Database metadata queries
 - [Partitioning](partition.md): Table partitioning strategies
+- [DDL Feature Specs](ddl_spec.md): declarative DDL Specs claimed by the MySQL dialect
 
 ## Overview
 
