@@ -24,6 +24,7 @@ from .maintenance import MySQLMaintenanceMixin
 from .routine import MySQLRoutineMixin
 from .load_xml import MySQLLoadXMLLMixin
 from .admin import MySQLAdminCommandMixin
+from .ddl_spec import MySQLDDLSpecMixin
 
 __all__ = [
     "MySQLIntrospectionMixin",
@@ -53,4 +54,5 @@ __all__ = [
     "MySQLRoutineMixin",
     "MySQLLoadXMLLMixin",
     "MySQLAdminCommandMixin",
+    "MySQLDDLSpecMixin",
 ]

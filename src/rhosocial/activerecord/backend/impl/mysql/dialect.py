@@ -128,6 +128,7 @@ from .mixins import (
     MySQLRoutineMixin,
     MySQLLoadXMLLMixin,
     MySQLAdminCommandMixin,
+    MySQLDDLSpecMixin,
 )
 from .collation import validate_mysql_collation_name
 from .show.dialect import MySQLShowDialectMixin
@@ -186,6 +187,7 @@ class MySQLDialect(
     SequenceMixin,
     MySQLPartitionMixin,
     PartitionMixin,
+    MySQLDDLSpecMixin,  # DDL feature-spec claiming (partition Specs)
     # MySQL-specific mixins (before generic IntrospectionMixin to override methods)
     MySQLTransactionMixin,  # MySQL transaction support
     MySQLTableMixin,  # Must be before TableMixin/ConstraintMixin to override format methods
