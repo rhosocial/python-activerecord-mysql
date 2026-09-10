@@ -12,7 +12,7 @@ level (as opposed to the partition-level variants in ``partition.py``):
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
@@ -96,8 +96,11 @@ class MySQLTableMaintenanceExpression(BaseExpression):
             elif not isinstance(table, str):
                 raise TypeError(f"table must be str or (schema, table) tuple, got {type(table)}")
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_table_maintenance_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_table_maintenance_statement"
+
 
 
 class MySQLAnalyzeTableExpression(MySQLTableMaintenanceExpression):
@@ -127,8 +130,11 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
         )
         self.options: List[CheckTableOption] = list(options or [])
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_table_maintenance_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_table_maintenance_statement"
+
 
 
 class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
@@ -152,8 +158,11 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
         )
         self.option: Optional[ChecksumTableOption] = option
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_table_maintenance_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_table_maintenance_statement"
+
 
 
 class MySQLOptimizeTableExpression(MySQLTableMaintenanceExpression):
@@ -184,5 +193,7 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
         )
         self.options: List[RepairTableOption] = list(options or [])
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_table_maintenance_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_table_maintenance_statement"

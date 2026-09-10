@@ -37,7 +37,10 @@ class TestFullTextProtocol:
         """Test format_match_against method."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_match_against(["title", "content"], "MySQL", mode="NATURAL_LANGUAGE")
+        expr = MySQLMatchAgainstExpression(
+            dialect, columns=["title", "content"], search_string="MySQL", mode="NATURAL_LANGUAGE"
+        )
+        sql, params = expr.to_sql()
 
         assert "MATCH(`title`, `content`)" in sql
         assert "AGAINST" in sql
@@ -175,7 +178,8 @@ class TestAsyncFullTextProtocol:
         """Test async version of MATCH formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_fulltext_match(["title"], "test", mode="BOOLEAN")
+        expr = MySQLMatchAgainstExpression(dialect, columns=["title"], search_string="test", mode="BOOLEAN")
+        sql, params = expr.to_sql()
 
         assert "MATCH(`title`)" in sql
         assert "IN BOOLEAN MODE" in sql

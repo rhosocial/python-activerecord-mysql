@@ -9,7 +9,7 @@ from enum import Enum
 from math import isfinite
 from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING, Union
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLQueryAndParams
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.core import TableExpression
 from rhosocial.activerecord.backend.expression.statements import PartitionClause
 
@@ -92,9 +92,10 @@ class MySQLSubpartitionClause(BaseExpression):
         self.count = count
         self.definitions = list(definitions) if definitions else None
 
-    def to_sql(self) -> SQLQueryAndParams:
-        """Delegate SQL generation to the dialect."""
-        return self.dialect.format_subpartition_by(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_subpartition_by"
 
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -107,8 +108,11 @@ class MySQLPartitionMaxValue(BaseExpression):
     def __init__(self, dialect: "MySQLDialect"):
         super().__init__(dialect)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_partition_value(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_value"
+
 
 
 class MySQLPartitionValue(BaseExpression):
@@ -128,8 +132,11 @@ class MySQLPartitionValue(BaseExpression):
                 )
         self.value = value
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_partition_value(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_value"
+
 
 
 @dataclass
@@ -337,8 +344,11 @@ class MySQLAddPartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = partitions
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_add_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_add_partition_statement"
+
 
 
 class MySQLDropPartitionExpression(BaseExpression):
@@ -352,8 +362,11 @@ class MySQLDropPartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_drop_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_drop_partition_statement"
+
 
 
 class MySQLTruncatePartitionExpression(BaseExpression):
@@ -367,8 +380,11 @@ class MySQLTruncatePartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_truncate_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_truncate_partition_statement"
+
 
 
 class MySQLReorganizePartitionExpression(BaseExpression):
@@ -389,8 +405,11 @@ class MySQLReorganizePartitionExpression(BaseExpression):
         self.partition = partition
         self.into = into
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_reorganize_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_reorganize_partition_statement"
+
 
 
 class MySQLExchangePartitionExpression(BaseExpression):
@@ -417,8 +436,11 @@ class MySQLExchangePartitionExpression(BaseExpression):
             self.exchange_table = TableExpression(dialect, exchange_table)
         self.with_validation = with_validation
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_exchange_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_exchange_partition_statement"
+
 
 
 class MySQLRemovePartitioningExpression(BaseExpression):
@@ -431,8 +453,11 @@ class MySQLRemovePartitioningExpression(BaseExpression):
         else:
             self.table = TableExpression(dialect, table)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_remove_partitioning_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_remove_partitioning_statement"
+
 
 
 class MySQLCoalescePartitionExpression(BaseExpression):
@@ -448,8 +473,11 @@ class MySQLCoalescePartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.count = count
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_coalesce_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_coalesce_partition_statement"
+
 
 
 class MySQLAnalyzePartitionExpression(BaseExpression):
@@ -463,8 +491,11 @@ class MySQLAnalyzePartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_analyze_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_analyze_partition_statement"
+
 
 
 class MySQLCheckPartitionExpression(BaseExpression):
@@ -478,8 +509,11 @@ class MySQLCheckPartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_check_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_check_partition_statement"
+
 
 
 class MySQLOptimizePartitionExpression(BaseExpression):
@@ -493,8 +527,11 @@ class MySQLOptimizePartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_optimize_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_optimize_partition_statement"
+
 
 
 class MySQLRebuildPartitionExpression(BaseExpression):
@@ -508,8 +545,11 @@ class MySQLRebuildPartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_rebuild_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_rebuild_partition_statement"
+
 
 
 class MySQLRepairPartitionExpression(BaseExpression):
@@ -523,8 +563,11 @@ class MySQLRepairPartitionExpression(BaseExpression):
             self.table = TableExpression(dialect, table)
         self.partitions = list(partitions)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_repair_partition_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_repair_partition_statement"
+
 
 
 class MySQLGetPartitionsExpression(BaseExpression):
@@ -544,5 +587,8 @@ class MySQLGetPartitionsExpression(BaseExpression):
             raise ValueError("table_name must not be empty")
         self.table_name = table_name
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self.dialect.format_get_partitions_expression(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_get_partitions_expression"
+

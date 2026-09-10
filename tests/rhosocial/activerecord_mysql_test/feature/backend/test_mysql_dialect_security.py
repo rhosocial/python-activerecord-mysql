@@ -31,29 +31,22 @@ def dialect():
 def test_mysql_format_column_definition_default_string_escaping(dialect):
     """Test DEFAULT constraint string is escaped in MySQL."""
     constraint = ColumnConstraint(
+        dialect,
         constraint_type=ColumnConstraintType.DEFAULT,
         default_value="test's value",
     )
 
-    col_def = ColumnDefinition(
-        name="test_col",
-        data_type=VarCharType(255),
-        constraints=[constraint],
-    )
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(255, dialect), constraints=[constraint])
 
-    sql, params = dialect.format_column_definition(col_def, ColumnConstraintType)
+    sql, params = dialect.format_column_definition(col_def)
     assert "test''s value" in sql
 
 
 def test_mysql_format_column_definition_comment_string_escaping(dialect):
     """Test COMMENT string is escaped in MySQL column definition."""
-    col_def = ColumnDefinition(
-        name="test_col",
-        data_type=VarCharType(255),
-        comment="Comment with 'single quote'",
-    )
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(255, dialect), comment="Comment with 'single quote'")
 
-    sql, params = dialect.format_column_definition(col_def, ColumnConstraintType)
+    sql, params = dialect.format_column_definition(col_def)
     assert "Comment with ''single quote''" in sql
 
 
@@ -73,10 +66,7 @@ def test_mysql_validate_data_type(dialect):
 
 def test_mysql_format_column_definition_data_type_validation(dialect):
     """Test column definition validates data_type."""
-    col_def = ColumnDefinition(
-        name="test_col",
-        data_type=VarCharType(255),
-    )
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(255, dialect))
 
     sql, params = dialect.format_column_definition(col_def)
     assert "VARCHAR(255)" in sql
@@ -85,10 +75,7 @@ def test_mysql_format_column_definition_data_type_validation(dialect):
 def test_mysql_format_column_definition_data_type_rejects_injection(dialect):
     """Test that malicious data_type is rejected at construction time."""
     with pytest.raises(TypeError, match="data_type must be a DataType instance"):
-        ColumnDefinition(
-            name="test_col",
-            data_type="VARCHAR(255); DROP TABLE users--",
-        )
+        ColumnDefinition(dialect, "test_col", "VARCHAR(255); DROP TABLE users--")
 
 
 def test_mysql_json_table_path_escaping(dialect):
@@ -156,14 +143,18 @@ def test_mysql_json_table_alias_quoted(dialect):
 
 def test_mysql_format_cast_expression_valid(dialect):
     """Test that CAST expression validates target_type."""
-    sql, params = dialect.format_cast_expression("column", "INTEGER", (), None)
+    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
+    expr = CastExpression(dialect, Column(dialect, "column"), "INTEGER")
+    sql, params = dialect.format_cast_expression(expr)
     assert "INTEGER" in sql
 
 
 def test_mysql_format_cast_expression_rejects_injection(dialect):
     """Test that malicious target_type is rejected."""
+    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
+    expr = CastExpression(dialect, Column(dialect, "column"), "INTEGER; DROP TABLE users--")
     with pytest.raises(ValueError, match="Invalid target type"):
-        dialect.format_cast_expression("column", "INTEGER; DROP TABLE users--", (), None)
+        dialect.format_cast_expression(expr)
 
 
 class TestMySQLEscapeSqlStringBackslash:

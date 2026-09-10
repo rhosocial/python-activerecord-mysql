@@ -345,29 +345,29 @@ class MySQLDialect(
         }
         if field not in formats:
             raise UnsupportedFeatureError(self.name, f"date_trunc({expr.field.value})")
-        return self._apply_value_expression_modifiers(sql, source_params + (formats[field],), expr)
+        return self.apply_alias(sql, source_params + (formats[field],), expr)
 
     def format_interval_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         sql = f"INTERVAL %s {expr.unit.value.upper()}"
-        return self._apply_value_expression_modifiers(sql, (expr.value,), expr)
+        return self.apply_alias(sql, (expr.value,), expr)
 
     def format_datetime_add_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         source_sql, source_params = expr.source.to_sql()
         interval_sql, interval_params = expr.interval.to_sql()
         sql = f"DATE_ADD({source_sql}, {interval_sql})"
-        return self._apply_value_expression_modifiers(sql, source_params + interval_params, expr)
+        return self.apply_alias(sql, source_params + interval_params, expr)
 
     def format_datetime_subtract_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         source_sql, source_params = expr.source.to_sql()
         interval_sql, interval_params = expr.interval.to_sql()
         sql = f"DATE_SUB({source_sql}, {interval_sql})"
-        return self._apply_value_expression_modifiers(sql, source_params + interval_params, expr)
+        return self.apply_alias(sql, source_params + interval_params, expr)
 
     def format_datetime_diff_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         start_sql, start_params = expr.start.to_sql()
         end_sql, end_params = expr.end.to_sql()
         sql = f"TIMESTAMPDIFF({expr.unit.value.upper()}, {start_sql}, {end_sql})"
-        return self._apply_value_expression_modifiers(sql, start_params + end_params, expr)
+        return self.apply_alias(sql, start_params + end_params, expr)
 
     def supports_collate_expression(self) -> bool:
         """MySQL supports expression-level COLLATE."""
@@ -670,9 +670,7 @@ class MySQLDialect(
         escaped = identifier.replace("`", "``")
         return f"`{escaped}`"
 
-    def format_column(
-        self, name: str, table: Optional[str] = None, alias: Optional[str] = None, schema_name: Optional[str] = None
-    ) -> Tuple[str, Tuple]:
+    def format_column(self, expr) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
 
         MySQL uses database-qualified references (db.table.column) rather
@@ -680,13 +678,13 @@ class MySQLDialect(
         here. Database qualification is handled separately through
         cross-database query support.
         """
-        if table:
-            col_sql = f"{self.format_identifier(table)}.{self.format_identifier(name)}"
+        if expr.table:
+            col_sql = f"{self.format_identifier(expr.table)}.{self.format_identifier(expr.name)}"
         else:
-            col_sql = self.format_identifier(name)
+            col_sql = self.format_identifier(expr.name)
 
-        if alias:
-            col_sql = f"{col_sql} AS {self.format_identifier(alias)}"
+        if expr.alias:
+            col_sql = f"{col_sql} AS {self.format_identifier(expr.alias)}"
 
         return col_sql, ()
 
@@ -991,16 +989,17 @@ class MySQLDialect(
             if isinstance(new_value, str):
                 escaped = self._escape_sql_string(new_value)
                 return f"ALTER COLUMN {col_name} SET DEFAULT '{escaped}'", ()
-            if isinstance(new_value, bool):
-                return f"ALTER COLUMN {col_name} SET DEFAULT {1 if new_value else 0}", ()
             if new_value is None:
                 raise ValueError("SET DEFAULT requires a default value")
-            if isinstance(new_value, (int, float)):
-                return f"ALTER COLUMN {col_name} SET DEFAULT {new_value}", ()
             if hasattr(new_value, "to_sql"):
                 value_sql, value_params = new_value.to_sql()
+                if value_params:
+                    # DDL accepts no bind parameters: re-render inline.
+                    from rhosocial.activerecord.backend.expression.core import Literal
+                    if isinstance(new_value, Literal):
+                        return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value.value)}", ()
                 return f"ALTER COLUMN {col_name} SET DEFAULT {value_sql}", tuple(value_params)
-            return f"ALTER COLUMN {col_name} SET DEFAULT {new_value}", ()
+            return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value)}", ()
 
         # Fall through to the SQL-standard rendering for other operations.
         return super().format_alter_column_action(action)

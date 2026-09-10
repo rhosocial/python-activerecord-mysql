@@ -13,12 +13,15 @@ from rhosocial.activerecord.backend.expression.types import (
     BlobType,
     BooleanType,
     CharType,
+    CustomType,
+    DataType,
     DateType,
     DateTimeType,
     DecimalType,
     DoubleType,
     FloatType,
     IntegerType,
+    IntType,
     JsonBType,
     JsonType,
     RealType,
@@ -68,16 +71,20 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
     Implements ``DDLTypeSupport`` so the dialect can render ``DataType``
     expressions to SQL strings and parse raw SQL type strings back into
     ``DataType`` instances.
+
+    Formatting dispatches by the type instance's ``name`` through the
+    naming-convention ``format_data_type_<name>`` methods (see
+    ``DDLTypeMixin``). MySQL-specific types carry ``mysql_``-prefixed
+    names; core types render their real MySQL SQL.
     """
 
     # ------------------------------------------------------------------
     # DDLTypeSupport — formatting
     # ------------------------------------------------------------------
 
-    # --- MySQL-specific type formatters ---
+    # --- MySQL-specific type formatters (dispatch key = type name) ---
 
-    @DDLTypeMixin.handles(MySQLTinyIntType)
-    def format_data_type_tiny_int(self, data_type: MySQLTinyIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinyint(self, data_type: MySQLTinyIntType) -> Tuple[str, tuple]:
         sql = "TINYINT"
         if data_type.zerofill:
             return f"{sql} ZEROFILL", ()
@@ -85,8 +92,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             return f"{sql} UNSIGNED", ()
         return sql, ()
 
-    @DDLTypeMixin.handles(MySQLSmallIntType)
-    def format_data_type_small_int(self, data_type: MySQLSmallIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_smallint(self, data_type: MySQLSmallIntType) -> Tuple[str, tuple]:
         sql = "SMALLINT"
         if data_type.zerofill:
             return f"{sql} ZEROFILL", ()
@@ -94,8 +100,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             return f"{sql} UNSIGNED", ()
         return sql, ()
 
-    @DDLTypeMixin.handles(MySQLIntType)
-    def format_data_type_int(self, data_type: MySQLIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_int(self, data_type: MySQLIntType) -> Tuple[str, tuple]:
         sql = "INT"
         if data_type.zerofill:
             return f"{sql} ZEROFILL", ()
@@ -103,8 +108,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             return f"{sql} UNSIGNED", ()
         return sql, ()
 
-    @DDLTypeMixin.handles(MySQLBigIntType)
-    def format_data_type_big_int(self, data_type: MySQLBigIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_bigint(self, data_type: MySQLBigIntType) -> Tuple[str, tuple]:
         sql = "BIGINT"
         if data_type.zerofill:
             return f"{sql} ZEROFILL", ()
@@ -112,64 +116,51 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             return f"{sql} UNSIGNED", ()
         return sql, ()
 
-    @DDLTypeMixin.handles(MySQLTinyBlobType)
-    def format_data_type_tiny_blob(self, data_type: MySQLTinyBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinyblob(self, data_type: MySQLTinyBlobType) -> Tuple[str, tuple]:
         return "TINYBLOB", ()
 
-    @DDLTypeMixin.handles(MySQLBlobType)
-    def format_data_type_blob(self, data_type: MySQLBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_blob(self, data_type: MySQLBlobType) -> Tuple[str, tuple]:
         return "BLOB", ()
 
-    @DDLTypeMixin.handles(MySQLMediumBlobType)
-    def format_data_type_medium_blob(self, data_type: MySQLMediumBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumblob(self, data_type: MySQLMediumBlobType) -> Tuple[str, tuple]:
         return "MEDIUMBLOB", ()
 
-    @DDLTypeMixin.handles(MySQLLongBlobType)
-    def format_data_type_long_blob(self, data_type: MySQLLongBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_longblob(self, data_type: MySQLLongBlobType) -> Tuple[str, tuple]:
         return "LONGBLOB", ()
 
-    @DDLTypeMixin.handles(MySQLTinyTextType)
-    def format_data_type_tiny_text(self, data_type: MySQLTinyTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinytext(self, data_type: MySQLTinyTextType) -> Tuple[str, tuple]:
         return "TINYTEXT", ()
 
-    @DDLTypeMixin.handles(MySQLTextType)
-    def format_data_type_text(self, data_type: MySQLTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_text(self, data_type: MySQLTextType) -> Tuple[str, tuple]:
         return "TEXT", ()
 
-    @DDLTypeMixin.handles(MySQLMediumTextType)
-    def format_data_type_medium_text(self, data_type: MySQLMediumTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumtext(self, data_type: MySQLMediumTextType) -> Tuple[str, tuple]:
         return "MEDIUMTEXT", ()
 
-    @DDLTypeMixin.handles(MySQLLongTextType)
-    def format_data_type_long_text(self, data_type: MySQLLongTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_longtext(self, data_type: MySQLLongTextType) -> Tuple[str, tuple]:
         return "LONGTEXT", ()
 
-    @DDLTypeMixin.handles(MySQLBitType)
-    def format_data_type_bit(self, data_type: MySQLBitType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_bit(self, data_type: MySQLBitType) -> Tuple[str, tuple]:
         if data_type.n is not None:
             return f"BIT({data_type.n})", ()
         return "BIT", ()
 
-    @DDLTypeMixin.handles(MySQLYearType)
-    def format_data_type_year(self, data_type: MySQLYearType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_year(self, data_type: MySQLYearType) -> Tuple[str, tuple]:
         if data_type.display_width is not None:
             return f"YEAR({data_type.display_width})", ()
         return "YEAR", ()
 
-    @DDLTypeMixin.handles(MySQLBinaryType)
-    def format_data_type_binary(self, data_type: MySQLBinaryType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_binary(self, data_type: MySQLBinaryType) -> Tuple[str, tuple]:
         if data_type.length is not None:
             return f"BINARY({data_type.length})", ()
         return "BINARY", ()
 
-    @DDLTypeMixin.handles(MySQLVarBinaryType)
-    def format_data_type_var_binary(self, data_type: MySQLVarBinaryType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_varbinary(self, data_type: MySQLVarBinaryType) -> Tuple[str, tuple]:
         if data_type.length is not None:
             return f"VARBINARY({data_type.length})", ()
         return "VARBINARY", ()
 
-    @DDLTypeMixin.handles(MySQLEnumType)
-    def format_data_type_enum(self, data_type: MySQLEnumType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_enum(self, data_type: MySQLEnumType) -> Tuple[str, tuple]:
         values_str = ",".join(f"'{v}'" for v in data_type.values)
         result = f"ENUM({values_str})"
         if data_type.charset:
@@ -178,8 +169,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             result += f" COLLATE {data_type.collation}"
         return result, ()
 
-    @DDLTypeMixin.handles(MySQLSetType)
-    def format_data_type_set(self, data_type: MySQLSetType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_set(self, data_type: MySQLSetType) -> Tuple[str, tuple]:
         values_str = ",".join(f"'{v}'" for v in data_type.values)
         result = f"SET({values_str})"
         if data_type.charset:
@@ -188,135 +178,105 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             result += f" COLLATE {data_type.collation}"
         return result, ()
 
-    @DDLTypeMixin.handles(MySQLGeometryType)
-    def format_data_type_geometry(self, data_type: MySQLGeometryType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_geometry(self, data_type: MySQLGeometryType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"GEOMETRY SRID {data_type.srid}", ()
         return "GEOMETRY", ()
 
-    @DDLTypeMixin.handles(MySQLPointType)
-    def format_data_type_point(self, data_type: MySQLPointType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_point(self, data_type: MySQLPointType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"POINT SRID {data_type.srid}", ()
         return "POINT", ()
 
-    @DDLTypeMixin.handles(MySQLLineStringType)
-    def format_data_type_line_string(self, data_type: MySQLLineStringType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_linestring(self, data_type: MySQLLineStringType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"LINESTRING SRID {data_type.srid}", ()
         return "LINESTRING", ()
 
-    @DDLTypeMixin.handles(MySQLPolygonType)
-    def format_data_type_polygon(self, data_type: MySQLPolygonType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_polygon(self, data_type: MySQLPolygonType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"POLYGON SRID {data_type.srid}", ()
         return "POLYGON", ()
 
-    @DDLTypeMixin.handles(MySQLMultiPointType)
-    def format_data_type_multi_point(self, data_type: MySQLMultiPointType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_multipoint(self, data_type: MySQLMultiPointType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"MULTIPOINT SRID {data_type.srid}", ()
         return "MULTIPOINT", ()
 
-    @DDLTypeMixin.handles(MySQLMultiLineStringType)
-    def format_data_type_multi_line_string(self, data_type: MySQLMultiLineStringType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_multilinestring(self, data_type: MySQLMultiLineStringType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"MULTILINESTRING SRID {data_type.srid}", ()
         return "MULTILINESTRING", ()
 
-    @DDLTypeMixin.handles(MySQLMultiPolygonType)
-    def format_data_type_multi_polygon(self, data_type: MySQLMultiPolygonType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_multipolygon(self, data_type: MySQLMultiPolygonType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"MULTIPOLYGON SRID {data_type.srid}", ()
         return "MULTIPOLYGON", ()
 
-    @DDLTypeMixin.handles(MySQLGeometryCollectionType)
-    def format_data_type_geometry_collection(self, data_type: MySQLGeometryCollectionType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_geometrycollection(self, data_type: MySQLGeometryCollectionType) -> Tuple[str, tuple]:
         if data_type.srid is not None:
             return f"GEOMETRYCOLLECTION SRID {data_type.srid}", ()
         return "GEOMETRYCOLLECTION", ()
 
-    @DDLTypeMixin.handles(MySQLVectorType)
-    def format_data_type_vector(self, data_type: MySQLVectorType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_vector(self, data_type: MySQLVectorType) -> Tuple[str, tuple]:
         return f"VECTOR({data_type.dim})", ()
 
-    # --- Core type overrides (MySQL-specific SQL) ---
+    # --- Core types (pure names) rendered to real MySQL SQL ---
 
-    @DDLTypeMixin.handles(DoubleType)
-    def format_data_type_double(self, data_type: DoubleType) -> Tuple[str, tuple]:
-        return "DOUBLE", ()
-
-    @DDLTypeMixin.handles(BooleanType)
-    def format_data_type_boolean(self, data_type: BooleanType) -> Tuple[str, tuple]:
-        return "TINYINT(1)", ()
-
-    @DDLTypeMixin.handles(TimeTzType)
-    def format_data_type_timetz(self, data_type: TimeTzType) -> Tuple[str, tuple]:
-        return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
-
-    @DDLTypeMixin.handles(TimestampTzType)
-    def format_data_type_timestamptz(self, data_type: TimestampTzType) -> Tuple[str, tuple]:
-        return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
-
-    @DDLTypeMixin.handles(JsonBType)
-    def format_data_type_jsonb(self, data_type: JsonBType) -> Tuple[str, tuple]:
-        return "JSON", ()
-
-    # --- Core type handlers (render standard types to MySQL SQL) ---
-
-    @DDLTypeMixin.handles(IntegerType)
     def format_data_type_integer(self, data_type: IntegerType) -> Tuple[str, tuple]:
         return "INT", ()
 
-    @DDLTypeMixin.handles(BigIntType)
+    def format_data_type_int(self, data_type: IntType) -> Tuple[str, tuple]:
+        return "INT", ()
+
     def format_data_type_bigint(self, data_type: BigIntType) -> Tuple[str, tuple]:
         return "BIGINT", ()
 
-    @DDLTypeMixin.handles(SmallIntType)
     def format_data_type_smallint(self, data_type: SmallIntType) -> Tuple[str, tuple]:
         return "SMALLINT", ()
 
-    @DDLTypeMixin.handles(TinyIntType)
     def format_data_type_tinyint(self, data_type: TinyIntType) -> Tuple[str, tuple]:
         return "TINYINT", ()
 
-    @DDLTypeMixin.handles(VarCharType)
     def format_data_type_varchar(self, data_type: VarCharType) -> Tuple[str, tuple]:
         return (f"VARCHAR({data_type.length})" if data_type.length is not None else "VARCHAR"), ()
 
-    @DDLTypeMixin.handles(CharType)
     def format_data_type_char(self, data_type: CharType) -> Tuple[str, tuple]:
         return (f"CHAR({data_type.length})" if data_type.length is not None else "CHAR"), ()
 
-    @DDLTypeMixin.handles(TextType)
-    def format_data_type_text_core(self, data_type: TextType) -> Tuple[str, tuple]:
+    def format_data_type_text(self, data_type: TextType) -> Tuple[str, tuple]:
         return "TEXT", ()
 
-    @DDLTypeMixin.handles(DateTimeType)
-    def format_data_type_datetime(self, data_type: DateTimeType) -> Tuple[str, tuple]:
-        return (f"DATETIME({data_type.precision})" if data_type.precision is not None else "DATETIME"), ()
+    def format_data_type_boolean(self, data_type: BooleanType) -> Tuple[str, tuple]:
+        return "TINYINT(1)", ()
 
-    @DDLTypeMixin.handles(DateType)
     def format_data_type_date(self, data_type: DateType) -> Tuple[str, tuple]:
         return "DATE", ()
 
-    @DDLTypeMixin.handles(TimeType)
+    def format_data_type_datetime(self, data_type: DateTimeType) -> Tuple[str, tuple]:
+        return (f"DATETIME({data_type.precision})" if data_type.precision is not None else "DATETIME"), ()
+
     def format_data_type_time(self, data_type: TimeType) -> Tuple[str, tuple]:
         return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
 
-    @DDLTypeMixin.handles(TimestampType)
+    def format_data_type_timetz(self, data_type: TimeTzType) -> Tuple[str, tuple]:
+        return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
+
     def format_data_type_timestamp(self, data_type: TimestampType) -> Tuple[str, tuple]:
         return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
 
-    @DDLTypeMixin.handles(FloatType)
+    def format_data_type_timestamptz(self, data_type: TimestampTzType) -> Tuple[str, tuple]:
+        return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
+
     def format_data_type_float(self, data_type: FloatType) -> Tuple[str, tuple]:
         return (f"FLOAT({data_type.precision})" if data_type.precision is not None else "FLOAT"), ()
 
-    @DDLTypeMixin.handles(RealType)
     def format_data_type_real(self, data_type: RealType) -> Tuple[str, tuple]:
         return "REAL", ()
 
-    @DDLTypeMixin.handles(DecimalType)
+    def format_data_type_double(self, data_type: DoubleType) -> Tuple[str, tuple]:
+        return "DOUBLE", ()
+
     def format_data_type_decimal(self, data_type: DecimalType) -> Tuple[str, tuple]:
         if data_type.precision is not None and data_type.scale is not None:
             return f"DECIMAL({data_type.precision}, {data_type.scale})", ()
@@ -324,13 +284,17 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             return f"DECIMAL({data_type.precision})", ()
         return "DECIMAL", ()
 
-    @DDLTypeMixin.handles(JsonType)
     def format_data_type_json(self, data_type: JsonType) -> Tuple[str, tuple]:
         return "JSON", ()
 
-    @DDLTypeMixin.handles(BlobType)
-    def format_data_type_blob_core(self, data_type: BlobType) -> Tuple[str, tuple]:
+    def format_data_type_jsonb(self, data_type: JsonBType) -> Tuple[str, tuple]:
+        return "JSON", ()
+
+    def format_data_type_blob(self, data_type: BlobType) -> Tuple[str, tuple]:
         return "BLOB", ()
+
+    def format_data_type_custom(self, data_type: CustomType) -> Tuple[str, tuple]:
+        return data_type.raw, ()
 
     # ------------------------------------------------------------------
     # DDLTypeSupport — parsing
@@ -388,7 +352,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             nums = re.findall(r"\d+", stripped)
             n = int(nums[0]) if nums else None
             from ..expression.types import MySQLBitType
-            return MySQLBitType(n)
+            return MySQLBitType(n, self)
 
         # Integer family
         if self._MYSQL_INTEGER_TYPES.match(upper):
@@ -398,72 +362,62 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 nums = re.findall(r"\d+", stripped)
                 display_width = int(nums[0]) if nums else None
                 from ..expression.types import MySQLTinyIntType
-                t = MySQLTinyIntType()
-                t.unsigned = unsigned
-                t.zerofill = zerofill
+                t = MySQLTinyIntType(unsigned=unsigned, zerofill=zerofill, dialect=self)
                 # TINYINT(1) is commonly used as BOOLEAN
                 if display_width == 1 and not unsigned and not zerofill:
-                    return BooleanType()
+                    return BooleanType(self)
                 return t
             if upper.startswith("SMALLINT"):
                 from ..expression.types import MySQLSmallIntType
-                t = MySQLSmallIntType()
-                t.unsigned = unsigned
-                t.zerofill = zerofill
+                t = MySQLSmallIntType(unsigned=unsigned, zerofill=zerofill, dialect=self)
                 return t
             if upper.startswith("MEDIUMINT"):
                 from ..expression.types import MySQLIntType
-                t = MySQLIntType()
-                t.unsigned = unsigned
-                t.zerofill = zerofill
+                t = MySQLIntType(unsigned=unsigned, zerofill=zerofill, dialect=self)
                 return t
             if upper.startswith("BIGINT"):
                 from ..expression.types import MySQLBigIntType
-                t = MySQLBigIntType()
-                t.unsigned = unsigned
-                t.zerofill = zerofill
+                t = MySQLBigIntType(unsigned=unsigned, zerofill=zerofill, dialect=self)
                 return t
             # INT / INTEGER
             from ..expression.types import MySQLIntType
-            t = MySQLIntType()
-            t.unsigned = unsigned
-            t.zerofill = zerofill
+            t = MySQLIntType(unsigned=unsigned, zerofill=zerofill, dialect=self)
             return t
 
         # Float family
         if self._MYSQL_FLOAT_TYPES.match(upper):
             if upper.startswith("DOUBLE"):
-                return DoubleType()
+                return DoubleType(self)
             if upper.startswith("REAL"):
-                return RealType()
+                return RealType(self)
             # FLOAT
             nums = re.findall(r"\d+", stripped)
             precision = int(nums[0]) if nums else None
-            return FloatType(precision)
+            return FloatType(precision, self)
 
         # Decimal family
         if self._MYSQL_DECIMAL_TYPES.match(upper):
             nums = re.findall(r"\d+", stripped)
             if len(nums) >= 2:
-                return DecimalType(int(nums[0]), int(nums[1]))
+                return DecimalType(int(nums[0]), int(nums[1]), self)
             if len(nums) == 1:
-                return DecimalType(int(nums[0]))
-            return DecimalType()
+                return DecimalType(int(nums[0]), self)
+            return DecimalType(self)
 
         # String family
         if self._MYSQL_STRING_TYPES.match(upper):
             if upper.startswith("TINYTEXT"):
                 from ..expression.types import MySQLTinyTextType
-                return MySQLTinyTextType()
+                return MySQLTinyTextType(self)
             if upper.startswith("MEDIUMTEXT"):
                 from ..expression.types import MySQLMediumTextType
-                return MySQLMediumTextType()
+                return MySQLMediumTextType(self)
             if upper.startswith("LONGTEXT"):
                 from ..expression.types import MySQLLongTextType
-                return MySQLLongTextType()
+                return MySQLLongTextType(self)
             if upper.startswith("TEXT"):
                 from ..expression.types import MySQLTextType
-                return MySQLTextType()
+                return MySQLTextType(self)
             if upper.startswith("ENUM"):
                 from ..expression.types import MySQLEnumType
                 values = re.findall(r"'([^']*)'", stripped)
@@ -475,7 +429,7 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 col_match = re.search(r"COLLATE\s+(\w+)", upper)
                 if col_match:
                     collation = col_match.group(1)
-                return MySQLEnumType(values, charset=charset, collation=collation)
+                return MySQLEnumType(values, charset=charset, collation=collation, dialect=self)
             if upper.startswith("SET"):
                 from ..expression.types import MySQLSetType
                 values = re.findall(r"'([^']*)'", stripped)
@@ -487,37 +441,37 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 col_match = re.search(r"COLLATE\s+(\w+)", upper)
                 if col_match:
                     collation = col_match.group(1)
-                return MySQLSetType(values, charset=charset, collation=collation)
+                return MySQLSetType(values, charset=charset, collation=collation, dialect=self)
             if upper.startswith("BINARY"):
                 nums = re.findall(r"\d+", stripped)
                 length = int(nums[0]) if nums else None
                 from ..expression.types import MySQLBinaryType
-                return MySQLBinaryType(length)
+                return MySQLBinaryType(length, self)
             if upper.startswith("VARBINARY"):
                 nums = re.findall(r"\d+", stripped)
                 length = int(nums[0]) if nums else None
                 from ..expression.types import MySQLVarBinaryType
-                return MySQLVarBinaryType(length)
+                return MySQLVarBinaryType(length, self)
             # CHAR / VARCHAR
             length_match = re.search(r"\((\d+)\)", stripped)
             length = int(length_match.group(1)) if length_match else None
             if upper.startswith("VARCHAR"):
-                return VarCharType(length)
-            return CharType(length)
+                return VarCharType(length, self)
+            return CharType(length, self)
 
         # BLOB family
         if self._MYSQL_BLOB_TYPES.match(upper):
             if upper.startswith("TINYBLOB"):
                 from ..expression.types import MySQLTinyBlobType
-                return MySQLTinyBlobType()
+                return MySQLTinyBlobType(self)
             if upper.startswith("MEDIUMBLOB"):
                 from ..expression.types import MySQLMediumBlobType
-                return MySQLMediumBlobType()
+                return MySQLMediumBlobType(self)
             if upper.startswith("LONGBLOB"):
                 from ..expression.types import MySQLLongBlobType
-                return MySQLLongBlobType()
+                return MySQLLongBlobType(self)
             from ..expression.types import MySQLBlobType
-            return MySQLBlobType()
+            return MySQLBlobType(self)
 
         # Date/time family
         if self._MYSQL_DATE_TYPES.match(upper):
@@ -525,31 +479,31 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
                 nums = re.findall(r"\d+", stripped)
                 display_width = int(nums[0]) if nums else None
                 from ..expression.types import MySQLYearType
-                return MySQLYearType(display_width)
+                return MySQLYearType(display_width, self)
             if upper.startswith("DATE"):
                 if upper.strip() == "DATE":
-                    return DateType()
-                return DateTimeType()
+                    return DateType(self)
+                return DateTimeType(dialect=self)
             if upper.startswith("DATETIME"):
                 nums = re.findall(r"\d+", stripped)
                 precision = int(nums[0]) if nums else None
-                return DateTimeType(precision)
+                return DateTimeType(precision, self)
             if upper.startswith("TIMESTAMP"):
                 nums = re.findall(r"\d+", stripped)
                 precision = int(nums[0]) if nums else None
                 if "WITH TIME ZONE" in upper:
-                    return TimestampTzType(precision)
-                return TimestampType(precision)
+                    return TimestampTzType(precision, self)
+                return TimestampType(precision, self)
             if upper.startswith("TIME"):
                 nums = re.findall(r"\d+", stripped)
                 precision = int(nums[0]) if nums else None
                 if "WITH TIME ZONE" in upper:
-                    return TimeTzType(precision)
-                return TimeType(precision)
+                    return TimeTzType(precision, self)
+                return TimeType(precision, self)
 
         # JSON
         if self._MYSQL_JSON_TYPES.match(upper):
-            return JsonType()
+            return JsonType(self)
 
         # Spatial
         if self._MYSQL_SPATIAL_TYPES.match(upper):
@@ -579,16 +533,16 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
             }
             for name, cls in spatial_map.items():
                 if upper.startswith(name):
-                    return cls(srid)
-            return MySQLGeometryType(srid)
+                    return cls(srid, self)
+            return MySQLGeometryType(srid, self)
 
         # Vector (MySQL 9.0+)
         if self._MYSQL_VECTOR_TYPES.match(upper):
             nums = re.findall(r"\d+", stripped)
             dim = int(nums[0]) if nums else 0
             from ..expression.types import MySQLVectorType
-            return MySQLVectorType(dim)
+            return MySQLVectorType(dim, self)
 
         # Fallback
         from rhosocial.activerecord.backend.expression.types import CustomType
-        return CustomType(stripped)
+        return CustomType(stripped, self)

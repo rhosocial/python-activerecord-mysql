@@ -543,6 +543,26 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format ALTER TABLE ... COALESCE PARTITION."""
         ...
 
+    def format_add_partition_helper(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLAddPartitionHelper (generated partition names)."""
+        ...
+
+    def format_coalesce_partition_helper(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLCoalescePartitionHelper (with count validation)."""
+        ...
+
+    def format_drop_oldest_partition_helper(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLDropOldestPartitionHelper (lexicographically oldest)."""
+        ...
+
+    def format_reorganize_partition_helper(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLReorganizePartitionHelper."""
+        ...
+
+    def format_add_subpartition_helper(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLAddSubpartitionHelper (partition + subpartitions)."""
+        ...
+
     def format_analyze_partition_statement(
         self,
         expr: "MySQLAnalyzePartitionExpression",
@@ -686,17 +706,8 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """
         ...
 
-    def format_json_extract(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
-        """Format JSON_EXTRACT function call.
-
-        Args:
-            json_doc: JSON document or column
-            path: JSON path expression
-            paths: Additional path expressions (MySQL 5.7.9+ multi-path)
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def format_json_extract(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONExtractExpression node."""
         ...
 
     def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
@@ -710,30 +721,16 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """
         ...
 
-    def format_json_object(self, key_value_pairs: List[Tuple[str, Any]]) -> Tuple[str, tuple]:
-        """Format JSON_OBJECT function call.
-
-        Args:
-            key_value_pairs: List of (key, value) tuples
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def format_json_object(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONObjectExpression node."""
         ...
 
-    def format_json_array(self, values: List[Any]) -> Tuple[str, tuple]:
-        """Format JSON_ARRAY function call.
-
-        Args:
-            values: Values to include in the JSON array
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def format_json_array(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONArrayExpression node."""
         ...
 
-    def format_json_contains(self, target: str, candidate: str, path: Optional[str] = None) -> Tuple[str, tuple]:
-        """Format JSON_CONTAINS function call.
+    def format_json_contains(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONContainsExpression node.
 
         Args:
             target: JSON document or column to search in
@@ -883,7 +880,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_geom_from_text(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
+    def format_st_geom_from_text(self, expr: Any) -> Tuple[str, tuple]:
         """Format ST_GeomFromText function call.
 
         Args:
@@ -929,7 +926,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_distance(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
+    def format_st_distance(self, expr: Any) -> Tuple[str, tuple]:
         """Format ST_Distance function call.
 
         Args:
@@ -941,7 +938,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_within(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
+    def format_st_within(self, expr: Any) -> Tuple[str, tuple]:
         """Format ST_Within function call.
 
         Args:
@@ -953,7 +950,7 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_st_contains(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
+    def format_st_contains(self, expr: Any) -> Tuple[str, tuple]:
         """Format ST_Contains function call.
 
         Args:
@@ -1012,7 +1009,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_vector_literal(self, values: List[float]) -> Tuple[str, tuple]:
+    def format_vector_literal(self, expr: Any) -> Tuple[str, tuple]:
         """Format vector literal from a list of float values.
 
         Args:
@@ -1056,7 +1053,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_distance_euclidean(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
+    def format_distance_euclidean(self, expr: Any) -> Tuple[str, tuple]:
         """Format EUCLIDEAN_DISTANCE function call.
 
         Args:
@@ -1068,7 +1065,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_distance_cosine(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
+    def format_distance_cosine(self, expr: Any) -> Tuple[str, tuple]:
         """Format COSINE_DISTANCE function call.
 
         Args:
@@ -1080,7 +1077,7 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_distance_dot(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
+    def format_distance_dot(self, expr: Any) -> Tuple[str, tuple]:
         """Format DOT_PRODUCT function call.
 
         Args:
@@ -1153,19 +1150,8 @@ class MySQLFullTextSearchSupport(IndexSupport, Protocol):
         """Whether query expansion mode is supported (MySQL 5.6.7+)."""
         ...
 
-    def format_match_against(
-        self, columns: List[str], search_string: str, mode: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format MATCH ... AGAINST expression.
-
-        Args:
-            columns: Column names to search
-            search_string: Search string
-            mode: Search mode (None, 'NATURAL_LANGUAGE', 'BOOLEAN', 'QUERY_EXPANSION')
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
+    def format_match_against(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLMatchAgainstExpression node."""
         ...
 
     def format_fulltext_index_options(

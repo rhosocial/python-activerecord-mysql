@@ -83,8 +83,9 @@ class TestMySQLDialectSecurityIntegration:
 
         with pytest.raises(TypeError, match="data_type must be a DataType instance"):
             ColumnDefinition(
-                name="test_col",
-                data_type="VARCHAR(255); DROP TABLE users--",
+                mysql_backend.dialect,
+                "test_col",
+                "VARCHAR(255); DROP TABLE users--",
             )
 
 

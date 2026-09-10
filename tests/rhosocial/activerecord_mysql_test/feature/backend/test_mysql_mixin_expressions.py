@@ -439,7 +439,7 @@ class TestMySQLTableDDLExpressions:
     def test_create_table_like(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         expr = CreateTableExpression(
             dialect=dialect,
             table="new_table",
@@ -452,7 +452,7 @@ class TestMySQLTableDDLExpressions:
     def test_create_table_like_temporary(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         expr = CreateTableExpression(
             dialect=dialect,
             table="tmp_table",
@@ -468,7 +468,7 @@ class TestMySQLTableDDLExpressions:
     def test_create_table_like_with_schema(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         expr = CreateTableExpression(
             dialect=dialect,
             table="new_table",
@@ -481,7 +481,7 @@ class TestMySQLTableDDLExpressions:
     def test_create_table_like_if_not_exists(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         expr = CreateTableExpression(
             dialect=dialect,
             table="new_table",
@@ -497,10 +497,12 @@ class TestMySQLTableDDLExpressions:
         from rhosocial.activerecord.backend.expression.core import Literal
         columns = [
             ColumnDefinition(
+                dialect,
                 "created_at",
-                DateTimeType(),
+                DateTimeType(dialect=dialect),
                 constraints=[
                     ColumnConstraint(
+                        dialect,
                         ColumnConstraintType.DEFAULT,
                         default_value=Literal(dialect, "NOW()"),
                     )
@@ -511,16 +513,16 @@ class TestMySQLTableDDLExpressions:
         expr = CreateTableExpression(dialect=dialect, table="t", columns=columns)
         sql, params = expr.to_sql()
         assert "DEFAULT" in sql
-        assert "%s" in sql
+        assert params == ()
 
     def test_column_default_string(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [
-            ColumnDefinition(
+            ColumnDefinition(dialect, 
                 "status",
                 VarCharType(20),
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.DEFAULT, default_value="active")
+                    ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value="active")
                 ],
             ),
         ]
@@ -532,11 +534,11 @@ class TestMySQLTableDDLExpressions:
     def test_column_default_numeric(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [
-            ColumnDefinition(
+            ColumnDefinition(dialect, 
                 "count",
                 IntegerType(),
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0)
+                    ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value=0)
                 ],
             ),
         ]
@@ -548,10 +550,10 @@ class TestMySQLTableDDLExpressions:
     def test_column_nullable(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [
-            ColumnDefinition(
+            ColumnDefinition(dialect, 
                 "optional",
                 VarCharType(100),
-                constraints=[ColumnConstraint(ColumnConstraintType.NULL)],
+                constraints=[ColumnConstraint(dialect, ColumnConstraintType.NULL)],
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
@@ -562,10 +564,10 @@ class TestMySQLTableDDLExpressions:
     def test_column_unique(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [
-            ColumnDefinition(
+            ColumnDefinition(dialect, 
                 "email",
                 VarCharType(255),
-                constraints=[ColumnConstraint(ColumnConstraintType.UNIQUE)],
+                constraints=[ColumnConstraint(dialect, ColumnConstraintType.UNIQUE)],
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
@@ -575,9 +577,9 @@ class TestMySQLTableDDLExpressions:
 
     def test_named_table_constraint(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         table_constraints = [
-            TableConstraint(
+            TableConstraint(dialect, 
                 constraint_type=TableConstraintType.PRIMARY_KEY,
                 name="pk_users",
                 columns=["id"],
@@ -594,9 +596,9 @@ class TestMySQLTableDDLExpressions:
 
     def test_foreign_key_table_constraint(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        columns = [ColumnDefinition("user_id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "user_id", IntegerType())]
         table_constraints = [
-            TableConstraint(
+            TableConstraint(dialect, 
                 constraint_type=TableConstraintType.FOREIGN_KEY,
                 name="fk_orders_user",
                 columns=["user_id"],
@@ -615,10 +617,10 @@ class TestMySQLTableDDLExpressions:
 
     def test_foreign_key_named_constraint_via_subclass(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        columns = [ColumnDefinition("order_id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "order_id", IntegerType())]
         table_constraints = [
             ForeignKeyConstraint(
-                constraint_type=TableConstraintType.FOREIGN_KEY,
+                dialect,
                 name="fk_payments_order",
                 columns=["order_id"],
                 foreign_key_table="orders",
@@ -638,7 +640,7 @@ class TestMySQLTableDDLExpressions:
     def test_temporary_table(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         expr = CreateTableExpression(
             dialect=dialect, table="tmp", columns=columns, temporary=True
         )
@@ -648,8 +650,8 @@ class TestMySQLTableDDLExpressions:
 
     def test_inline_index_with_type_numeric(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        columns = [ColumnDefinition("id", IntegerType())]
-        indexes = [IndexDefinition("idx_id", ["id"], type="BTREE")]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
+        indexes = [IndexDefinition(dialect, "idx_id", ["id"], type="BTREE")]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         expr = CreateTableExpression(
             dialect=dialect, table="t", columns=columns, indexes=indexes
@@ -660,7 +662,7 @@ class TestMySQLTableDDLExpressions:
     def test_numeric_storage_option(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition("id", IntegerType())]
+        columns = [ColumnDefinition(dialect, "id", IntegerType())]
         expr = CreateTableExpression(
             dialect=dialect, table="t", columns=columns,
             storage_options={"AUTO_INCREMENT": 1000, "ENGINE": "InnoDB"}
@@ -681,7 +683,7 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition("name", VarCharType(200)),
+            column=ColumnDefinition(dialect, "name", VarCharType(200)),
         )
         expr = AlterTableExpression(
             dialect=dialect, table_name="users", actions=[action]
@@ -694,7 +696,7 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition("name", VarCharType(200)),
+            column=ColumnDefinition(dialect, "name", VarCharType(200)),
             first=True,
         )
         expr = AlterTableExpression(
@@ -708,7 +710,7 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition("name", VarCharType(200)),
+            column=ColumnDefinition(dialect, "name", VarCharType(200)),
             after_column="id",
         )
         expr = AlterTableExpression(
@@ -723,7 +725,7 @@ class TestMySQLColumnModificationExpressions:
         action = ChangeColumn(
             dialect=dialect,
             old_name="username",
-            column=ColumnDefinition("login_name", VarCharType(150)),
+            column=ColumnDefinition(dialect, "login_name", VarCharType(150)),
         )
         expr = AlterTableExpression(
             dialect=dialect, table_name="users", actions=[action]
@@ -736,7 +738,7 @@ class TestMySQLColumnModificationExpressions:
         action = ChangeColumn(
             dialect=dialect,
             old_name="name",
-            column=ColumnDefinition("full_name", VarCharType(300)),
+            column=ColumnDefinition(dialect, "full_name", VarCharType(300)),
             first=True,
         )
         expr = AlterTableExpression(
@@ -751,7 +753,7 @@ class TestMySQLColumnModificationExpressions:
         action = ChangeColumn(
             dialect=dialect,
             old_name="name",
-            column=ColumnDefinition("full_name", VarCharType(300)),
+            column=ColumnDefinition(dialect, "full_name", VarCharType(300)),
             after_column="id",
         )
         expr = AlterTableExpression(
@@ -765,11 +767,11 @@ class TestMySQLColumnModificationExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = ModifyColumn(
             dialect=dialect,
-            column=ColumnDefinition(
+            column=ColumnDefinition(dialect, 
                 "email",
                 VarCharType(255),
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.NOT_NULL),
+                    ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
                 ],
             ),
         )
@@ -792,7 +794,7 @@ class TestMySQLAlterTableModifierGuards:
         dialect = MySQLDialect(version=(8, 0, 0))
         action = AddColumn(
             dialect=dialect,
-            column=ColumnDefinition("email", VarCharType(255)),
+            column=ColumnDefinition(dialect, "email", VarCharType(255)),
             if_not_exists=True,
         )
         with pytest.raises(UnsupportedFeatureError):
@@ -817,7 +819,7 @@ class TestMySQLAlterTableModifierGuards:
 
         add_action = AddColumn(
             dialect=dialect,
-            column=ColumnDefinition("email", VarCharType(255)),
+            column=ColumnDefinition(dialect, "email", VarCharType(255)),
         )
         add_sql, _ = add_action.to_sql()
         assert "ADD COLUMN" in add_sql
@@ -905,29 +907,29 @@ class TestMySQLJSONExpressions:
 
     def test_json_object_empty(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_object([])
+        sql, params = dialect._format_json_object_parts([])
         assert "JSON_OBJECT()" == sql
 
     def test_json_object_with_pairs(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_object([("name", "John"), ("age", 30)])
+        sql, params = dialect._format_json_object_parts([("name", "John"), ("age", 30)])
         assert "JSON_OBJECT(%s, %s, %s, %s)" == sql
         assert params == ("name", "John", "age", 30)
 
     def test_json_array_empty(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_array([])
+        sql, params = dialect._format_json_array_parts([])
         assert "JSON_ARRAY()" == sql
 
     def test_json_contains_without_path(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_contains("`data`", '"target"')
+        sql, params = dialect._format_json_contains_parts("`data`", '"target"')
         assert "JSON_CONTAINS(`data`, %s)" == sql
         assert params == ('"target"',)
 
     def test_json_contains_with_path(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_contains("`data`", '"target"', "$.path")
+        sql, params = dialect._format_json_contains_parts("`data`", '"target"', "$.path")
         assert "JSON_CONTAINS(`data`, %s, %s)" == sql
         assert params == ('"target"', "$.path")
 

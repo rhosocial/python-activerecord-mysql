@@ -14,6 +14,8 @@ the MySQLJSONAdapter for columns that should be parsed.
 
 import pytest
 
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLJSONExtractExpression
+
 
 class TestMySQLJSONFunctionBackend:
     """Synchronous tests for MySQL JSON functions with real database."""
@@ -130,7 +132,8 @@ class TestMySQLJSONFunctionBackend:
         mysql_backend.execute('INSERT INTO test_format_json_extract (data) VALUES (\'{"name": "John"}\')')
 
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_json_extract("data", "$.name")
+        expr = MySQLJSONExtractExpression(dialect, "data", "$.name")
+        sql, params = expr.to_sql()
 
         result = mysql_backend.execute(f"SELECT {sql} as name FROM test_format_json_extract", params)
 
@@ -267,7 +270,8 @@ class TestAsyncMySQLJSONFunctionBackend:
         )
 
         dialect = async_mysql_backend.dialect
-        sql, params = dialect.format_json_extract("data", "$.name")
+        expr = MySQLJSONExtractExpression(dialect, "data", "$.name")
+        sql, params = expr.to_sql()
 
         result = await async_mysql_backend.execute(f"SELECT {sql} as name FROM test_async_format_json_extract", params)
 

@@ -11,6 +11,12 @@ This module tests MySQL-specific spatial data type functionality including:
 
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLSTContainsExpression,
+    MySQLSTDistanceExpression,
+    MySQLSTGeomFromTextExpression,
+    MySQLSTWithinExpression,
+)
 
 
 class TestSpatialTypeProtocol:
@@ -88,7 +94,8 @@ class TestSpatialTypeProtocol:
         """Test ST_GeomFromText without SRID."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_geom_from_text("LINESTRING(0 0, 1 1)")
+        expr = MySQLSTGeomFromTextExpression(dialect, "LINESTRING(0 0, 1 1)")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_GeomFromText(%s)"
         assert params == ("LINESTRING(0 0, 1 1)",)
@@ -97,7 +104,7 @@ class TestSpatialTypeProtocol:
         """Test ST_GeomFromText with SRID."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_geom_from_text("LINESTRING(0 0, 1 1)", 4326)
+        sql, params = dialect._format_spatial_literal_parts("LINESTRING(0 0, 1 1)", 4326)
 
         assert sql == "ST_GeomFromText(%s, %s)"
         assert params == ("LINESTRING(0 0, 1 1)", 4326)
@@ -141,7 +148,8 @@ class TestSpatialTypeProtocol:
         """Test ST_Distance function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_distance("geom1", "geom2")
+        expr = MySQLSTDistanceExpression(dialect, "geom1", "geom2")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_Distance(geom1, geom2)"
         assert params == ()
@@ -150,7 +158,8 @@ class TestSpatialTypeProtocol:
         """Test ST_Within function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_within("point_geom", "polygon_geom")
+        expr = MySQLSTWithinExpression(dialect, "point_geom", "polygon_geom")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_Within(point_geom, polygon_geom)"
         assert params == ()
@@ -159,7 +168,8 @@ class TestSpatialTypeProtocol:
         """Test ST_Contains function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_contains("polygon_geom", "point_geom")
+        expr = MySQLSTContainsExpression(dialect, "polygon_geom", "point_geom")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_Contains(polygon_geom, point_geom)"
         assert params == ()
@@ -214,7 +224,8 @@ class TestAsyncSpatialTypeProtocol:
         """Test async version of ST_Distance formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_distance("geom1", "geom2")
+        expr = MySQLSTDistanceExpression(dialect, "geom1", "geom2")
+        sql, params = expr.to_sql()
 
         assert "ST_Distance" in sql
         assert params == ()

@@ -22,7 +22,7 @@ map cleanly to the SQL standard DDL/DML layer:
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
@@ -100,8 +100,11 @@ class MySQLFlushExpression(BaseExpression):
         if not self.options:
             raise ValueError("FLUSH requires at least one option")
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_flush_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_flush_statement"
+
 
 
 class MySQLResetExpression(BaseExpression):
@@ -118,8 +121,11 @@ class MySQLResetExpression(BaseExpression):
         self.option: ResetOption = option
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_reset_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_reset_statement"
+
 
 
 class MySQLCacheIndexExpression(BaseExpression):
@@ -139,8 +145,11 @@ class MySQLCacheIndexExpression(BaseExpression):
         self.key_cache: str = key_cache
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_cache_index_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_cache_index_statement"
+
 
 
 class MySQLLoadIndexIntoCacheExpression(BaseExpression):
@@ -157,8 +166,11 @@ class MySQLLoadIndexIntoCacheExpression(BaseExpression):
         self.cache_entries: List[Dict[str, Any]] = list(cache_entries)
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_load_index_into_cache_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_load_index_into_cache_statement"
+
 
 
 class MySQLInstallComponentExpression(BaseExpression):
@@ -175,8 +187,11 @@ class MySQLInstallComponentExpression(BaseExpression):
         self.names: List[str] = list(names)
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_install_component_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_install_component_statement"
+
 
 
 class MySQLUninstallComponentExpression(BaseExpression):
@@ -193,8 +208,11 @@ class MySQLUninstallComponentExpression(BaseExpression):
         self.names: List[str] = list(names)
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_uninstall_component_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_uninstall_component_statement"
+
 
 
 class MySQLInstallPluginExpression(BaseExpression):
@@ -213,8 +231,11 @@ class MySQLInstallPluginExpression(BaseExpression):
         self.soname: str = soname
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_install_plugin_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_install_plugin_statement"
+
 
 
 class MySQLUninstallPluginExpression(BaseExpression):
@@ -231,8 +252,11 @@ class MySQLUninstallPluginExpression(BaseExpression):
         self.plugin_name: str = plugin_name
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_uninstall_plugin_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_uninstall_plugin_statement"
+
 
 
 class MySQLCloneExpression(BaseExpression):
@@ -266,8 +290,11 @@ class MySQLCloneExpression(BaseExpression):
         self.to_data_directory = to_data_directory
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_clone_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_clone_statement"
+
 
 
 class MySQLRestartExpression(BaseExpression):
@@ -282,8 +309,11 @@ class MySQLRestartExpression(BaseExpression):
         super().__init__(dialect)
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_restart_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_restart_statement"
+
 
 
 class MySQLBinlogExpression(BaseExpression):
@@ -300,8 +330,11 @@ class MySQLBinlogExpression(BaseExpression):
         self.encoded: str = encoded
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_binlog_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_binlog_statement"
+
 
 
 class MySQLHandlerOpenExpression(BaseExpression):
@@ -320,8 +353,11 @@ class MySQLHandlerOpenExpression(BaseExpression):
         self.alias = alias
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_handler_open_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_handler_open_statement"
+
 
 
 class MySQLHandlerReadExpression(BaseExpression):
@@ -348,8 +384,11 @@ class MySQLHandlerReadExpression(BaseExpression):
         self.limit = limit
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_handler_read_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_handler_read_statement"
+
 
 
 class MySQLHandlerCloseExpression(BaseExpression):
@@ -366,8 +405,11 @@ class MySQLHandlerCloseExpression(BaseExpression):
         self.table = table
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_handler_close_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_handler_close_statement"
+
 
 
 class MySQLDoExpression(BaseExpression):
@@ -384,8 +426,11 @@ class MySQLDoExpression(BaseExpression):
         self.expressions: List[Any] = list(expressions)
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_do_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_do_statement"
+
 
 
 class MySQLKillExpression(BaseExpression):
@@ -404,8 +449,11 @@ class MySQLKillExpression(BaseExpression):
         self.target: KillTarget = target
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_kill_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_kill_statement"
+
 
 
 class MySQLShutdownExpression(BaseExpression):
@@ -420,8 +468,11 @@ class MySQLShutdownExpression(BaseExpression):
         super().__init__(dialect)
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_shutdown_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_shutdown_statement"
+
 
 
 class MySQLHelpExpression(BaseExpression):
@@ -438,8 +489,11 @@ class MySQLHelpExpression(BaseExpression):
         self.topic: str = topic
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_help_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_help_statement"
+
 
 
 class AccountSpec:
@@ -471,8 +525,11 @@ class MySQLCreateUserExpression(BaseExpression):
         self.identified_by: Optional[str] = identified_by
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_create_user_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_create_user_statement"
+
 
 
 class MySQLDropUserExpression(BaseExpression):
@@ -491,8 +548,11 @@ class MySQLDropUserExpression(BaseExpression):
         self.if_exists: bool = if_exists
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_drop_user_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_drop_user_statement"
+
 
 
 class GrantPrivilege:
@@ -531,8 +591,11 @@ class MySQLGrantExpression(BaseExpression):
         self.with_grant_option: bool = with_grant_option
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_grant_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_grant_statement"
+
 
 
 class MySQLRevokeExpression(BaseExpression):
@@ -553,5 +616,7 @@ class MySQLRevokeExpression(BaseExpression):
         self.on_object: Optional[str] = on_object
         self.dialect_options: Dict[str, Any] = dialect_options or {}
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_revoke_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_revoke_statement"

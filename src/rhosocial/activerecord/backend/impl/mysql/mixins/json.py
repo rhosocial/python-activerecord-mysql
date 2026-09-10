@@ -31,7 +31,16 @@ class MySQLJSONFunctionMixin:
             return self.version >= self._JSON_FUNCTION_VERSIONS[function_name]
         return self.version >= (5, 7, 8)
 
-    def format_json_extract(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
+    def format_json_extract(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONExtractExpression` node."""
+        sql, params = self._format_json_extract_parts(expr.json_column, expr.path)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, params
+
+    def _format_json_extract_parts(
+        self, json_doc: str, path: str, paths: Optional[List[str]] = None
+    ) -> Tuple[str, tuple]:
         """Format JSON_EXTRACT function."""
         all_paths = [path]
         if paths:
@@ -42,7 +51,14 @@ class MySQLJSONFunctionMixin:
     def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
         return f"JSON_UNQUOTE({json_val})", ()
 
-    def format_json_object(self, key_value_pairs: List[Tuple[str, Any]]) -> Tuple[str, tuple]:
+    def format_json_object(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONObjectExpression` node."""
+        sql, params = self._format_json_object_parts(expr.pairs)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, params
+
+    def _format_json_object_parts(self, key_value_pairs: List[Tuple[str, Any]]) -> Tuple[str, tuple]:
         """Format JSON_OBJECT function."""
         if not key_value_pairs:
             return "JSON_OBJECT()", ()
@@ -58,14 +74,28 @@ class MySQLJSONFunctionMixin:
 
         return f"JSON_OBJECT({', '.join(parts)})", tuple(params)
 
-    def format_json_array(self, values: List[Any]) -> Tuple[str, tuple]:
+    def format_json_array(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONArrayExpression` node."""
+        sql, params = self._format_json_array_parts(expr.values)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, params
+
+    def _format_json_array_parts(self, values: List[Any]) -> Tuple[str, tuple]:
         """Format JSON_ARRAY function."""
         if not values:
             return "JSON_ARRAY()", ()
         placeholders = ", ".join(["%s" for _ in values])
         return f"JSON_ARRAY({placeholders})", tuple(values)
 
-    def format_json_contains(self, target: str, candidate: str, path: Optional[str] = None) -> Tuple[str, tuple]:
+    def format_json_contains(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONContainsExpression` node."""
+        sql, params = self._format_json_contains_parts(expr.json_column, expr.value, expr.path)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, params
+
+    def _format_json_contains_parts(self, target: str, candidate: str, path: Optional[str] = None) -> Tuple[str, tuple]:
         """Format JSON_CONTAINS function."""
         if path:
             return f"JSON_CONTAINS({target}, %s, %s)", (candidate, path)
@@ -133,10 +163,6 @@ class MySQLJSONFunctionMixin:
             sql = f"({col_sql} {expr.operation} {self.get_parameter_placeholder()})"
             params = col_params + (expr.path,)
 
-        if expr.cast_types:
-            for target_type in expr.cast_types:
-                sql, params = self.format_cast_expression(sql, target_type, params, None)
-
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
 
@@ -165,10 +191,6 @@ class MySQLJSONFunctionMixin:
         else:
             sql = f"{col_sql} {expr.operation} '{escaped_path}'"
             params = col_params
-
-        if expr.cast_types:
-            for target_type in expr.cast_types:
-                sql, params = self.format_cast_expression(sql, target_type, params, None)
 
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"

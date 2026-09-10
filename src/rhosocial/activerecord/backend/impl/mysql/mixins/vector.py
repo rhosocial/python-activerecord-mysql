@@ -16,7 +16,14 @@ class MySQLVectorMixin:
     def get_max_vector_dimension(self) -> int:
         return self.MAX_VECTOR_DIMENSION
 
-    def format_vector_literal(self, values: List[float]) -> Tuple[str, tuple]:
+    def format_vector_literal(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLVectorExpression` node (VECTOR literal)."""
+        sql, params = self._format_vector_literal_parts(expr.vector)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, params
+
+    def _format_vector_literal_parts(self, values: List[float]) -> Tuple[str, tuple]:
         """Format VECTOR literal value."""
         if len(values) > self.MAX_VECTOR_DIMENSION:
             raise ValueError(
@@ -34,14 +41,23 @@ class MySQLVectorMixin:
     def format_vector_dim(self, vector_col: str) -> Tuple[str, tuple]:
         return f"VECTOR_DIM({vector_col})", ()
 
-    def format_distance_euclidean(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
-        return f"DISTANCE_EUCLIDEAN({vector1}, {vector2})", ()
+    def format_distance_euclidean(self, expr) -> Tuple[str, tuple]:
+        sql = f"DISTANCE_EUCLIDEAN({expr.vec1}, {expr.vec2})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, ()
 
-    def format_distance_cosine(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
-        return f"DISTANCE_COSINE({vector1}, {vector2})", ()
+    def format_distance_cosine(self, expr) -> Tuple[str, tuple]:
+        sql = f"DISTANCE_COSINE({expr.vec1}, {expr.vec2})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, ()
 
-    def format_distance_dot(self, vector1: str, vector2: str) -> Tuple[str, tuple]:
-        return f"DISTANCE_DOT({vector1}, {vector2})", ()
+    def format_distance_dot(self, expr) -> Tuple[str, tuple]:
+        sql = f"DISTANCE_DOT({expr.vec1}, {expr.vec2})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, ()
 
     def format_create_vector_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE VECTOR INDEX statement."""

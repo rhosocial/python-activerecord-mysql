@@ -11,7 +11,7 @@ or for use in a statement execution pipeline.
 
 from typing import List, Optional, Sequence, TYPE_CHECKING, Union
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLQueryAndParams
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
@@ -82,22 +82,10 @@ class MySQLAddPartitionHelper(BaseExpression):
         self.partition_values = list(partition_values)
         self.name_template = name_template
 
-    def to_sql(self) -> SQLQueryAndParams:
-        _add, _, _, _def, _ = _import_partition_exprs()
-        partitions = []
-        for value in self.partition_values:
-            name = self.name_template.format(value=value)
-            from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-                MySQLPartitionValue,
-            )
-            partitions.append(
-                _def(
-                    name=name,
-                    less_than=[MySQLPartitionValue(self.dialect, value)],
-                )
-            )
-        expr = _add(self.dialect, self.table, partitions)
-        return expr.to_sql()
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_add_partition_helper"
 
 
 class MySQLCoalescePartitionHelper(BaseExpression):
@@ -124,16 +112,10 @@ class MySQLCoalescePartitionHelper(BaseExpression):
         self.target_count = target_count
         self.current_count = current_count
 
-    def to_sql(self) -> SQLQueryAndParams:
-        _, _coalesce, _, _, _ = _import_partition_exprs()
-        if self.target_count >= self.current_count:
-            raise ValueError(
-                f"target_count ({self.target_count}) must be less than "
-                f"current_count ({self.current_count})"
-            )
-        count = self.current_count - self.target_count
-        expr = _coalesce(self.dialect, self.table, count)
-        return expr.to_sql()
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_coalesce_partition_helper"
 
 
 class MySQLDropOldestPartitionHelper(BaseExpression):
@@ -159,11 +141,10 @@ class MySQLDropOldestPartitionHelper(BaseExpression):
             raise ValueError("partition_names must not be empty")
         self.partition_names = list(partition_names)
 
-    def to_sql(self) -> SQLQueryAndParams:
-        _, _, _drop, _, _ = _import_partition_exprs()
-        sorted_names = sorted(self.partition_names)
-        expr = _drop(self.dialect, self.table, [sorted_names[0]])
-        return expr.to_sql()
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_drop_oldest_partition_helper"
 
 
 class MySQLReorganizePartitionHelper(BaseExpression):
@@ -188,12 +169,10 @@ class MySQLReorganizePartitionHelper(BaseExpression):
         self.partition = partition
         self.into = into
 
-    def to_sql(self) -> SQLQueryAndParams:
-        _, _, _, _, _reorg = _import_partition_exprs()
-        expr = _reorg(
-            self.dialect, self.table, self.partition, self.into
-        )
-        return expr.to_sql()
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_reorganize_partition_helper"
 
 
 class MySQLAddSubpartitionHelper(BaseExpression):
@@ -227,33 +206,7 @@ class MySQLAddSubpartitionHelper(BaseExpression):
         self.in_values = list(in_values) if in_values else None
         self.subpartition_names = list(subpartition_names) if subpartition_names else None
 
-    def to_sql(self) -> SQLQueryAndParams:
-        _add, _, _, _def, _ = _import_partition_exprs()
-        _sub_def = _import_subpartition()
-
-        sub_defs = None
-        if self.subpartition_names:
-            sub_defs = [
-                _sub_def(name=sn)
-                for sn in self.subpartition_names
-            ]
-
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-            MySQLPartitionValue,
-        )
-
-        kwargs = {"name": self.partition_name, "subpartition_definitions": sub_defs}
-        if self.less_than is not None:
-            kwargs["less_than"] = [
-                MySQLPartitionValue(self.dialect, v) if not isinstance(v, BaseExpression) else v
-                for v in self.less_than
-            ]
-        if self.in_values is not None:
-            kwargs["in_values"] = [
-                MySQLPartitionValue(self.dialect, v) if not isinstance(v, BaseExpression) else v
-                for v in self.in_values
-            ]
-
-        definition = _def(**kwargs)
-        expr = _add(self.dialect, self.table, [definition])
-        return expr.to_sql()
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_add_subpartition_helper"

@@ -11,7 +11,7 @@ This module provides expression classes for MySQL JSON functions:
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLQueryAndParams, SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -43,11 +43,10 @@ class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         self.path = path
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_json_extract(self.json_column, self.path)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_extract"
 
 
 class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
@@ -89,11 +88,10 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
             return [(k, v) for k, v in data.items()]
         return list(data)
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_json_object(self.pairs)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_object"
 
 
 class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
@@ -136,11 +134,10 @@ class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
         """
         return {"values": self._raw_values, "args": self.args, "alias": self.alias}
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_json_array(self.values)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_array"
 
 
 class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -167,11 +164,10 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         self.path = path
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_json_contains(self.json_column, self.value, self.path)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_contains"
 
 
 __all__ = [

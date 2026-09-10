@@ -13,7 +13,7 @@ Note: Vector support requires MySQL 9.0+
 
 from typing import TYPE_CHECKING, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLQueryAndParams, SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -43,11 +43,10 @@ class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
         self.vector = vector
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_vector_literal(self.vector)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_vector_literal"
 
 
 class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -70,11 +69,10 @@ class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue
         self.vec2 = vec2
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_distance_euclidean(self.vec1, self.vec2)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_distance_euclidean"
 
 
 class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -97,11 +95,10 @@ class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExp
         self.vec2 = vec2
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_distance_cosine(self.vec1, self.vec2)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_distance_cosine"
 
 
 class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -124,11 +121,10 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         self.vec2 = vec2
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_distance_dot(self.vec1, self.vec2)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_distance_dot"
 
 
 __all__ = [

@@ -73,13 +73,13 @@ def _create_partitioned_table_expression(dialect):
         dialect=dialect,
         table=PARTITION_TABLE,
         columns=[
-            ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition("created_at", DateTimeType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition("payload", VarCharType(255)),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "created_at", DateTimeType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "payload", VarCharType(255)),
         ],
         indexes=[
-            IndexDefinition(name="idx_created_at", columns=["created_at"]),
-            IndexDefinition(name="idx_id", columns=["id"]),
+            IndexDefinition(dialect, name="idx_created_at", columns=["created_at"]),
+            IndexDefinition(dialect, name="idx_id", columns=["id"]),
         ],
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
@@ -283,11 +283,11 @@ NEGATIVE_PARTITIONED_TABLE = "ar_mysql_partition_negative_part"
 NEGATIVE_HASH_TABLE = "ar_mysql_partition_negative_hash"
 
 
-def _base_columns_without_pk():
+def _base_columns_without_pk(dialect):
     return [
-        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("shard_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("payload", VarCharType(255)),
+        ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "shard_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "payload", VarCharType(255, dialect)),
     ]
 
 
@@ -295,7 +295,7 @@ def _create_nonpartitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
         table=NEGATIVE_TABLE,
-        columns=_base_columns_without_pk(),
+        columns=_base_columns_without_pk(dialect),
     )
 
 
@@ -303,7 +303,7 @@ def _create_negative_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
         table=NEGATIVE_PARTITIONED_TABLE,
-        columns=_base_columns_without_pk(),
+        columns=_base_columns_without_pk(dialect),
         partition=MySQLPartitionByRange(
             dialect=dialect,
             keys=[Column(dialect, "shard_id")],
@@ -319,7 +319,7 @@ def _create_negative_hash_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
         table=NEGATIVE_HASH_TABLE,
-        columns=_base_columns_without_pk(),
+        columns=_base_columns_without_pk(dialect),
         partition=MySQLPartitionByHash(
             dialect=dialect,
             keys=[Column(dialect, "shard_id")],
@@ -370,25 +370,26 @@ def _drop_named_table_expression(dialect, table_name: str):
     return DropTableExpression(dialect=dialect, table=table_name, if_exists=True)
 
 
-def _production_columns():
+def _production_columns(dialect):
     return [
-        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("created_at", DateTimeType(6), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("tenant_id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("payload", VarCharType(255), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "created_at", DateTimeType(6, dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "payload", VarCharType(255, dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
     ]
 
 
-def _production_indexes():
+def _production_indexes(dialect):
     return [
-        IndexDefinition(name="idx_created_at", columns=["created_at"]),
-        IndexDefinition(name="idx_tenant_created_at", columns=["tenant_id", "created_at"]),
+        IndexDefinition(dialect, name="idx_created_at", columns=["created_at"]),
+        IndexDefinition(dialect, name="idx_tenant_created_at", columns=["tenant_id", "created_at"]),
     ]
 
 
-def _production_table_constraints():
+def _production_table_constraints(dialect):
     return [
         TableConstraint(
+            dialect,
             TableConstraintType.PRIMARY_KEY,
             columns=["id", "created_at"],
         ),
@@ -406,9 +407,9 @@ def _create_production_partitioned_table_expression(dialect, partitions):
     return CreateTableExpression(
         dialect=dialect,
         table=PRODUCTION_PARTITION_TABLE,
-        columns=_production_columns(),
-        indexes=_production_indexes(),
-        table_constraints=_production_table_constraints(),
+        columns=_production_columns(dialect),
+        indexes=_production_indexes(dialect),
+        table_constraints=_production_table_constraints(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
             keys=[Column(dialect, "created_at")],
@@ -424,9 +425,9 @@ def _create_production_archive_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
         table=PRODUCTION_ARCHIVE_TABLE,
-        columns=_production_columns(),
-        indexes=_production_indexes(),
-        table_constraints=_production_table_constraints(),
+        columns=_production_columns(dialect),
+        indexes=_production_indexes(dialect),
+        table_constraints=_production_table_constraints(dialect),
     )
 
 
@@ -434,9 +435,9 @@ def _create_production_maxvalue_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
         table=PRODUCTION_MAXVALUE_TABLE,
-        columns=_production_columns(),
-        indexes=_production_indexes(),
-        table_constraints=_production_table_constraints(),
+        columns=_production_columns(dialect),
+        indexes=_production_indexes(dialect),
+        table_constraints=_production_table_constraints(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
             keys=[Column(dialect, "created_at")],
@@ -1200,12 +1201,12 @@ class TestAsyncMySQLPartitionOperationsConcurrency:
 SUBPARTITION_TABLE = "ar_mysql_partition_subpart"
 
 
-def _subpartition_columns():
+def _subpartition_columns(dialect):
     return [
-        ColumnDefinition("id", BigIntType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("created_at", DateType(), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("region", VarCharType(32), constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition("payload", VarCharType(255)),
+        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "region", VarCharType(32, dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "payload", VarCharType(255, dialect)),
     ]
 
 
@@ -1213,7 +1214,7 @@ def _create_subpartitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
         table=SUBPARTITION_TABLE,
-        columns=_subpartition_columns(),
+        columns=_subpartition_columns(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
             keys=[Column(dialect, "created_at")],

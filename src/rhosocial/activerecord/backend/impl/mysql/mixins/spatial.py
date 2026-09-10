@@ -36,14 +36,18 @@ class MySQLSpatialMixin:
         return self.version >= (5, 7, 0)
 
     def format_spatial_literal(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
+        return self._format_spatial_literal_parts(wkt, srid)
+
+    def _format_spatial_literal_parts(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
         if srid is not None:
             return "ST_GeomFromText(%s, %s)", (wkt, srid)
         return "ST_GeomFromText(%s)", (wkt,)
 
-    def format_st_geom_from_text(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
-        if srid is not None:
-            return "ST_GeomFromText(%s, %s)", (wkt, srid)
-        return "ST_GeomFromText(%s)", (wkt,)
+    def format_st_geom_from_text(self, expr) -> Tuple[str, tuple]:
+        sql, params = self._format_spatial_literal_parts(expr.wkt, None)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, params
 
     def format_st_geom_from_wkb(self, wkb: bytes, srid: Optional[int] = None) -> Tuple[str, tuple]:
         if srid is not None:
@@ -60,14 +64,23 @@ class MySQLSpatialMixin:
             raise UnsupportedFeatureError(self.name, "GeoJSON functions (requires MySQL 5.7.5+)")
         return f"ST_AsGeoJSON({geom})", ()
 
-    def format_st_distance(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
-        return f"ST_Distance({geom1}, {geom2})", ()
+    def format_st_distance(self, expr) -> Tuple[str, tuple]:
+        sql = f"ST_Distance({expr.geom1}, {expr.geom2})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, ()
 
-    def format_st_within(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
-        return f"ST_Within({geom1}, {geom2})", ()
+    def format_st_within(self, expr) -> Tuple[str, tuple]:
+        sql = f"ST_Within({expr.geom1}, {expr.geom2})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, ()
 
-    def format_st_contains(self, geom1: str, geom2: str) -> Tuple[str, tuple]:
-        return f"ST_Contains({geom1}, {geom2})", ()
+    def format_st_contains(self, expr) -> Tuple[str, tuple]:
+        sql = f"ST_Contains({expr.geom1}, {expr.geom2})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, ()
 
     def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
         """Format CREATE SPATIAL INDEX statement."""

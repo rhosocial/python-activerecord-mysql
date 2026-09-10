@@ -18,7 +18,7 @@ Key design:
 
 from typing import Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLQueryAndParams
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
 if TYPE_CHECKING:
     from ...dialect import MySQLDialect
@@ -47,9 +47,8 @@ class ShowExpression(BaseExpression):
         self._schema = name
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        """Generate SQL. Subclasses must implement this method."""
-        raise NotImplementedError("Subclasses must implement to_sql() method")
+    # Concrete subclasses declare their dialect formatting method by
+    # overriding the `format_method` property (inherited from BaseExpression).
 
 
 class ShowCreateTableExpression(ShowExpression):
@@ -59,8 +58,11 @@ class ShowCreateTableExpression(ShowExpression):
         super().__init__(dialect)
         self._table_name = table_name
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_create_table(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_create_table"
+
 
 
 class ShowCreateViewExpression(ShowExpression):
@@ -70,8 +72,11 @@ class ShowCreateViewExpression(ShowExpression):
         super().__init__(dialect)
         self._view_name = view_name
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_create_view(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_create_view"
+
 
 
 class ShowColumnsExpression(ShowExpression):
@@ -100,8 +105,11 @@ class ShowColumnsExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_columns(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_columns"
+
 
 
 class ShowIndexExpression(ShowExpression):
@@ -111,8 +119,11 @@ class ShowIndexExpression(ShowExpression):
         super().__init__(dialect)
         self._table_name = table_name
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_index(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_index"
+
 
 
 class ShowTablesExpression(ShowExpression):
@@ -139,8 +150,11 @@ class ShowTablesExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_tables(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_tables"
+
 
 
 class ShowDatabasesExpression(ShowExpression):
@@ -160,8 +174,11 @@ class ShowDatabasesExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_databases(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_databases"
+
 
 
 class ShowTableStatusExpression(ShowExpression):
@@ -181,8 +198,11 @@ class ShowTableStatusExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_table_status(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_table_status"
+
 
 
 class ShowTriggersExpression(ShowExpression):
@@ -202,8 +222,11 @@ class ShowTriggersExpression(ShowExpression):
         self._table_name = table_name
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_triggers(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_triggers"
+
 
 
 class ShowCreateTriggerExpression(ShowExpression):
@@ -213,8 +236,11 @@ class ShowCreateTriggerExpression(ShowExpression):
         super().__init__(dialect)
         self._trigger_name = trigger_name
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_create_trigger(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_create_trigger"
+
 
 
 class ShowVariablesExpression(ShowExpression):
@@ -246,8 +272,11 @@ class ShowVariablesExpression(ShowExpression):
         self._session = False
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_variables(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_variables"
+
 
 
 class ShowStatusExpression(ShowExpression):
@@ -279,8 +308,11 @@ class ShowStatusExpression(ShowExpression):
         self._session = False
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_status(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_status"
+
 
 
 class ShowProcessListExpression(ShowExpression):
@@ -300,8 +332,11 @@ class ShowProcessListExpression(ShowExpression):
         self._full = value
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_processlist(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_processlist"
+
 
 
 class ShowWarningsExpression(ShowExpression):
@@ -321,8 +356,11 @@ class ShowWarningsExpression(ShowExpression):
         self._limit = count
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_warnings(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_warnings"
+
 
 
 class ShowErrorsExpression(ShowExpression):
@@ -342,15 +380,21 @@ class ShowErrorsExpression(ShowExpression):
         self._limit = count
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_errors(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_errors"
+
 
 
 class ShowEnginesExpression(ShowExpression):
     """Expression for SHOW ENGINES command."""
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_engines(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_engines"
+
 
 
 class ShowCharsetExpression(ShowExpression):
@@ -370,8 +414,11 @@ class ShowCharsetExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_charset(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_charset"
+
 
 
 class ShowCollationExpression(ShowExpression):
@@ -391,8 +438,11 @@ class ShowCollationExpression(ShowExpression):
         self._like_pattern = pattern
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_collation(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_collation"
+
 
 
 class ShowGrantsExpression(ShowExpression):
@@ -415,12 +465,18 @@ class ShowGrantsExpression(ShowExpression):
         self._host = host
         return self
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_grants(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_grants"
+
 
 
 class ShowPluginsExpression(ShowExpression):
     """Expression for SHOW PLUGINS command."""
 
-    def to_sql(self) -> SQLQueryAndParams:
-        return self._dialect.format_show_plugins(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_plugins"
+

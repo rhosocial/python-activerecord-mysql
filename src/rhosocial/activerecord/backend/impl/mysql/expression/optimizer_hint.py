@@ -47,5 +47,8 @@ class MySQLOptimizerHintExpression(BaseExpression):
         super().__init__(dialect)
         self.hints = hints
 
-    def to_sql(self):
-        return self.dialect.format_optimizer_hint(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_optimizer_hint"
+

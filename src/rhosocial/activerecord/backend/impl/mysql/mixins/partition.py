@@ -8,6 +8,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.statements import PartitionClause
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
+        MySQLAddPartitionHelper,
         MySQLDropPartitionExpression,
         MySQLGetPartitionsExpression,
         MySQLPartitionByHash,
@@ -31,6 +32,10 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLRepairPartitionExpression,
         MySQLSubpartitionClause,
         MySQLSubpartitionDefinition,
+        MySQLCoalescePartitionHelper,
+        MySQLDropOldestPartitionHelper,
+        MySQLReorganizePartitionHelper,
+        MySQLAddSubpartitionHelper,
     )
 
 
@@ -699,3 +704,92 @@ class MySQLPartitionMixin:
         table_sql, table_params = expr.table.to_sql()
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REPAIR PARTITION {partitions}", tuple(table_params)
+
+    # ------------------------------------------------------------------
+    # Partition lifecycle helpers (composing low-level DDL expressions)
+    # ------------------------------------------------------------------
+
+    def format_add_partition_helper(self, expr: "MySQLAddPartitionHelper") -> Tuple[str, tuple]:
+        """Format a :class:`MySQLAddPartitionHelper` (generated partition names)."""
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLAddPartitionExpression,
+            MySQLPartitionDefinition,
+            MySQLPartitionValue,
+        )
+
+        partitions = []
+        for value in expr.partition_values:
+            name = expr.name_template.format(value=value)
+            partitions.append(
+                MySQLPartitionDefinition(
+                    name=name,
+                    less_than=[MySQLPartitionValue(self, value)],
+                )
+            )
+        add_expr = MySQLAddPartitionExpression(self, expr.table, partitions)
+        return add_expr.to_sql()
+
+    def format_coalesce_partition_helper(self, expr: "MySQLCoalescePartitionHelper") -> Tuple[str, tuple]:
+        """Format a :class:`MySQLCoalescePartitionHelper` (with validation)."""
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLCoalescePartitionExpression,
+        )
+
+        if expr.target_count >= expr.current_count:
+            raise ValueError(
+                f"target_count ({expr.target_count}) must be less than "
+                f"current_count ({expr.current_count})"
+            )
+        count = expr.current_count - expr.target_count
+        coalesce_expr = MySQLCoalescePartitionExpression(self, expr.table, count)
+        return coalesce_expr.to_sql()
+
+    def format_drop_oldest_partition_helper(self, expr: "MySQLDropOldestPartitionHelper") -> Tuple[str, tuple]:
+        """Format a :class:`MySQLDropOldestPartitionHelper` (lexicographically oldest)."""
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLDropPartitionExpression,
+        )
+
+        sorted_names = sorted(expr.partition_names)
+        drop_expr = MySQLDropPartitionExpression(self, expr.table, [sorted_names[0]])
+        return drop_expr.to_sql()
+
+    def format_reorganize_partition_helper(self, expr: "MySQLReorganizePartitionHelper") -> Tuple[str, tuple]:
+        """Format a :class:`MySQLReorganizePartitionHelper`."""
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLReorganizePartitionExpression,
+        )
+
+        reorg_expr = MySQLReorganizePartitionExpression(self, expr.table, expr.partition, expr.into)
+        return reorg_expr.to_sql()
+
+    def format_add_subpartition_helper(self, expr: "MySQLAddSubpartitionHelper") -> Tuple[str, tuple]:
+        """Format a :class:`MySQLAddSubpartitionHelper` (partition + subpartitions)."""
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLAddPartitionExpression,
+            MySQLPartitionDefinition,
+            MySQLPartitionValue,
+        )
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLSubpartitionDefinition,
+        )
+
+        sub_defs = None
+        if expr.subpartition_names:
+            sub_defs = [MySQLSubpartitionDefinition(name=sn) for sn in expr.subpartition_names]
+
+        kwargs = {"name": expr.partition_name, "subpartition_definitions": sub_defs}
+        if expr.less_than is not None:
+            kwargs["less_than"] = [
+                MySQLPartitionValue(self, v) if not isinstance(v, BaseExpression) else v
+                for v in expr.less_than
+            ]
+        if expr.in_values is not None:
+            kwargs["in_values"] = [
+                MySQLPartitionValue(self, v) if not isinstance(v, BaseExpression) else v
+                for v in expr.in_values
+            ]
+
+        definition = MySQLPartitionDefinition(**kwargs)
+        add_expr = MySQLAddPartitionExpression(self, expr.table, [definition])
+        return add_expr.to_sql()

@@ -7,6 +7,13 @@ Tests use the dialect mixin methods to generate SQL, validating our implementati
 """
 
 import pytest
+
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLSTContainsExpression,
+    MySQLSTDistanceExpression,
+    MySQLSTGeomFromTextExpression,
+    MySQLSTWithinExpression,
+)
 from rhosocial.activerecord.testsuite.utils import requires_protocol
 from rhosocial.activerecord.backend.impl.mysql.protocols import MySQLSpatialSupport
 
@@ -92,7 +99,8 @@ class TestMySQLSpatialTypeBackend:
     def test_format_st_geom_from_text_without_srid(self, mysql_backend):
         """Test format_st_geom_from_text generates correct SQL without SRID."""
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_st_geom_from_text("POINT(3 4)")
+        expr = MySQLSTGeomFromTextExpression(dialect, "POINT(3 4)")
+        sql, params = expr.to_sql()
 
         result = mysql_backend.execute(f"SELECT ST_AsText({sql}) as wkt", params)
 
@@ -102,7 +110,7 @@ class TestMySQLSpatialTypeBackend:
     def test_format_st_geom_from_text_with_srid(self, mysql_backend):
         """Test format_st_geom_from_text generates correct SQL with SRID."""
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_st_geom_from_text("POINT(1 1)", 4326)
+        sql, params = dialect._format_spatial_literal_parts("POINT(1 1)", 4326)
 
         result = mysql_backend.execute(f"SELECT ST_SRID({sql}) as srid", params)
 
@@ -156,10 +164,10 @@ class TestMySQLSpatialTypeBackend:
         """Test format_st_distance generates correct SQL."""
         dialect = mysql_backend.dialect
 
-        point1_sql, point1_params = dialect.format_st_geom_from_text("POINT(0 0)")
-        point2_sql, point2_params = dialect.format_st_geom_from_text("POINT(3 4)")
+        point1_sql, point1_params = MySQLSTGeomFromTextExpression(dialect, "POINT(0 0)").to_sql()
+        point2_sql, point2_params = MySQLSTGeomFromTextExpression(dialect, "POINT(3 4)").to_sql()
 
-        distance_sql, _ = dialect.format_st_distance(point1_sql, point2_sql)
+        distance_sql, _ = MySQLSTDistanceExpression(dialect, point1_sql, point2_sql).to_sql()
 
         result = mysql_backend.execute(f"SELECT {distance_sql} as distance", point1_params + point2_params)
 
@@ -170,10 +178,10 @@ class TestMySQLSpatialTypeBackend:
         """Test format_st_within generates correct SQL."""
         dialect = mysql_backend.dialect
 
-        point_sql, point_params = dialect.format_st_geom_from_text("POINT(5 5)")
-        polygon_sql, polygon_params = dialect.format_st_geom_from_text("POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))")
+        point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
+        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
 
-        within_sql, _ = dialect.format_st_within(point_sql, polygon_sql)
+        within_sql, _ = MySQLSTWithinExpression(dialect, point_sql, polygon_sql).to_sql()
 
         result = mysql_backend.execute(f"SELECT {within_sql} as is_within", point_params + polygon_params)
 
@@ -184,10 +192,10 @@ class TestMySQLSpatialTypeBackend:
         """Test format_st_contains generates correct SQL."""
         dialect = mysql_backend.dialect
 
-        polygon_sql, polygon_params = dialect.format_st_geom_from_text("POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))")
-        point_sql, point_params = dialect.format_st_geom_from_text("POINT(5 5)")
+        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
+        point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
 
-        contains_sql, _ = dialect.format_st_contains(polygon_sql, point_sql)
+        contains_sql, _ = MySQLSTContainsExpression(dialect, polygon_sql, point_sql).to_sql()
 
         result = mysql_backend.execute(f"SELECT {contains_sql} as contains_point", polygon_params + point_params)
 
@@ -264,7 +272,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     async def test_async_format_st_geom_from_text(self, async_mysql_backend):
         """Test format_st_geom_from_text generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
-        sql, params = dialect.format_st_geom_from_text("POINT(10 20)", 4326)
+        sql, params = dialect._format_spatial_literal_parts("POINT(10 20)", 4326)
 
         result = await async_mysql_backend.execute(f"SELECT ST_SRID({sql}) as srid", params)
 
@@ -276,10 +284,10 @@ class TestAsyncMySQLSpatialTypeBackend:
         """Test format_st_distance generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
 
-        point1_sql, point1_params = dialect.format_st_geom_from_text("POINT(0 0)")
-        point2_sql, point2_params = dialect.format_st_geom_from_text("POINT(3 4)")
+        point1_sql, point1_params = MySQLSTGeomFromTextExpression(dialect, "POINT(0 0)").to_sql()
+        point2_sql, point2_params = MySQLSTGeomFromTextExpression(dialect, "POINT(3 4)").to_sql()
 
-        distance_sql, _ = dialect.format_st_distance(point1_sql, point2_sql)
+        distance_sql, _ = MySQLSTDistanceExpression(dialect, point1_sql, point2_sql).to_sql()
 
         result = await async_mysql_backend.execute(f"SELECT {distance_sql} as distance", point1_params + point2_params)
 
@@ -291,10 +299,10 @@ class TestAsyncMySQLSpatialTypeBackend:
         """Test format_st_within generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
 
-        point_sql, point_params = dialect.format_st_geom_from_text("POINT(5 5)")
-        polygon_sql, polygon_params = dialect.format_st_geom_from_text("POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))")
+        point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
+        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
 
-        within_sql, _ = dialect.format_st_within(point_sql, polygon_sql)
+        within_sql, _ = MySQLSTWithinExpression(dialect, point_sql, polygon_sql).to_sql()
 
         result = await async_mysql_backend.execute(f"SELECT {within_sql} as is_within", point_params + polygon_params)
 
