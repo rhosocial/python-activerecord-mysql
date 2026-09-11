@@ -27,7 +27,7 @@ def create_users_table(dialect):
         columns=[
             ColumnDefinition(
                 "id",
-                MySQLIntType(),
+                MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
                         ColumnConstraintType.PRIMARY_KEY,
@@ -35,8 +35,8 @@ def create_users_table(dialect):
                     ),
                 ],
             ),
-            ColumnDefinition("name", MySQLTextType()),
-            ColumnDefinition("email", MySQLTextType()),
+            ColumnDefinition("name", MySQLTextType(dialect)),
+            ColumnDefinition("email", MySQLTextType(dialect)),
         ],
     )
 
@@ -54,7 +54,7 @@ def create_posts_table(dialect):
         columns=[
             ColumnDefinition(
                 "id",
-                MySQLIntType(),
+                MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
                         ColumnConstraintType.PRIMARY_KEY,
@@ -62,8 +62,8 @@ def create_posts_table(dialect):
                     ),
                 ],
             ),
-            ColumnDefinition("title", MySQLTextType()),
-            ColumnDefinition("user_id", MySQLIntType()),
+            ColumnDefinition("title", MySQLTextType(dialect)),
+            ColumnDefinition("user_id", MySQLIntType(dialect)),
         ],
     )
 
@@ -85,7 +85,7 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
         columns=[
             ColumnDefinition(
                 "id",
-                MySQLIntType(),
+                MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
                         ColumnConstraintType.PRIMARY_KEY,
@@ -93,7 +93,7 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
                     ),
                 ],
             ),
-            ColumnDefinition("value", MySQLTextType()),
+            ColumnDefinition("value", MySQLTextType(dialect)),
         ],
     )
 

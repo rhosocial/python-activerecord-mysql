@@ -331,6 +331,41 @@ class MySQLDialect(
 
         return MySQLSchemaDiffer()
 
+    def suggested_data_types(self) -> Dict[str, type]:
+        """Cross-backend type-consistency suggestions for MySQL.
+
+        Values are the suggested replacement DataType **classes** (same
+        value type as :meth:`supports_data_types`). Suggestions reflect
+        MySQL's real storage model:
+
+        - ``uuid``: no native UUID type — the MySQL convention is a
+          fixed-length byte string (``BINARY(16)``), so the suggested
+          replacement is ``MySQLBinaryType``.
+        - ``enum``: MySQL has a native ENUM, exposed through its
+          namespaced type ``MySQLEnumType`` (the generic ``enum`` name
+          itself has no formatter here).
+        - ``binary`` / ``varbinary``: MySQL natively renders
+          ``BINARY(n)`` / ``VARBINARY(n)`` through the namespaced
+          ``mysql_binary`` / ``mysql_varbinary`` types.
+
+        Types the type mixin does render (``integer``, ``varchar``,
+        ``json``, ``date``, …) are deliberately absent: they already have
+        a rendering path here, so there is nothing to suggest (suggested
+        keys and supported keys are disjoint by contract).
+        """
+        from .expression.types import (
+            MySQLBinaryType,
+            MySQLEnumType,
+            MySQLVarBinaryType,
+        )
+
+        return {
+            "uuid": MySQLBinaryType,
+            "enum": MySQLEnumType,
+            "binary": MySQLBinaryType,
+            "varbinary": MySQLVarBinaryType,
+        }
+
     def format_date_trunc_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         source_sql, source_params = expr.source.to_sql()
         field = expr.field.value.upper()

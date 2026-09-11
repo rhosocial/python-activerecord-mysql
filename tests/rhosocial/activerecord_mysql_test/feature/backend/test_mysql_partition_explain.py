@@ -48,10 +48,10 @@ def _create_partition_explain_table_expression(dialect):
         dialect=dialect,
         table=PARTITION_EXPLAIN_TABLE,
         columns=[
-            ColumnDefinition(dialect, "id", BigIntType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "tenant_id", BigIntType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "created_at", DateTimeType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "payload", VarCharType(255)),
+            ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ],
         indexes=[
             IndexDefinition(dialect, name="idx_created_at", columns=["created_at"]),

@@ -36,7 +36,7 @@ def test_mysql_format_column_definition_default_string_escaping(dialect):
         default_value="test's value",
     )
 
-    col_def = ColumnDefinition(dialect, "test_col", VarCharType(255, dialect), constraints=[constraint])
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), constraints=[constraint])
 
     sql, params = dialect.format_column_definition(col_def)
     assert "test''s value" in sql
@@ -44,7 +44,7 @@ def test_mysql_format_column_definition_default_string_escaping(dialect):
 
 def test_mysql_format_column_definition_comment_string_escaping(dialect):
     """Test COMMENT string is escaped in MySQL column definition."""
-    col_def = ColumnDefinition(dialect, "test_col", VarCharType(255, dialect), comment="Comment with 'single quote'")
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), comment="Comment with 'single quote'")
 
     sql, params = dialect.format_column_definition(col_def)
     assert "Comment with ''single quote''" in sql
@@ -66,7 +66,7 @@ def test_mysql_validate_data_type(dialect):
 
 def test_mysql_format_column_definition_data_type_validation(dialect):
     """Test column definition validates data_type."""
-    col_def = ColumnDefinition(dialect, "test_col", VarCharType(255, dialect))
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255))
 
     sql, params = dialect.format_column_definition(col_def)
     assert "VARCHAR(255)" in sql

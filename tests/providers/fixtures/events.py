@@ -46,9 +46,9 @@ def create_event_tests_table(dialect, table_name: str = "event_tests") -> Create
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect),
                 constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True)]),
-            ColumnDefinition(dialect, "name", VarCharType(255, dialect),
+            ColumnDefinition(dialect, "name", VarCharType(dialect, 255),
                 constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "status", VarCharType(50, dialect),
+            ColumnDefinition(dialect, "status", VarCharType(dialect, 50),
                 constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
                              ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value="draft")]),
             ColumnDefinition(dialect, "revision", IntegerType(dialect),
@@ -74,7 +74,7 @@ def create_event_tracking_models_table(dialect, table_name: str = "event_trackin
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect),
                 constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True)]),
-            ColumnDefinition(dialect, "title", VarCharType(255, dialect),
+            ColumnDefinition(dialect, "title", VarCharType(dialect, 255),
                 constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "content", TextType(dialect),
                 constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),

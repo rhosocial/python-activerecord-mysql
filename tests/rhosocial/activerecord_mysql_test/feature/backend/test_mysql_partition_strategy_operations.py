@@ -70,8 +70,8 @@ def _base_columns(dialect):
     return [
         ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "category", VarCharType(32), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "category", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
     ]
 
 
@@ -565,7 +565,7 @@ class TestMySQLPartitionStrategies:
         columns = [
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),  # nullable
-            ColumnDefinition(dialect, "payload", VarCharType(255, dialect)),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -610,7 +610,7 @@ class TestMySQLPartitionStrategies:
         columns = [
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
-            ColumnDefinition(dialect, "payload", VarCharType(255)),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -661,7 +661,7 @@ class TestMySQLPartitionStrategies:
         columns = [
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
-            ColumnDefinition(dialect, "payload", VarCharType(255)),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -703,7 +703,7 @@ class TestMySQLPartitionStrategies:
         columns = [
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
-            ColumnDefinition(dialect, "payload", VarCharType(255)),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
@@ -757,7 +757,7 @@ class TestMySQLPartitionStrategies:
                 columns=[
                     ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
                     ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-                    ColumnDefinition(dialect, "payload", VarCharType(255, dialect)),
+                    ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
                 ],
                 table_constraints=[
                     TableConstraint(dialect, TableConstraintType.PRIMARY_KEY, columns=["id", "created_at"]),

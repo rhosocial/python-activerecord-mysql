@@ -62,8 +62,8 @@ class TestMySQLCreateTableLike:
         """Test that LIKE syntax ignores columns parameter."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition(dialect, "name", VarCharType(255)),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "name", VarCharType(dialect, 255)),
         ]
         create_expr = CreateTableExpression(
             dialect=dialect, table="users_copy", columns=columns, dialect_options={"like_table": "users"}
@@ -94,8 +94,8 @@ class TestMySQLCreateTableLike:
         """Test that base implementation is used when LIKE is not specified."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
-            ColumnDefinition(dialect, "name", VarCharType(255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "name", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
         ]
         create_expr = CreateTableExpression(dialect=dialect, table="users", columns=columns)
         sql, params = create_expr.to_sql()

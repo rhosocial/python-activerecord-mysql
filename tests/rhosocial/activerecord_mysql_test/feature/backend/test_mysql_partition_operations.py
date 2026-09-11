@@ -74,8 +74,8 @@ def _create_partitioned_table_expression(dialect):
         table=PARTITION_TABLE,
         columns=[
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "created_at", DateTimeType(), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "payload", VarCharType(255)),
+            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ],
         indexes=[
             IndexDefinition(dialect, name="idx_created_at", columns=["created_at"]),
@@ -287,7 +287,7 @@ def _base_columns_without_pk(dialect):
     return [
         ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition(dialect, "shard_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(255, dialect)),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
     ]
 
 
@@ -373,9 +373,9 @@ def _drop_named_table_expression(dialect, table_name: str):
 def _production_columns(dialect):
     return [
         ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "created_at", DateTimeType(6, dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "created_at", DateTimeType(dialect, 6), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(255, dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
     ]
 
 
@@ -1205,8 +1205,8 @@ def _subpartition_columns(dialect):
     return [
         ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
         ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "region", VarCharType(32, dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(255, dialect)),
+        ColumnDefinition(dialect, "region", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
     ]
 
 
