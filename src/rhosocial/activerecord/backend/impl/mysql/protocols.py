@@ -317,9 +317,7 @@ class MySQLTableSupport(TableSupport, Protocol):
         """
         ...
 
-    def format_create_table_statement(
-        self, expr, dialect_options: Optional[Dict[str, Any]] = None
-    ) -> Tuple[str, tuple]:
+    def format_create_table_statement(self, expr) -> Tuple[str, tuple]:
         """Format CREATE TABLE statement."""
         ...
 
