@@ -46,12 +46,12 @@ backend.execute(sql, params)
 # Create table without explicit charset to inherit database/server default
 expr = CreateTableExpression(
     dialect=dialect, table="demo", columns=[
-        ColumnDefinition("id", IntegerType(dialect),
+        ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
                 ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
             ]),
-        ColumnDefinition("name", VarCharType(dialect, 100)),
+        ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
     ]
 )
 sql, params = expr.to_sql()

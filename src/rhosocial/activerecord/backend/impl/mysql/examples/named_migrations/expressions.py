@@ -26,6 +26,7 @@ def create_users_table(dialect):
         table="users",
         columns=[
             ColumnDefinition(
+                dialect,
                 "id",
                 MySQLIntType(dialect),
                 constraints=[
@@ -35,8 +36,8 @@ def create_users_table(dialect):
                     ),
                 ],
             ),
-            ColumnDefinition("name", MySQLTextType(dialect)),
-            ColumnDefinition("email", MySQLTextType(dialect)),
+            ColumnDefinition(dialect, "name", MySQLTextType(dialect)),
+            ColumnDefinition(dialect, "email", MySQLTextType(dialect)),
         ],
     )
 
@@ -53,6 +54,7 @@ def create_posts_table(dialect):
         table="posts",
         columns=[
             ColumnDefinition(
+                dialect,
                 "id",
                 MySQLIntType(dialect),
                 constraints=[
@@ -62,8 +64,8 @@ def create_posts_table(dialect):
                     ),
                 ],
             ),
-            ColumnDefinition("title", MySQLTextType(dialect)),
-            ColumnDefinition("user_id", MySQLIntType(dialect)),
+            ColumnDefinition(dialect, "title", MySQLTextType(dialect)),
+            ColumnDefinition(dialect, "user_id", MySQLIntType(dialect)),
         ],
     )
 
@@ -84,6 +86,7 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
         table=table_name,
         columns=[
             ColumnDefinition(
+                dialect,
                 "id",
                 MySQLIntType(dialect),
                 constraints=[
@@ -93,7 +96,7 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
                     ),
                 ],
             ),
-            ColumnDefinition("value", MySQLTextType(dialect)),
+            ColumnDefinition(dialect, "value", MySQLTextType(dialect)),
         ],
     )
 
