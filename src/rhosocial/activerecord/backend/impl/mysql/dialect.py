@@ -445,8 +445,9 @@ class MySQLDialect(
         """Recursive CTEs are supported since MySQL 8.0.0."""
         return self.version >= (8, 0, 0)
 
-
-
+    def supports_unconditional_cte_order_by(self) -> bool:
+        """ORDER BY inside a CTE definition requires CTE support (8.0.0+)."""
+        return self.version >= (8, 0, 0)
 
 
     def supports_window_functions(self) -> bool:
