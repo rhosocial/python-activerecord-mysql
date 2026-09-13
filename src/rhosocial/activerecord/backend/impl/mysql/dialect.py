@@ -458,9 +458,6 @@ class MySQLDialect(
         return self.version >= (8, 0, 0)
 
 
-    def supports_json_type(self) -> bool:
-        """JSON is supported since MySQL 5.7.8."""
-        return self.version >= (5, 7, 8)
 
 
     def supports_rollup(self) -> bool:
@@ -931,249 +928,30 @@ class MySQLDialect(
         # Fall through to the SQL-standard rendering for other operations.
         return super().format_alter_column_action(action)
 
-    def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
-        """Format CREATE TABLE ... LIKE statement for MySQL.
-
-        Args:
-            expr: CreateTableExpression instance with like_table in dialect_options
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        like_table = expr.dialect_options.get("like_table")
-
-        parts = ["CREATE TABLE"]
-        if expr.temporary:
-            parts.append("TEMPORARY")
-        if expr.if_not_exists:
-            parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
-
-        if isinstance(like_table, tuple):
-            schema, table = like_table
-            like_table_str = f"{self.format_identifier(schema)}.{self.format_identifier(table)}"
-        else:
-            like_table_str = self.format_identifier(like_table)
-
-        parts.append(f"LIKE {like_table_str}")
-        return ' '.join(parts), ()
 
 
 
     # endregion
 
     # region Trigger Support (MySQL-specific)
-    def supports_trigger(self) -> bool:
-        return True
 
-    def supports_create_trigger(self) -> bool:
-        return True
 
-    def supports_drop_trigger(self) -> bool:
-        return True
 
-    def supports_instead_of_trigger(self) -> bool:
-        return False
 
-    def supports_statement_trigger(self) -> bool:
-        return False
 
-    def supports_trigger_referencing(self) -> bool:
-        return False
 
-    def supports_trigger_when(self) -> bool:
-        return False
 
-    def supports_trigger_if_not_exists(self) -> bool:
-        return True
 
-    def format_create_trigger_statement(
-        self,
-        expr: "CreateTriggerExpression",
-    ):
-        """Format CREATE TRIGGER statement (MySQL syntax).
 
-        MySQL differences from SQL:1999:
-        - Does not support INSTEAD OF triggers
-        - Does not support FOR EACH STATEMENT
-        - Does not support WHEN condition
-        - Does not support REFERENCING clause
-        - Uses trigger body directly instead of function call
-        """
-        if not self.supports_trigger():
-            raise UnsupportedFeatureError(self.name, "triggers")
-
-        if expr.timing.value == "INSTEAD OF":
-            raise UnsupportedFeatureError(
-                self.name,
-                "INSTEAD OF triggers (MySQL does not support this feature)"
-            )
-
-        if expr.level and expr.level.value == "FOR EACH STATEMENT":
-            raise UnsupportedFeatureError(
-                self.name,
-                "FOR EACH STATEMENT triggers (MySQL only supports FOR EACH ROW)"
-            )
-
-        if expr.condition:
-            raise UnsupportedFeatureError(
-                self.name,
-                "WHEN condition in triggers (MySQL does not support this feature)"
-            )
-
-        if expr.referencing:
-            raise UnsupportedFeatureError(
-                self.name,
-                "REFERENCING clause in triggers (MySQL does not support this feature)"
-            )
-
-        if len(expr.events) > 1:
-            raise UnsupportedFeatureError(
-                self.name,
-                "multiple trigger events (MySQL only supports single event)"
-            )
-
-        if expr.update_columns:
-            raise UnsupportedFeatureError(
-                self.name,
-                "UPDATE OF column_list (MySQL does not support this syntax)"
-            )
-
-        parts = ["CREATE TRIGGER"]
-
-        if expr.if_not_exists and self.supports_trigger_if_not_exists():
-            parts.append("IF NOT EXISTS")
-
-        parts.append(self.format_identifier(expr.trigger_name))
-
-        parts.append(expr.timing.value)
-
-        if expr.events:
-            parts.append(expr.events[0].value)
-
-        parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
-
-        parts.append("FOR EACH ROW")
-
-        if expr.function_name:
-            parts.append("CALL")
-            parts.append(self.format_identifier(expr.function_name))
-
-        return " ".join(parts), ()
-
-    def format_drop_trigger_statement(
-        self,
-        expr: "DropTriggerExpression",
-    ):
-        """Format DROP TRIGGER statement (MySQL syntax)."""
-        if not self.supports_trigger():
-            raise UnsupportedFeatureError(self.name, "triggers")
-
-        parts = ["DROP TRIGGER"]
-
-        if expr.if_exists:
-            parts.append("IF EXISTS")
-
-        parts.append(self.format_identifier(expr.trigger_name))
-
-        return " ".join(parts), ()
     # endregion
     
     # region FULLTEXT Index & Search Support
-    def supports_fulltext_index(self) -> bool:
-        """MySQL 5.6+ supports FULLTEXT for InnoDB."""
-        return self.version >= (5, 6, 0)
 
-    def supports_fulltext_parser(self) -> bool:
-        """MySQL supports FULLTEXT parser plugins."""
-        return self.version >= (5, 1, 0)
 
-    def supports_fulltext_boolean_mode(self) -> bool:
-        """Whether BOOLEAN MODE in MATCH is supported.
 
-        IN BOOLEAN MODE is supported since MySQL 5.6 (same as FULLTEXT).
-        """
-        return self.supports_fulltext_index()
 
-    def supports_fulltext_query_expansion(self) -> bool:
-        """MySQL supports QUERY EXPANSION."""
-        return True  # All versions with FULLTEXT support this
 
-    def format_fulltext_match(
-        self, expr: "FulltextMatchExpression"
-    ) -> Tuple[str, tuple]:
-        """Format MATCH ... AGAINST expression for MySQL full-text search.
 
-        Args:
-            expr: FulltextMatchExpression node carrying columns, search_term, and mode.
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        if not self.supports_fulltext_index():
-            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-            raise UnsupportedFeatureError(self.name, "FULLTEXT search")
-
-        cols_str = ", ".join(self.format_identifier(c) for c in expr.columns)
-        ph = self.get_parameter_placeholder()
-        if expr.mode:
-            mode_upper = expr.mode.upper()
-            if mode_upper == "BOOLEAN":
-                return f"MATCH({cols_str}) AGAINST({ph} IN BOOLEAN MODE)", (expr.search_term,)
-            if mode_upper in ("QUERY EXPANSION", "WITH QUERY EXPANSION"):
-                return f"MATCH({cols_str}) AGAINST({ph} WITH QUERY EXPANSION)", (expr.search_term,)
-        return f"MATCH({cols_str}) AGAINST({ph} IN NATURAL LANGUAGE MODE)", (expr.search_term,)
-
-    def format_create_fulltext_index_statement(self, expr) -> Tuple[str, tuple]:
-        """Format CREATE FULLTEXT INDEX expression for MySQL.
-
-        Args:
-            expr: CreateFulltextIndexExpression object with index_name, table_name,
-                  columns, if_not_exists, and parser attributes.
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        if not self.supports_fulltext_index():
-            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-            raise UnsupportedFeatureError(self.name, "FULLTEXT INDEX")
-
-        parts = ["CREATE FULLTEXT INDEX"]
-        if expr.if_not_exists:
-            parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.index_name))
-        parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
-        cols_str = ", ".join(self.format_identifier(c) for c in expr.columns)
-        parts.append(f"({cols_str})")
-        if expr.parser:
-            parts.append(f"WITH PARSER {self.format_identifier(expr.parser)}")
-        return " ".join(parts), ()
-
-    def format_drop_fulltext_index_statement(self, expr) -> Tuple[str, tuple]:
-        """Format DROP FULLTEXT INDEX expression for MySQL.
-
-        MySQL uses DROP INDEX ... ON syntax for dropping FULLTEXT indexes.
-
-        Args:
-            expr: DropFulltextIndexExpression object with index_name, table_name,
-                  and if_exists attributes.
-
-        Returns:
-            Tuple of (SQL string, parameters tuple)
-        """
-        if not self.supports_fulltext_index():
-            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-            raise UnsupportedFeatureError(self.name, "FULLTEXT INDEX")
-
-        parts = ["DROP INDEX"]
-        if expr.if_exists:
-            parts.append("IF EXISTS")
-        parts.append(self.format_identifier(expr.index_name))
-        parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
-        return " ".join(parts), ()
 
     # endregion
 
@@ -1508,19 +1286,7 @@ class MySQLDialect(
 
     # region MySQL-specific DML Operations
 
-    def supports_insert_ignore(self) -> bool:
-        """Whether INSERT IGNORE is supported.
 
-        MySQL supports INSERT IGNORE in all versions.
-        """
-        return True
-
-    def supports_replace_into(self) -> bool:
-        """Whether REPLACE INTO is supported.
-
-        MySQL supports REPLACE INTO in all versions.
-        """
-        return True
 
     def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
         """Format INSERT statement with MySQL-specific options.
@@ -1609,97 +1375,6 @@ class MySQLDialect(
 
         return sql, tuple(all_params)
 
-    def supports_json_table(self) -> bool:
-        """Whether JSON_TABLE is supported.
 
-        JSON_TABLE is supported in MySQL 8.0.4+.
-        """
-        return self.version >= (8, 0, 4)
-
-    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
-        """Format JSON_TABLE expression.
-
-        Args:
-            expr: MySQLJSONTableExpression instance
-
-        Returns:
-            Tuple of (SQL string, empty tuple)
-        """
-        expr.validate(strict=self.strict_validation)
-
-        parts = ["JSON_TABLE("]
-
-        # Handle json_doc: if it's a string literal, escape and quote it;
-        # if it's a ToSQLProtocol expression, use to_sql() for parameterized query;
-        # otherwise raise an error to prevent SQL injection.
-        if isinstance(expr.json_doc, str):
-            parts.append(f"'{self._escape_sql_string(expr.json_doc)}'")
-        elif isinstance(expr.json_doc, ToSQLProtocol):
-            json_sql, _ = expr.json_doc.to_sql()
-            parts.append(json_sql)
-        else:
-            raise ValueError(
-                f"json_doc must be a string or implement ToSQLProtocol, got {type(expr.json_doc).__name__}"
-            )
-
-        parts.append(",")
-        escaped_path = self._escape_sql_string(expr.path)
-        parts.append(f"'{escaped_path}'")
-        parts.append(" COLUMNS (")
-
-        # Format columns
-        column_parts = []
-        for col in expr.columns:
-            if col.ordinality:
-                column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
-            elif col.exists:
-                escaped_col_path = self._escape_sql_string(col.path) if col.path else ""
-                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'")
-            else:
-                if not self._validate_data_type(col.type):
-                    raise ValueError(f"Invalid data type: {col.type}")
-                col_def = f"{self.format_identifier(col.name)} {col.type}"
-                if col.path:
-                    escaped_col_path = self._escape_sql_string(col.path)
-                    col_def += f" PATH '{escaped_col_path}'"
-                if col.error_handling:
-                    valid_error_handling = {"NULL", "ERROR", "DEFAULT"}
-                    error_handling_upper = col.error_handling.upper()
-                    if error_handling_upper not in valid_error_handling:
-                        raise ValueError(
-                            f"Invalid error_handling: {col.error_handling}. Must be one of {valid_error_handling}"
-                        )
-                    if error_handling_upper == "DEFAULT":
-                        escaped_default = self._escape_sql_string(str(col.default_value))
-                        col_def += f" DEFAULT '{escaped_default}' ON ERROR"
-                    else:
-                        col_def += f" {error_handling_upper} ON ERROR"
-                column_parts.append(col_def)
-
-        # Format nested paths
-        for nested in expr.nested_paths:
-            escaped_nested_path = self._escape_sql_string(nested.path)
-            nested_def = f"NESTED PATH '{escaped_nested_path}' COLUMNS ("
-            nested_cols = []
-            for col in nested.columns:
-                if col.ordinality:
-                    nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
-                else:
-                    escaped_nested_col_path = self._escape_sql_string(col.path) if col.path else ""
-                    nested_cols.append(
-                        f"{self.format_identifier(col.name)} {col.type} PATH '{escaped_nested_col_path}'"
-                    )
-            nested_def += ", ".join(nested_cols) + ")"
-            if nested.alias:
-                nested_def = f"{self.format_identifier(nested.alias)} AS " + nested_def
-            column_parts.append(nested_def)
-
-        parts.append(", ".join(column_parts))
-        parts.append("))")
-
-        if expr.alias:
-            parts.append(f" AS {self.format_identifier(expr.alias)}")
-
-        return "".join(parts), ()
 
     # endregion
