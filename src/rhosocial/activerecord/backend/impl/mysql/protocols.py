@@ -207,6 +207,14 @@ class MySQLTriggerSupport(Protocol):
         """Whether triggers are supported."""
         ...
 
+    def supports_create_trigger(self) -> bool:
+        """Whether CREATE TRIGGER is supported."""
+        ...
+
+    def supports_drop_trigger(self) -> bool:
+        """Whether DROP TRIGGER is supported."""
+        ...
+
     def supports_trigger_if_not_exists(self) -> bool:
         """Whether CREATE TRIGGER IF NOT EXISTS is supported (MySQL 8.0.4+)."""
         ...
