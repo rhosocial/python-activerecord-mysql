@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/backend_mixin.py
 import logging
-from typing import Any, Dict, Tuple, Type
+from typing import Dict, Tuple, Type
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 

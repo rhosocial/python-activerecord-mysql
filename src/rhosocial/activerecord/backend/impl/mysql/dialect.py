@@ -71,7 +71,6 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     IntrospectionMixin,
     PartitionMixin,
     # New Mixins
-    IdentifierMixin,
     PredicateMixin,
     ExpressionMixin,
     DateTimeMixin,
@@ -212,7 +211,6 @@ class MySQLDialect(
     MySQLAdminCommandMixin,  # MySQL admin/utility commands
     IntrospectionMixin,
     # New Mixins
-    IdentifierMixin,
     PredicateMixin,
     ExpressionMixin,
     DateTimeMixin,
@@ -732,12 +730,12 @@ class MySQLDialect(
         cross-database query support.
         """
         if expr.table:
-            col_sql = f"{self.format_identifier(expr.table)}.{self.format_identifier(expr.name)}"
+            col_sql = f"{self.format_identifier(expr.table, expr.table_need_quote)}.{self.format_identifier(expr.name, expr.name_need_quote)}"
         else:
-            col_sql = self.format_identifier(expr.name)
+            col_sql = self.format_identifier(expr.name, expr.name_need_quote)
 
         if expr.alias:
-            col_sql = f"{col_sql} AS {self.format_identifier(expr.alias)}"
+            col_sql = f"{col_sql} AS {self.format_identifier(expr.alias, expr.alias_need_quote)}"
 
         return col_sql, ()
 

@@ -31,7 +31,6 @@ class MySQLTableMixin:
         if "like_table" in expr.dialect_options:
             return self.format_create_table_like(expr)
 
-        from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType, TableConstraintType
 
         all_params: List[Any] = []
 
@@ -90,7 +89,7 @@ class MySQLTableMixin:
         parts.append(f"LIKE {like_table_str}")
         return " ".join(parts), ()
 
-    def format_column_definition(self, col_def) -> Tuple[str, List[Any]]:
+    def format_column_definition(self, col_def) -> Tuple[str, tuple]:
         """Format a single column definition with MySQL-specific syntax."""
         type_sql, type_params = col_def.data_type.to_sql()
         parts = [self.format_identifier(col_def.name), type_sql]
@@ -111,7 +110,7 @@ class MySQLTableMixin:
 
         return " ".join(parts), params
 
-    def format_table_constraint(self, t_const) -> Tuple[str, List[Any]]:
+    def format_table_constraint(self, t_const) -> Tuple[str, tuple]:
         """Format a table-level constraint."""
         from rhosocial.activerecord.backend.expression.statements import TableConstraintType
         parts = []
