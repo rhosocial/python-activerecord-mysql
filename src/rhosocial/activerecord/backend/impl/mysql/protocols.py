@@ -289,7 +289,7 @@ class MySQLTableSupport(TableSupport, Protocol):
     - Various storage engines: MySQL 5.5+
     """
 
-    def supports_table_like_syntax(self) -> bool:
+    def supports_create_table_like(self) -> bool:
         """Whether CREATE TABLE ... LIKE is supported.
 
         MySQL supports copying table structure with LIKE syntax.

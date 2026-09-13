@@ -129,6 +129,7 @@ from .mixins import (
     MySQLAdminCommandMixin,
 )
 from .collation import validate_mysql_collation_name
+from .reserved_words import MYSQL_RESERVED_WORDS
 from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
@@ -304,6 +305,7 @@ class MySQLDialect(
                 escaping must double backslashes.
         """
         super().__init__()
+        self._reserved_words = MYSQL_RESERVED_WORDS
         if version is not None:
             self.version = version
         self.sql_mode = sql_mode or "STRICT_TRANS_TABLES"
@@ -694,16 +696,29 @@ class MySQLDialect(
 
     # endregion
 
-    def format_identifier(self, identifier: str) -> str:
+    def format_identifier(self, identifier: str, need_quote: bool = True) -> str:
         """
         Format identifier using MySQL's backtick quoting mechanism.
 
         Args:
             identifier: Raw identifier string
+            need_quote: Whether to quote the identifier. Default True.
+                When False, the identifier is returned as-is without escaping.
 
         Returns:
             Quoted identifier with escaped internal backticks
         """
+        if not need_quote:
+            if self.is_reserved_word(identifier):
+                import warnings
+                from rhosocial.activerecord.backend.warnings import IdentifierQuotingWarning
+                warnings.warn(
+                    f"Identifier '{identifier}' is a reserved word in {self.name} "
+                    f"and may cause SQL errors without quoting.",
+                    IdentifierQuotingWarning,
+                    stacklevel=2,
+                )
+            return identifier
         # Escape any internal backticks by doubling them
         escaped = identifier.replace("`", "``")
         return f"`{escaped}`"
