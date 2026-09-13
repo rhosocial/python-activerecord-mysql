@@ -142,6 +142,9 @@ if TYPE_CHECKING:
         ExplainExpression,
         InsertExpression,
     )
+    from rhosocial.activerecord.backend.expression.statements.fulltext_match import (
+        FulltextMatchExpression,
+    )
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
         CreateTriggerExpression,
         DropTriggerExpression,
@@ -1259,14 +1262,12 @@ class MySQLDialect(
         return True  # All versions with FULLTEXT support this
 
     def format_fulltext_match(
-        self, columns: List[str], search_term: str, mode: Optional[str] = None
-    ) -> Tuple[str, Tuple]:
+        self, expr: "FulltextMatchExpression"
+    ) -> Tuple[str, tuple]:
         """Format MATCH ... AGAINST expression for MySQL full-text search.
 
         Args:
-            columns: Columns to search
-            search_term: Search term or query
-            mode: Search mode ('BOOLEAN', 'QUERY EXPANSION', 'WITH QUERY EXPANSION')
+            expr: FulltextMatchExpression node carrying columns, search_term, and mode.
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -1275,15 +1276,15 @@ class MySQLDialect(
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "FULLTEXT search")
 
-        cols_str = ", ".join(self.format_identifier(c) for c in columns)
+        cols_str = ", ".join(self.format_identifier(c) for c in expr.columns)
         ph = self.get_parameter_placeholder()
-        if mode:
-            mode_upper = mode.upper()
+        if expr.mode:
+            mode_upper = expr.mode.upper()
             if mode_upper == "BOOLEAN":
-                return f"MATCH({cols_str}) AGAINST({ph} IN BOOLEAN MODE)", (search_term,)
+                return f"MATCH({cols_str}) AGAINST({ph} IN BOOLEAN MODE)", (expr.search_term,)
             if mode_upper in ("QUERY EXPANSION", "WITH QUERY EXPANSION"):
-                return f"MATCH({cols_str}) AGAINST({ph} WITH QUERY EXPANSION)", (search_term,)
-        return f"MATCH({cols_str}) AGAINST({ph} IN NATURAL LANGUAGE MODE)", (search_term,)
+                return f"MATCH({cols_str}) AGAINST({ph} WITH QUERY EXPANSION)", (expr.search_term,)
+        return f"MATCH({cols_str}) AGAINST({ph} IN NATURAL LANGUAGE MODE)", (expr.search_term,)
 
     def format_create_fulltext_index_statement(self, expr) -> Tuple[str, tuple]:
         """Format CREATE FULLTEXT INDEX expression for MySQL.
