@@ -137,8 +137,6 @@ if TYPE_CHECKING:
         CreateTableExpression,
         CreateViewExpression,
         DropViewExpression,
-        TableConstraint,
-        IndexDefinition,
         ExplainExpression,
         InsertExpression,
     )
@@ -447,21 +445,9 @@ class MySQLDialect(
         """Recursive CTEs are supported since MySQL 8.0.0."""
         return self.version >= (8, 0, 0)
 
-    def supports_materialized_cte(self) -> bool:
-        """MySQL does not support MATERIALIZED hint for CTEs."""
-        return False
 
-    def supports_returning_insert(self) -> bool:
-        """MySQL does not support RETURNING clause for INSERT."""
-        return False
 
-    def supports_returning_update(self) -> bool:
-        """MySQL does not support RETURNING clause for UPDATE."""
-        return False
 
-    def supports_returning_delete(self) -> bool:
-        """MySQL does not support RETURNING clause for DELETE."""
-        return False
 
     def supports_window_functions(self) -> bool:
         """Window functions are supported since MySQL 8.0.0."""
@@ -471,41 +457,20 @@ class MySQLDialect(
         """Whether window frame clauses (ROWS/RANGE) are supported, since MySQL 8.0.0."""
         return self.version >= (8, 0, 0)
 
-    def supports_filter_clause(self) -> bool:
-        """FILTER clause for aggregate functions is not supported in MySQL."""
-        return False  # MySQL does not support FILTER clause
 
     def supports_json_type(self) -> bool:
         """JSON is supported since MySQL 5.7.8."""
         return self.version >= (5, 7, 8)
 
-    def get_json_access_operator(self) -> str:
-        """MySQL uses '->' for JSON access (shorthand for JSON_EXTRACT)."""
-        return "->"
 
     def supports_rollup(self) -> bool:
         """ROLLUP is supported using WITH ROLLUP syntax since early MySQL versions."""
         return True  # Supported since MySQL 4.0.0
 
-    def supports_cube(self) -> bool:
-        """CUBE is not supported in MySQL."""
-        return False  # MySQL does not support CUBE
 
-    def supports_grouping_sets(self) -> bool:
-        """GROUPING SETS is not supported in MySQL."""
-        return False  # MySQL does not support GROUPING SETS
 
-    def supports_array_type(self) -> bool:
-        """MySQL does not have native array types."""
-        return False  # MySQL does not have native arrays
 
-    def supports_array_constructor(self) -> bool:
-        """MySQL does not support ARRAY constructor."""
-        return False  # MySQL does not have ARRAY constructor
 
-    def supports_array_access(self) -> bool:
-        """MySQL does not support native array subscript access."""
-        return False  # MySQL does not have native arrays
 
     def supports_explain_analyze(self) -> bool:
         """Whether EXPLAIN ANALYZE is supported."""
@@ -570,10 +535,6 @@ class MySQLDialect(
 
         return f"{' '.join(parts)} {statement_sql}", statement_params
 
-    def supports_graph_match(self) -> bool:
-        """Whether graph query MATCH clause is supported."""
-        # MySQL doesn't have native MATCH clause like some other systems
-        return False
 
     def supports_for_update(self) -> bool:
         """Whether FOR UPDATE clause is supported in SELECT statements.
@@ -583,19 +544,8 @@ class MySQLDialect(
         """
         return True
 
-    def supports_merge_statement(self) -> bool:
-        """Whether MERGE statement is supported."""
-        return False  # MySQL does not support MERGE, use ON DUPLICATE KEY UPDATE
 
-    def supports_temporal_tables(self) -> bool:
-        """Whether temporal tables are supported."""
-        # MySQL doesn't have built-in temporal tables
-        return False
 
-    def supports_qualify_clause(self) -> bool:
-        """Whether QUALIFY clause is supported."""
-        # MySQL doesn't have QUALIFY clause (though can be simulated with subqueries)
-        return False
 
     def supports_upsert(self) -> bool:
         """Whether UPSERT (ON DUPLICATE KEY UPDATE) is supported."""
@@ -610,56 +560,26 @@ class MySQLDialect(
         """
         return "ON DUPLICATE KEY"
 
-    def supports_on_conflict_clause(self) -> bool:
-        """Whether INSERT can carry an ON CONFLICT style clause.
 
-        MySQL expresses upsert via the ON DUPLICATE KEY UPDATE clause.
-        """
-        return True
-
-    def supports_multiple_on_conflict_clauses(self) -> bool:
-        """MySQL ON DUPLICATE KEY UPDATE allows only a single clause."""
-        return False
 
     def supports_lateral_join(self) -> bool:
         """Whether LATERAL joins are supported."""
         return self.version >= (8, 0, 14)  # LATERAL joins added in 8.0.14
 
-    def supports_ordered_set_aggregation(self) -> bool:
-        """Whether ordered-set aggregate functions are supported."""
-        return False  # MySQL does not support WITHIN GROUP (ORDER BY ...) syntax
 
-    def supports_inner_join(self) -> bool:
-        """INNER JOIN is supported."""
-        return True
 
-    def supports_left_join(self) -> bool:
-        """LEFT JOIN is supported."""
-        return True
 
     def supports_right_join(self) -> bool:
         """RIGHT JOIN is supported."""
         return True
 
-    def supports_full_join(self) -> bool:
-        """FULL JOIN is not directly supported (can be simulated with UNION)."""
-        return False
 
-    def supports_cross_join(self) -> bool:
-        """CROSS JOIN is supported."""
-        return True
 
-    def supports_natural_join(self) -> bool:
-        """NATURAL JOIN is supported."""
-        return True
 
     def supports_straight_join(self) -> bool:
         """MySQL-specific STRAIGHT_JOIN is supported."""
         return True
 
-    def supports_wildcard(self) -> bool:
-        """Wildcard (*) is supported."""
-        return True
 
     # endregion
 
@@ -781,9 +701,6 @@ class MySQLDialect(
         """Whether TEMPORARY views are supported."""
         return True  # MySQL supports TEMPORARY views
 
-    def supports_materialized_view(self) -> bool:
-        """Whether materialized views are supported."""
-        return False  # MySQL does not support materialized views
 
     def supports_if_exists_view(self) -> bool:
         """Whether DROP VIEW IF EXISTS is supported."""
@@ -793,9 +710,6 @@ class MySQLDialect(
         """Whether WITH CHECK OPTION is supported."""
         return True  # MySQL supports WITH CHECK OPTION
 
-    def supports_cascade_view(self) -> bool:
-        """Whether DROP VIEW CASCADE is supported."""
-        return False  # MySQL does not support CASCADE for views
 
     def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
         """Format CREATE VIEW statement for MySQL."""
@@ -834,14 +748,6 @@ class MySQLDialect(
     # endregion
 
     # region Schema Support
-    def supports_schema(self) -> bool:
-        """Whether MySQL models an independent schema namespace layer.
-
-        Strictly False: a MySQL "schema" is only an alias for DATABASE, not a
-        namespace inside a database. The granular flags below stay True because
-        servers do accept CREATE/DROP SCHEMA as synonyms.
-        """
-        return False
 
     def supports_create_schema(self) -> bool:
         """Whether CREATE SCHEMA is supported."""
@@ -862,36 +768,15 @@ class MySQLDialect(
     # endregion
 
     # region Index Support
-    def supports_create_index(self) -> bool:
-        """Whether CREATE INDEX is supported."""
-        return True
 
-    def supports_drop_index(self) -> bool:
-        """Whether DROP INDEX is supported."""
-        return True
 
-    def supports_unique_index(self) -> bool:
-        """Whether UNIQUE indexes are supported."""
-        return True
 
-    def supports_index_if_not_exists(self) -> bool:
-        """Whether CREATE INDEX IF NOT EXISTS is supported."""
-        return False  # MySQL does not support IF NOT EXISTS for indexes
 
-    def supports_index_if_exists(self) -> bool:
-        """Whether DROP INDEX IF EXISTS is supported."""
-        return False  # MySQL does not support IF EXISTS for indexes
 
     # endregion
 
     # region Sequence Support
-    def supports_create_sequence(self) -> bool:
-        """Whether CREATE SEQUENCE is supported."""
-        return False  # MySQL does not support sequences (uses AUTO_INCREMENT)
 
-    def supports_drop_sequence(self) -> bool:
-        """Whether DROP SEQUENCE is supported."""
-        return False
 
     # endregion
 
@@ -904,9 +789,6 @@ class MySQLDialect(
         """Whether DROP TABLE IF EXISTS is supported."""
         return True
 
-    def supports_temporary_table(self) -> bool:
-        """Whether TEMPORARY tables are supported."""
-        return True
 
     def format_create_table_statement(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
         """
@@ -981,14 +863,8 @@ class MySQLDialect(
 
         return " ".join(parts), tuple(all_params)
 
-    def supports_add_column_if_not_exists(self) -> bool:
-        return False
 
-    def supports_drop_column_if_exists(self) -> bool:
-        return False
 
-    def supports_drop_constraint_if_exists(self) -> bool:
-        return False
 
     def format_add_column_action(self, action) -> Tuple[str, tuple]:
         if getattr(action, "if_not_exists", None) is True:
@@ -1082,57 +958,7 @@ class MySQLDialect(
         parts.append(f"LIKE {like_table_str}")
         return ' '.join(parts), ()
 
-    def _format_table_constraint_mysql(
-        self,
-        t_const: "TableConstraint",
-        TableConstraintType
-    ) -> Tuple[str, List[Any]]:
-        """Format a table-level constraint."""
-        parts = []
-        params: List[Any] = []
 
-        if t_const.name:
-            parts.append(f"CONSTRAINT {self.format_identifier(t_const.name)}")
-
-        if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
-            if t_const.columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"PRIMARY KEY ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.UNIQUE:
-            if t_const.columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"UNIQUE ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
-            if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
-                cols_str = ', '.join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ', '.join(
-                    self.format_identifier(c) for c in t_const.foreign_key_columns
-                )
-                ref_table = self.format_identifier(t_const.foreign_key_table)
-                parts.append(
-                    f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})"
-                )
-
-        return ' '.join(parts), params
-
-    def _format_inline_index_mysql(self, idx_def: "IndexDefinition") -> str:
-        """Format an inline index definition (MySQL-specific)."""
-        parts = []
-
-        if idx_def.unique:
-            parts.append("UNIQUE")
-
-        parts.append("INDEX")
-        parts.append(self.format_identifier(idx_def.name))
-
-        cols_str = ', '.join(self.format_identifier(c) for c in idx_def.columns)
-        parts.append(f"({cols_str})")
-
-        # MySQL USING syntax for index type
-        if idx_def.type:
-            parts.append(f"USING {idx_def.type}")
-
-        return ' '.join(parts)
 
     # endregion
 
