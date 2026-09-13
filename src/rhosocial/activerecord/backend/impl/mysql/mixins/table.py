@@ -19,6 +19,14 @@ class MySQLTableMixin:
         """Validate data type string, allowing single quotes for MySQL ENUM types."""
         return bool(re.fullmatch(r"[A-Za-z0-9\s\(\),\']+", data_type))
 
+    def supports_if_not_exists_table(self) -> bool:
+        """Whether CREATE TABLE IF NOT EXISTS is supported."""
+        return True
+
+    def supports_if_exists_table(self) -> bool:
+        """Whether DROP TABLE IF EXISTS is supported."""
+        return True
+
     def supports_create_table_like(self) -> bool:
         return True
 
@@ -32,10 +40,18 @@ class MySQLTableMixin:
         return True
 
     def format_create_table_statement(self, expr) -> Tuple[str, tuple]:
-        """Format CREATE TABLE statement for MySQL."""
+        """Format CREATE TABLE statement for MySQL.
+
+        This method handles MySQL-specific syntax including:
+        - LIKE syntax (copying table structure)
+        - Inline index definitions
+        - Storage options (ENGINE, CHARSET, COLLATE)
+        - Table-level comments
+        - AUTO_INCREMENT in column definitions
+        - Partition clause
+        """
         if "like_table" in expr.dialect_options:
             return self.format_create_table_like(expr)
-
 
         all_params: List[Any] = []
 
@@ -71,6 +87,12 @@ class MySQLTableMixin:
         if "comment" in expr.dialect_options:
             escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
             parts.append(f"COMMENT '{escaped_comment}'")
+
+        if expr.partition is not None:
+            partition_sql, partition_params = expr.partition.to_sql()
+            if partition_sql:
+                parts.append(partition_sql.strip())
+                all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
 

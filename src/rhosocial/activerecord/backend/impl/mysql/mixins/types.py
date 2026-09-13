@@ -745,3 +745,22 @@ class MySQLTypeSupportMixin(DDLTypeMixin, DDLTypeSupport):
         # Fallback
         from rhosocial.activerecord.backend.expression.types import CustomType
         return CustomType(self, stripped)
+
+    # ------------------------------------------------------------------
+    # DDLTypeSupport — cross-backend type suggestions
+    # ------------------------------------------------------------------
+
+    def suggested_data_types(self) -> "Dict[str, type]":
+        """Cross-backend type-consistency suggestions for MySQL."""
+        from ..expression.types import (
+            MySQLBinaryType,
+            MySQLEnumType,
+            MySQLVarBinaryType,
+        )
+
+        return {
+            "uuid": MySQLBinaryType,
+            "enum": MySQLEnumType,
+            "binary": MySQLBinaryType,
+            "varbinary": MySQLVarBinaryType,
+        }
