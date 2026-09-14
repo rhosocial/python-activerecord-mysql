@@ -46,7 +46,7 @@ class MySQLSetTypeMixin:
                 f"format_find_in_set expects MySQLFindInSetExpression, got {type(expr).__name__}"
             )
 
-        sql = f"FIND_IN_SET(%s, {self.format_identifier(expr.set_column)}) > 0"
+        sql = f"FIND_IN_SET({self.p()}, {self.format_identifier(expr.set_column)}) > 0"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, (expr.value,)
@@ -64,7 +64,7 @@ class MySQLSetTypeMixin:
         params: List[str] = []
 
         for value in expr.values:
-            conditions.append(f"FIND_IN_SET(%s, {self.format_identifier(expr.column)}) > 0")
+            conditions.append(f"FIND_IN_SET({self.p()}, {self.format_identifier(expr.column)}) > 0")
             params.append(value)
 
         sql = " AND ".join(conditions)

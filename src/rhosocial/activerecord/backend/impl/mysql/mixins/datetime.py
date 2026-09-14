@@ -10,7 +10,7 @@ class MySQLDateTimeMixin:
     def format_date_trunc_expression(self, expr: "Any") -> Tuple[str, Tuple]:
         source_sql, source_params = expr.source.to_sql()
         field = expr.field.value.upper()
-        sql = f"CAST(DATE_FORMAT({source_sql}, %s) AS DATETIME)"
+        sql = f"CAST(DATE_FORMAT({source_sql}, {self.p()}) AS DATETIME)"
         formats = {
             "YEAR": "%Y-01-01 00:00:00",
             "MONTH": "%Y-%m-01 00:00:00",
@@ -24,7 +24,7 @@ class MySQLDateTimeMixin:
         return self.apply_alias(sql, source_params + (formats[field],), expr)
 
     def format_interval_expression(self, expr: "Any") -> Tuple[str, Tuple]:
-        sql = f"INTERVAL %s {expr.unit.value.upper()}"
+        sql = f"INTERVAL {self.p()} {expr.unit.value.upper()}"
         return self.apply_alias(sql, (expr.value,), expr)
 
     def format_datetime_add_expression(self, expr: "Any") -> Tuple[str, Tuple]:

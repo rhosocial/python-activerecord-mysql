@@ -52,8 +52,8 @@ class MySQLSpatialMixin:
     def _format_spatial_literal_parts(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
         """Format ST_GeomFromText from raw WKT and optional SRID."""
         if srid is not None:
-            return "ST_GeomFromText(%s, %s)", (wkt, srid)
-        return "ST_GeomFromText(%s)", (wkt,)
+            return f"ST_GeomFromText({self.p()}, {self.p()})", (wkt, srid)
+        return f"ST_GeomFromText({self.p()})", (wkt,)
 
     def format_st_geom_from_text(self, expr) -> Tuple[str, tuple]:
         """Format MySQLSTGeomFromTextExpression or a raw WKT string."""
@@ -80,10 +80,10 @@ class MySQLSpatialMixin:
             )
 
         if expr.srid is not None:
-            sql = "ST_GeomFromWKB(%s, %s)"
+            sql = f"ST_GeomFromWKB({self.p()}, {self.p()})"
             params: Tuple = (expr.wkb, expr.srid)
         else:
-            sql = "ST_GeomFromWKB(%s)"
+            sql = f"ST_GeomFromWKB({self.p()})"
             params = (expr.wkb,)
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"

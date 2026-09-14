@@ -45,7 +45,7 @@ class MySQLJSONFunctionMixin:
         all_paths = [path]
         if paths:
             all_paths.extend(paths)
-        path_placeholders = ", ".join(["%s" for _ in all_paths])
+        path_placeholders = ", ".join([self.p() for _ in all_paths])
         return f"JSON_EXTRACT({json_doc}, {path_placeholders})", tuple(all_paths)
 
     def format_json_unquote(self, expr) -> Tuple[str, tuple]:
@@ -80,8 +80,8 @@ class MySQLJSONFunctionMixin:
         params: List[Any] = []
 
         for key, value in key_value_pairs:
-            parts.append("%s")
-            parts.append("%s")
+            parts.append(self.p())
+            parts.append(self.p())
             params.append(key)
             params.append(value)
 
@@ -98,7 +98,7 @@ class MySQLJSONFunctionMixin:
         """Format JSON_ARRAY function."""
         if not values:
             return "JSON_ARRAY()", ()
-        placeholders = ", ".join(["%s" for _ in values])
+        placeholders = ", ".join([self.p() for _ in values])
         return f"JSON_ARRAY({placeholders})", tuple(values)
 
     def format_json_contains(self, expr) -> Tuple[str, tuple]:
@@ -111,8 +111,8 @@ class MySQLJSONFunctionMixin:
     def _format_json_contains_parts(self, target: str, candidate: str, path: Optional[str] = None) -> Tuple[str, tuple]:
         """Format JSON_CONTAINS function."""
         if path:
-            return f"JSON_CONTAINS({target}, %s, %s)", (candidate, path)
-        return f"JSON_CONTAINS({target}, %s)", (candidate,)
+            return f"JSON_CONTAINS({target}, {self.p()}, {self.p()})", (candidate, path)
+        return f"JSON_CONTAINS({target}, {self.p()})", (candidate,)
 
     def format_json_set(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSetExpression` node."""

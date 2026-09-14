@@ -30,7 +30,7 @@ class MySQLVectorMixin:
                 f"Vector dimension {len(values)} exceeds maximum supported dimension {self.MAX_VECTOR_DIMENSION}"
             )
         vector_str = "[" + ",".join(str(v) for v in values) + "]"
-        return "STRING_TO_VECTOR(%s)", (vector_str,)
+        return f"STRING_TO_VECTOR({self.p()})", (vector_str,)
 
     def format_string_to_vector(self, expr) -> Tuple[str, tuple]:
         """Format MySQLStringToVectorExpression or a raw vector string."""
