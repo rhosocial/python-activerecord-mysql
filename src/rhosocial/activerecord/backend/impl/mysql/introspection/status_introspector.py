@@ -393,7 +393,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             result = self._backend.execute(
                 "SELECT SUM(data_length + index_length) as total_size "
                 "FROM information_schema.TABLES "
-                "WHERE table_schema = %s",
+                f"WHERE table_schema = {self._backend.dialect.p()}",
                 (self._backend.config.database,),
             )
             if result and result.data:
@@ -421,11 +421,13 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         view_counts: Dict[str, int] = {}
 
         try:
+            p = self._backend.dialect.p()
+            placeholders = ", ".join([p] * len(db_names))
             result = self._backend.execute(
                 "SELECT table_schema, table_type, COUNT(*) as count "
                 "FROM information_schema.TABLES "
-                "WHERE table_schema IN (%s) "
-                "GROUP BY table_schema, table_type" % ",".join(["%s"] * len(db_names)),
+                f"WHERE table_schema IN ({placeholders}) "
+                "GROUP BY table_schema, table_type",
                 tuple(db_names),
             )
             if result and result.data:
@@ -1029,7 +1031,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             result = await self._backend.execute(
                 "SELECT SUM(data_length + index_length) as total_size "
                 "FROM information_schema.TABLES "
-                "WHERE table_schema = %s",
+                f"WHERE table_schema = {self._backend.dialect.p()}",
                 (self._backend.config.database,),
             )
             if result and result.data:
@@ -1057,11 +1059,13 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         view_counts: Dict[str, int] = {}
 
         try:
+            p = self._backend.dialect.p()
+            placeholders = ", ".join([p] * len(db_names))
             result = await self._backend.execute(
                 "SELECT table_schema, table_type, COUNT(*) as count "
                 "FROM information_schema.TABLES "
-                "WHERE table_schema IN (%s) "
-                "GROUP BY table_schema, table_type" % ",".join(["%s"] * len(db_names)),
+                f"WHERE table_schema IN ({placeholders}) "
+                "GROUP BY table_schema, table_type",
                 tuple(db_names),
             )
             if result and result.data:
