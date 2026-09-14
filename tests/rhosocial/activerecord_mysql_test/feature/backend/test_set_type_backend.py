@@ -7,6 +7,12 @@ This module tests the MySQL-specific SET type functionality with actual database
 
 import pytest
 
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLFindInSetExpression,
+    MySQLSetContainsExpression,
+    MySQLSetLiteralExpression,
+)
+
 
 class TestMySQLSetTypeBackend:
     """Synchronous tests for MySQL SET type with real database."""
@@ -105,7 +111,9 @@ class TestMySQLSetTypeBackend:
 
         # Use dialect to format literal
         dialect = mysql_backend.dialect
-        sql_literal, params = dialect.format_set_literal(["red", "blue"], ["red", "green", "blue"])
+        sql_literal, params = MySQLSetLiteralExpression(
+            dialect, ["red", "blue"], ["red", "green", "blue"]
+        ).to_sql()
 
         # Insert using formatted literal
         mysql_backend.execute(f"INSERT INTO test_set_literal (colors) VALUES ({sql_literal})", params)
@@ -136,7 +144,7 @@ class TestMySQLSetTypeBackend:
 
         # Use dialect to format FIND_IN_SET
         dialect = mysql_backend.dialect
-        condition, params = dialect.format_find_in_set("a", "tags")
+        condition, params = MySQLFindInSetExpression(dialect, "a", "tags").to_sql()
 
         # Query using formatted condition
         result = mysql_backend.execute(f"SELECT id, tags FROM test_find_format WHERE {condition}", params)
@@ -166,7 +174,7 @@ class TestMySQLSetTypeBackend:
 
         # Use dialect to format SET contains check
         dialect = mysql_backend.dialect
-        condition, params = dialect.format_set_contains("permissions", ["read", "write"])
+        condition, params = MySQLSetContainsExpression(dialect, "permissions", ["read", "write"]).to_sql()
 
         # Query using formatted condition
         result = mysql_backend.execute(f"SELECT id, permissions FROM test_contains_format WHERE {condition}", params)
@@ -325,7 +333,9 @@ class TestAsyncMySQLSetTypeBackend:
 
         # Use dialect to format literal
         dialect = async_mysql_backend.dialect
-        sql_literal, params = dialect.format_set_literal(["green", "red"], ["red", "green", "blue"])
+        sql_literal, params = MySQLSetLiteralExpression(
+            dialect, ["green", "red"], ["red", "green", "blue"]
+        ).to_sql()
 
         # Insert using formatted literal
         await async_mysql_backend.execute(f"INSERT INTO test_async_set_literal (colors) VALUES ({sql_literal})", params)
@@ -356,7 +366,7 @@ class TestAsyncMySQLSetTypeBackend:
 
         # Use dialect to format FIND_IN_SET
         dialect = async_mysql_backend.dialect
-        condition, params = dialect.format_find_in_set("x", "tags")
+        condition, params = MySQLFindInSetExpression(dialect, "x", "tags").to_sql()
 
         # Query using formatted condition
         result = await async_mysql_backend.execute(
@@ -387,7 +397,7 @@ class TestAsyncMySQLSetTypeBackend:
 
         # Use dialect to format SET contains check
         dialect = async_mysql_backend.dialect
-        condition, params = dialect.format_set_contains("roles", ["admin"])
+        condition, params = MySQLSetContainsExpression(dialect, "roles", ["admin"]).to_sql()
 
         # Query using formatted condition
         result = await async_mysql_backend.execute(

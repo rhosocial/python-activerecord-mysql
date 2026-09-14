@@ -537,9 +537,6 @@ class _UnsupportedMaintenanceExpr(MySQLTableMaintenanceExpression):
 
     operation = "VACUUM"
 
-    def to_sql(self):
-        return self.dialect.format_table_maintenance_statement(self)
-
 
 class TestRenameTableBranches:
     def test_invalid_pair(self, dialect):

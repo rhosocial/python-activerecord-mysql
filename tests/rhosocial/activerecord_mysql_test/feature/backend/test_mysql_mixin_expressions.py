@@ -80,6 +80,27 @@ from rhosocial.activerecord.backend.impl.mysql.expression.vector import (
     MySQLDistanceEuclideanExpression,
     MySQLVectorExpression,
 )
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLCreateSpatialIndexExpression,
+    MySQLFindInSetExpression,
+    MySQLFulltextIndexOptionsExpression,
+    MySQLJSONArrayExpression,
+    MySQLJSONContainsExpression,
+    MySQLJSONObjectExpression,
+    MySQLJSONRemoveExpression,
+    MySQLJSONSearchExpression,
+    MySQLJSONSetExpression,
+    MySQLJSONTypeExpression,
+    MySQLJSONUnquoteExpression,
+    MySQLJSONValidExpression,
+    MySQLSetContainsExpression,
+    MySQLSTAsGeoJSONExpression,
+    MySQLSTAsTextExpression,
+    MySQLSTGeomFromWKBExpression,
+    MySQLStringToVectorExpression,
+    MySQLVectorDimExpression,
+    MySQLVectorToStringExpression,
+)
 
 
 # ============================================================================
@@ -392,16 +413,18 @@ class TestMySQLFullTextExpressions:
 
     def test_fulltext_index_options_basic(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_fulltext_index_options(
-            "idx_ft_content", ["title", "body"]
+        expr = MySQLFulltextIndexOptionsExpression(
+            dialect, "idx_ft_content", ["title", "body"]
         )
+        sql, params = expr.to_sql()
         assert "FULLTEXT `idx_ft_content` (`title`, `body`)" == sql
 
     def test_fulltext_index_options_with_parser(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_fulltext_index_options(
-            "idx_ft_text", ["content"], parser_name="ngram"
+        expr = MySQLFulltextIndexOptionsExpression(
+            dialect, "idx_ft_text", ["content"], parser_name="ngram"
         )
+        sql, params = expr.to_sql()
         assert "WITH PARSER `ngram`" in sql
 
     def test_match_against_basic(self):
@@ -853,89 +876,96 @@ class TestMySQLJSONExpressions:
 
     def test_json_set_basic(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_set("`doc`", "$.name", "John")
+        expr = MySQLJSONSetExpression(dialect, "`doc`", "$.name", "John")
+        sql, params = expr.to_sql()
         assert "JSON_SET(`doc`, %s, %s)" == sql
         assert params == ("$.name", "John")
 
     def test_json_set_multiple(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_set(
-            "`doc`", "$.name", "John",
+        expr = MySQLJSONSetExpression(
+            dialect, "`doc`", "$.name", "John",
             path_value_pairs=[("$.age", 30), ("$.city", "NYC")]
         )
+        sql, params = expr.to_sql()
         assert "JSON_SET(`doc`, %s, %s, %s, %s, %s, %s)" == sql
         assert params == ("$.name", "John", "$.age", 30, "$.city", "NYC")
 
     def test_json_remove_basic(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_remove("`doc`", "$.temp")
+        expr = MySQLJSONRemoveExpression(dialect, "`doc`", "$.temp")
+        sql, params = expr.to_sql()
         assert "JSON_REMOVE(`doc`, %s)" == sql
         assert params == ("$.temp",)
 
     def test_json_remove_multiple(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_remove(
-            "`doc`", "$.temp", paths=["$.cache", "$.debug"]
+        expr = MySQLJSONRemoveExpression(
+            dialect, "`doc`", "$.temp", paths=["$.cache", "$.debug"]
         )
+        sql, params = expr.to_sql()
         assert "JSON_REMOVE(`doc`, %s, %s, %s)" == sql
         assert params == ("$.temp", "$.cache", "$.debug")
 
     def test_json_type(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_type("`doc`")
-        assert "JSON_TYPE(`doc`)" == sql
+        expr = MySQLJSONTypeExpression(dialect, "`doc`")
+        sql, params = expr.to_sql()
+        assert "JSON_TYPE(%s)" == sql
 
     def test_json_valid(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_valid("`doc`")
-        assert "JSON_VALID(`doc`)" == sql
+        expr = MySQLJSONValidExpression(dialect, "`doc`")
+        sql, params = expr.to_sql()
+        assert "JSON_VALID(%s)" == sql
 
     def test_json_unquote(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_unquote("JSON_EXTRACT(`doc`, %s)")
-        assert "JSON_UNQUOTE(JSON_EXTRACT(`doc`, %s))" == sql
+        expr = MySQLJSONUnquoteExpression(dialect, "JSON_EXTRACT(`doc`, %s)")
+        sql, params = expr.to_sql()
+        assert "JSON_UNQUOTE(%s)" == sql
 
     def test_json_search_one_with_path(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_search(
-            "`doc`", "search_str", path="$.name"
+        expr = MySQLJSONSearchExpression(
+            dialect, "`doc`", "search_str", path="$.name"
         )
+        sql, params = expr.to_sql()
         assert "JSON_SEARCH(`doc`, 'one', %s, NULL, %s)" == sql
         assert params == ("search_str", "$.name")
 
     def test_json_search_all(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_json_search(
-            "`doc`", "search_str", all=True
-        )
+        expr = MySQLJSONSearchExpression(dialect, "`doc`", "search_str", all=True)
+        sql, params = expr.to_sql()
         assert "JSON_SEARCH(`doc`, 'all', %s)" == sql
         assert params == ("search_str",)
 
     def test_json_object_empty(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect._format_json_object_parts([])
+        sql, params = MySQLJSONObjectExpression(dialect, []).to_sql()
         assert "JSON_OBJECT()" == sql
 
     def test_json_object_with_pairs(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect._format_json_object_parts([("name", "John"), ("age", 30)])
+        sql, params = MySQLJSONObjectExpression(dialect, [("name", "John"), ("age", 30)]).to_sql()
         assert "JSON_OBJECT(%s, %s, %s, %s)" == sql
         assert params == ("name", "John", "age", 30)
 
     def test_json_array_empty(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect._format_json_array_parts([])
+        sql, params = MySQLJSONArrayExpression(dialect, []).to_sql()
         assert "JSON_ARRAY()" == sql
 
     def test_json_contains_without_path(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect._format_json_contains_parts("`data`", '"target"')
+        sql, params = MySQLJSONContainsExpression(dialect, "`data`", '"target"').to_sql()
         assert "JSON_CONTAINS(`data`, %s)" == sql
         assert params == ('"target"',)
 
     def test_json_contains_with_path(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect._format_json_contains_parts("`data`", '"target"', "$.path")
+        sql, params = MySQLJSONContainsExpression(dialect, "`data`", '"target"', "$.path").to_sql()
         assert "JSON_CONTAINS(`data`, %s, %s)" == sql
         assert params == ('"target"', "$.path")
 
@@ -1024,13 +1054,15 @@ class TestMySQLSetTypeExpressions:
 
     def test_find_in_set(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_find_in_set("value", "tags")
+        expr = MySQLFindInSetExpression(dialect, "value", "tags")
+        sql, params = expr.to_sql()
         assert "FIND_IN_SET(%s, `tags`)" in sql
         assert params == ("value",)
 
     def test_set_contains(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_set_contains("tags", ["a", "b"])
+        expr = MySQLSetContainsExpression(dialect, "tags", ["a", "b"])
+        sql, params = expr.to_sql()
         assert "FIND_IN_SET(%s, `tags`) > 0" in sql
         assert len(params) == 2
 
@@ -1044,22 +1076,28 @@ class TestMySQLSpatialExpressions:
 
     def test_st_as_text(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_st_as_text("`geom`")
+        expr = MySQLSTAsTextExpression(dialect, "`geom`")
+        sql, params = expr.to_sql()
         assert "ST_AsText(`geom`)" == sql
+        assert params == ()
 
     def test_st_as_geojson(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_st_as_geojson("`geom`")
+        expr = MySQLSTAsGeoJSONExpression(dialect, "`geom`")
+        sql, params = expr.to_sql()
         assert "ST_AsGeoJSON(`geom`)" == sql
+        assert params == ()
 
     def test_st_geom_from_wkb(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_st_geom_from_wkb(b"\\x0001")
+        expr = MySQLSTGeomFromWKBExpression(dialect, b"\\x0001")
+        sql, params = expr.to_sql()
         assert "ST_GeomFromWKB(" in sql
 
     def test_create_spatial_index(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_create_spatial_index("idx_spatial", "t", "geom")
+        expr = MySQLCreateSpatialIndexExpression(dialect, "idx_spatial", "t", "geom")
+        sql, params = expr.to_sql()
         assert "CREATE SPATIAL INDEX" in sql
         assert "`idx_spatial`" in sql
         assert "ON `t`" in sql
@@ -1067,9 +1105,10 @@ class TestMySQLSpatialExpressions:
 
     def test_create_spatial_index_multi_column(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_create_spatial_index(
-            "idx_spatial", "t", "geom1, geom2"
+        expr = MySQLCreateSpatialIndexExpression(
+            dialect, "idx_spatial", "t", "geom1, geom2"
         )
+        sql, params = expr.to_sql()
         assert "CREATE SPATIAL INDEX" in sql
         assert "(`geom1, geom2`)" in sql
 
@@ -1089,17 +1128,22 @@ class TestMySQLVectorExpressions:
 
     def test_vector_to_string(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_vector_to_string("`vec`")
-        assert "VECTOR_TO_STRING(`vec`)" == sql
+        expr = MySQLVectorToStringExpression(dialect, "`vec`")
+        sql, params = expr.to_sql()
+        assert "VECTOR_TO_STRING(%s)" == sql
+        assert params == ("`vec`",)
 
     def test_vector_dim(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_vector_dim("`vec`")
-        assert "VECTOR_DIM(`vec`)" == sql
+        expr = MySQLVectorDimExpression(dialect, "`vec`")
+        sql, params = expr.to_sql()
+        assert "VECTOR_DIM(%s)" == sql
+        assert params == ("`vec`",)
 
     def test_string_to_vector(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        sql, params = dialect.format_string_to_vector("'[1,2,3]'")
+        expr = MySQLStringToVectorExpression(dialect, "'[1,2,3]'")
+        sql, params = expr.to_sql()
         assert "STRING_TO_VECTOR(%s)" == sql
         assert params == ("'[1,2,3]'",)
 

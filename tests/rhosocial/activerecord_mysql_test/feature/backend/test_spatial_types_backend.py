@@ -9,6 +9,10 @@ Tests use the dialect mixin methods to generate SQL, validating our implementati
 import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLCreateSpatialIndexExpression,
+    MySQLSpatialLiteralExpression,
+    MySQLSTAsGeoJSONExpression,
+    MySQLSTAsTextExpression,
     MySQLSTContainsExpression,
     MySQLSTDistanceExpression,
     MySQLSTGeomFromTextExpression,
@@ -61,7 +65,7 @@ class TestMySQLSpatialTypeBackend:
         """)
 
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_spatial_literal("POINT(5 5)")
+        sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(5 5)").to_sql()
 
         mysql_backend.execute(f"INSERT INTO test_spatial_literal (location) VALUES ({sql})", params)
 
@@ -82,7 +86,7 @@ class TestMySQLSpatialTypeBackend:
         """)
 
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_spatial_literal("POINT(10 20)", 4326)
+        sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(10 20)", 4326).to_sql()
 
         mysql_backend.execute(f"INSERT INTO test_spatial_srid (location) VALUES ({sql})", params)
 
@@ -110,7 +114,7 @@ class TestMySQLSpatialTypeBackend:
     def test_format_st_geom_from_text_with_srid(self, mysql_backend):
         """Test format_st_geom_from_text generates correct SQL with SRID."""
         dialect = mysql_backend.dialect
-        sql, params = dialect._format_spatial_literal_parts("POINT(1 1)", 4326)
+        sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)", 4326).to_sql()
 
         result = mysql_backend.execute(f"SELECT ST_SRID({sql}) as srid", params)
 
@@ -129,7 +133,7 @@ class TestMySQLSpatialTypeBackend:
         mysql_backend.execute("INSERT INTO test_astext (location) VALUES (ST_GeomFromText('POINT(7 8)'))")
 
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_st_as_text("location")
+        sql, params = MySQLSTAsTextExpression(dialect, "location").to_sql()
 
         result = mysql_backend.execute(f"SELECT {sql} as wkt FROM test_astext", params)
 
@@ -150,7 +154,7 @@ class TestMySQLSpatialTypeBackend:
         mysql_backend.execute("INSERT INTO test_geojson (location) VALUES (ST_GeomFromText('POINT(2 3)'))")
 
         dialect = mysql_backend.dialect
-        sql, params = dialect.format_st_as_geojson("location")
+        sql, params = MySQLSTAsGeoJSONExpression(dialect, "location").to_sql()
 
         result = mysql_backend.execute(f"SELECT {sql} as geojson FROM test_geojson", params)
 
@@ -213,11 +217,13 @@ class TestMySQLSpatialTypeBackend:
         """)
 
         dialect = mysql_backend.dialect
-        index_sql, params = dialect.format_create_spatial_index("idx_location", "test_spatial_idx", "location")
+        index_sql, params = MySQLCreateSpatialIndexExpression(
+            dialect, "idx_location", "test_spatial_idx", "location"
+        ).to_sql()
 
         mysql_backend.execute(index_sql)
 
-        insert_sql, insert_params = dialect.format_spatial_literal("POINT(1 1)")
+        insert_sql, insert_params = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)").to_sql()
         mysql_backend.execute(
             f"INSERT INTO test_spatial_idx (name, location) VALUES ('test', {insert_sql})", insert_params
         )
@@ -255,7 +261,7 @@ class TestAsyncMySQLSpatialTypeBackend:
         """)
 
         dialect = async_mysql_backend.dialect
-        sql, params = dialect.format_spatial_literal("POINT(5 5)")
+        sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(5 5)").to_sql()
 
         await async_mysql_backend.execute(f"INSERT INTO test_async_spatial (location) VALUES ({sql})", params)
 
@@ -272,7 +278,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     async def test_async_format_st_geom_from_text(self, async_mysql_backend):
         """Test format_st_geom_from_text generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
-        sql, params = dialect._format_spatial_literal_parts("POINT(10 20)", 4326)
+        sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(10 20)", 4326).to_sql()
 
         result = await async_mysql_backend.execute(f"SELECT ST_SRID({sql}) as srid", params)
 
@@ -324,7 +330,7 @@ class TestAsyncMySQLSpatialTypeBackend:
         )
 
         dialect = async_mysql_backend.dialect
-        sql, params = dialect.format_st_as_geojson("location")
+        sql, params = MySQLSTAsGeoJSONExpression(dialect, "location").to_sql()
 
         result = await async_mysql_backend.execute(f"SELECT {sql} as geojson FROM test_async_geojson", params)
 
@@ -344,11 +350,13 @@ class TestAsyncMySQLSpatialTypeBackend:
         """)
 
         dialect = async_mysql_backend.dialect
-        index_sql, _ = dialect.format_create_spatial_index("idx_loc", "test_async_idx", "location")
+        index_sql, _ = MySQLCreateSpatialIndexExpression(
+            dialect, "idx_loc", "test_async_idx", "location"
+        ).to_sql()
 
         await async_mysql_backend.execute(index_sql)
 
-        insert_sql, insert_params = dialect.format_spatial_literal("POINT(1 1)")
+        insert_sql, insert_params = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)").to_sql()
         await async_mysql_backend.execute(f"INSERT INTO test_async_idx (location) VALUES ({insert_sql})", insert_params)
 
         result = await async_mysql_backend.execute("SELECT COUNT(*) as cnt FROM test_async_idx")

@@ -94,8 +94,8 @@ class MySQLSpatialMixin:
         from ..expression.spatial import MySQLSTAsTextExpression
 
         if isinstance(expr, MySQLSTAsTextExpression):
-            sql = f"ST_AsText({self.get_parameter_placeholder()})"
-            params: Tuple = (expr.geom,)
+            sql = f"ST_AsText({expr.geom})"
+            params: Tuple = ()
             alias = expr.alias
         else:
             sql = f"ST_AsText({expr})"
@@ -113,8 +113,8 @@ class MySQLSpatialMixin:
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "GeoJSON functions (requires MySQL 5.7.5+)")
         if isinstance(expr, MySQLSTAsGeoJSONExpression):
-            sql = f"ST_AsGeoJSON({self.get_parameter_placeholder()})"
-            params: Tuple = (expr.geom,)
+            sql = f"ST_AsGeoJSON({expr.geom})"
+            params: Tuple = ()
             alias = expr.alias
         else:
             sql = f"ST_AsGeoJSON({expr})"
