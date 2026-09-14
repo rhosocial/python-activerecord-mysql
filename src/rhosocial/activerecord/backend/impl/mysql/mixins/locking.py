@@ -32,12 +32,9 @@ class MySQLLockingMixin:
         if clause.of_columns:
             of_parts = []
             for col in clause.of_columns:
-                if isinstance(col, str):
-                    of_parts.append(self.format_identifier(col))
-                else:
-                    col_sql, col_params = col.to_sql()
-                    of_parts.append(col_sql)
-                    all_params.extend(col_params)
+                col_sql, col_params = col.to_sql()
+                of_parts.append(col_sql)
+                all_params.extend(col_params)
             if of_parts:
                 sql_parts.append(f"OF {', '.join(of_parts)}")
 
