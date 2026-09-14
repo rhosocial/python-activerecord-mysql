@@ -48,8 +48,19 @@ class MySQLJSONFunctionMixin:
         path_placeholders = ", ".join(["%s" for _ in all_paths])
         return f"JSON_EXTRACT({json_doc}, {path_placeholders})", tuple(all_paths)
 
-    def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
-        return f"JSON_UNQUOTE({json_val})", ()
+    def format_json_unquote(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLJSONUnquoteExpression."""
+        from ..expression.json import MySQLJSONUnquoteExpression
+        if isinstance(expr, MySQLJSONUnquoteExpression):
+            json_val = expr.json_val
+            alias = expr.alias
+        else:
+            json_val = expr
+            alias = None
+        sql = f"JSON_UNQUOTE({json_val})"
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, ()
 
     def format_json_object(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONObjectExpression` node."""
@@ -101,13 +112,15 @@ class MySQLJSONFunctionMixin:
             return f"JSON_CONTAINS({target}, %s, %s)", (candidate, path)
         return f"JSON_CONTAINS({target}, %s)", (candidate,)
 
-    def format_json_set(
-        self, json_doc: str, path: str, value: Any, path_value_pairs: Optional[List[Tuple[str, Any]]] = None
-    ) -> Tuple[str, tuple]:
-        """Format JSON_SET function."""
-        all_pairs = [(path, value)]
-        if path_value_pairs:
-            all_pairs.extend(path_value_pairs)
+    def format_json_set(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLJSONSetExpression."""
+        from ..expression.json import MySQLJSONSetExpression
+        if isinstance(expr, MySQLJSONSetExpression):
+            json_doc = expr.json_doc
+            all_pairs = [(expr.path, expr.value)] + (expr.path_value_pairs or [])
+            alias = expr.alias
+        else:
+            raise TypeError("format_json_set expects MySQLJSONSetExpression")
 
         parts = []
         params: List[Any] = []
@@ -118,30 +131,77 @@ class MySQLJSONFunctionMixin:
             params.append(p)
             params.append(v)
 
-        return f"JSON_SET({json_doc}, {', '.join(parts)})", tuple(params)
+        sql = f"JSON_SET({json_doc}, {', '.join(parts)})"
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, tuple(params)
 
-    def format_json_remove(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
-        """Format JSON_REMOVE function."""
-        all_paths = [path]
-        if paths:
-            all_paths.extend(paths)
+    def format_json_remove(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLJSONRemoveExpression."""
+        from ..expression.json import MySQLJSONRemoveExpression
+        if isinstance(expr, MySQLJSONRemoveExpression):
+            json_doc = expr.json_doc
+            all_paths = [expr.path] + (expr.paths or [])
+            alias = expr.alias
+        else:
+            json_doc = expr
+            all_paths = []
+            alias = None
         path_placeholders = ", ".join(["%s" for _ in all_paths])
-        return f"JSON_REMOVE({json_doc}, {path_placeholders})", tuple(all_paths)
+        sql = f"JSON_REMOVE({json_doc}, {path_placeholders})"
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, tuple(all_paths)
 
-    def format_json_type(self, json_val: str) -> Tuple[str, tuple]:
-        return f"JSON_TYPE({json_val})", ()
+    def format_json_type(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLJSONTypeExpression."""
+        from ..expression.json import MySQLJSONTypeExpression
+        if isinstance(expr, MySQLJSONTypeExpression):
+            json_val = expr.json_val
+            alias = expr.alias
+        else:
+            json_val = expr
+            alias = None
+        sql = f"JSON_TYPE({json_val})"
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, ()
 
-    def format_json_valid(self, json_val: str) -> Tuple[str, tuple]:
-        return f"JSON_VALID({json_val})", ()
+    def format_json_valid(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLJSONValidExpression."""
+        from ..expression.json import MySQLJSONValidExpression
+        if isinstance(expr, MySQLJSONValidExpression):
+            json_val = expr.json_val
+            alias = expr.alias
+        else:
+            json_val = expr
+            alias = None
+        sql = f"JSON_VALID({json_val})"
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, ()
 
-    def format_json_search(
-        self, json_doc: str, search_str: str, path: Optional[str] = None, all: bool = False
-    ) -> Tuple[str, tuple]:
-        """Format JSON_SEARCH function."""
-        one_or_all = "'all'" if all else "'one'"
+    def format_json_search(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLJSONSearchExpression."""
+        from ..expression.json import MySQLJSONSearchExpression
+        if isinstance(expr, MySQLJSONSearchExpression):
+            json_doc = expr.json_doc
+            search_str = expr.search_str
+            path = expr.path
+            all_flag = expr.all
+            alias = expr.alias
+        else:
+            raise TypeError("format_json_search expects MySQLJSONSearchExpression")
+        one_or_all = "'all'" if all_flag else "'one'"
         if path:
-            return f"JSON_SEARCH({json_doc}, {one_or_all}, %s, NULL, %s)", (search_str, path)
-        return f"JSON_SEARCH({json_doc}, {one_or_all}, %s)", (search_str,)
+            sql = f"JSON_SEARCH({json_doc}, {one_or_all}, %s, NULL, %s)"
+            params = (search_str, path)
+        else:
+            sql = f"JSON_SEARCH({json_doc}, {one_or_all}, %s)"
+            params = (search_str,)
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, params
 
     def format_json_arrow_expression(self, expr: "JSONExpression") -> Tuple[str, Tuple]:
         """Format JSON expression using arrow operators for MySQL.
