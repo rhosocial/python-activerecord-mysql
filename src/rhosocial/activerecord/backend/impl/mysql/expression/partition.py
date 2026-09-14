@@ -9,7 +9,11 @@ from enum import Enum
 from math import isfinite
 from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING, Union
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValueExpression
+from rhosocial.activerecord.backend.expression.mixins import (
+    AliasableMixin,
+    ComparisonMixin,
+)
 from rhosocial.activerecord.backend.expression.core import TableExpression
 from rhosocial.activerecord.backend.expression.statements import PartitionClause
 

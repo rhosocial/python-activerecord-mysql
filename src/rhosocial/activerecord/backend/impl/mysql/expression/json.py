@@ -7,6 +7,12 @@ This module provides expression classes for MySQL JSON functions:
 - MySQLJSONObjectExpression
 - MySQLJSONArrayExpression
 - MySQLJSONContainsExpression
+- JSONUnquoteExpression
+- JSONSetExpression
+- JSONRemoveExpression
+- JSONTypeExpression
+- JSONValidExpression
+- JSONSearchExpression
 """
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -170,9 +176,207 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         return "format_json_contains"
 
 
+class JSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL JSON_UNQUOTE expression.
+
+    Removes quotes from a JSON-quoted string.
+
+    Args:
+        dialect: The SQL dialect.
+        json_val: JSON value to unquote.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        json_val: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.json_val = json_val
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_unquote"
+
+
+class JSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL JSON_SET expression.
+
+    Inserts or updates values in a JSON document.
+
+    Args:
+        dialect: The SQL dialect.
+        json_doc: JSON document column or expression.
+        path: JSON path to set.
+        value: Value to set at the path.
+        path_value_pairs: Additional path-value pairs.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        json_doc: str,
+        path: str,
+        value: Any,
+        path_value_pairs: Optional[List[tuple]] = None,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.json_doc = json_doc
+        self.path = path
+        self.value = value
+        self.path_value_pairs = path_value_pairs
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_set"
+
+
+class JSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL JSON_REMOVE expression.
+
+    Removes data from a JSON document.
+
+    Args:
+        dialect: The SQL dialect.
+        json_doc: JSON document column or expression.
+        path: JSON path to remove.
+        paths: Additional paths to remove.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        json_doc: str,
+        path: str,
+        paths: Optional[List[str]] = None,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.json_doc = json_doc
+        self.path = path
+        self.paths = paths
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_remove"
+
+
+class JSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL JSON_TYPE expression.
+
+    Returns the type of a JSON value.
+
+    Args:
+        dialect: The SQL dialect.
+        json_val: JSON value to check.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        json_val: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.json_val = json_val
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_type"
+
+
+class JSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL JSON_VALID expression.
+
+    Checks whether a value is valid JSON.
+
+    Args:
+        dialect: The SQL dialect.
+        json_val: JSON value to validate.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        json_val: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.json_val = json_val
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_valid"
+
+
+class JSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL JSON_SEARCH expression.
+
+    Searches a JSON document for a string and returns the path.
+
+    Args:
+        dialect: The SQL dialect.
+        json_doc: JSON document column or expression.
+        search_str: String to search for.
+        path: Optional JSON path scope.
+        all: If True, return all matches; if False, return first match.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        json_doc: str,
+        search_str: str,
+        path: Optional[str] = None,
+        all: bool = False,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.json_doc = json_doc
+        self.search_str = search_str
+        self.path = path
+        self.all = all
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_json_search"
+
+
 __all__ = [
     "MySQLJSONExtractExpression",
     "MySQLJSONObjectExpression",
     "MySQLJSONArrayExpression",
     "MySQLJSONContainsExpression",
+    "JSONUnquoteExpression",
+    "JSONSetExpression",
+    "JSONRemoveExpression",
+    "JSONTypeExpression",
+    "JSONValidExpression",
+    "JSONSearchExpression",
 ]

@@ -7,6 +7,10 @@ This module provides expression classes for MySQL vector functions:
 - MySQLDistanceEuclideanExpression
 - MySQLDistanceCosineExpression
 - MySQLDistanceDotExpression
+- StringToVectorExpression
+- VectorToStringExpression
+- VectorDimExpression
+- CreateVectorIndexExpression
 
 Note: Vector support requires MySQL 9.0+
 """
@@ -127,9 +131,129 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         return "format_distance_dot"
 
 
+class StringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL STRING_TO_VECTOR expression.
+
+    Converts a string representation to a VECTOR value.
+
+    Args:
+        dialect: The SQL dialect.
+        vector_str: String representation of the vector.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        vector_str: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.vector_str = vector_str
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_string_to_vector"
+
+
+class VectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL VECTOR_TO_STRING expression.
+
+    Converts a VECTOR value to its string representation.
+
+    Args:
+        dialect: The SQL dialect.
+        vector_col: Vector column or expression.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        vector_col: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.vector_col = vector_col
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_vector_to_string"
+
+
+class VectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL VECTOR_DIM expression.
+
+    Returns the dimension of a VECTOR value.
+
+    Args:
+        dialect: The SQL dialect.
+        vector_col: Vector column or expression.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        vector_col: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.vector_col = vector_col
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_vector_dim"
+
+
+class CreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL CREATE VECTOR INDEX expression.
+
+    Args:
+        dialect: The SQL dialect.
+        index_name: Name of the index.
+        table_name: Name of the table.
+        column: Column to create the vector index on.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        index_name: str,
+        table_name: str,
+        column: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.index_name = index_name
+        self.table_name = table_name
+        self.column = column
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_create_vector_index"
+
+
 __all__ = [
     "MySQLVectorExpression",
     "MySQLDistanceEuclideanExpression",
     "MySQLDistanceCosineExpression",
     "MySQLDistanceDotExpression",
+    "StringToVectorExpression",
+    "VectorToStringExpression",
+    "VectorDimExpression",
+    "CreateVectorIndexExpression",
 ]
