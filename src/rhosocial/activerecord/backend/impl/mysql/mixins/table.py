@@ -81,9 +81,12 @@ class MySQLTableMixin:
         parts.append(f"({', '.join(column_parts)})")
 
         if expr.storage_options:
-            storage_sql = self.format_storage_options(expr.storage_options)
+            from rhosocial.activerecord.backend.expression.statements.ddl_table import StorageOptionsExpression
+            storage_expr = StorageOptionsExpression(self, expr.storage_options) if isinstance(expr.storage_options, dict) else expr.storage_options
+            storage_sql, storage_params = self.format_storage_options(storage_expr)
             if storage_sql:
                 parts.append(storage_sql)
+                all_params.extend(storage_params)
 
         if "comment" in expr.dialect_options:
             escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
