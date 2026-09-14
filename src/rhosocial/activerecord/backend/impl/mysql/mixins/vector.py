@@ -32,26 +32,52 @@ class MySQLVectorMixin:
         vector_str = "[" + ",".join(str(v) for v in values) + "]"
         return "STRING_TO_VECTOR(%s)", (vector_str,)
 
-    def format_string_to_vector(self, expr: "MySQLStringToVectorExpression") -> Tuple[str, tuple]:
-        """Format MySQLStringToVectorExpression."""
+    def format_string_to_vector(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLStringToVectorExpression or a raw vector string."""
+        from ..expression.vector import MySQLStringToVectorExpression
+
+        if isinstance(expr, MySQLStringToVectorExpression):
+            vector_str = expr.vector_str
+            alias = expr.alias
+        else:
+            vector_str = expr
+            alias = None
         sql = f"STRING_TO_VECTOR({self.get_parameter_placeholder()})"
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
-        return sql, (expr.vector_str,)
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, (vector_str,)
 
-    def format_vector_to_string(self, expr: "MySQLVectorToStringExpression") -> Tuple[str, tuple]:
-        """Format MySQLVectorToStringExpression."""
-        sql = f"VECTOR_TO_STRING({self.get_parameter_placeholder()})"
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
-        return sql, (expr.vector_col,)
+    def format_vector_to_string(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLVectorToStringExpression or a raw vector reference."""
+        from ..expression.vector import MySQLVectorToStringExpression
 
-    def format_vector_dim(self, expr: "MySQLVectorDimExpression") -> Tuple[str, tuple]:
-        """Format MySQLVectorDimExpression."""
-        sql = f"VECTOR_DIM({self.get_parameter_placeholder()})"
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
-        return sql, (expr.vector_col,)
+        if isinstance(expr, MySQLVectorToStringExpression):
+            sql = f"VECTOR_TO_STRING({self.get_parameter_placeholder()})"
+            params: Tuple = (expr.vector_col,)
+            alias = expr.alias
+        else:
+            sql = f"VECTOR_TO_STRING({expr})"
+            params = ()
+            alias = None
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, params
+
+    def format_vector_dim(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLVectorDimExpression or a raw vector reference."""
+        from ..expression.vector import MySQLVectorDimExpression
+
+        if isinstance(expr, MySQLVectorDimExpression):
+            sql = f"VECTOR_DIM({self.get_parameter_placeholder()})"
+            params: Tuple = (expr.vector_col,)
+            alias = expr.alias
+        else:
+            sql = f"VECTOR_DIM({expr})"
+            params = ()
+            alias = None
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, params
 
     def format_distance_euclidean(self, expr) -> Tuple[str, tuple]:
         sql = f"DISTANCE_EUCLIDEAN({expr.vec1}, {expr.vec2})"

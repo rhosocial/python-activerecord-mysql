@@ -35,56 +35,118 @@ class MySQLSpatialMixin:
     def supports_geometry_collection_type(self) -> bool:
         return self.version >= (5, 7, 0)
 
-    def format_spatial_literal(self, expr: "MySQLSpatialLiteralExpression") -> Tuple[str, tuple]:
-        """Format MySQLSpatialLiteralExpression."""
-        if expr.srid is not None:
-            sql = "ST_GeomFromText(%s, %s)"
-            params = (expr.wkt, expr.srid)
+    def format_spatial_literal(self, expr, srid: Optional[int] = None) -> Tuple[str, tuple]:
+        """Format MySQLSpatialLiteralExpression or a raw WKT string."""
+        from ..expression.spatial import MySQLSpatialLiteralExpression
+
+        if isinstance(expr, MySQLSpatialLiteralExpression):
+            wkt = expr.wkt
+            srid = expr.srid
+            alias = expr.alias
         else:
-            sql = "ST_GeomFromText(%s)"
-            params = (expr.wkt,)
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+            wkt = expr
+            alias = None
+        sql, params = self._format_spatial_literal_parts(wkt, srid)
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_st_geom_from_wkb(self, expr: "MySQLSTGeomFromWKBExpression") -> Tuple[str, tuple]:
-        """Format MySQLSTGeomFromWKBExpression."""
-        if expr.srid is not None:
+    def _format_spatial_literal_parts(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
+        """Format ST_GeomFromText from raw WKT and optional SRID."""
+        if srid is not None:
+            return "ST_GeomFromText(%s, %s)", (wkt, srid)
+        return "ST_GeomFromText(%s)", (wkt,)
+
+    def format_st_geom_from_text(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLSTGeomFromTextExpression or a raw WKT string."""
+        from ..expression.spatial import MySQLSTGeomFromTextExpression
+
+        if isinstance(expr, MySQLSTGeomFromTextExpression):
+            wkt = expr.wkt
+            alias = expr.alias
+        else:
+            wkt = expr
+            alias = None
+        sql, params = self._format_spatial_literal_parts(wkt, None)
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, params
+
+    def format_st_geom_from_wkb(self, expr, srid: Optional[int] = None) -> Tuple[str, tuple]:
+        """Format MySQLSTGeomFromWKBExpression or raw WKB bytes."""
+        from ..expression.spatial import MySQLSTGeomFromWKBExpression
+
+        if isinstance(expr, MySQLSTGeomFromWKBExpression):
+            wkb = expr.wkb
+            srid = expr.srid
+            alias = expr.alias
+        else:
+            wkb = expr
+            alias = None
+        if srid is not None:
             sql = "ST_GeomFromWKB(%s, %s)"
-            params = (expr.wkb, expr.srid)
+            params: Tuple = (wkb, srid)
         else:
             sql = "ST_GeomFromWKB(%s)"
-            params = (expr.wkb,)
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+            params = (wkb,)
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_st_as_text(self, expr: "MySQLSTAsTextExpression") -> Tuple[str, tuple]:
-        """Format MySQLSTAsTextExpression."""
-        sql = f"ST_AsText({self.get_parameter_placeholder()})"
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
-        return sql, (expr.geom,)
+    def format_st_as_text(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLSTAsTextExpression or a raw geometry reference."""
+        from ..expression.spatial import MySQLSTAsTextExpression
 
-    def format_st_as_geojson(self, expr: "MySQLSTAsGeoJSONExpression") -> Tuple[str, tuple]:
-        """Format MySQLSTAsGeoJSONExpression."""
+        if isinstance(expr, MySQLSTAsTextExpression):
+            sql = f"ST_AsText({self.get_parameter_placeholder()})"
+            params: Tuple = (expr.geom,)
+            alias = expr.alias
+        else:
+            sql = f"ST_AsText({expr})"
+            params = ()
+            alias = None
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, params
+
+    def format_st_as_geojson(self, expr) -> Tuple[str, tuple]:
+        """Format MySQLSTAsGeoJSONExpression or a raw geometry reference."""
+        from ..expression.spatial import MySQLSTAsGeoJSONExpression
+
         if not self.supports_geojson():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "GeoJSON functions (requires MySQL 5.7.5+)")
-        sql = f"ST_AsGeoJSON({self.get_parameter_placeholder()})"
-        if expr.alias:
-            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
-        return sql, (expr.geom,)
+        if isinstance(expr, MySQLSTAsGeoJSONExpression):
+            sql = f"ST_AsGeoJSON({self.get_parameter_placeholder()})"
+            params: Tuple = (expr.geom,)
+            alias = expr.alias
+        else:
+            sql = f"ST_AsGeoJSON({expr})"
+            params = ()
+            alias = None
+        if alias:
+            sql = f"{sql} AS {self.format_identifier(alias)}"
+        return sql, params
 
-    def format_create_spatial_index(self, expr: "MySQLCreateSpatialIndexExpression") -> Tuple[str, tuple]:
-        """Format MySQLCreateSpatialIndexExpression."""
+    def format_create_spatial_index(
+        self, expr, table_name: Optional[str] = None, column: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format MySQLCreateSpatialIndexExpression or raw index arguments."""
+        from ..expression.spatial import MySQLCreateSpatialIndexExpression
+
+        if isinstance(expr, MySQLCreateSpatialIndexExpression):
+            index_name = expr.index_name
+            table_name = expr.table_name
+            column = expr.column
+        else:
+            index_name = expr
         if not self.supports_spatial_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
         return (
-            f"CREATE SPATIAL INDEX {self.format_identifier(expr.index_name)} "
-            f"ON {self.format_identifier(expr.table_name)} "
-            f"({self.format_identifier(expr.column)})",
+            f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
+            f"ON {self.format_identifier(table_name)} "
+            f"({self.format_identifier(column)})",
             (),
         )
 
@@ -105,15 +167,3 @@ class MySQLSpatialMixin:
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
-
-    def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
-        """Format CREATE SPATIAL INDEX statement."""
-        if not self.supports_spatial_index():
-            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-            raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
-        return (
-            f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
-            f"ON {self.format_identifier(table_name)} "
-            f"({self.format_identifier(column)})",
-            (),
-        )

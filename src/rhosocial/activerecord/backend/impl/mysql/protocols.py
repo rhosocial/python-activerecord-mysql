@@ -62,8 +62,13 @@ if TYPE_CHECKING:
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
+        MySQLAnalyzePartitionExpression,
+        MySQLCheckPartitionExpression,
+        MySQLCoalescePartitionExpression,
         MySQLDropPartitionExpression,
         MySQLExchangePartitionExpression,
+        MySQLGetPartitionsExpression,
+        MySQLOptimizePartitionExpression,
         MySQLPartitionByHash,
         MySQLPartitionByKey,
         MySQLPartitionByList,
@@ -73,7 +78,12 @@ if TYPE_CHECKING:
         MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
         MySQLPartitionValue,
+        MySQLRebuildPartitionExpression,
         MySQLReorganizePartitionExpression,
+        MySQLRemovePartitioningExpression,
+        MySQLRepairPartitionExpression,
+        MySQLSubpartitionClause,
+        MySQLSubpartitionDefinition,
         MySQLTruncatePartitionExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
@@ -716,11 +726,11 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """Format a MySQLJSONExtractExpression node."""
         ...
 
-    def format_json_unquote(self, json_val: str) -> Tuple[str, tuple]:
-        """Format JSON_UNQUOTE function call.
+    def format_json_unquote(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONUnquoteExpression node.
 
         Args:
-            json_val: JSON value to unquote
+            expr: MySQLJSONUnquoteExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -749,50 +759,56 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         ...
 
     def format_json_set(
-        self, json_doc: str, path: str, value: Any, path_value_pairs: Optional[List[Tuple[str, Any]]] = None
+        self,
+        expr: Any,
+        path: Optional[str] = None,
+        value: Any = None,
+        path_value_pairs: Optional[List[Tuple[str, Any]]] = None,
     ) -> Tuple[str, tuple]:
-        """Format JSON_SET function call.
+        """Format a MySQLJSONSetExpression node.
 
         Args:
-            json_doc: JSON document or column
-            path: JSON path expression
-            value: Value to set at the path
-            path_value_pairs: Additional (path, value) pairs
+            expr: MySQLJSONSetExpression instance (or raw JSON document)
+            path: JSON path expression (raw invocation only)
+            value: Value to set at the path (raw invocation only)
+            path_value_pairs: Additional (path, value) pairs (raw invocation only)
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_json_remove(self, json_doc: str, path: str, paths: Optional[List[str]] = None) -> Tuple[str, tuple]:
-        """Format JSON_REMOVE function call.
+    def format_json_remove(
+        self, expr: Any, path: Optional[str] = None, paths: Optional[List[str]] = None
+    ) -> Tuple[str, tuple]:
+        """Format a MySQLJSONRemoveExpression node.
 
         Args:
-            json_doc: JSON document or column
-            path: JSON path to remove
-            paths: Additional paths to remove
+            expr: MySQLJSONRemoveExpression instance (or raw JSON document)
+            path: JSON path to remove (raw invocation only)
+            paths: Additional paths to remove (raw invocation only)
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_json_type(self, json_val: str) -> Tuple[str, tuple]:
-        """Format JSON_TYPE function call.
+    def format_json_type(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONTypeExpression node.
 
         Args:
-            json_val: JSON value to type-check
+            expr: MySQLJSONTypeExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_json_valid(self, json_val: str) -> Tuple[str, tuple]:
-        """Format JSON_VALID function call.
+    def format_json_valid(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLJSONValidExpression node.
 
         Args:
-            json_val: Value to check for valid JSON
+            expr: MySQLJSONValidExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -800,15 +816,19 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         ...
 
     def format_json_search(
-        self, json_doc: str, search_str: str, path: Optional[str] = None, all: bool = False
+        self,
+        expr: Any,
+        search_str: Optional[str] = None,
+        path: Optional[str] = None,
+        all: bool = False,
     ) -> Tuple[str, tuple]:
-        """Format JSON_SEARCH function call.
+        """Format a MySQLJSONSearchExpression node.
 
         Args:
-            json_doc: JSON document or column to search in
-            search_str: Search string (supports % and _ wildcards)
-            path: Optional path to search within
-            all: If True, return all matches; if False, return first match
+            expr: MySQLJSONSearchExpression instance (or raw JSON document)
+            search_str: Search string (raw invocation only)
+            path: Optional path to search within (raw invocation only)
+            all: If True, return all matches (raw invocation only)
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -874,12 +894,12 @@ class MySQLSpatialSupport(Protocol):
         """Whether GEOMETRYCOLLECTION is supported."""
         ...
 
-    def format_spatial_literal(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
-        """Format spatial literal from WKT.
+    def format_spatial_literal(self, expr: Any, srid: Optional[int] = None) -> Tuple[str, tuple]:
+        """Format a MySQLSpatialLiteralExpression node.
 
         Args:
-            wkt: Well-Known Text representation
-            srid: Optional Spatial Reference System Identifier
+            expr: MySQLSpatialLiteralExpression instance (or raw WKT string)
+            srid: Optional Spatial Reference System Identifier (raw invocation only)
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -887,45 +907,44 @@ class MySQLSpatialSupport(Protocol):
         ...
 
     def format_st_geom_from_text(self, expr: Any) -> Tuple[str, tuple]:
-        """Format ST_GeomFromText function call.
+        """Format a MySQLSTGeomFromTextExpression node.
 
         Args:
-            wkt: Well-Known Text representation
-            srid: Optional Spatial Reference System Identifier
+            expr: MySQLSTGeomFromTextExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_st_geom_from_wkb(self, wkb: bytes, srid: Optional[int] = None) -> Tuple[str, tuple]:
-        """Format ST_GeomFromWKB function call.
+    def format_st_geom_from_wkb(self, expr: Any, srid: Optional[int] = None) -> Tuple[str, tuple]:
+        """Format a MySQLSTGeomFromWKBExpression node.
 
         Args:
-            wkb: Well-Known Binary representation
-            srid: Optional Spatial Reference System Identifier
+            expr: MySQLSTGeomFromWKBExpression instance (or raw WKB bytes)
+            srid: Optional Spatial Reference System Identifier (raw invocation only)
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_st_as_text(self, geom: str) -> Tuple[str, tuple]:
-        """Format ST_AsText function call.
+    def format_st_as_text(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLSTAsTextExpression node.
 
         Args:
-            geom: Geometry column or expression
+            expr: MySQLSTAsTextExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_st_as_geojson(self, geom: str) -> Tuple[str, tuple]:
-        """Format ST_AsGeoJSON function call.
+    def format_st_as_geojson(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLSTAsGeoJSONExpression node.
 
         Args:
-            geom: Geometry column or expression
+            expr: MySQLSTAsGeoJSONExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -968,13 +987,15 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_create_spatial_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
-        """Format CREATE SPATIAL INDEX statement.
+    def format_create_spatial_index(
+        self, expr: Any, table_name: Optional[str] = None, column: Optional[str] = None
+    ) -> Tuple[str, tuple]:
+        """Format a MySQLCreateSpatialIndexExpression node.
 
         Args:
-            index_name: Index name
-            table_name: Table name
-            column: Column name
+            expr: MySQLCreateSpatialIndexExpression instance (or raw index name)
+            table_name: Table name (raw invocation only)
+            column: Column name (raw invocation only)
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -1026,33 +1047,33 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_string_to_vector(self, vector_str: str) -> Tuple[str, tuple]:
-        """Format STRING_TO_VECTOR function call.
+    def format_string_to_vector(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLStringToVectorExpression node.
 
         Args:
-            vector_str: String representation of a vector
+            expr: MySQLStringToVectorExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_vector_to_string(self, vector_col: str) -> Tuple[str, tuple]:
-        """Format VECTOR_TO_STRING function call.
+    def format_vector_to_string(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLVectorToStringExpression node.
 
         Args:
-            vector_col: Vector column or expression
+            expr: MySQLVectorToStringExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_vector_dim(self, vector_col: str) -> Tuple[str, tuple]:
-        """Format VECTOR_DIM function call to get vector dimension.
+    def format_vector_dim(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLVectorDimExpression node.
 
         Args:
-            vector_col: Vector column or expression
+            expr: MySQLVectorDimExpression instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
