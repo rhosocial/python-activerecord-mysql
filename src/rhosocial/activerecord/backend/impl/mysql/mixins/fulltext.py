@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/fulltext.py
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 
 class MySQLFullTextSearchMixin:
@@ -25,14 +25,20 @@ class MySQLFullTextSearchMixin:
     def supports_fulltext_query_expansion(self) -> bool:
         return True
 
-    def format_fulltext_index_options(
-        self, index_name: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format FULLTEXT index options for CREATE TABLE / ALTER TABLE."""
-        col_parts = [self.format_identifier(c) for c in columns]
-        sql = f"FULLTEXT {self.format_identifier(index_name)} ({', '.join(col_parts)})"
-        if parser_name:
-            sql += f" WITH PARSER {self.format_identifier(parser_name)}"
+    def format_fulltext_index_options(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLFulltextIndexOptionsExpression` node."""
+        from ..expression.fulltext import MySQLFulltextIndexOptionsExpression
+
+        if not isinstance(expr, MySQLFulltextIndexOptionsExpression):
+            raise TypeError(
+                f"format_fulltext_index_options expects MySQLFulltextIndexOptionsExpression, "
+                f"got {type(expr).__name__}"
+            )
+
+        col_parts = [self.format_identifier(c) for c in expr.columns]
+        sql = f"FULLTEXT {self.format_identifier(expr.index_name)} ({', '.join(col_parts)})"
+        if expr.parser_name:
+            sql += f" WITH PARSER {self.format_identifier(expr.parser_name)}"
         return sql, ()
 
     def format_match_against(self, expr) -> Tuple[str, tuple]:

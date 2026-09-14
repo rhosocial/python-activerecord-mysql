@@ -114,57 +114,41 @@ class MySQLJSONFunctionMixin:
             return f"JSON_CONTAINS({target}, %s, %s)", (candidate, path)
         return f"JSON_CONTAINS({target}, %s)", (candidate,)
 
-    def format_json_set(
-        self,
-        expr,
-        path: Optional[str] = None,
-        value: Any = None,
-        path_value_pairs: Optional[List[Tuple[str, Any]]] = None,
-    ) -> Tuple[str, tuple]:
-        """Format MySQLJSONSetExpression or raw JSON_SET arguments."""
+    def format_json_set(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONSetExpression` node."""
         from ..expression.json import MySQLJSONSetExpression
 
-        if isinstance(expr, MySQLJSONSetExpression):
-            json_doc = expr.json_doc
-            all_pairs = [(expr.path, expr.value)] + (expr.path_value_pairs or [])
-            alias = expr.alias
-        else:
-            json_doc = expr
-            all_pairs = [(path, value)]
-            if path_value_pairs:
-                all_pairs.extend(path_value_pairs)
-            alias = None
+        if not isinstance(expr, MySQLJSONSetExpression):
+            raise TypeError(
+                f"format_json_set expects MySQLJSONSetExpression, got {type(expr).__name__}"
+            )
+
+        all_pairs = [(expr.path, expr.value)] + (expr.path_value_pairs or [])
         placeholders = ", ".join(
             [f"{self.get_parameter_placeholder()}, {self.get_parameter_placeholder()}" for _ in all_pairs]
         )
         params = []
         for p, v in all_pairs:
             params.extend([p, v])
-        sql = f"JSON_SET({json_doc}, {placeholders})"
-        if alias:
-            sql = f"{sql} AS {self.format_identifier(alias)}"
+        sql = f"JSON_SET({expr.json_doc}, {placeholders})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, tuple(params)
 
-    def format_json_remove(
-        self, expr, path: Optional[str] = None, paths: Optional[List[str]] = None
-    ) -> Tuple[str, tuple]:
-        """Format MySQLJSONRemoveExpression or raw JSON_REMOVE arguments."""
+    def format_json_remove(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONRemoveExpression` node."""
         from ..expression.json import MySQLJSONRemoveExpression
 
-        if isinstance(expr, MySQLJSONRemoveExpression):
-            json_doc = expr.json_doc
-            all_paths = [expr.path] + (expr.paths or [])
-            alias = expr.alias
-        else:
-            json_doc = expr
-            all_paths = [path]
-            if paths:
-                all_paths.extend(paths)
-            alias = None
+        if not isinstance(expr, MySQLJSONRemoveExpression):
+            raise TypeError(
+                f"format_json_remove expects MySQLJSONRemoveExpression, got {type(expr).__name__}"
+            )
+
+        all_paths = [expr.path] + (expr.paths or [])
         placeholders = ", ".join([self.get_parameter_placeholder()] * len(all_paths))
-        sql = f"JSON_REMOVE({json_doc}, {placeholders})"
-        if alias:
-            sql = f"{sql} AS {self.format_identifier(alias)}"
+        sql = f"JSON_REMOVE({expr.json_doc}, {placeholders})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, tuple(all_paths)
 
     def format_json_type(self, expr) -> Tuple[str, tuple]:
@@ -199,37 +183,27 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_json_search(
-        self,
-        expr,
-        search_str: Optional[str] = None,
-        path: Optional[str] = None,
-        all: bool = False,
-    ) -> Tuple[str, tuple]:
-        """Format MySQLJSONSearchExpression or raw JSON_SEARCH arguments."""
+    def format_json_search(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLJSONSearchExpression` node."""
         from ..expression.json import MySQLJSONSearchExpression
 
-        if isinstance(expr, MySQLJSONSearchExpression):
-            json_doc = expr.json_doc
-            search_str = expr.search_str
-            path = expr.path
-            all = expr.all
-            alias = expr.alias
-        else:
-            json_doc = expr
-            alias = None
-        one_or_all = "'all'" if all else "'one'"
-        if path:
+        if not isinstance(expr, MySQLJSONSearchExpression):
+            raise TypeError(
+                f"format_json_search expects MySQLJSONSearchExpression, got {type(expr).__name__}"
+            )
+
+        one_or_all = "'all'" if expr.all else "'one'"
+        if expr.path:
             sql = (
-                f"JSON_SEARCH({json_doc}, {one_or_all}, {self.get_parameter_placeholder()}, "
+                f"JSON_SEARCH({expr.json_doc}, {one_or_all}, {self.get_parameter_placeholder()}, "
                 f"NULL, {self.get_parameter_placeholder()})"
             )
-            params = (search_str, path)
+            params = (expr.search_str, expr.path)
         else:
-            sql = f"JSON_SEARCH({json_doc}, {one_or_all}, {self.get_parameter_placeholder()})"
-            params = (search_str,)
-        if alias:
-            sql = f"{sql} AS {self.format_identifier(alias)}"
+            sql = f"JSON_SEARCH({expr.json_doc}, {one_or_all}, {self.get_parameter_placeholder()})"
+            params = (expr.search_str,)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, params
 
     def format_json_arrow_expression(self, expr: "JSONExpression") -> Tuple[str, Tuple]:

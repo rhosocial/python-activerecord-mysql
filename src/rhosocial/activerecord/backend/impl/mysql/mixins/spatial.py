@@ -35,20 +35,18 @@ class MySQLSpatialMixin:
     def supports_geometry_collection_type(self) -> bool:
         return self.version >= (5, 7, 0)
 
-    def format_spatial_literal(self, expr, srid: Optional[int] = None) -> Tuple[str, tuple]:
-        """Format MySQLSpatialLiteralExpression or a raw WKT string."""
+    def format_spatial_literal(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLSpatialLiteralExpression` node."""
         from ..expression.spatial import MySQLSpatialLiteralExpression
 
-        if isinstance(expr, MySQLSpatialLiteralExpression):
-            wkt = expr.wkt
-            srid = expr.srid
-            alias = expr.alias
-        else:
-            wkt = expr
-            alias = None
-        sql, params = self._format_spatial_literal_parts(wkt, srid)
-        if alias:
-            sql = f"{sql} AS {self.format_identifier(alias)}"
+        if not isinstance(expr, MySQLSpatialLiteralExpression):
+            raise TypeError(
+                f"format_spatial_literal expects MySQLSpatialLiteralExpression, got {type(expr).__name__}"
+            )
+
+        sql, params = self._format_spatial_literal_parts(expr.wkt, expr.srid)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, params
 
     def _format_spatial_literal_parts(self, wkt: str, srid: Optional[int] = None) -> Tuple[str, tuple]:
@@ -72,25 +70,23 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_st_geom_from_wkb(self, expr, srid: Optional[int] = None) -> Tuple[str, tuple]:
-        """Format MySQLSTGeomFromWKBExpression or raw WKB bytes."""
+    def format_st_geom_from_wkb(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLSTGeomFromWKBExpression` node."""
         from ..expression.spatial import MySQLSTGeomFromWKBExpression
 
-        if isinstance(expr, MySQLSTGeomFromWKBExpression):
-            wkb = expr.wkb
-            srid = expr.srid
-            alias = expr.alias
-        else:
-            wkb = expr
-            alias = None
-        if srid is not None:
+        if not isinstance(expr, MySQLSTGeomFromWKBExpression):
+            raise TypeError(
+                f"format_st_geom_from_wkb expects MySQLSTGeomFromWKBExpression, got {type(expr).__name__}"
+            )
+
+        if expr.srid is not None:
             sql = "ST_GeomFromWKB(%s, %s)"
-            params: Tuple = (wkb, srid)
+            params: Tuple = (expr.wkb, expr.srid)
         else:
             sql = "ST_GeomFromWKB(%s)"
-            params = (wkb,)
-        if alias:
-            sql = f"{sql} AS {self.format_identifier(alias)}"
+            params = (expr.wkb,)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, params
 
     def format_st_as_text(self, expr) -> Tuple[str, tuple]:
@@ -128,25 +124,23 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_create_spatial_index(
-        self, expr, table_name: Optional[str] = None, column: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format MySQLCreateSpatialIndexExpression or raw index arguments."""
+    def format_create_spatial_index(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLCreateSpatialIndexExpression` node."""
         from ..expression.spatial import MySQLCreateSpatialIndexExpression
 
-        if isinstance(expr, MySQLCreateSpatialIndexExpression):
-            index_name = expr.index_name
-            table_name = expr.table_name
-            column = expr.column
-        else:
-            index_name = expr
+        if not isinstance(expr, MySQLCreateSpatialIndexExpression):
+            raise TypeError(
+                f"format_create_spatial_index expects MySQLCreateSpatialIndexExpression, "
+                f"got {type(expr).__name__}"
+            )
+
         if not self.supports_spatial_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
         return (
-            f"CREATE SPATIAL INDEX {self.format_identifier(index_name)} "
-            f"ON {self.format_identifier(table_name)} "
-            f"({self.format_identifier(column)})",
+            f"CREATE SPATIAL INDEX {self.format_identifier(expr.index_name)} "
+            f"ON {self.format_identifier(expr.table_name)} "
+            f"({self.format_identifier(expr.column)})",
             (),
         )
 

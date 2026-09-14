@@ -97,14 +97,22 @@ class MySQLVectorMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_create_vector_index(self, index_name: str, table_name: str, column: str) -> Tuple[str, tuple]:
-        """Format CREATE VECTOR INDEX statement."""
+    def format_create_vector_index(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLCreateVectorIndexExpression` node."""
+        from ..expression.vector import MySQLCreateVectorIndexExpression
+
+        if not isinstance(expr, MySQLCreateVectorIndexExpression):
+            raise TypeError(
+                f"format_create_vector_index expects MySQLCreateVectorIndexExpression, "
+                f"got {type(expr).__name__}"
+            )
+
         if not self.supports_vector_index():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "VECTOR indexes (requires MySQL 9.0.1+)")
         return (
-            f"CREATE VECTOR INDEX {self.format_identifier(index_name)} "
-            f"ON {self.format_identifier(table_name)} "
-            f"({self.format_identifier(column)})",
+            f"CREATE VECTOR INDEX {self.format_identifier(expr.index_name)} "
+            f"ON {self.format_identifier(expr.table_name)} "
+            f"({self.format_identifier(expr.column)})",
             (),
         )

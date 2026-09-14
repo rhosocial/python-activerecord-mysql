@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/set_type.py
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 
 class MySQLSetTypeMixin:
@@ -8,8 +8,17 @@ class MySQLSetTypeMixin:
     def supports_set_type(self) -> bool:
         return True
 
-    def format_set_literal(self, values: List[str], column_values: Optional[List[str]] = None) -> Tuple[str, tuple]:
-        """Format SET literal value."""
+    def format_set_literal(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLSetLiteralExpression` node."""
+        from ..expression.set_type import MySQLSetLiteralExpression
+
+        if not isinstance(expr, MySQLSetLiteralExpression):
+            raise TypeError(
+                f"format_set_literal expects MySQLSetLiteralExpression, got {type(expr).__name__}"
+            )
+
+        values = expr.values
+        column_values = expr.column_values
         if len(values) > 64:
             raise ValueError("MySQL SET type supports maximum 64 members")
 
@@ -23,19 +32,42 @@ class MySQLSetTypeMixin:
 
         sorted_values = sorted(values)
         literal = ",".join(sorted_values)
-        return "%s", (literal,)
+        sql = f"{self.get_parameter_placeholder()}"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, (literal,)
 
-    def format_find_in_set(self, value: str, set_column: str) -> Tuple[str, tuple]:
-        """Format FIND_IN_SET function."""
-        return f"FIND_IN_SET(%s, {self.format_identifier(set_column)}) > 0", (value,)
+    def format_find_in_set(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLFindInSetExpression` node."""
+        from ..expression.set_type import MySQLFindInSetExpression
 
-    def format_set_contains(self, column: str, values: List[str]) -> Tuple[str, tuple]:
-        """Format SET contains check."""
+        if not isinstance(expr, MySQLFindInSetExpression):
+            raise TypeError(
+                f"format_find_in_set expects MySQLFindInSetExpression, got {type(expr).__name__}"
+            )
+
+        sql = f"FIND_IN_SET(%s, {self.format_identifier(expr.set_column)}) > 0"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, (expr.value,)
+
+    def format_set_contains(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLSetContainsExpression` node."""
+        from ..expression.set_type import MySQLSetContainsExpression
+
+        if not isinstance(expr, MySQLSetContainsExpression):
+            raise TypeError(
+                f"format_set_contains expects MySQLSetContainsExpression, got {type(expr).__name__}"
+            )
+
         conditions = []
         params: List[str] = []
 
-        for value in values:
-            conditions.append(f"FIND_IN_SET(%s, {self.format_identifier(column)}) > 0")
+        for value in expr.values:
+            conditions.append(f"FIND_IN_SET(%s, {self.format_identifier(expr.column)}) > 0")
             params.append(value)
 
-        return " AND ".join(conditions), tuple(params)
+        sql = " AND ".join(conditions)
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, tuple(params)
