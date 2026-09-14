@@ -474,25 +474,29 @@ class TestMySQLCreateTableCommentEscaping:
 
 def test_storage_options_normal_key_and_value(dialect):
     """Normal storage option key is plain, string value is quoted and escaped."""
-    sql = dialect.format_storage_options({"ENGINE": "InnoDB"})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"ENGINE": "InnoDB"}))
     assert "ENGINE='InnoDB'" in sql
 
 
 def test_storage_options_string_value_escaped(dialect):
     """String value with single quote is properly escaped."""
-    sql = dialect.format_storage_options({"ENGINE": "It's"})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"ENGINE": "It's"}))
     assert "It''s" in sql
 
 
 def test_storage_options_int_value(dialect):
     """Integer value is not quoted."""
-    sql = dialect.format_storage_options({"AUTO_INCREMENT": 1000})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"AUTO_INCREMENT": 1000}))
     assert "AUTO_INCREMENT=1000" in sql
 
 
 def test_storage_options_string_injection_value_escaped(dialect):
     """String value with injection payload is safely escaped inside quotes."""
-    sql = dialect.format_storage_options({"ENGINE": "x'; DROP TABLE t--"})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"ENGINE": "x'; DROP TABLE t--"}))
     assert "'x''; DROP TABLE t--'" in sql
     # The single quote inside is doubled, so the payload cannot break out
     assert sql.count("'") % 2 == 0, f"Unbalanced quotes: {sql}"
