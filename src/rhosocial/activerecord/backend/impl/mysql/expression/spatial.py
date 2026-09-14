@@ -136,7 +136,7 @@ class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
         return "format_st_contains"
 
 
-class SpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL spatial literal expression with optional SRID.
 
     Args:
@@ -165,7 +165,7 @@ class SpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return "format_spatial_literal"
 
 
-class STGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_GeomFromWKB expression.
 
     Creates a geometry value from WKB (Well-Known Binary).
@@ -196,7 +196,7 @@ class STGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
         return "format_st_geom_from_wkb"
 
 
-class STAsTextExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_AsText expression.
 
     Converts a geometry value to its WKT (Well-Known Text) representation.
@@ -224,7 +224,7 @@ class STAsTextExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return "format_st_as_text"
 
 
-class STAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL ST_AsGeoJSON expression.
 
     Converts a geometry value to GeoJSON format (MySQL 5.7.5+).
@@ -252,7 +252,7 @@ class STAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValueExpression)
         return "format_st_as_geojson"
 
 
-class CreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL CREATE SPATIAL INDEX expression.
 
     Args:

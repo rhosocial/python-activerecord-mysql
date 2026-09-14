@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class InlineIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLInlineIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL inline INDEX definition within CREATE TABLE.
 
     Args:
@@ -39,7 +39,7 @@ class InlineIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression)
         return "format_inline_index"
 
 
-class StorageOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLStorageOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL table storage options expression (ENGINE, CHARSET, etc.).
 
     Args:

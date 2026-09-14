@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class FulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL FULLTEXT index options expression for CREATE TABLE / ALTER TABLE.
 
     Args:

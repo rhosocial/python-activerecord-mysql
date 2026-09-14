@@ -7,12 +7,12 @@ This module provides expression classes for MySQL JSON functions:
 - MySQLJSONObjectExpression
 - MySQLJSONArrayExpression
 - MySQLJSONContainsExpression
-- JSONUnquoteExpression
-- JSONSetExpression
-- JSONRemoveExpression
-- JSONTypeExpression
-- JSONValidExpression
-- JSONSearchExpression
+- MySQLJSONUnquoteExpression
+- MySQLJSONSetExpression
+- MySQLJSONRemoveExpression
+- MySQLJSONTypeExpression
+- MySQLJSONValidExpression
+- MySQLJSONSearchExpression
 """
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -176,7 +176,7 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         return "format_json_contains"
 
 
-class JSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_UNQUOTE expression.
 
     Removes quotes from a JSON-quoted string.
@@ -204,7 +204,7 @@ class JSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpression)
         return "format_json_unquote"
 
 
-class JSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_SET expression.
 
     Inserts or updates values in a JSON document.
@@ -241,7 +241,7 @@ class JSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return "format_json_set"
 
 
-class JSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_REMOVE expression.
 
     Removes data from a JSON document.
@@ -275,7 +275,7 @@ class JSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return "format_json_remove"
 
 
-class JSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_TYPE expression.
 
     Returns the type of a JSON value.
@@ -303,7 +303,7 @@ class JSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return "format_json_type"
 
 
-class JSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_VALID expression.
 
     Checks whether a value is valid JSON.
@@ -331,7 +331,7 @@ class JSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return "format_json_valid"
 
 
-class JSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL JSON_SEARCH expression.
 
     Searches a JSON document for a string and returns the path.
@@ -373,10 +373,10 @@ __all__ = [
     "MySQLJSONObjectExpression",
     "MySQLJSONArrayExpression",
     "MySQLJSONContainsExpression",
-    "JSONUnquoteExpression",
-    "JSONSetExpression",
-    "JSONRemoveExpression",
-    "JSONTypeExpression",
-    "JSONValidExpression",
-    "JSONSearchExpression",
+    "MySQLJSONUnquoteExpression",
+    "MySQLJSONSetExpression",
+    "MySQLJSONRemoveExpression",
+    "MySQLJSONTypeExpression",
+    "MySQLJSONValidExpression",
+    "MySQLJSONSearchExpression",
 ]

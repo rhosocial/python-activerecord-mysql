@@ -131,7 +131,7 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         return "format_distance_dot"
 
 
-class StringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL STRING_TO_VECTOR expression.
 
     Converts a string representation to a VECTOR value.
@@ -159,7 +159,7 @@ class StringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return "format_string_to_vector"
 
 
-class VectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL VECTOR_TO_STRING expression.
 
     Converts a VECTOR value to its string representation.
@@ -187,7 +187,7 @@ class VectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return "format_vector_to_string"
 
 
-class VectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL VECTOR_DIM expression.
 
     Returns the dimension of a VECTOR value.
@@ -215,7 +215,7 @@ class VectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
         return "format_vector_dim"
 
 
-class CreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL CREATE VECTOR INDEX expression.
 
     Args:

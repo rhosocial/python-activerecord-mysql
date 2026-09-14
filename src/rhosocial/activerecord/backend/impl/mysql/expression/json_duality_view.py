@@ -127,7 +127,7 @@ class DropJsonDualityViewExpression(BaseExpression):
         return "format_drop_json_duality_view_statement"
 
 
-class DualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Duality Object SELECT expression.
 
     Wraps a DualityObjectSpec for SELECT JSON_DUALITY_OBJECT(...) FROM table.
@@ -155,7 +155,7 @@ class DualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValueExp
         return "format_duality_object_select"
 
 
-class DualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL Duality Object body expression.
 
     Wraps a DualityObjectSpec for JSON_DUALITY_OBJECT( ... ).
@@ -183,7 +183,7 @@ class DualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         return "format_duality_object_body"
 
 
-class NestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
     """MySQL nested duality expression.
 
     Wraps a DualityNestedMapping for nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)).
