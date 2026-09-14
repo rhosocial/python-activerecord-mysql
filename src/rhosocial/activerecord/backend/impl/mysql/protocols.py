@@ -355,7 +355,7 @@ class MySQLTableSupport(TableSupport, Protocol):
         """Format inline INDEX definition within CREATE TABLE."""
         ...
 
-    def format_storage_options(self, storage_options: Dict[str, Any]) -> str:
+    def format_storage_options(self, expr: Any) -> Tuple[str, tuple]:
         """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
         ...
 

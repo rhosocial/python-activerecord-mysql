@@ -7,6 +7,7 @@ if TYPE_CHECKING:
         ColumnDefinition,
         CreateTableExpression,
         IndexDefinition,
+        StorageOptionsExpression,
         TableConstraint,
     )
 
@@ -176,13 +177,11 @@ class MySQLTableMixin:
             parts.append(f"USING {idx_def.type}")
         return " ".join(parts)
 
-    def format_storage_options(self, storage_options: Dict[str, Any]) -> str:
+    def format_storage_options(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
         """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
         parts = []
-        for key, value in storage_options.items():
-            if isinstance(value, str):
-                parts.append(f"{key}='{self._escape_sql_string(value)}'")
-            else:
-                parts.append(f"{key}={value}")
-        return " ".join(parts)
+        for key, value in expr.options.items():
+            rendered = self.inline_sql_literal(value)
+            parts.append(f"{key}={rendered}")
+        return " ".join(parts), ()
 
