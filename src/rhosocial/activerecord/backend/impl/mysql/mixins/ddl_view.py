@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/mixins/view.py
+# src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_view.py
 from typing import Tuple
 
 
@@ -8,6 +8,14 @@ class MySQLViewMixin:
     def supports_or_replace_view(self) -> bool:
         """Whether CREATE OR REPLACE VIEW is supported."""
         return True
+
+    def supports_create_or_replace_view(self) -> bool:
+        """Whether CREATE OR REPLACE VIEW is supported."""
+        return True
+
+    def supports_if_not_exists_view(self) -> bool:
+        """MySQL does not support IF NOT EXISTS for views."""
+        return False
 
     def supports_temporary_view(self) -> bool:
         """Whether TEMPORARY views are supported."""
@@ -28,7 +36,7 @@ class MySQLViewMixin:
         if expr.temporary:
             parts.append("TEMPORARY")
 
-        if expr.replace:
+        if expr.replace and self.supports_create_or_replace_view():
             parts.append("OR REPLACE")
 
         parts.append("VIEW")

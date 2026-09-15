@@ -34,7 +34,7 @@ from .dql import MySQLDQLMixin
 from .join import MySQLJoinMixin
 from .set_operation import MySQLSetOperationMixin
 from .ddl_column import MySQLDDLColumnMixin
-from .view import MySQLViewMixin
+from .ddl_view import MySQLViewMixin
 from .schema import MySQLSchemaMixin
 from .constraint import MySQLConstraintMixin
 from .generated_column import MySQLGeneratedColumnMixin
