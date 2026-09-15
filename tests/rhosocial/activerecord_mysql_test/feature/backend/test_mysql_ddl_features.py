@@ -24,6 +24,7 @@ from rhosocial.activerecord.backend.expression import (
     ForeignKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements import ReferentialAction
+from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableOptions
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
     DateTimeType,
