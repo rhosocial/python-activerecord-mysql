@@ -176,6 +176,32 @@ class TestMySQLTableComment:
         assert "DEFAULT CHARSET=" in sql
         assert "COLLATE=" in sql
 
+    def test_engine_charset_via_table_options(self):
+        """Test ENGINE/CHARSET/COLLATE via typed CreateTableOptions."""
+        dialect = MySQLDialect()
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        opts = CreateTableOptions(dialect, engine="InnoDB", charset="utf8mb4", collate="utf8mb4_unicode_ci")
+        expr = CreateTableExpression(
+            dialect=dialect, table="test", columns=columns, table_options=opts,
+        )
+        sql, params = expr.to_sql()
+        assert "ENGINE=" in sql
+        assert "DEFAULT CHARSET=" in sql
+        assert "COLLATE=" in sql
+
+    def test_table_options_prefer_over_dialect_options(self):
+        """Test that typed table_options take precedence over dialect_options."""
+        dialect = MySQLDialect()
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        opts = CreateTableOptions(dialect, engine="MyISAM", charset="latin1")
+        expr = CreateTableExpression(
+            dialect=dialect, table="test", columns=columns,
+            table_options=opts, dialect_options={"engine": "InnoDB", "charset": "utf8mb4"},
+        )
+        sql, params = expr.to_sql()
+        assert "ENGINE='MyISAM'" in sql
+        assert "DEFAULT CHARSET='latin1'" in sql
+
 
 class TestMySQLColumnComment:
     """Tests for MySQL column-level COMMENT."""
