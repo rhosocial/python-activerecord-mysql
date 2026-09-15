@@ -569,7 +569,7 @@ class TestMySQLTableConstraints:
         """Test CHECK table constraint."""
         from rhosocial.activerecord.backend.expression import Column, Literal
         from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
-        dialect = MySQLDialect()
+        dialect = MySQLDialect((8, 0, 16))
         columns = [
             ColumnDefinition(dialect, "id", IntegerType(dialect)),
             ColumnDefinition(dialect, "age", IntegerType(dialect)),
