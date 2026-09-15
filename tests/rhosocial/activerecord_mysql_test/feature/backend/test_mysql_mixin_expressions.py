@@ -667,6 +667,28 @@ class TestMySQLTableDDLExpressions:
         assert sql.startswith("CREATE TEMPORARY TABLE")
         assert "TEMPORARY" in sql
 
+    def test_create_or_replace_unsupported(self):
+        import pytest
+
+        from rhosocial.activerecord.backend.dialect.exceptions import (
+            UnsupportedFeatureError,
+        )
+        from rhosocial.activerecord.backend.expression.statements import (
+            CreateTableExpression,
+            CreateTableOptions,
+        )
+
+        dialect = MySQLDialect(version=(8, 0, 0))
+        expr = CreateTableExpression(
+            dialect,
+            table="t",
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            table_options=CreateTableOptions(dialect, or_replace=True),
+        )
+        with pytest.raises(UnsupportedFeatureError):
+            expr.to_sql()
+
+
     def test_inline_index_with_type_numeric(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
