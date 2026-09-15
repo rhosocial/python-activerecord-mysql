@@ -148,6 +148,8 @@ class TestMySQLDialectProtocolConformance:
 # decision (move to MYSQL_PROTOCOLS or revert).
 MYSQL_NOT_IMPLEMENTED = [
     # --- Intentional non-support ---
+    # The generic DatabaseSupport protocol is not composed by MySQLDialect.
+    dialect_protocols.DatabaseSupport,
     # MySQL has no SQL/XML support.
     dialect_protocols.SQLXMLSupport,
     dialect_protocols.SQLXMLParsingSupport,
