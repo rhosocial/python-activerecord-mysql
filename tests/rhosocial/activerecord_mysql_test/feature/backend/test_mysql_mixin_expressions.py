@@ -664,7 +664,7 @@ class TestMySQLTableDDLExpressions:
             dialect=dialect, table="tmp", columns=columns, temporary=True
         )
         sql, params = expr.to_sql()
-        assert "CREATE TABLE" in sql
+        assert sql.startswith("CREATE TEMPORARY TABLE")
         assert "TEMPORARY" in sql
 
     def test_inline_index_with_type_numeric(self):
