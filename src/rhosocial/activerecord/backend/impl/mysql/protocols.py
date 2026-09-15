@@ -1205,7 +1205,7 @@ class MySQLLockingSupport(LockingSupport, Protocol):
         """Format MySQL-specific FOR UPDATE clause.
 
         Args:
-            clause: MySQLForUpdateClause instance
+            clause: ForUpdateClause instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)

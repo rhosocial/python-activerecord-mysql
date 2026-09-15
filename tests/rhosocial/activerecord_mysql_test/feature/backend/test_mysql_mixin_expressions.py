@@ -34,9 +34,9 @@ from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
     LoadDataOptions,
     MySQLLoadDataExpression,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.locking import (
-    MySQLForUpdateClause,
-    MySQLLockStrength,
+from rhosocial.activerecord.backend.expression import (
+    ForUpdateClause,
+    LockStrength,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression.match_against import (
     MatchAgainstMode,
@@ -195,26 +195,26 @@ class TestMySQLLockingExpressions:
 
     def test_for_update_default(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLForUpdateClause(dialect)
+        expr = ForUpdateClause(dialect)
         sql, params = expr.to_sql()
         assert sql == "FOR UPDATE"
 
     def test_for_share(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLForUpdateClause(dialect, strength=MySQLLockStrength.SHARE)
+        expr = ForUpdateClause(dialect, strength=LockStrength.SHARE)
         sql, params = expr.to_sql()
         assert sql == "FOR SHARE"
 
     def test_for_update_nowait(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLForUpdateClause(dialect, nowait=True)
+        expr = ForUpdateClause(dialect, nowait=True)
         sql, params = expr.to_sql()
         assert sql == "FOR UPDATE NOWAIT"
 
     def test_for_share_skip_locked(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLForUpdateClause(
-            dialect, strength=MySQLLockStrength.SHARE, skip_locked=True
+        expr = ForUpdateClause(
+            dialect, strength=LockStrength.SHARE, skip_locked=True
         )
         sql, params = expr.to_sql()
         assert sql == "FOR SHARE SKIP LOCKED"
@@ -222,7 +222,7 @@ class TestMySQLLockingExpressions:
     def test_for_update_of_columns(self):
         from rhosocial.activerecord.backend.expression.core import Column
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLForUpdateClause(
+        expr = ForUpdateClause(
             dialect,
             of_columns=[
                 Column(dialect, "id", table="orders"),
@@ -235,9 +235,9 @@ class TestMySQLLockingExpressions:
     def test_for_share_of_columns_skip_locked(self):
         from rhosocial.activerecord.backend.expression.core import Column
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLForUpdateClause(
+        expr = ForUpdateClause(
             dialect,
-            strength=MySQLLockStrength.SHARE,
+            strength=LockStrength.SHARE,
             of_columns=[Column(dialect, "id", table="orders")],
             skip_locked=True,
         )
@@ -246,7 +246,7 @@ class TestMySQLLockingExpressions:
 
     def test_for_update_nowait_lower_version(self):
         dialect = MySQLDialect(version=(5, 7, 0))
-        expr = MySQLForUpdateClause(dialect, nowait=True)
+        expr = ForUpdateClause(dialect, nowait=True)
         with pytest.raises(Exception):
             expr.to_sql()
 

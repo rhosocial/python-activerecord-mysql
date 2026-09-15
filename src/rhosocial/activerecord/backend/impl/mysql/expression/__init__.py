@@ -62,7 +62,6 @@ from .set_type import (
 from .fulltext import MySQLFulltextIndexOptionsExpression
 from .table_expr import MySQLInlineIndexExpression, MySQLStorageOptionsExpression
 from .match_against import MySQLMatchAgainstExpression, MatchAgainstMode
-from .locking import MySQLForUpdateClause, MySQLLockStrength
 from .json_duality_view import (
     CreateJsonDualityViewExpression,
     DropJsonDualityViewExpression,
@@ -239,8 +238,6 @@ __all__ = [
     "MySQLStorageOptionsExpression",
     "MySQLMatchAgainstExpression",
     "MatchAgainstMode",
-    "MySQLForUpdateClause",
-    "MySQLLockStrength",
     "CreateJsonDualityViewExpression",
     "DropJsonDualityViewExpression",
     "DualityObjectSpec",

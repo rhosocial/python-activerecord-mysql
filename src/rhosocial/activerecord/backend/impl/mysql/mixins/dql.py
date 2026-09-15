@@ -34,3 +34,11 @@ class MySQLDQLMixin:
     def supports_for_update(self) -> bool:
         """Whether FOR UPDATE clause is supported in SELECT statements."""
         return True
+
+    def supports_fetch_with_ties(self) -> bool:
+        """MySQL does not support FETCH ... WITH TIES."""
+        return False
+
+    def supports_nulls_first_last(self) -> bool:
+        """MySQL does not support explicit NULLS FIRST/LAST ordering."""
+        return False
