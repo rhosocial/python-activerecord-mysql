@@ -467,56 +467,46 @@ class TestMySQLTableDDLExpressions:
 
     def test_create_table_like(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
-        expr = CreateTableExpression(
+        from rhosocial.activerecord.backend.expression.statements import CreateTableLikeExpression
+        expr = CreateTableLikeExpression(
             dialect=dialect,
             table="new_table",
-            columns=columns,
-            dialect_options={"like_table": "source_table"},
+            like_table="source_table",
         )
         sql, params = expr.to_sql()
         assert "CREATE TABLE `new_table` LIKE `source_table`" == sql
 
     def test_create_table_like_temporary(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
-        expr = CreateTableExpression(
+        from rhosocial.activerecord.backend.expression.statements import CreateTableLikeExpression
+        expr = CreateTableLikeExpression(
             dialect=dialect,
             table="tmp_table",
-            columns=columns,
+            like_table="source",
             temporary=True,
-            dialect_options={"like_table": "source"},
         )
         sql, params = expr.to_sql()
-        assert "TEMPORARY" in sql
-        assert "CREATE TABLE" in sql
-        assert "LIKE `source`" in sql
+        assert sql == "CREATE TEMPORARY TABLE `tmp_table` LIKE `source`"
 
     def test_create_table_like_with_schema(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
-        expr = CreateTableExpression(
+        from rhosocial.activerecord.backend.expression.statements import CreateTableLikeExpression
+        expr = CreateTableLikeExpression(
             dialect=dialect,
             table="new_table",
-            columns=columns,
-            dialect_options={"like_table": ("myschema", "source_table")},
+            like_table=("myschema", "source_table"),
         )
         sql, params = expr.to_sql()
         assert "LIKE `myschema`.`source_table`" in sql
 
     def test_create_table_like_if_not_exists(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
-        expr = CreateTableExpression(
+        from rhosocial.activerecord.backend.expression.statements import CreateTableLikeExpression
+        expr = CreateTableLikeExpression(
             dialect=dialect,
             table="new_table",
-            columns=columns,
+            like_table="source",
             if_not_exists=True,
-            dialect_options={"like_table": "source"},
         )
         sql, params = expr.to_sql()
         assert "CREATE TABLE IF NOT EXISTS `new_table` LIKE `source`" == sql

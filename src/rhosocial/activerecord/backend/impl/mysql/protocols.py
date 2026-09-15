@@ -18,7 +18,9 @@ if TYPE_CHECKING:
         ModifyColumn,
         ChangeColumn,
     )
-    from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableExpression
+    from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+        CreateTableLikeExpression,
+    )
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
         CreateTriggerExpression,
         DropTriggerExpression,
@@ -339,7 +341,9 @@ class MySQLTableSupport(TableSupport, Protocol):
         """Format CREATE TABLE statement."""
         ...
 
-    def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
+    def format_create_table_like_statement(
+        self, expr: "CreateTableLikeExpression"
+    ) -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement."""
         ...
 

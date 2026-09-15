@@ -5,7 +5,6 @@ import re
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnDefinition,
-        CreateTableExpression,
         IndexDefinition,
         StorageOptionsExpression,
         TableConstraint,
@@ -44,16 +43,12 @@ class MySQLTableMixin:
         """Format CREATE TABLE statement for MySQL.
 
         This method handles MySQL-specific syntax including:
-        - LIKE syntax (copying table structure)
         - Inline index definitions
         - Storage options (ENGINE, CHARSET, COLLATE)
         - Table-level comments
         - AUTO_INCREMENT in column definitions
         - Partition clause
         """
-        if "like_table" in expr.dialect_options:
-            return self.format_create_table_like(expr)
-
         all_params: List[Any] = []
 
         parts = ["CREATE TABLE"]
@@ -99,26 +94,6 @@ class MySQLTableMixin:
                 all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
-
-    def format_create_table_like(self, expr: "CreateTableExpression") -> Tuple[str, tuple]:
-        """Format CREATE TABLE ... LIKE statement."""
-        like_table = expr.dialect_options["like_table"]
-
-        parts = ["CREATE TABLE"]
-        if expr.temporary:
-            parts.append("TEMPORARY")
-        if expr.if_not_exists:
-            parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
-
-        if isinstance(like_table, tuple):
-            schema, table = like_table
-            like_table_str = f"{self.format_identifier(schema)}.{self.format_identifier(table)}"
-        else:
-            like_table_str = self.format_identifier(like_table)
-
-        parts.append(f"LIKE {like_table_str}")
-        return " ".join(parts), ()
 
     def format_column_definition(self, col_def: "ColumnDefinition") -> Tuple[str, tuple]:
         """Format a single column definition with MySQL-specific syntax."""
