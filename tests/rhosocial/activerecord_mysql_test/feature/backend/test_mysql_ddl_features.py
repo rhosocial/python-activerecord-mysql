@@ -135,6 +135,45 @@ class TestMySQLTableComment:
         sql, params = expr.to_sql()
         assert "COMMENT" in sql
 
+    def test_table_comment_via_table_options(self):
+        """Test table COMMENT via typed CreateTableOptions (new API)."""
+        from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableOptions
+        dialect = MySQLDialect()
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        opts = CreateTableOptions(dialect, comment="typed comment")
+        expr = CreateTableExpression(
+            dialect=dialect, table="users", columns=columns, table_options=opts,
+        )
+        sql, params = expr.to_sql()
+        assert "COMMENT 'typed comment'" in sql
+
+    def test_table_comment_prefer_table_options_over_dialect_options(self):
+        """Test that typed table_options.comment takes precedence over dialect_options."""
+        from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableOptions
+        dialect = MySQLDialect()
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        opts = CreateTableOptions(dialect, comment="typed wins")
+        expr = CreateTableExpression(
+            dialect=dialect, table="users", columns=columns,
+            table_options=opts, dialect_options={"comment": "dialect_options loses"},
+        )
+        sql, params = expr.to_sql()
+        assert "COMMENT 'typed wins'" in sql
+        assert "dialect_options loses" not in sql
+
+    def test_engine_charset_via_dialect_options(self):
+        """Test ENGINE/CHARSET/COLLATE via dialect_options."""
+        dialect = MySQLDialect()
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        expr = CreateTableExpression(
+            dialect=dialect, table="test", columns=columns,
+            dialect_options={"engine": "InnoDB", "charset": "utf8mb4", "collate": "utf8mb4_unicode_ci"},
+        )
+        sql, params = expr.to_sql()
+        assert "ENGINE=" in sql
+        assert "DEFAULT CHARSET=" in sql
+        assert "COLLATE=" in sql
+
 
 class TestMySQLColumnComment:
     """Tests for MySQL column-level COMMENT."""

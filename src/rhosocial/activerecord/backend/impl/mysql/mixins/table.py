@@ -94,9 +94,21 @@ class MySQLTableMixin:
                 parts.append(storage_sql)
                 all_params.extend(storage_params)
 
-        if "comment" in expr.dialect_options:
-            escaped_comment = self._escape_sql_string(expr.dialect_options["comment"])
-            parts.append(f"COMMENT '{escaped_comment}'")
+        table_options = getattr(expr, "table_options", None)
+        if table_options is not None and getattr(table_options, "comment", None):
+            comment_sql, _ = self.format_table_comment(table_options.comment)
+            parts.append(comment_sql)
+        elif "comment" in expr.dialect_options:
+            comment_sql, _ = self.format_table_comment(expr.dialect_options["comment"])
+            parts.append(comment_sql)
+
+        dialect_options = getattr(expr, "dialect_options", {}) or {}
+        if "engine" in dialect_options:
+            parts.append(f"ENGINE={self.inline_sql_literal(dialect_options['engine'])}")
+        if "charset" in dialect_options:
+            parts.append(f"DEFAULT CHARSET={self.inline_sql_literal(dialect_options['charset'])}")
+        if "collate" in dialect_options:
+            parts.append(f"COLLATE={self.inline_sql_literal(dialect_options['collate'])}")
 
         if expr.partition is not None:
             partition_sql, partition_params = expr.partition.to_sql()
