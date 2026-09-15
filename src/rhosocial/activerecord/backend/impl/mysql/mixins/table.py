@@ -5,6 +5,7 @@ import re
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnDefinition,
+        CreateTableLikeExpression,
         IndexDefinition,
         StorageOptionsExpression,
         TableConstraint,
@@ -94,6 +95,10 @@ class MySQLTableMixin:
                 all_params.extend(partition_params)
 
         return " ".join(parts), tuple(all_params)
+
+    def format_create_table_like_statement(self, expr: "CreateTableLikeExpression") -> Tuple[str, tuple]:
+        """Render ``CREATE TABLE ... LIKE`` via the generic TableMixin formatter."""
+        return super().format_create_table_like_statement(expr)
 
     def format_column_definition(self, col_def: "ColumnDefinition") -> Tuple[str, tuple]:
         """Format a single column definition with MySQL-specific syntax."""
