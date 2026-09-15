@@ -4,7 +4,7 @@ from .transaction import MySQLTransactionMixin
 from .backend_mixin import MySQLBackendMixin
 from .trigger import MySQLTriggerMixin
 from .partition import MySQLPartitionMixin
-from .table import MySQLTableMixin
+from .ddl_table import MySQLTableMixin
 from .set_type import MySQLSetTypeMixin
 from .json import MySQLJSONFunctionMixin
 from .spatial import MySQLSpatialMixin
@@ -17,9 +17,9 @@ from .concurrency import MySQLConcurrencyMixin, AsyncMySQLConcurrencyMixin
 from .json_duality_view import MySQLJsonDualityViewMixin
 from .optimizer_hint import MySQLOptimizerHintMixin
 from .types import MySQLTypeSupportMixin
-from .rename_table import MySQLRenameTableMixin
+from .ddl_rename_table import MySQLRenameTableMixin
 from .truncate import MySQLTruncateMixin
-from .table_statement import MySQLTableStatementMixin
+from .ddl_table_statement import MySQLTableStatementMixin
 from .maintenance import MySQLMaintenanceMixin
 from .routine import MySQLRoutineMixin
 from .load_xml import MySQLLoadXMLLMixin
