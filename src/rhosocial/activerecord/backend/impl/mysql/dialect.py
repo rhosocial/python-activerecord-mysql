@@ -41,17 +41,16 @@ from rhosocial.activerecord.backend.dialect.protocols import (
 from rhosocial.activerecord.backend.dialect.mixins import (
     CollationMixin,
     CTEMixin,
-    FilterClauseMixin,
+
     WindowFunctionMixin,
     JSONMixin,
-    AdvancedGroupingMixin,
+
     ArrayMixin,
     ExplainMixin,
     GraphMixin,
-    LockingMixin,
+
     MergeMixin,
-    OrderedSetAggregationMixin,
-    QualifyClauseMixin,
+
     TemporalTableMixin,
     UpsertMixin,
     LateralJoinMixin,
@@ -182,19 +181,18 @@ class MySQLDialect(
     # Generic mixins
     CollationMixin,
     CTEMixin,
-    FilterClauseMixin,
+
     WindowFunctionMixin,
     MySQLJSONFunctionMixin,
     JSONMixin,
-    AdvancedGroupingMixin,
+
     ArrayMixin,
     ExplainMixin,
     GraphMixin,
     MySQLLockingMixin,
-    LockingMixin,
+
     MergeMixin,
-    OrderedSetAggregationMixin,
-    QualifyClauseMixin,
+
     TemporalTableMixin,
     MySQLFullTextSearchMixin,
     MySQLTriggerMixin,
