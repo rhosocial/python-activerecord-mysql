@@ -91,7 +91,7 @@ class MySQLIntrospectionMixin:
         sql = (
             "SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME "
             "FROM information_schema.SCHEMATA "
-            "WHERE SCHEMA_NAME = %s"
+            f"WHERE SCHEMA_NAME = {self.p()}"
         )
         return (sql, (schema,))
 
@@ -103,7 +103,7 @@ class MySQLIntrospectionMixin:
         include_system = params.get("include_system", False)
         table_type = params.get("table_type")
 
-        conditions = ["TABLE_SCHEMA = %s"]
+        conditions = [f"TABLE_SCHEMA = {self.p()}"]
         sql_params: list = [schema]
 
         if not include_system:
@@ -111,7 +111,7 @@ class MySQLIntrospectionMixin:
         if not include_views:
             conditions.append("TABLE_TYPE = 'BASE TABLE'")
         if table_type:
-            conditions.append("TABLE_TYPE = %s")
+            conditions.append(f"TABLE_TYPE = {self.p()}")
             sql_params.append(table_type)
 
         where = " AND ".join(conditions)
@@ -133,7 +133,7 @@ class MySQLIntrospectionMixin:
             "COLUMN_TYPE, COLUMN_KEY, EXTRA, COLUMN_COMMENT, "
             "CHARACTER_SET_NAME, COLLATION_NAME "
             "FROM information_schema.COLUMNS "
-            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
+            f"WHERE TABLE_SCHEMA = {self.p()} AND TABLE_NAME = {self.p()} "
             "ORDER BY ORDINAL_POSITION"
         )
         return (sql, (schema, table_name))
@@ -147,7 +147,7 @@ class MySQLIntrospectionMixin:
             "SELECT INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, "
             "INDEX_TYPE, SUB_PART, NULLABLE "
             "FROM information_schema.STATISTICS "
-            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s "
+            f"WHERE TABLE_SCHEMA = {self.p()} AND TABLE_NAME = {self.p()} "
             "ORDER BY INDEX_NAME, SEQ_IN_INDEX"
         )
         return (sql, (schema, table_name))
@@ -165,7 +165,7 @@ class MySQLIntrospectionMixin:
             "JOIN information_schema.REFERENTIAL_CONSTRAINTS rc "
             "  ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME "
             "  AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA "
-            "WHERE kcu.TABLE_SCHEMA = %s AND kcu.TABLE_NAME = %s "
+            f"WHERE kcu.TABLE_SCHEMA = {self.p()} AND kcu.TABLE_NAME = {self.p()} "
             "  AND kcu.REFERENCED_TABLE_NAME IS NOT NULL "
             "ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION"
         )
@@ -177,7 +177,7 @@ class MySQLIntrospectionMixin:
         schema = params.get("schema", "")
         include_system = params.get("include_system", False)
 
-        conditions = ["TABLE_SCHEMA = %s"]
+        conditions = [f"TABLE_SCHEMA = {self.p()}"]
         sql_params: list = [schema]
 
         if not include_system:
@@ -199,7 +199,7 @@ class MySQLIntrospectionMixin:
         sql = (
             "SELECT TABLE_NAME, VIEW_DEFINITION, CHECK_OPTION, IS_UPDATABLE "
             "FROM information_schema.VIEWS "
-            "WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s"
+            f"WHERE TABLE_SCHEMA = {self.p()} AND TABLE_NAME = {self.p()}"
         )
         return (sql, (schema, view_name))
 
@@ -209,11 +209,11 @@ class MySQLIntrospectionMixin:
         table_name = params.get("table_name")
         schema = params.get("schema", "")
 
-        conditions = ["TRIGGER_SCHEMA = %s"]
+        conditions = [f"TRIGGER_SCHEMA = {self.p()}"]
         sql_params: list = [schema]
 
         if table_name:
-            conditions.append("EVENT_OBJECT_TABLE = %s")
+            conditions.append(f"EVENT_OBJECT_TABLE = {self.p()}")
             sql_params.append(table_name)
 
         where = " AND ".join(conditions)

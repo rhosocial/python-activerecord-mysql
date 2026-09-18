@@ -15,29 +15,30 @@ class MySQLLockingMixin:
         return self.version >= (8, 0, 0)
 
     def format_for_update_clause(self, clause) -> Tuple[str, tuple]:
-        """Format MySQL-specific FOR UPDATE clause."""
+        """Format MySQL-specific FOR UPDATE / FOR SHARE clause."""
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-        from rhosocial.activerecord.backend.impl.mysql.expression.locking import MySQLLockStrength
+        from rhosocial.activerecord.backend.expression import LockStrength
 
         all_params = []
 
-        strength = getattr(clause, "strength", MySQLLockStrength.UPDATE)
+        strength = clause.strength
 
-        if strength == MySQLLockStrength.SHARE:
+        if strength == LockStrength.SHARE:
             if not self.supports_for_share():
                 raise UnsupportedFeatureError(self.name, "FOR SHARE (requires MySQL 8.0+)")
+        elif strength != LockStrength.UPDATE:
+            raise UnsupportedFeatureError(
+                self.name, f"{strength.value} (unsupported lock strength)"
+            )
 
         sql_parts = [strength.value]
 
         if clause.of_columns:
             of_parts = []
             for col in clause.of_columns:
-                if isinstance(col, str):
-                    of_parts.append(self.format_identifier(col))
-                else:
-                    col_sql, col_params = col.to_sql()
-                    of_parts.append(col_sql)
-                    all_params.extend(col_params)
+                col_sql, col_params = col.to_sql()
+                of_parts.append(col_sql)
+                all_params.extend(col_params)
             if of_parts:
                 sql_parts.append(f"OF {', '.join(of_parts)}")
 

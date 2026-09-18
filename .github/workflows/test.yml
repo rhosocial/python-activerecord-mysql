@@ -58,7 +58,7 @@ jobs:
       - name: Install activerecord and testsuite
         run: |
           pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
-          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/activerecord-derived-ddl"
 
       - name: Create and test database
         run: |
@@ -211,8 +211,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { python-version: '3.15.0-rc.1', mysql-version: '9.7', port: 3320, freethreaded: false }
-          - { python-version: '3.15.0-rc.1', mysql-version: '9.7', port: 3321, freethreaded: true }
+          - { python-version: '3.15.0-rc.2', mysql-version: '9.7', port: 3320, freethreaded: false }
+          - { python-version: '3.15.0-rc.2', mysql-version: '9.7', port: 3321, freethreaded: true }
 
     services:
       mysql:
@@ -249,7 +249,7 @@ jobs:
       - name: Install activerecord and testsuite
         run: |
           pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
-          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/activerecord-derived-ddl"
 
       - name: Create and test database
         run: |
@@ -356,7 +356,7 @@ jobs:
       - name: Install activerecord and testsuite
         run: |
           pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
-          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/activerecord-derived-ddl"
 
       - name: Create and test database
         run: |

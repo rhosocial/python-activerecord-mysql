@@ -93,6 +93,14 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.IntrospectionSupport,
     dialect_protocols.TransactionControlSupport,
     dialect_protocols.SQLFunctionSupport,
+    # Generic protocols MySQL also satisfies (previously omitted from this list).
+    dialect_protocols.AlterTableModifierSupport,
+    dialect_protocols.DDLTypeSupport,
+    dialect_protocols.SetOperationSupport,
+    dialect_protocols.TriggerSupport,
+    dialect_protocols.TruncateSupport,
+    dialect_protocols.AutoIncrementSupport,
+    dialect_protocols.GeneratedColumnSupport,
     # MySQL-specific protocols
     mysql_protocols.MySQLDMLOperationSupport,
     mysql_protocols.MySQLTriggerSupport,
@@ -133,6 +141,75 @@ class TestMySQLDialectProtocolConformance:
         )
 
 
+# Generic protocols MySQLDialect intentionally does NOT implement.
+#
+# Listing them makes the omission a deliberate, tested contract: if MySQL ever
+# satisfies one by accident, the negative test fails and forces a conscious
+# decision (move to MYSQL_PROTOCOLS or revert).
+MYSQL_NOT_IMPLEMENTED = [
+    # --- Intentional non-support ---
+    # The generic DatabaseSupport protocol is not composed by MySQLDialect.
+    dialect_protocols.DatabaseSupport,
+    # MySQL has no SQL/XML support.
+    dialect_protocols.SQLXMLSupport,
+    dialect_protocols.SQLXMLParsingSupport,
+    dialect_protocols.SQLXMLSerializationSupport,
+    dialect_protocols.SQLXMLConstructionSupport,
+    dialect_protocols.SQLXMLAggregationSupport,
+    dialect_protocols.SQLXMLQueryingSupport,
+    # MySQL has no SQL/PGQ property-graph tables.
+    dialect_protocols.GraphTableSupport,
+    # MySQL LIKE is case-insensitive by default; there is no ILIKE operator.
+    dialect_protocols.ILIKESupport,
+    # MySQL exposes routine DDL through its own MySQLRoutineSupport protocol
+    # rather than the generic SQL/PSM FunctionSupport.
+    dialect_protocols.FunctionSupport,
+]
+
+
+def get_all_generic_protocols() -> dict:
+    """Discover every generic dialect protocol defined in protocols.py."""
+    from typing import Protocol
+
+    discovered = {}
+    for name, obj in inspect.getmembers(dialect_protocols, inspect.isclass):
+        if Protocol in getattr(obj, "__mro__", []) and name.endswith("Support"):
+            discovered[name] = obj
+    return discovered
+
+
+class TestMySQLDialectNegativeProtocolConformance:
+    """Assert MySQLDialect does not implement intentionally-unsupported protocols."""
+
+    @pytest.fixture
+    def dialect(self):
+        return mysql_dialect.MySQLDialect()
+
+    @pytest.mark.parametrize("protocol", MYSQL_NOT_IMPLEMENTED)
+    def test_does_not_implement_protocol(self, dialect, protocol):
+        """MySQLDialect must NOT implement any protocol in MYSQL_NOT_IMPLEMENTED."""
+        assert not isinstance(dialect, protocol), (
+            f"MySQLDialect unexpectedly implements {protocol.__name__}. "
+            f"If intentional, move it from MYSQL_NOT_IMPLEMENTED to MYSQL_PROTOCOLS "
+            f"(and implement the behaviour fully)."
+        )
+
+    def test_positive_and_negative_lists_partition_all_protocols(self):
+        """Every generic protocol must be classified for MySQL."""
+        all_protos = set(get_all_generic_protocols())
+        positive = {p.__name__ for p in MYSQL_PROTOCOLS if p.__module__ == dialect_protocols.__name__}
+        negative = {p.__name__ for p in MYSQL_NOT_IMPLEMENTED}
+
+        overlap = positive & negative
+        assert not overlap, f"Protocols in BOTH lists: {sorted(overlap)}"
+
+        unclassified = all_protos - positive - negative
+        assert not unclassified, (
+            f"Generic protocols not classified for MySQL: {sorted(unclassified)}. "
+            f"Add each to MYSQL_PROTOCOLS or MYSQL_NOT_IMPLEMENTED."
+        )
+
+
 class TestProtocolNonOverlap:
     """Assert protocols do not have overlapping method names."""
 
@@ -167,6 +244,9 @@ class TestProtocolNonOverlap:
             ("MySQLRenameTableSupport", "TableSupport"),
             ("MySQLTableSupport", "MySQLRenameTableSupport"),
             ("MySQLRenameTableSupport", "MySQLTableSupport"),
+            # MySQL trigger protocol restates the generic trigger capability.
+            ("TriggerSupport", "MySQLTriggerSupport"),
+            ("MySQLTriggerSupport", "TriggerSupport"),
         }
 
         violations = []

@@ -12,7 +12,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValueExpression
+from rhosocial.activerecord.backend.expression.mixins import (
+    AliasableMixin,
+    ComparisonMixin,
+)
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -94,8 +98,11 @@ class CreateJsonDualityViewExpression(BaseExpression):
         self.root_spec = root_spec
         self.replace = replace
 
-    def to_sql(self):
-        return self.dialect.format_create_json_duality_view_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_create_json_duality_view_statement"
+
 
 
 class DropJsonDualityViewExpression(BaseExpression):
@@ -114,5 +121,92 @@ class DropJsonDualityViewExpression(BaseExpression):
         self.view_name = view_name
         self.if_exists = if_exists
 
-    def to_sql(self):
-        return self.dialect.format_drop_json_duality_view_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_drop_json_duality_view_statement"
+
+
+class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL Duality Object SELECT expression.
+
+    Wraps a DualityObjectSpec for SELECT JSON_DUALITY_OBJECT(...) FROM table.
+
+    Args:
+        dialect: The SQL dialect.
+        spec: DualityObjectSpec describing the object.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        spec: DualityObjectSpec,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.spec = spec
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_duality_object_select"
+
+
+class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL Duality Object body expression.
+
+    Wraps a DualityObjectSpec for JSON_DUALITY_OBJECT( ... ).
+
+    Args:
+        dialect: The SQL dialect.
+        spec: DualityObjectSpec describing the object body.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        spec: DualityObjectSpec,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.spec = spec
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_duality_object_body"
+
+
+class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL nested duality expression.
+
+    Wraps a DualityNestedMapping for nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)).
+
+    Args:
+        dialect: The SQL dialect.
+        nested: DualityNestedMapping describing the nested object.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        nested: DualityNestedMapping,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.nested = nested
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_nested_duality"
+

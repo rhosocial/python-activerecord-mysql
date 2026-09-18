@@ -13,6 +13,9 @@ from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.expression.statements import (
     CreateFulltextIndexExpression,
 )
+from rhosocial.activerecord.backend.expression.statements.fulltext_match import (
+    FulltextMatchExpression,
+)
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression
 
 
@@ -37,7 +40,10 @@ class TestFullTextProtocol:
         """Test format_match_against method."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_match_against(["title", "content"], "MySQL", mode="NATURAL_LANGUAGE")
+        expr = MySQLMatchAgainstExpression(
+            dialect, columns=["title", "content"], search_string="MySQL", mode="NATURAL_LANGUAGE"
+        )
+        sql, params = expr.to_sql()
 
         assert "MATCH(`title`, `content`)" in sql
         assert "AGAINST" in sql
@@ -89,7 +95,8 @@ class TestFullTextProtocol:
         """Test MATCH ... AGAINST with natural language mode."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_fulltext_match(["title", "content"], "database system")
+        expr = FulltextMatchExpression(dialect, columns=["title", "content"], search_term="database system")
+        sql, params = dialect.format_fulltext_match(expr)
 
         assert "MATCH(`title`, `content`)" in sql
         assert "AGAINST" in sql
@@ -100,7 +107,8 @@ class TestFullTextProtocol:
         """Test MATCH ... AGAINST with boolean mode."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_fulltext_match(["title", "content"], "+database +system", mode="BOOLEAN")
+        expr = FulltextMatchExpression(dialect, columns=["title", "content"], search_term="+database +system", mode="BOOLEAN")
+        sql, params = dialect.format_fulltext_match(expr)
 
         assert "MATCH(`title`, `content`)" in sql
         assert "AGAINST" in sql
@@ -111,7 +119,8 @@ class TestFullTextProtocol:
         """Test MATCH ... AGAINST with query expansion."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_fulltext_match(["content"], "database", mode="QUERY EXPANSION")
+        expr = FulltextMatchExpression(dialect, columns=["content"], search_term="database", mode="QUERY EXPANSION")
+        sql, params = dialect.format_fulltext_match(expr)
 
         assert "MATCH(`content`)" in sql
         assert "AGAINST" in sql
@@ -151,7 +160,8 @@ class TestFullTextProtocol:
         dialect = MySQLDialect(version=(5, 5, 0))
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
-            dialect.format_fulltext_match(["title"], "test")
+            expr = FulltextMatchExpression(dialect, columns=["title"], search_term="test")
+            dialect.format_fulltext_match(expr)
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
             expr = CreateFulltextIndexExpression(
@@ -175,7 +185,8 @@ class TestAsyncFullTextProtocol:
         """Test async version of MATCH formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_fulltext_match(["title"], "test", mode="BOOLEAN")
+        expr = MySQLMatchAgainstExpression(dialect, columns=["title"], search_string="test", mode="BOOLEAN")
+        sql, params = expr.to_sql()
 
         assert "MATCH(`title`)" in sql
         assert "IN BOOLEAN MODE" in sql

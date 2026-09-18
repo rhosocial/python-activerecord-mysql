@@ -26,8 +26,9 @@ def create_users_table(dialect):
         table="users",
         columns=[
             ColumnDefinition(
+                dialect,
                 "id",
-                MySQLIntType(),
+                MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
                         ColumnConstraintType.PRIMARY_KEY,
@@ -35,8 +36,8 @@ def create_users_table(dialect):
                     ),
                 ],
             ),
-            ColumnDefinition("name", MySQLTextType()),
-            ColumnDefinition("email", MySQLTextType()),
+            ColumnDefinition(dialect, "name", MySQLTextType(dialect)),
+            ColumnDefinition(dialect, "email", MySQLTextType(dialect)),
         ],
     )
 
@@ -53,8 +54,9 @@ def create_posts_table(dialect):
         table="posts",
         columns=[
             ColumnDefinition(
+                dialect,
                 "id",
-                MySQLIntType(),
+                MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
                         ColumnConstraintType.PRIMARY_KEY,
@@ -62,8 +64,8 @@ def create_posts_table(dialect):
                     ),
                 ],
             ),
-            ColumnDefinition("title", MySQLTextType()),
-            ColumnDefinition("user_id", MySQLIntType()),
+            ColumnDefinition(dialect, "title", MySQLTextType(dialect)),
+            ColumnDefinition(dialect, "user_id", MySQLIntType(dialect)),
         ],
     )
 
@@ -84,8 +86,9 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
         table=table_name,
         columns=[
             ColumnDefinition(
+                dialect,
                 "id",
-                MySQLIntType(),
+                MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
                         ColumnConstraintType.PRIMARY_KEY,
@@ -93,7 +96,7 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
                     ),
                 ],
             ),
-            ColumnDefinition("value", MySQLTextType()),
+            ColumnDefinition(dialect, "value", MySQLTextType(dialect)),
         ],
     )
 

@@ -14,7 +14,7 @@ function and is intentionally NOT represented here because it is an
 installation-time administrative action (see admin expressions instead).
 """
 
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
@@ -65,8 +65,11 @@ class MySQLRoutineExpression(BaseExpression):
 class MySQLCreateProcedureExpression(MySQLRoutineExpression):
     """Represent ``CREATE PROCEDURE``."""
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_create_procedure_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_create_procedure_statement"
+
 
 
 class MySQLDropProcedureExpression(MySQLRoutineExpression):
@@ -83,8 +86,11 @@ class MySQLDropProcedureExpression(MySQLRoutineExpression):
         super().__init__(dialect, name, dialect_options=dialect_options)
         self.if_exists: bool = if_exists
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_drop_procedure_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_drop_procedure_statement"
+
 
 
 class MySQLCreateFunctionExpression(MySQLRoutineExpression):
@@ -111,8 +117,11 @@ class MySQLCreateFunctionExpression(MySQLRoutineExpression):
         self.returns: str = returns
         self.deterministic: bool = deterministic
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_create_function_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_create_function_statement"
+
 
 
 class MySQLDropFunctionExpression(MySQLRoutineExpression):
@@ -129,8 +138,11 @@ class MySQLDropFunctionExpression(MySQLRoutineExpression):
         super().__init__(dialect, name, dialect_options=dialect_options)
         self.if_exists: bool = if_exists
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_drop_function_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_drop_function_statement"
+
 
 
 class MySQLCallExpression(BaseExpression):
@@ -163,5 +175,7 @@ class MySQLCallExpression(BaseExpression):
         elif not isinstance(self.name, str):
             raise TypeError(f"name must be str or (schema, name) tuple, got {type(self.name)}")
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_call_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_call_statement"

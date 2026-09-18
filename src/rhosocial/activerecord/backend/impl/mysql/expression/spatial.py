@@ -7,11 +7,16 @@ This module provides expression classes for MySQL spatial functions:
 - MySQLSTDistanceExpression
 - MySQLSTWithinExpression
 - MySQLSTContainsExpression
+- SpatialLiteralExpression
+- STGeomFromWKBExpression
+- STAsTextExpression
+- STAsGeoJSONExpression
+- CreateSpatialIndexExpression
 """
 
 from typing import TYPE_CHECKING, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLQueryAndParams, SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -41,11 +46,10 @@ class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValueExpression):
         self.wkt = wkt
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_st_geom_from_text(self.wkt)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_geom_from_text"
 
 
 class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -70,11 +74,10 @@ class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
         self.geom2 = geom2
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_st_distance(self.geom1, self.geom2)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_distance"
 
 
 class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -99,11 +102,10 @@ class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
         self.geom2 = geom2
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_st_within(self.geom1, self.geom2)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_within"
 
 
 class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
@@ -128,11 +130,158 @@ class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
         self.geom2 = geom2
         self.alias = alias
 
-    def to_sql(self) -> "SQLQueryAndParams":
-        sql, params = self.dialect.format_st_contains(self.geom1, self.geom2)
-        if self.alias:
-            sql = f"{sql} AS {self.dialect.format_identifier(self.alias)}"
-        return sql, params
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_contains"
+
+
+class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL spatial literal expression with optional SRID.
+
+    Args:
+        dialect: The SQL dialect.
+        wkt: Well-Known Text representation of the geometry.
+        srid: Optional Spatial Reference System Identifier.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        wkt: str,
+        srid: Optional[int] = None,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.wkt = wkt
+        self.srid = srid
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_spatial_literal"
+
+
+class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL ST_GeomFromWKB expression.
+
+    Creates a geometry value from WKB (Well-Known Binary).
+
+    Args:
+        dialect: The SQL dialect.
+        wkb: Well-Known Binary representation of the geometry.
+        srid: Optional Spatial Reference System Identifier.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        wkb: bytes,
+        srid: Optional[int] = None,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.wkb = wkb
+        self.srid = srid
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_geom_from_wkb"
+
+
+class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL ST_AsText expression.
+
+    Converts a geometry value to its WKT (Well-Known Text) representation.
+
+    Args:
+        dialect: The SQL dialect.
+        geom: Geometry column or expression to convert.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        geom: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.geom = geom
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_as_text"
+
+
+class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL ST_AsGeoJSON expression.
+
+    Converts a geometry value to GeoJSON format (MySQL 5.7.5+).
+
+    Args:
+        dialect: The SQL dialect.
+        geom: Geometry column or expression to convert.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        geom: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.geom = geom
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_st_as_geojson"
+
+
+class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+    """MySQL CREATE SPATIAL INDEX expression.
+
+    Args:
+        dialect: The SQL dialect.
+        index_name: Name of the index.
+        table_name: Name of the table.
+        column: Column to create the spatial index on.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        index_name: str,
+        table_name: str,
+        column: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.index_name = index_name
+        self.table_name = table_name
+        self.column = column
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_create_spatial_index"
 
 
 __all__ = [
@@ -140,4 +289,9 @@ __all__ = [
     "MySQLSTDistanceExpression",
     "MySQLSTWithinExpression",
     "MySQLSTContainsExpression",
+    "SpatialLiteralExpression",
+    "STGeomFromWKBExpression",
+    "STAsTextExpression",
+    "STAsGeoJSONExpression",
+    "CreateSpatialIndexExpression",
 ]
