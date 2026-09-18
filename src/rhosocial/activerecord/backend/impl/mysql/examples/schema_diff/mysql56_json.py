@@ -53,12 +53,12 @@ backend.execute(sql, params)
 # Simulate MySQL 5.6: store JSON as TEXT
 expr = CreateTableExpression(
     dialect=dialect, table="documents56", columns=[
-        ColumnDefinition("id", IntegerType(),
+        ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
                 ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
             ]),
-        ColumnDefinition("data", MySQLLongTextType()),
+        ColumnDefinition(dialect, "data", MySQLLongTextType(dialect)),
     ]
 )
 sql, params = expr.to_sql()
@@ -66,12 +66,12 @@ backend.execute(sql, params)
 # Simulate MySQL 5.7+: native JSON column
 expr = CreateTableExpression(
     dialect=dialect, table="documents57", columns=[
-        ColumnDefinition("id", IntegerType(),
+        ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
                 ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
             ]),
-        ColumnDefinition("data", JsonType()),
+        ColumnDefinition(dialect, "data", JsonType(dialect)),
     ]
 )
 sql, params = expr.to_sql()

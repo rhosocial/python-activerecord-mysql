@@ -15,6 +15,14 @@ class MySQLTriggerMixin:
         """MySQL supports triggers since 5.0.2."""
         return self.version >= (5, 0, 2)
 
+    def supports_create_trigger(self) -> bool:
+        """MySQL supports CREATE TRIGGER since 5.0.2."""
+        return self.version >= (5, 0, 2)
+
+    def supports_drop_trigger(self) -> bool:
+        """MySQL supports DROP TRIGGER since 5.0.2."""
+        return self.version >= (5, 0, 2)
+
     def supports_instead_of_trigger(self) -> bool:
         """MySQL does NOT support INSTEAD OF triggers."""
         return False

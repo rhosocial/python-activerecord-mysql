@@ -3,9 +3,12 @@
 
 Naming convention
 -----------------
-MySQL-specific types use the ``MySQL`` prefix to distinguish them from
-the core types (which have no prefix).  This avoids ambiguity when both
-core and backend types are used together.
+MySQL-specific types use the ``MySQL`` class-name prefix and a
+``mysql_``-prefixed generic type ``name`` (the protocol dispatch key) to
+distinguish them from the core types (which own pure names such as
+``integer`` or ``varchar``).  This keeps the
+``format_data_type_<name>`` dispatch families of core and backend
+isolated and avoids ambiguity when both type families are used together.
 
 Usage scope
 -----------
@@ -13,20 +16,29 @@ These types are used **only** for MySQL backend DDL column definitions,
 introspection result parsing, and schema comparison.  They should **not**
 be used by application code directly — always use the core types for
 DDL definition expressions (``ColumnDefinition.data_type``).
+
+Value-object semantics
+----------------------
+Equality/hash live on the core ``DataType`` base (via ``_type_params``);
+subclasses only declare their semantic parameters through
+``_type_params()`` and must **not** hand-write ``__eq__``/``__hash__``.
 """
 
 from __future__ import annotations
 
-from typing import List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
+    BinaryType,
     BlobType,
     DataType,
+    EnumType,
     IntegerType,
     SmallIntType,
     TextType,
     TinyIntType,
+    VarBinaryType,
 )
 
 
@@ -34,80 +46,92 @@ from rhosocial.activerecord.backend.expression.types import (
 # Integer variants with UNSIGNED / ZEROFILL
 # ---------------------------------------------------------------------------
 
-class MySQLIntType(IntegerType, backend="mysql"):
+class MySQLIntType(IntegerType):
     """MySQL ``INTEGER`` / ``INT`` with optional UNSIGNED / ZEROFILL."""
+
+    name = "mysql_int"
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return (self.unsigned == other.unsigned and
-                self.zerofill == other.zerofill)
+    def __init__(self, dialect=None, *, unsigned: bool = False,
+                 zerofill: bool = False,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
+        self.unsigned = unsigned
+        self.zerofill = zerofill
 
-    def __hash__(self) -> int:
-        return hash((type(self), self.unsigned, self.zerofill))
+    def _type_params(self) -> tuple:
+        return (self.unsigned, self.zerofill)
 
     @classmethod
     def synonyms(cls) -> Set[str]:
         return {'IntegerType'}
 
 
-class MySQLTinyIntType(TinyIntType, backend="mysql"):
+class MySQLTinyIntType(TinyIntType):
     """MySQL ``TINYINT`` with optional UNSIGNED / ZEROFILL."""
+
+    name = "mysql_tinyint"
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return (self.unsigned == other.unsigned and
-                self.zerofill == other.zerofill)
+    def __init__(self, dialect=None, *, unsigned: bool = False,
+                 zerofill: bool = False,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
+        self.unsigned = unsigned
+        self.zerofill = zerofill
 
-    def __hash__(self) -> int:
-        return hash((type(self), self.unsigned, self.zerofill))
+    def _type_params(self) -> tuple:
+        return (self.unsigned, self.zerofill)
 
     @classmethod
     def synonyms(cls) -> Set[str]:
         return {'TinyIntType'}
 
 
-class MySQLSmallIntType(SmallIntType, backend="mysql"):
+class MySQLSmallIntType(SmallIntType):
     """MySQL ``SMALLINT`` with optional UNSIGNED / ZEROFILL."""
+
+    name = "mysql_smallint"
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return (self.unsigned == other.unsigned and
-                self.zerofill == other.zerofill)
+    def __init__(self, dialect=None, *, unsigned: bool = False,
+                 zerofill: bool = False,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
+        self.unsigned = unsigned
+        self.zerofill = zerofill
 
-    def __hash__(self) -> int:
-        return hash((type(self), self.unsigned, self.zerofill))
+    def _type_params(self) -> tuple:
+        return (self.unsigned, self.zerofill)
 
     @classmethod
     def synonyms(cls) -> Set[str]:
         return {'SmallIntType'}
 
 
-class MySQLBigIntType(BigIntType, backend="mysql"):
+class MySQLBigIntType(BigIntType):
     """MySQL ``BIGINT`` with optional UNSIGNED / ZEROFILL."""
+
+    name = "mysql_bigint"
 
     unsigned: bool = False
     zerofill: bool = False
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return (self.unsigned == other.unsigned and
-                self.zerofill == other.zerofill)
+    def __init__(self, dialect=None, *, unsigned: bool = False,
+                 zerofill: bool = False,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
+        self.unsigned = unsigned
+        self.zerofill = zerofill
 
-    def __hash__(self) -> int:
-        return hash((type(self), self.unsigned, self.zerofill))
+    def _type_params(self) -> tuple:
+        return (self.unsigned, self.zerofill)
 
     @classmethod
     def synonyms(cls) -> Set[str]:
@@ -118,155 +142,154 @@ class MySQLBigIntType(BigIntType, backend="mysql"):
 # BLOB size variants
 # ---------------------------------------------------------------------------
 
-class MySQLTinyBlobType(BlobType, backend="mysql"):
+class MySQLTinyBlobType(BlobType):
     """MySQL ``TINYBLOB`` — maximum 255 bytes."""
 
+    name = "mysql_tinyblob"
 
-class MySQLBlobType(BlobType, backend="mysql"):
+
+class MySQLBlobType(BlobType):
     """MySQL ``BLOB`` — maximum 65,535 bytes."""
 
+    name = "mysql_blob"
 
-class MySQLMediumBlobType(BlobType, backend="mysql"):
+
+class MySQLMediumBlobType(BlobType):
     """MySQL ``MEDIUMBLOB`` — maximum 16,777,215 bytes."""
 
+    name = "mysql_mediumblob"
 
-class MySQLLongBlobType(BlobType, backend="mysql"):
+
+class MySQLLongBlobType(BlobType):
     """MySQL ``LONGBLOB`` — maximum 4,294,967,295 bytes."""
+
+    name = "mysql_longblob"
 
 
 # ---------------------------------------------------------------------------
 # TEXT size variants
 # ---------------------------------------------------------------------------
 
-class MySQLTinyTextType(TextType, backend="mysql"):
+class MySQLTinyTextType(TextType):
     """MySQL ``TINYTEXT`` — maximum 255 bytes."""
 
+    name = "mysql_tinytext"
 
-class MySQLTextType(TextType, backend="mysql"):
+
+class MySQLTextType(TextType):
     """MySQL ``TEXT`` — maximum 65,535 bytes."""
 
+    name = "mysql_text"
 
-class MySQLMediumTextType(TextType, backend="mysql"):
+
+class MySQLMediumTextType(TextType):
     """MySQL ``MEDIUMTEXT`` — maximum 16,777,215 bytes."""
 
+    name = "mysql_mediumtext"
 
-class MySQLLongTextType(TextType, backend="mysql"):
+
+class MySQLLongTextType(TextType):
     """MySQL ``LONGTEXT`` — maximum 4,294,967,295 bytes."""
+
+    name = "mysql_longtext"
 
 
 # ---------------------------------------------------------------------------
 # Bit type
 # ---------------------------------------------------------------------------
 
-class MySQLBitType(DataType, backend="mysql"):
+class MySQLBitType(DataType):
     """MySQL ``BIT[(n)]`` — bit-field type."""
+
+    name = "mysql_bit"
 
     n: Optional[int] = None
 
-    def __init__(self, n: Optional[int] = None):
-        super().__init__()
+    def __init__(self, dialect=None, n: Optional[int] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
         self.n = n
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return self.n == other.n
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.n))
+    def _type_params(self) -> tuple:
+        return (self.n,)
 
 
 # ---------------------------------------------------------------------------
 # Year type
 # ---------------------------------------------------------------------------
 
-class MySQLYearType(DataType, backend="mysql"):
+class MySQLYearType(DataType):
     """MySQL ``YEAR[(4)]`` — year type (``YEAR(4)`` is legacy)."""
+
+    name = "mysql_year"
 
     display_width: Optional[int] = None
 
-    def __init__(self, display_width: Optional[int] = None):
-        super().__init__()
+    def __init__(self, dialect=None, display_width: Optional[int] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
         self.display_width = display_width
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return self.display_width == other.display_width
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.display_width))
+    def _type_params(self) -> tuple:
+        return (self.display_width,)
 
 
 # ---------------------------------------------------------------------------
 # Binary / VarBinary
 # ---------------------------------------------------------------------------
 
-class MySQLBinaryType(DataType, backend="mysql"):
+class MySQLBinaryType(BinaryType):
     """MySQL ``BINARY[(n)]`` — fixed-length binary."""
 
-    length: Optional[int] = None
+    name = "mysql_binary"
 
-    def __init__(self, length: Optional[int] = None):
-        super().__init__()
+    def __init__(self, dialect=None, length: Optional[int] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
         self.length = length
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return self.length == other.length
 
-    def __hash__(self) -> int:
-        return hash((type(self), self.length))
-
-
-class MySQLVarBinaryType(DataType, backend="mysql"):
+class MySQLVarBinaryType(VarBinaryType):
     """MySQL ``VARBINARY(n)`` — variable-length binary."""
 
-    length: Optional[int] = None
+    name = "mysql_varbinary"
 
-    def __init__(self, length: Optional[int] = None):
-        super().__init__()
+    def __init__(self, dialect=None, length: Optional[int] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
         self.length = length
-
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return self.length == other.length
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.length))
 
 
 # ---------------------------------------------------------------------------
 # ENUM
 # ---------------------------------------------------------------------------
 
-class MySQLEnumType(DataType, backend="mysql"):
-    """MySQL ``ENUM('val', ...)`` with optional CHARACTER SET / COLLATE."""
+class MySQLEnumType(EnumType):
+    """MySQL ``ENUM('val', ...)`` with optional CHARACTER SET / COLLATE.
 
-    values: List[str]
+    Inherits the core ``EnumType`` (values validation and value-object
+    semantics); the MySQL rendering (including charset/collation
+    extensions) lives in the dialect's ``format_data_type_mysql_enum``.
+    """
+
+    name = "mysql_enum"
+
     charset: Optional[str] = None
     collation: Optional[str] = None
 
-    def __init__(self, values: List[str], charset: Optional[str] = None,
-                 collation: Optional[str] = None):
-        super().__init__()
+    def __init__(self, dialect=None, values: Optional[List[str]] = None,
+                 charset: Optional[str] = None, collation: Optional[str] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        if values is None:
+            raise ValueError("MySQLEnumType requires values")
         if not values:
             raise ValueError("ENUM must have at least one value")
-        self.values = list(values)
+        super().__init__(dialect, values=values, dialect_options=dialect_options)
         self.charset = charset
         self.collation = collation
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return (self.values == other.values and
-                self.charset == other.charset and
-                self.collation == other.collation)
-
-    def __hash__(self) -> int:
-        return hash((type(self), tuple(self.values), self.charset, self.collation))
+    def _type_params(self) -> tuple:
+        return (self.values, self.charset, self.collation)
 
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(values={self.values!r}, "
@@ -277,31 +300,34 @@ class MySQLEnumType(DataType, backend="mysql"):
 # SET
 # ---------------------------------------------------------------------------
 
-class MySQLSetType(DataType, backend="mysql"):
-    """MySQL ``SET('val', ...)`` with optional CHARACTER SET / COLLATE."""
+class MySQLSetType(DataType):
+    """MySQL ``SET('val', ...)`` with optional CHARACTER SET / COLLATE.
 
-    values: List[str]
+    Deliberately **not** an ``EnumType`` subclass: SET renders as
+    ``SET(...)``, not ``ENUM(...)``, and accepts multi-value membership —
+    a different generic type with its own ``mysql_set`` dispatch key.
+    """
+
+    name = "mysql_set"
+
+    values: Tuple[str, ...] = ()
     charset: Optional[str] = None
     collation: Optional[str] = None
 
-    def __init__(self, values: List[str], charset: Optional[str] = None,
-                 collation: Optional[str] = None):
-        super().__init__()
+    def __init__(self, dialect=None, values: Optional[List[str]] = None,
+                 charset: Optional[str] = None, collation: Optional[str] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
+        if values is None:
+            raise ValueError("MySQLSetType requires values")
         if not values:
             raise ValueError("SET must have at least one value")
-        self.values = list(values)
+        self.values = tuple(values)
         self.charset = charset
         self.collation = collation
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return (self.values == other.values and
-                self.charset == other.charset and
-                self.collation == other.collation)
-
-    def __hash__(self) -> int:
-        return hash((type(self), tuple(self.values), self.charset, self.collation))
+    def _type_params(self) -> tuple:
+        return (self.values, self.charset, self.collation)
 
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(values={self.values!r}, "
@@ -312,69 +338,81 @@ class MySQLSetType(DataType, backend="mysql"):
 # Spatial / Geometry types
 # ---------------------------------------------------------------------------
 
-class MySQLGeometryType(DataType, backend="mysql"):
+class MySQLGeometryType(DataType):
     """MySQL ``GEOMETRY`` with optional SRID."""
+
+    name = "mysql_geometry"
 
     srid: Optional[int] = None
 
-    def __init__(self, srid: Optional[int] = None):
-        super().__init__()
+    def __init__(self, dialect=None, srid: Optional[int] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
         self.srid = srid
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return self.srid == other.srid
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.srid))
+    def _type_params(self) -> tuple:
+        return (self.srid,)
 
 
-class MySQLPointType(MySQLGeometryType, backend="mysql"):
+class MySQLPointType(MySQLGeometryType):
     """MySQL ``POINT`` with optional SRID."""
 
+    name = "mysql_point"
 
-class MySQLLineStringType(MySQLGeometryType, backend="mysql"):
+
+class MySQLLineStringType(MySQLGeometryType):
     """MySQL ``LINESTRING`` with optional SRID."""
 
+    name = "mysql_linestring"
 
-class MySQLPolygonType(MySQLGeometryType, backend="mysql"):
+
+class MySQLPolygonType(MySQLGeometryType):
     """MySQL ``POLYGON`` with optional SRID."""
 
+    name = "mysql_polygon"
 
-class MySQLMultiPointType(MySQLGeometryType, backend="mysql"):
+
+class MySQLMultiPointType(MySQLGeometryType):
     """MySQL ``MULTIPOINT`` with optional SRID."""
 
+    name = "mysql_multipoint"
 
-class MySQLMultiLineStringType(MySQLGeometryType, backend="mysql"):
+
+class MySQLMultiLineStringType(MySQLGeometryType):
     """MySQL ``MULTILINESTRING`` with optional SRID."""
 
+    name = "mysql_multilinestring"
 
-class MySQLMultiPolygonType(MySQLGeometryType, backend="mysql"):
+
+class MySQLMultiPolygonType(MySQLGeometryType):
     """MySQL ``MULTIPOLYGON`` with optional SRID."""
 
+    name = "mysql_multipolygon"
 
-class MySQLGeometryCollectionType(MySQLGeometryType, backend="mysql"):
+
+class MySQLGeometryCollectionType(MySQLGeometryType):
     """MySQL ``GEOMETRYCOLLECTION`` with optional SRID."""
+
+    name = "mysql_geometrycollection"
 
 
 # ---------------------------------------------------------------------------
 # VECTOR type (MySQL 9.0+)
 # ---------------------------------------------------------------------------
 
-class MySQLVectorType(DataType, backend="mysql"):
+class MySQLVectorType(DataType):
     """MySQL ``VECTOR(n)`` — vector type (MySQL 9.0+)."""
 
-    dim: int
+    name = "mysql_vector"
 
-    def __init__(self, dim: int):
-        super().__init__()
+    dim: Optional[int] = None
+
+    def __init__(self, dialect=None, dim: Optional[int] = None,
+                 dialect_options: Optional[Dict[str, Any]] = None):
+        super().__init__(dialect, dialect_options=dialect_options)
+        if dim is None:
+            raise ValueError("MySQLVectorType requires dim")
         self.dim = dim
 
-    def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
-            return False
-        return self.dim == other.dim
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.dim))
+    def _type_params(self) -> tuple:
+        return (self.dim,)

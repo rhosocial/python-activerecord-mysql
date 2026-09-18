@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/fulltext.py
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 
 class MySQLFullTextSearchMixin:
@@ -25,26 +25,31 @@ class MySQLFullTextSearchMixin:
     def supports_fulltext_query_expansion(self) -> bool:
         return True
 
-    def format_fulltext_index_options(
-        self, index_name: str, columns: List[str], index_type: Optional[str] = None, parser_name: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format FULLTEXT index options for CREATE TABLE / ALTER TABLE."""
-        col_parts = [self.format_identifier(c) for c in columns]
-        sql = f"FULLTEXT {self.format_identifier(index_name)} ({', '.join(col_parts)})"
-        if parser_name:
-            sql += f" WITH PARSER {self.format_identifier(parser_name)}"
+    def format_fulltext_index_options(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLFulltextIndexOptionsExpression` node."""
+        from ..expression.fulltext import MySQLFulltextIndexOptionsExpression
+
+        if not isinstance(expr, MySQLFulltextIndexOptionsExpression):
+            raise TypeError(
+                f"format_fulltext_index_options expects MySQLFulltextIndexOptionsExpression, "
+                f"got {type(expr).__name__}"
+            )
+
+        col_parts = [self.format_identifier(c) for c in expr.columns]
+        sql = f"FULLTEXT {self.format_identifier(expr.index_name)} ({', '.join(col_parts)})"
+        if expr.parser_name:
+            sql += f" WITH PARSER {self.format_identifier(expr.parser_name)}"
         return sql, ()
 
-    def format_match_against(
-        self, columns: List[str], search_string: str, mode: Optional[str] = None
-    ) -> Tuple[str, tuple]:
-        """Format MATCH ... AGAINST expression."""
-        cols_sql = ", ".join(self.format_identifier(c) for c in columns)
+    def format_match_against(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLMatchAgainstExpression` node."""
+        cols_sql = ", ".join(self.format_identifier(c) for c in expr.columns)
 
         placeholder = self.get_parameter_placeholder()
         search_sql = placeholder
-        search_params = (search_string,)
+        search_params = (expr.search_string,)
 
+        mode = expr.mode
         if mode:
             mode_upper = mode.upper()
             if mode_upper == "NATURAL_LANGUAGE":
@@ -59,4 +64,6 @@ class MySQLFullTextSearchMixin:
             mode_str = "IN NATURAL LANGUAGE MODE"
 
         sql = f"MATCH({cols_sql}) AGAINST({search_sql} {mode_str})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, search_params

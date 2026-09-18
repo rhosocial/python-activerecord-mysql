@@ -11,6 +11,17 @@ This module tests MySQL-specific spatial data type functionality including:
 
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLCreateSpatialIndexExpression,
+    MySQLSpatialLiteralExpression,
+    MySQLSTAsGeoJSONExpression,
+    MySQLSTAsTextExpression,
+    MySQLSTContainsExpression,
+    MySQLSTDistanceExpression,
+    MySQLSTGeomFromTextExpression,
+    MySQLSTGeomFromWKBExpression,
+    MySQLSTWithinExpression,
+)
 
 
 class TestSpatialTypeProtocol:
@@ -70,7 +81,8 @@ class TestSpatialTypeProtocol:
         """Test spatial literal without SRID."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_spatial_literal("POINT(1 1)")
+        expr = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_GeomFromText(%s)"
         assert params == ("POINT(1 1)",)
@@ -79,7 +91,8 @@ class TestSpatialTypeProtocol:
         """Test spatial literal with SRID."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_spatial_literal("POINT(1 1)", 4326)
+        expr = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)", 4326)
+        sql, params = expr.to_sql()
 
         assert sql == "ST_GeomFromText(%s, %s)"
         assert params == ("POINT(1 1)", 4326)
@@ -88,7 +101,8 @@ class TestSpatialTypeProtocol:
         """Test ST_GeomFromText without SRID."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_geom_from_text("LINESTRING(0 0, 1 1)")
+        expr = MySQLSTGeomFromTextExpression(dialect, "LINESTRING(0 0, 1 1)")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_GeomFromText(%s)"
         assert params == ("LINESTRING(0 0, 1 1)",)
@@ -97,7 +111,8 @@ class TestSpatialTypeProtocol:
         """Test ST_GeomFromText with SRID."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_geom_from_text("LINESTRING(0 0, 1 1)", 4326)
+        expr = MySQLSpatialLiteralExpression(dialect, "LINESTRING(0 0, 1 1)", 4326)
+        sql, params = expr.to_sql()
 
         assert sql == "ST_GeomFromText(%s, %s)"
         assert params == ("LINESTRING(0 0, 1 1)", 4326)
@@ -107,7 +122,8 @@ class TestSpatialTypeProtocol:
         dialect = MySQLDialect(version=(8, 0, 0))
 
         wkb_bytes = b"\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\xf0\x3f\x00\x00\x00\x00\x00\x00\xf0\x3f"
-        sql, params = dialect.format_st_geom_from_wkb(wkb_bytes)
+        expr = MySQLSTGeomFromWKBExpression(dialect, wkb_bytes)
+        sql, params = expr.to_sql()
 
         assert sql == "ST_GeomFromWKB(%s)"
         assert params == (wkb_bytes,)
@@ -116,7 +132,8 @@ class TestSpatialTypeProtocol:
         """Test ST_AsText function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_as_text("location")
+        expr = MySQLSTAsTextExpression(dialect, "location")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_AsText(location)"
         assert params == ()
@@ -125,7 +142,8 @@ class TestSpatialTypeProtocol:
         """Test ST_AsGeoJSON function (MySQL 5.7.5+)."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_as_geojson("location")
+        expr = MySQLSTAsGeoJSONExpression(dialect, "location")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_AsGeoJSON(location)"
         assert params == ()
@@ -135,13 +153,14 @@ class TestSpatialTypeProtocol:
         dialect = MySQLDialect(version=(5, 7, 0))
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
-            dialect.format_st_as_geojson("location")
+            MySQLSTAsGeoJSONExpression(dialect, "location").to_sql()
 
     def test_format_st_distance(self):
         """Test ST_Distance function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_distance("geom1", "geom2")
+        expr = MySQLSTDistanceExpression(dialect, "geom1", "geom2")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_Distance(geom1, geom2)"
         assert params == ()
@@ -150,7 +169,8 @@ class TestSpatialTypeProtocol:
         """Test ST_Within function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_within("point_geom", "polygon_geom")
+        expr = MySQLSTWithinExpression(dialect, "point_geom", "polygon_geom")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_Within(point_geom, polygon_geom)"
         assert params == ()
@@ -159,7 +179,8 @@ class TestSpatialTypeProtocol:
         """Test ST_Contains function."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_contains("polygon_geom", "point_geom")
+        expr = MySQLSTContainsExpression(dialect, "polygon_geom", "point_geom")
+        sql, params = expr.to_sql()
 
         assert sql == "ST_Contains(polygon_geom, point_geom)"
         assert params == ()
@@ -168,7 +189,8 @@ class TestSpatialTypeProtocol:
         """Test CREATE SPATIAL INDEX (MySQL 5.7+)."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_create_spatial_index("idx_location", "places", "geom")
+        expr = MySQLCreateSpatialIndexExpression(dialect, "idx_location", "places", "geom")
+        sql, params = expr.to_sql()
 
         assert "CREATE SPATIAL INDEX" in sql
         assert "`idx_location`" in sql
@@ -181,7 +203,7 @@ class TestSpatialTypeProtocol:
         dialect = MySQLDialect(version=(5, 5, 0))
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
-            dialect.format_create_spatial_index("idx_location", "places", "geom")
+            MySQLCreateSpatialIndexExpression(dialect, "idx_location", "places", "geom").to_sql()
 
 
 class TestAsyncSpatialTypeProtocol:
@@ -204,7 +226,8 @@ class TestAsyncSpatialTypeProtocol:
         """Test async version of spatial literal formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_spatial_literal("POINT(1 1)", 4326)
+        expr = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)", 4326)
+        sql, params = expr.to_sql()
 
         assert "ST_GeomFromText" in sql
         assert params == ("POINT(1 1)", 4326)
@@ -214,7 +237,8 @@ class TestAsyncSpatialTypeProtocol:
         """Test async version of ST_Distance formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_st_distance("geom1", "geom2")
+        expr = MySQLSTDistanceExpression(dialect, "geom1", "geom2")
+        sql, params = expr.to_sql()
 
         assert "ST_Distance" in sql
         assert params == ()
@@ -224,6 +248,7 @@ class TestAsyncSpatialTypeProtocol:
         """Test async version of CREATE SPATIAL INDEX formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        sql, params = dialect.format_create_spatial_index("idx_geom", "table", "col")
+        expr = MySQLCreateSpatialIndexExpression(dialect, "idx_geom", "table", "col")
+        sql, params = expr.to_sql()
 
         assert "CREATE SPATIAL INDEX" in sql

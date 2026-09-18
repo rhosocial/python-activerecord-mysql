@@ -1,0 +1,236 @@
+# src/rhosocial/activerecord/backend/impl/mysql/mixins/table.py
+from typing import Any, Dict, List, TYPE_CHECKING, Tuple
+import re
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+        ColumnDefinition,
+        CreateTableLikeExpression,
+        IndexDefinition,
+        StorageOptionsExpression,
+        TableConstraint,
+    )
+
+
+class MySQLTableMixin:
+    """MySQL table DDL implementation."""
+
+    @staticmethod
+    def _validate_data_type(data_type: str) -> bool:
+        """Validate data type string, allowing single quotes for MySQL ENUM types."""
+        return bool(re.fullmatch(r"[A-Za-z0-9\s\(\),\']+", data_type))
+
+    def supports_if_not_exists_table(self) -> bool:
+        """Whether CREATE TABLE IF NOT EXISTS is supported."""
+        return True
+
+    def supports_if_exists_table(self) -> bool:
+        """Whether DROP TABLE IF EXISTS is supported."""
+        return True
+
+    def supports_create_table_like(self) -> bool:
+        return True
+
+    def supports_inline_index(self) -> bool:
+        return True
+
+    def supports_storage_engine_option(self) -> bool:
+        return True
+
+    def supports_charset_option(self) -> bool:
+        return True
+
+    def format_create_table_statement(self, expr) -> Tuple[str, tuple]:
+        """Format CREATE TABLE statement for MySQL.
+
+        This method handles MySQL-specific syntax including:
+        - Inline index definitions
+        - Storage options (ENGINE, CHARSET, COLLATE)
+        - Table-level comments
+        - AUTO_INCREMENT in column definitions
+        - Partition clause
+        """
+        all_params: List[Any] = []
+
+        options_part = ""
+        table_options = getattr(expr, "table_options", None)
+        if table_options is not None:
+            options_sql, options_params = table_options.to_sql()
+            if options_sql:
+                options_part = options_sql
+            all_params.extend(options_params)
+        parts = ["CREATE"]
+        if options_part:
+            parts.append(options_part)
+        if expr.temporary:
+            parts.append("TEMPORARY")
+        parts.append("TABLE")
+        if expr.if_not_exists:
+            parts.append("IF NOT EXISTS")
+        parts.append(self.format_identifier(expr.table_name))
+
+        column_parts = []
+        for col_def in expr.columns:
+            col_sql, col_params = self.format_column_definition(col_def)
+            column_parts.append(col_sql)
+            all_params.extend(col_params)
+
+        for t_const in expr.table_constraints:
+            const_sql, const_params = self.format_table_constraint(t_const)
+            column_parts.append(const_sql)
+            all_params.extend(const_params)
+
+        for idx_def in expr.indexes:
+            idx_sql = self.format_inline_index(idx_def)
+            column_parts.append(idx_sql)
+
+        parts.append(f"({', '.join(column_parts)})")
+
+        if expr.storage_options:
+            from rhosocial.activerecord.backend.expression.statements.ddl_table import StorageOptionsExpression
+            storage_expr = StorageOptionsExpression(self, expr.storage_options) if isinstance(expr.storage_options, dict) else expr.storage_options
+            storage_sql, storage_params = self.format_storage_options(storage_expr)
+            if storage_sql:
+                parts.append(storage_sql)
+                all_params.extend(storage_params)
+
+        table_options = getattr(expr, "table_options", None)
+        if table_options is not None and getattr(table_options, "comment", None):
+            comment_sql, _ = self.format_table_comment(table_options.comment)
+            parts.append(comment_sql)
+        elif "comment" in expr.dialect_options:
+            comment_sql, _ = self.format_table_comment(expr.dialect_options["comment"])
+            parts.append(comment_sql)
+
+        dialect_options = getattr(expr, "dialect_options", {}) or {}
+        engine = getattr(table_options, "engine", None) if table_options else None
+        if not engine:
+            engine = dialect_options.get("engine")
+        if engine:
+            parts.append(f"ENGINE={self.inline_sql_literal(engine)}")
+
+        charset = getattr(table_options, "charset", None) if table_options else None
+        if not charset:
+            charset = dialect_options.get("charset")
+        if charset:
+            parts.append(f"DEFAULT CHARSET={self.inline_sql_literal(charset)}")
+
+        collate = getattr(table_options, "collate", None) if table_options else None
+        if not collate:
+            collate = dialect_options.get("collate")
+        if collate:
+            parts.append(f"COLLATE={self.inline_sql_literal(collate)}")
+
+        if expr.partition is not None:
+            partition_sql, partition_params = expr.partition.to_sql()
+            if partition_sql:
+                parts.append(partition_sql.strip())
+                all_params.extend(partition_params)
+
+        return " ".join(parts), tuple(all_params)
+
+    def format_create_table_like_statement(self, expr: "CreateTableLikeExpression") -> Tuple[str, tuple]:
+        """Render ``CREATE TABLE ... LIKE`` via the generic TableMixin formatter."""
+        return super().format_create_table_like_statement(expr)
+
+    def format_column_definition(self, col_def: "ColumnDefinition") -> Tuple[str, tuple]:
+        """Format a single column definition with MySQL-specific syntax."""
+        type_sql, type_params = col_def.data_type.to_sql()
+        parts = [self.format_identifier(col_def.name), type_sql]
+        params: List[Any] = list(type_params)
+
+        for constraint in col_def.constraints:
+            suffix, cp = self.format_column_constraint(constraint)
+            constraint_text = suffix.strip()
+            if constraint_text:
+                parts.append(constraint_text)
+            params.extend(list(cp))
+            if constraint.is_auto_increment:
+                parts.append("AUTO_INCREMENT")
+
+        if col_def.comment:
+            escaped_comment = self._escape_sql_string(col_def.comment)
+            parts.append(f"COMMENT '{escaped_comment}'")
+
+        if col_def.generated_expression is not None:
+            gen_sql, gen_params = col_def.generated_expression.to_sql()
+            parts.append(gen_sql.lstrip())
+            params.extend(gen_params)
+
+        return " ".join(parts), params
+
+    def format_table_constraint(self, t_const: "TableConstraint") -> Tuple[str, tuple]:
+        """Format a table-level constraint."""
+        from rhosocial.activerecord.backend.expression.statements import (
+            ForeignKeyConstraint,
+            ReferentialAction,
+            TableConstraintType,
+        )
+        parts = []
+        params: List[Any] = []
+
+        if t_const.name:
+            parts.append(f"CONSTRAINT {self.format_identifier(t_const.name)}")
+
+        if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
+            if t_const.columns:
+                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
+                parts.append(f"PRIMARY KEY ({cols_str})")
+        elif t_const.constraint_type == TableConstraintType.UNIQUE:
+            if t_const.columns:
+                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
+                parts.append(f"UNIQUE ({cols_str})")
+        elif t_const.constraint_type == TableConstraintType.CHECK:
+            if t_const.check_condition is not None:
+                if not self.supports_check_constraint():
+                    from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                    raise UnsupportedFeatureError(
+                        self.name, "CHECK constraint",
+                        f"{self.name} does not support CHECK constraints."
+                    )
+                check_sql, check_params = t_const.check_condition.to_sql()
+                parts.append(f"CHECK ({check_sql})")
+                params.extend(check_params)
+        elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
+            if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
+                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
+                ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
+                ref_table = self.format_identifier(t_const.foreign_key_table)
+                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
+                if isinstance(t_const, ForeignKeyConstraint):
+                    if t_const.on_delete and t_const.on_delete != ReferentialAction.NO_ACTION:
+                        parts.append(f"ON DELETE {t_const.on_delete.value}")
+                    if t_const.on_update and t_const.on_update != ReferentialAction.NO_ACTION:
+                        parts.append(f"ON UPDATE {t_const.on_update.value}")
+                    if t_const.match_type is not None:
+                        if not self.supports_fk_match():
+                            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                            raise UnsupportedFeatureError(
+                                self.name, "FOREIGN KEY MATCH",
+                                f"{self.name} does not support MATCH for foreign keys."
+                            )
+                        parts.append(f"MATCH {t_const.match_type}")
+
+        return " ".join(parts), params
+
+    def format_inline_index(self, idx_def: "IndexDefinition") -> str:
+        """Format an inline INDEX definition within CREATE TABLE (MySQL-specific)."""
+        parts = []
+        if idx_def.unique:
+            parts.append("UNIQUE")
+        parts.append("INDEX")
+        parts.append(self.format_identifier(idx_def.name))
+        cols_str = ", ".join(self.format_identifier(c) for c in idx_def.columns)
+        parts.append(f"({cols_str})")
+        if idx_def.type:
+            parts.append(f"USING {idx_def.type}")
+        return " ".join(parts)
+
+    def format_storage_options(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
+        """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
+        parts = []
+        for key, value in expr.options.items():
+            rendered = self.inline_sql_literal(value)
+            parts.append(f"{key}={rendered}")
+        return " ".join(parts), ()
+

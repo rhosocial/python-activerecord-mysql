@@ -10,7 +10,7 @@ MySQL 8.0+ supports two simplified query forms:
 row list be used as a table value constructor.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
@@ -79,8 +79,11 @@ class MySQLTableExpression(MySQLBaseTableStatement):
             raise TypeError("table_name must be a string")
         self._validate_common()
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_table_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_table_statement"
+
 
 
 class MySQLValuesExpression(MySQLBaseTableStatement):
@@ -112,5 +115,7 @@ class MySQLValuesExpression(MySQLBaseTableStatement):
             raise ValueError("VALUES requires at least one ROW(...)")
         self._validate_common()
 
-    def to_sql(self) -> Tuple[str, tuple]:
-        return self.dialect.format_values_statement(self)
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_values_statement"

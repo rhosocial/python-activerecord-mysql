@@ -31,29 +31,22 @@ def dialect():
 def test_mysql_format_column_definition_default_string_escaping(dialect):
     """Test DEFAULT constraint string is escaped in MySQL."""
     constraint = ColumnConstraint(
+        dialect,
         constraint_type=ColumnConstraintType.DEFAULT,
         default_value="test's value",
     )
 
-    col_def = ColumnDefinition(
-        name="test_col",
-        data_type=VarCharType(255),
-        constraints=[constraint],
-    )
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), constraints=[constraint])
 
-    sql, params = dialect.format_column_definition(col_def, ColumnConstraintType)
+    sql, params = dialect.format_column_definition(col_def)
     assert "test''s value" in sql
 
 
 def test_mysql_format_column_definition_comment_string_escaping(dialect):
     """Test COMMENT string is escaped in MySQL column definition."""
-    col_def = ColumnDefinition(
-        name="test_col",
-        data_type=VarCharType(255),
-        comment="Comment with 'single quote'",
-    )
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), comment="Comment with 'single quote'")
 
-    sql, params = dialect.format_column_definition(col_def, ColumnConstraintType)
+    sql, params = dialect.format_column_definition(col_def)
     assert "Comment with ''single quote''" in sql
 
 
@@ -73,10 +66,7 @@ def test_mysql_validate_data_type(dialect):
 
 def test_mysql_format_column_definition_data_type_validation(dialect):
     """Test column definition validates data_type."""
-    col_def = ColumnDefinition(
-        name="test_col",
-        data_type=VarCharType(255),
-    )
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255))
 
     sql, params = dialect.format_column_definition(col_def)
     assert "VARCHAR(255)" in sql
@@ -85,10 +75,7 @@ def test_mysql_format_column_definition_data_type_validation(dialect):
 def test_mysql_format_column_definition_data_type_rejects_injection(dialect):
     """Test that malicious data_type is rejected at construction time."""
     with pytest.raises(TypeError, match="data_type must be a DataType instance"):
-        ColumnDefinition(
-            name="test_col",
-            data_type="VARCHAR(255); DROP TABLE users--",
-        )
+        ColumnDefinition(dialect, "test_col", "VARCHAR(255); DROP TABLE users--")
 
 
 def test_mysql_json_table_path_escaping(dialect):
@@ -156,14 +143,18 @@ def test_mysql_json_table_alias_quoted(dialect):
 
 def test_mysql_format_cast_expression_valid(dialect):
     """Test that CAST expression validates target_type."""
-    sql, params = dialect.format_cast_expression("column", "INTEGER", (), None)
+    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
+    expr = CastExpression(dialect, Column(dialect, "column"), "INTEGER")
+    sql, params = dialect.format_cast_expression(expr)
     assert "INTEGER" in sql
 
 
 def test_mysql_format_cast_expression_rejects_injection(dialect):
     """Test that malicious target_type is rejected."""
+    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
+    expr = CastExpression(dialect, Column(dialect, "column"), "INTEGER; DROP TABLE users--")
     with pytest.raises(ValueError, match="Invalid target type"):
-        dialect.format_cast_expression("column", "INTEGER; DROP TABLE users--", (), None)
+        dialect.format_cast_expression(expr)
 
 
 class TestMySQLEscapeSqlStringBackslash:
@@ -483,25 +474,29 @@ class TestMySQLCreateTableCommentEscaping:
 
 def test_storage_options_normal_key_and_value(dialect):
     """Normal storage option key is plain, string value is quoted and escaped."""
-    sql = dialect.format_storage_options({"ENGINE": "InnoDB"})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"ENGINE": "InnoDB"}))
     assert "ENGINE='InnoDB'" in sql
 
 
 def test_storage_options_string_value_escaped(dialect):
     """String value with single quote is properly escaped."""
-    sql = dialect.format_storage_options({"ENGINE": "It's"})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"ENGINE": "It's"}))
     assert "It''s" in sql
 
 
 def test_storage_options_int_value(dialect):
     """Integer value is not quoted."""
-    sql = dialect.format_storage_options({"AUTO_INCREMENT": 1000})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"AUTO_INCREMENT": 1000}))
     assert "AUTO_INCREMENT=1000" in sql
 
 
 def test_storage_options_string_injection_value_escaped(dialect):
     """String value with injection payload is safely escaped inside quotes."""
-    sql = dialect.format_storage_options({"ENGINE": "x'; DROP TABLE t--"})
+    from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
+    sql, params = dialect.format_storage_options(StorageOptionsExpression(dialect, {"ENGINE": "x'; DROP TABLE t--"}))
     assert "'x''; DROP TABLE t--'" in sql
     # The single quote inside is doubled, so the payload cannot break out
     assert sql.count("'") % 2 == 0, f"Unbalanced quotes: {sql}"

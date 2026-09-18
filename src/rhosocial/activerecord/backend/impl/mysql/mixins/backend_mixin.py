@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/backend_mixin.py
 import logging
-from typing import Any, Dict, Tuple, Type
+from typing import Dict, Tuple, Type
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
@@ -75,7 +75,9 @@ class MySQLBackendMixin:
         """Check if RETURNING clause is compatible with this MySQL version."""
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        if self.dialect.supports_returning_clause():
+        if (self.dialect.supports_returning_insert() or
+                self.dialect.supports_returning_update() or
+                self.dialect.supports_returning_delete()):
             return True
         else:
             raise UnsupportedFeatureError(
