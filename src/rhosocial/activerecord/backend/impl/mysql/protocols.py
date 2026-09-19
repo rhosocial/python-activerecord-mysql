@@ -348,6 +348,10 @@ class MySQLTableSupport(TableSupport, Protocol):
         """Format a table-level constraint."""
         ...
 
+    def format_index_definition(self, idx_def: Any) -> Tuple[str, tuple]:
+        """Format an inline INDEX definition inside CREATE TABLE."""
+        ...
+
     def format_storage_options(self, expr: Any) -> Tuple[str, tuple]:
         """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
         ...
