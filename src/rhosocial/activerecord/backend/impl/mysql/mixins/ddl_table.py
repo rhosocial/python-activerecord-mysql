@@ -81,8 +81,9 @@ class MySQLTableMixin:
             all_params.extend(const_params)
 
         for idx_def in expr.indexes:
-            idx_sql = self.format_inline_index(idx_def)
+            idx_sql, idx_params = self.format_index_definition(idx_def)
             column_parts.append(idx_sql)
+            all_params.extend(idx_params)
 
         parts.append(f"({', '.join(column_parts)})")
 
@@ -213,7 +214,7 @@ class MySQLTableMixin:
 
         return " ".join(parts), params
 
-    def format_inline_index(self, idx_def: "IndexDefinition") -> str:
+    def format_index_definition(self, idx_def: "IndexDefinition") -> Tuple[str, tuple]:
         """Format an inline INDEX definition within CREATE TABLE (MySQL-specific)."""
         parts = []
         if idx_def.unique:
@@ -224,7 +225,7 @@ class MySQLTableMixin:
         parts.append(f"({cols_str})")
         if idx_def.type:
             parts.append(f"USING {idx_def.type}")
-        return " ".join(parts)
+        return " ".join(parts), ()
 
     def format_storage_options(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
         """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
