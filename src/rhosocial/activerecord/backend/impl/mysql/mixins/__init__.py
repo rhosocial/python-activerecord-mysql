@@ -25,7 +25,12 @@ from .routine import MySQLRoutineMixin
 from .load_xml import MySQLLoadXMLLMixin
 from .admin import MySQLAdminCommandMixin
 from .datetime import MySQLDateTimeMixin
-from .charset_collation import MySQLCharset, MySQLStorageEngine, MySQLCharsetCollationMixin
+from .charset_collation import (
+    MySQLCharset,
+    MySQLCollation,
+    MySQLStorageEngine,
+    MySQLCharsetCollationMixin,
+)
 from .cte import MySQLCTEMixin
 from .window import MySQLWindowMixin
 from .grouping import MySQLGroupingMixin
@@ -69,6 +74,7 @@ __all__ = [
     "MySQLAdminCommandMixin",
     "MySQLDateTimeMixin",
     "MySQLCharset",
+    "MySQLCollation",
     "MySQLStorageEngine",
     "MySQLCharsetCollationMixin",
     "MySQLCTEMixin",
