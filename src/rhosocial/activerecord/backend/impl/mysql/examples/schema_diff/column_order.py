@@ -67,15 +67,18 @@ from rhosocial.activerecord.backend.impl.mysql.schema.differ import (  # noqa: E
     MySQLSchemaDiffer,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (  # noqa: E402
-    AlterTableExpression, AddColumn,
+    AlterTableExpression,
+)
+from rhosocial.activerecord.backend.impl.mysql.expression import (  # noqa: E402
+    MySQLAddColumn,
 )
 
 builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
 snapshot_before = builder.build()
 
 # Add `age` column between `name` and `email` — shifts email to position 4
-add_col = AddColumn(dialect, ColumnDefinition(dialect, "age", IntegerType(dialect)),
-                    dialect_options={"after": "name"})
+add_col = MySQLAddColumn(dialect, ColumnDefinition(dialect, "age", IntegerType(dialect)),
+                         after="name")
 alter_expr = AlterTableExpression(dialect, "users", [add_col])
 sql, params = alter_expr.to_sql()
 backend.execute(sql, params)
