@@ -441,11 +441,9 @@ def test_subpartition_with_explicit_definitions(dialect):
 
 
 def test_subpartition_definition_rejects_empty_name(dialect):
-    """Subpartition definition should reject empty names."""
-    definition = MySQLSubpartitionDefinition(name="")
-
-    with pytest.raises(ValueError, match="must not be empty"):
-        dialect.format_subpartition_definition(definition)
+    """Subpartition definition should reject empty names at construction."""
+    with pytest.raises(ValueError, match="non-empty string"):
+        MySQLSubpartitionDefinition(name="")
 
 
 def test_subpartition_clause_rejects_invalid_strategy(dialect):
