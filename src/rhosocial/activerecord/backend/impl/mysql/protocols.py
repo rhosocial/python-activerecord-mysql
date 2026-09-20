@@ -135,13 +135,14 @@ class MySQLDMLOperationSupport(Protocol):
     - LOAD DATA INFILE: All MySQL versions
 
     Usage:
-        INSERT IGNORE is supported via dialect_options in InsertExpression:
+        INSERT IGNORE is carried as a typed field on the backend's
+        ``MySQLInsertExpression``:
         ```python
-        InsertExpression(
+        MySQLInsertExpression(
             dialect,
             into='users',
             source=ValuesSource(...),
-            dialect_options={'ignore': True}  # Generates INSERT IGNORE
+            ignore=True,  # Generates INSERT IGNORE
         )
         ```
     """
