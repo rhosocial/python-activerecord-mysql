@@ -18,6 +18,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLInsertExpression
 
 
 @pytest.fixture
@@ -81,14 +82,14 @@ class TestMySQLOnConflictRendering:
         """REPLACE INTO / INSERT IGNORE remain unaffected by the capability gate."""
         source = ValuesSource(dialect, values_list=[[Literal(dialect, 1)]])
 
-        expr = InsertExpression(
-            dialect, into="users", columns=["id"], source=source, dialect_options={"replace": True}
+        expr = MySQLInsertExpression(
+            dialect, into="users", columns=["id"], source=source, replace=True
         )
         sql, _ = expr.to_sql()
         assert sql.startswith('REPLACE INTO `users`')
 
-        expr = InsertExpression(
-            dialect, into="users", columns=["id"], source=source, dialect_options={"ignore": True}
+        expr = MySQLInsertExpression(
+            dialect, into="users", columns=["id"], source=source, ignore=True
         )
         sql, _ = expr.to_sql()
         assert sql.startswith('INSERT IGNORE INTO `users`')
