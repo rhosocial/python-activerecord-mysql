@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py
-from typing import Any, Tuple
+from typing import Tuple
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
@@ -31,7 +31,7 @@ class MySQLDDLColumnMixin:
                      "Pre-check information_schema.COLUMNS before ALTER."
             )
         column_sql, column_params = self.format_column_definition(action.column)
-        after = action.dialect_options.get("after")
+        after = getattr(action, "after", None)
         if after:
             return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(after)}", column_params
         return f"ADD COLUMN {column_sql}", column_params
