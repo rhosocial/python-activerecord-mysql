@@ -430,8 +430,8 @@ class MySQLDialect(
             expr.validate(strict=True)
 
         # Check for conflicting options
-        is_replace = expr.dialect_options.get("replace", False)
-        is_ignore = expr.dialect_options.get("ignore", False)
+        is_replace = getattr(expr, "replace", False)
+        is_ignore = getattr(expr, "ignore", False)
 
         if is_replace and is_ignore:
             raise ValueError("Cannot use both 'replace' and 'ignore' options together")
