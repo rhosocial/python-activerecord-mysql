@@ -41,6 +41,7 @@ from .set_operation import MySQLSetOperationMixin
 from .ddl_column import MySQLDDLColumnMixin
 from .ddl_view import MySQLViewMixin
 from .schema import MySQLSchemaMixin
+from .ddl_database import MySQLDatabaseMixin
 from .constraint import MySQLConstraintMixin
 from .generated_column import MySQLGeneratedColumnMixin
 from .function import MySQLFunctionMixin
@@ -87,6 +88,7 @@ __all__ = [
     "MySQLDDLColumnMixin",
     "MySQLViewMixin",
     "MySQLSchemaMixin",
+    "MySQLDatabaseMixin",
     "MySQLConstraintMixin",
     "MySQLGeneratedColumnMixin",
     "MySQLFunctionMixin",
