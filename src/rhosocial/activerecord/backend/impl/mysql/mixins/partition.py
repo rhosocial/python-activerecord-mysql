@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py
-from typing import Any, List, Sequence, Tuple, Union, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
@@ -19,6 +19,7 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLPartitionByRangeColumns,
         MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
+        MySQLPartitionOptions,
         MySQLPartitionValue,
         MySQLExchangePartitionExpression,
         MySQLReorganizePartitionExpression,
@@ -327,7 +328,8 @@ class MySQLPartitionMixin:
         """Format a MySQL partition definition."""
         params: List[Any] = []
         parts = ["PARTITION", self.format_identifier(definition.name)]
-        if definition.dialect_options:
+        partition_options = definition.partition_options
+        if partition_options is not None:
             if not self.supports_partition_definition_options():
                 raise UnsupportedFeatureError(self.name, "partition definition options")
 
@@ -355,9 +357,9 @@ class MySQLPartitionMixin:
             parts.append(f"VALUES IN ({', '.join(value_sql_parts)})")
         else:
             raise ValueError("Partition definition requires less_than or in_values.")
-        if definition.dialect_options:
+        if partition_options is not None:
             options_sql, options_params = self.format_partition_definition_options(
-                definition.dialect_options
+                partition_options
             )
             if options_sql:
                 parts.append(options_sql)
@@ -374,14 +376,25 @@ class MySQLPartitionMixin:
             parts.append(f"({', '.join(sub_parts)})")
         return " ".join(parts), tuple(params)
 
-    def format_partition_definition_options(self, options: dict) -> Tuple[str, tuple]:
-        """Format MySQL partition definition options."""
+    def format_partition_definition_options(
+        self, options: Optional["MySQLPartitionOptions"]
+    ) -> Tuple[str, tuple]:
+        """Format MySQL partition definition options from typed options."""
+        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+            MySQLPartitionOptions,
+        )
+
         if not self.supports_partition_definition_options():
             raise UnsupportedFeatureError(self.name, "partition definition options")
+        if options is None:
+            return "", ()
+        if not isinstance(options, MySQLPartitionOptions):
+            raise TypeError(
+                "partition_options must be a MySQLPartitionOptions value, "
+                f"got {type(options).__name__}"
+            )
 
-        parts: List[str] = []
-        params: List[Any] = []
-        allowed_options = {
+        keyword_by_option = {
             "engine": "ENGINE",
             "comment": "COMMENT",
             "data_directory": "DATA DIRECTORY",
@@ -390,25 +403,25 @@ class MySQLPartitionMixin:
             "min_rows": "MIN_ROWS",
             "tablespace": "TABLESPACE",
         }
-        for key, value in options.items():
-            normalized = str(key).lower()
-            if normalized not in allowed_options:
-                raise ValueError(f"Unsupported partition definition option: {key}")
-            keyword = allowed_options[normalized]
-            if normalized in {"engine", "tablespace"}:
+        parts: List[str] = []
+        for name, keyword in keyword_by_option.items():
+            value = getattr(options, name)
+            if value is None:
+                continue
+            if name in {"engine", "tablespace"}:
                 if not isinstance(value, str) or not value:
-                    raise TypeError(f"{key} option must be a non-empty string")
+                    raise TypeError(f"{name} option must be a non-empty string")
                 parts.append(f"{keyword} {self.format_identifier(value)}")
-            elif normalized in {"comment", "data_directory", "index_directory"}:
+            elif name in {"comment", "data_directory", "index_directory"}:
                 if not isinstance(value, str):
-                    raise TypeError(f"{key} option must be a string")
+                    raise TypeError(f"{name} option must be a string")
                 escaped = self._escape_sql_string(value)
                 parts.append(f"{keyword} '{escaped}'")
-            elif normalized in {"max_rows", "min_rows"}:
+            else:
                 if not isinstance(value, int) or value < 0:
-                    raise TypeError(f"{key} option must be a non-negative integer")
+                    raise TypeError(f"{name} option must be a non-negative integer")
                 parts.append(f"{keyword} {value}")
-        return " ".join(parts), tuple(params)
+        return " ".join(parts), ()
 
     def format_get_partitions_expression(self, expr: "MySQLGetPartitionsExpression") -> Tuple[str, tuple]:
         """Format a ``SELECT ... FROM information_schema.PARTITIONS`` query.
@@ -537,7 +550,7 @@ class MySQLPartitionMixin:
 
         Args:
             definition: MySQLSubpartitionDefinition with name and optional
-                        dialect_options.
+                        typed partition_options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
@@ -549,9 +562,10 @@ class MySQLPartitionMixin:
             raise ValueError("subpartition name must not be empty")
         parts = ["SUBPARTITION", self.format_identifier(definition.name)]
         params: List[Any] = []
-        if definition.dialect_options:
+        partition_options = definition.partition_options
+        if partition_options is not None:
             options_sql, options_params = self.format_partition_definition_options(
-                definition.dialect_options
+                partition_options
             )
             if options_sql:
                 parts.append(options_sql)
