@@ -15,7 +15,11 @@ from rhosocial.activerecord.backend.expression.mixins import (
     ComparisonMixin,
 )
 from rhosocial.activerecord.backend.expression.core import TableExpression
-from rhosocial.activerecord.backend.expression.statements import PartitionClause
+from rhosocial.activerecord.backend.expression.statements import (
+    PartitionClause,
+    PartitionDefinition,
+    SubpartitionDefinition,
+)
 
 
 class MySQLPartitionStrategy(Enum):
@@ -45,19 +49,14 @@ class MySQLSubpartitionStrategy(Enum):
 
 
 @dataclass
-class MySQLSubpartitionDefinition:
+class MySQLSubpartitionDefinition(SubpartitionDefinition):
     """A single named subpartition within a partition definition.
 
-    Used when individual subpartitions need explicit names or distinct
-    storage options. When omitted, MySQL applies the template from the
-    ``SUBPARTITION BY`` clause automatically.
-
-    Raises:
-        ValueError: if name is empty or whitespace-only.
+    MySQL subpartitions carry no explicit boundary (the ``SUBPARTITION BY``
+    template applies), so this subclass adds nothing beyond the base name and
+    options. It exists as the MySQL-owned type derived from the generic
+    :class:`~rhosocial.activerecord.backend.expression.statements.SubpartitionDefinition`.
     """
-
-    name: str
-    dialect_options: Optional[Dict[str, Any]] = None
 
 
 class MySQLSubpartitionClause(BaseExpression):
@@ -144,8 +143,12 @@ class MySQLPartitionValue(BaseExpression):
 
 
 @dataclass
-class MySQLPartitionDefinition:
+class MySQLPartitionDefinition(PartitionDefinition):
     """A MySQL ``PARTITION ... VALUES ...`` definition.
+
+    Derives from the generic
+    :class:`~rhosocial.activerecord.backend.expression.statements.PartitionDefinition`
+    and tightens validation: MySQL requires exactly one boundary form.
 
     For single-column LIST COLUMNS, ``in_values`` accepts a flat sequence
     of ``BaseExpression`` (e.g. ``[val('a'), val('b')]`` → ``VALUES IN ('a', 'b')``).
@@ -165,22 +168,12 @@ class MySQLPartitionDefinition:
         TypeError: if ``dialect_options`` is not a dict when provided.
     """
 
-    name: str
-    less_than: Optional[Sequence[BaseExpression]] = None
-    in_values: Optional[Sequence[Union[BaseExpression, Sequence[BaseExpression]]]] = None
     subpartition_definitions: Optional[Sequence["MySQLSubpartitionDefinition"]] = None
-    dialect_options: Optional[dict] = None
 
     def __post_init__(self) -> None:
-        if self.less_than is not None and self.in_values is not None:
-            raise ValueError("less_than and in_values are mutually exclusive")
+        super().__post_init__()
         if self.less_than is None and self.in_values is None:
             raise ValueError("partition definition requires less_than or in_values")
-        if self.dialect_options is not None and not isinstance(self.dialect_options, dict):
-            raise TypeError(
-                "dialect_options must be dict or None, "
-                f"got {type(self.dialect_options).__name__}"
-            )
 
 
 class MySQLPartitionClause(PartitionClause):
