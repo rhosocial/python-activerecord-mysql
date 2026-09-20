@@ -79,6 +79,7 @@ if TYPE_CHECKING:
         MySQLPartitionByRangeColumns,
         MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
+        MySQLPartitionOptions,
         MySQLPartitionValue,
         MySQLRebuildPartitionExpression,
         MySQLReorganizePartitionExpression,
@@ -440,7 +441,9 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format a MySQL PARTITION definition."""
         ...
 
-    def format_partition_definition_options(self, options: dict) -> Tuple[str, tuple]:
+    def format_partition_definition_options(
+        self, options: "MySQLPartitionOptions"
+    ) -> Tuple[str, tuple]:
         """Format MySQL PARTITION definition options."""
         ...
 
