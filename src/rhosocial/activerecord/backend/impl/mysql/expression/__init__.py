@@ -19,7 +19,7 @@ Directory structure:
 - types.py          - MySQL-specific DataType subclasses for DDL
 """
 
-from .table_options import MySQLCreateTableOptions
+from .table_options import MySQLRowFormat, MySQLCreateTableOptions
 from .dml import MySQLInsertExpression
 from .alter_column import MySQLAddColumn
 from .column import (
@@ -211,6 +211,7 @@ __all__ = [
     "MySQLLoadDataExpression",
     "LoadDataOptions",
     "MySQLCreateTableOptions",
+    "MySQLRowFormat",
     "MySQLInsertExpression",
     "MySQLAddColumn",
     "MySQLColumnFormat",

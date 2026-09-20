@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/table.py
-from typing import Any, Dict, List, TYPE_CHECKING, Tuple
+from typing import Any, List, TYPE_CHECKING, Tuple
 import re
 
 if TYPE_CHECKING:
@@ -110,6 +110,10 @@ class MySQLTableMixin:
                 parts.append(f"DEFAULT CHARSET={self.inline_sql_literal(table_options.charset)}")
             if table_options.collate:
                 parts.append(f"COLLATE={self.inline_sql_literal(table_options.collate)}")
+            if table_options.auto_increment is not None:
+                parts.append(f"AUTO_INCREMENT={int(table_options.auto_increment)}")
+            if table_options.row_format:
+                parts.append(f"ROW_FORMAT={table_options.row_format}")
 
         if expr.partition is not None:
             partition_sql, partition_params = expr.partition.to_sql()

@@ -59,3 +59,34 @@ def test_table_options_reject_unknown_values():
 def test_charset_version_gating():
     assert MySQLDialect(version=(5, 5, 3)).supports_charset("utf8mb4") is True
     assert MySQLDialect(version=(5, 5, 2)).supports_charset("utf8mb4") is False
+
+
+def test_auto_increment_and_row_format_rendered():
+    from rhosocial.activerecord.backend.expression import CreateTableExpression
+    from rhosocial.activerecord.backend.expression.statements import ColumnDefinition
+    from rhosocial.activerecord.backend.expression.types import IntegerType
+    from rhosocial.activerecord.backend.impl.mysql.expression import MySQLRowFormat
+
+    dialect = MySQLDialect(version=(8, 0, 0))
+    options = MySQLCreateTableOptions(
+        dialect, auto_increment=1000, row_format=MySQLRowFormat.DYNAMIC
+    )
+    expr = CreateTableExpression(
+        dialect,
+        "t",
+        [ColumnDefinition(dialect, "id", IntegerType(dialect))],
+        table_options=options,
+    )
+    sql, _ = expr.to_sql()
+    assert "AUTO_INCREMENT=1000" in sql
+    assert "ROW_FORMAT=DYNAMIC" in sql
+
+
+def test_invalid_row_format_rejected():
+    with pytest.raises(ValueError):
+        MySQLCreateTableOptions(MySQLDialect(version=(8, 0, 0)), row_format="EVIL")
+
+
+def test_invalid_auto_increment_rejected():
+    with pytest.raises(ValueError):
+        MySQLCreateTableOptions(MySQLDialect(version=(8, 0, 0)), auto_increment=0)
