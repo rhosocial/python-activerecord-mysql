@@ -393,9 +393,10 @@ class MySQLDialect(
     def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
         """Format INSERT statement with MySQL-specific options.
 
-        Extends the base implementation to support:
-        - INSERT IGNORE via dialect_options={'ignore': True}
-        - REPLACE INTO via dialect_options={'replace': True}
+        Extends the base implementation to support the typed flags on
+        ``MySQLInsertExpression``:
+        - ``ignore=True`` → ``INSERT IGNORE``
+        - ``replace=True`` → ``REPLACE INTO``
 
         Args:
             expr: InsertExpression instance
