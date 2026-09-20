@@ -4,7 +4,7 @@ MySQL collation names supported by the dialect whitelist.
 """
 
 from enum import Enum
-from typing import Dict, Optional, Tuple
+from typing import Dict, FrozenSet, Optional, Tuple
 
 
 class MySQLCollation(Enum):
@@ -342,3 +342,26 @@ def validate_mysql_collation_name(
     version: Optional[Tuple[int, ...]] = None,
 ) -> str:
     return MySQLCollationValidator.validate(name, version)
+
+
+def supported_mysql_collations(
+    version: Optional[Tuple[int, ...]] = None,
+    charset: Optional[str] = None,
+) -> FrozenSet[str]:
+    """Return collation names available for the version (optionally a charset).
+
+    When ``charset`` is given, only collations whose name begins with
+    ``<charset>_`` are returned (plus the built-in ``binary`` pseudo
+    collation for the ``binary`` charset).
+    """
+    names = set()
+    for name in _COLLATION_VALUES:
+        min_version = _COLLATION_MIN_VERSIONS.get(name)
+        if version is not None and min_version is not None and version < min_version:
+            continue
+        if charset is not None:
+            prefix = charset.lower() + "_"
+            if not (name.startswith(prefix) or (charset.lower() == "binary" and name == "binary")):
+                continue
+        names.add(name)
+    return frozenset(names)

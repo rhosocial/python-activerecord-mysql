@@ -6,10 +6,9 @@ This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
-from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
 from rhosocial.activerecord.backend.dialect.protocols import (
     CollationSupport,
     CTESupport,
@@ -73,7 +72,6 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TransactionControlMixin,
     SetOperationMixin,
 )
-from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
     MySQLTriggerSupport,
     MySQLTableSupport,
@@ -120,7 +118,7 @@ from .mixins import (
     MySQLLoadXMLLMixin,
     MySQLAdminCommandMixin,
     MySQLDateTimeMixin,
-    MySQLCollationMixin,
+    MySQLCharsetCollationMixin,
     MySQLCTEMixin,
     MySQLWindowMixin,
     MySQLGroupingMixin,
@@ -139,24 +137,8 @@ from .reserved_words import MYSQL_RESERVED_WORDS
 from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.collation import CollateExpression
     from rhosocial.activerecord.backend.expression.statements import (
-        CreateTableExpression,
-        CreateViewExpression,
-        DropViewExpression,
-        ExplainExpression,
         InsertExpression,
-    )
-    from rhosocial.activerecord.backend.expression.statements.fulltext_match import (
-        FulltextMatchExpression,
-    )
-    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
-        CreateTriggerExpression,
-        DropTriggerExpression,
-    )
-    from rhosocial.activerecord.backend.expression.transaction import (
-        SetTransactionExpression,
-        BeginTransactionExpression,
     )
 
 
@@ -164,7 +146,7 @@ class MySQLDialect(
     SQLDialectBase,
     # MySQL-specific mixins (before generic mixins to override methods)
     MySQLDateTimeMixin,
-    MySQLCollationMixin,
+    MySQLCharsetCollationMixin,
     MySQLCTEMixin,
     MySQLWindowMixin,
     MySQLGroupingMixin,
