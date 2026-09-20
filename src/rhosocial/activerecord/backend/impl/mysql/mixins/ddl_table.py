@@ -95,32 +95,21 @@ class MySQLTableMixin:
                 parts.append(storage_sql)
                 all_params.extend(storage_params)
 
+        from rhosocial.activerecord.backend.impl.mysql.expression.table_options import (
+            MySQLCreateTableOptions,
+        )
         table_options = getattr(expr, "table_options", None)
         if table_options is not None and getattr(table_options, "comment", None):
             comment_sql, _ = self.format_table_comment(table_options.comment)
             parts.append(comment_sql)
-        elif "comment" in expr.dialect_options:
-            comment_sql, _ = self.format_table_comment(expr.dialect_options["comment"])
-            parts.append(comment_sql)
 
-        dialect_options = getattr(expr, "dialect_options", {}) or {}
-        engine = getattr(table_options, "engine", None) if table_options else None
-        if not engine:
-            engine = dialect_options.get("engine")
-        if engine:
-            parts.append(f"ENGINE={self.inline_sql_literal(engine)}")
-
-        charset = getattr(table_options, "charset", None) if table_options else None
-        if not charset:
-            charset = dialect_options.get("charset")
-        if charset:
-            parts.append(f"DEFAULT CHARSET={self.inline_sql_literal(charset)}")
-
-        collate = getattr(table_options, "collate", None) if table_options else None
-        if not collate:
-            collate = dialect_options.get("collate")
-        if collate:
-            parts.append(f"COLLATE={self.inline_sql_literal(collate)}")
+        if isinstance(table_options, MySQLCreateTableOptions):
+            if table_options.engine:
+                parts.append(f"ENGINE={self.inline_sql_literal(table_options.engine)}")
+            if table_options.charset:
+                parts.append(f"DEFAULT CHARSET={self.inline_sql_literal(table_options.charset)}")
+            if table_options.collate:
+                parts.append(f"COLLATE={self.inline_sql_literal(table_options.collate)}")
 
         if expr.partition is not None:
             partition_sql, partition_params = expr.partition.to_sql()
