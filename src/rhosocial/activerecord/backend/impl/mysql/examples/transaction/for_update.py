@@ -26,6 +26,7 @@ backend = MySQLBackend(connection_config=config)
 backend.connect()
 dialect = backend.dialect
 
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     CreateTableExpression,
     InsertExpression,
@@ -81,7 +82,7 @@ create_table = CreateTableExpression(
         ),
     ],
     if_not_exists=True,
-    dialect_options={"engine": "InnoDB"},
+    table_options=MySQLCreateTableOptions(dialect, engine="InnoDB"),
 )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
