@@ -19,6 +19,12 @@ Directory structure:
 - types.py          - MySQL-specific DataType subclasses for DDL
 """
 
+from .column import (
+    MySQLColumnFormat,
+    MySQLColumnStorage,
+    MySQLColumnDefinition,
+    MySQLColumnOptions,
+)
 from .load_data import MySQLLoadDataExpression, LoadDataOptions
 from .json_table import MySQLJSONTableExpression, JSONTableColumn, NestedPath
 from .json import (
@@ -200,6 +206,10 @@ from .types import (
 __all__ = [
     "MySQLLoadDataExpression",
     "LoadDataOptions",
+    "MySQLColumnFormat",
+    "MySQLColumnStorage",
+    "MySQLColumnDefinition",
+    "MySQLColumnOptions",
     "MySQLJSONTableExpression",
     "JSONTableColumn",
     "NestedPath",

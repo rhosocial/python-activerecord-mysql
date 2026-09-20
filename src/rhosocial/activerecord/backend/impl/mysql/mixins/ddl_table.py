@@ -135,7 +135,17 @@ class MySQLTableMixin:
         return super().format_create_table_like_statement(expr)
 
     def format_column_definition(self, col_def: "ColumnDefinition") -> Tuple[str, tuple]:
-        """Format a single column definition with MySQL-specific syntax."""
+        """Format a single column definition with MySQL-specific syntax.
+
+        Accepts both the generic ``ColumnDefinition`` and the MySQL
+        ``MySQLColumnDefinition``; the latter's MySQL-only attributes
+        (``character_set`` / ``column_format`` / ``storage`` / ``invisible``)
+        are rendered here.
+        """
+        from rhosocial.activerecord.backend.impl.mysql.expression.column import (
+            MySQLColumnDefinition,
+        )
+
         type_sql, type_params = col_def.data_type.to_sql()
         parts = [self.format_identifier(col_def.name), type_sql]
         params: List[Any] = list(type_params)
@@ -148,6 +158,16 @@ class MySQLTableMixin:
             params.extend(list(cp))
             if constraint.is_auto_increment:
                 parts.append("AUTO_INCREMENT")
+
+        if isinstance(col_def, MySQLColumnDefinition):
+            if col_def.character_set:
+                parts.append(f"CHARACTER SET {self.format_identifier(col_def.character_set)}")
+            if col_def.column_format is not None:
+                parts.append(f"COLUMN_FORMAT {col_def.column_format.value}")
+            if col_def.storage is not None:
+                parts.append(f"STORAGE {col_def.storage.value}")
+            if col_def.invisible:
+                parts.append("INVISIBLE")
 
         if col_def.comment:
             escaped_comment = self._escape_sql_string(col_def.comment)
