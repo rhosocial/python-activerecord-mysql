@@ -485,8 +485,8 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
-            definition: MySQLSubpartitionDefinition with name and optional
-                        dialect_options.
+            definition: MySQLSubpartitionDefinition with name and typed
+                        partition options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
