@@ -200,22 +200,13 @@ class TestDialectRangeValidation:
 
 
 class TestDialectOptions:
-    """dialect_options forwards through construction and affects equality."""
+    """The data-type value objects no longer carry a dialect_options bag."""
 
-    def test_construction_forwards_dialect_options(self, dialect):
-        data_type = MySQLIntType(dialect, unsigned=True,
-                                 dialect_options={"display_width": 10})
-        assert data_type.dialect_options == {"display_width": 10}
 
-    def test_dialect_options_participate_in_equality(self, dialect):
-        a = MySQLIntType(dialect, unsigned=True,
-                         dialect_options={"display_width": 10})
-        b = MySQLIntType(dialect, unsigned=True,
-                         dialect_options={"display_width": 10})
-        c = MySQLIntType(dialect, unsigned=True,
-                         dialect_options={"display_width": 11})
-        assert a == b
-        assert a != c
+
+    def test_constructor_rejects_dialect_options(self, dialect):
+        with pytest.raises(TypeError):
+            MySQLIntType(dialect, unsigned=True, dialect_options={"display_width": 10})
 
     def test_equality_ignores_dialect(self, dialect):
         other = MySQLDialect()
