@@ -32,6 +32,7 @@ from rhosocial.activerecord.backend.expression.types import (
     VarCharType,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
 from rhosocial.activerecord.backend.impl.mysql.types import MySQLEnumType, MySQLSetType
 
 
@@ -107,7 +108,8 @@ class TestMySQLTableComment:
         dialect = MySQLDialect()
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
-            dialect=dialect, table="users", columns=columns, dialect_options={"comment": "用户信息表"}
+            dialect=dialect, table="users", columns=columns,
+            table_options=CreateTableOptions(dialect, comment="用户信息表"),
         )
         sql, params = expr.to_sql()
         assert "COMMENT '用户信息表'" in sql
@@ -121,7 +123,7 @@ class TestMySQLTableComment:
             table="users",
             columns=columns,
             storage_options={"ENGINE": "InnoDB", "DEFAULT CHARSET": "utf8mb4"},
-            dialect_options={"comment": "用户信息表"},
+            table_options=CreateTableOptions(dialect, comment="用户信息表"),
         )
         sql, params = expr.to_sql()
         assert "ENGINE='InnoDB'" in sql
@@ -133,7 +135,8 @@ class TestMySQLTableComment:
         dialect = MySQLDialect()
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
         expr = CreateTableExpression(
-            dialect=dialect, table="test", columns=columns, dialect_options={"comment": "测试's表"}
+            dialect=dialect, table="test", columns=columns,
+            table_options=CreateTableOptions(dialect, comment="测试's表"),
         )
         sql, params = expr.to_sql()
         assert "COMMENT" in sql
@@ -150,38 +153,13 @@ class TestMySQLTableComment:
         sql, params = expr.to_sql()
         assert "COMMENT 'typed comment'" in sql
 
-    def test_table_comment_prefer_table_options_over_dialect_options(self):
-        """Test that typed table_options.comment takes precedence over dialect_options."""
-        from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableOptions
-        dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        opts = CreateTableOptions(dialect, comment="typed wins")
-        expr = CreateTableExpression(
-            dialect=dialect, table="users", columns=columns,
-            table_options=opts, dialect_options={"comment": "dialect_options loses"},
-        )
-        sql, params = expr.to_sql()
-        assert "COMMENT 'typed wins'" in sql
-        assert "dialect_options loses" not in sql
-
-    def test_engine_charset_via_dialect_options(self):
-        """Test ENGINE/CHARSET/COLLATE via dialect_options."""
-        dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
-            dialect=dialect, table="test", columns=columns,
-            dialect_options={"engine": "InnoDB", "charset": "utf8mb4", "collate": "utf8mb4_unicode_ci"},
-        )
-        sql, params = expr.to_sql()
-        assert "ENGINE=" in sql
-        assert "DEFAULT CHARSET=" in sql
-        assert "COLLATE=" in sql
-
     def test_engine_charset_via_table_options(self):
-        """Test ENGINE/CHARSET/COLLATE via typed CreateTableOptions."""
+        """Test ENGINE/CHARSET/COLLATE via typed MySQLCreateTableOptions."""
         dialect = MySQLDialect()
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        opts = CreateTableOptions(dialect, engine="InnoDB", charset="utf8mb4", collate="utf8mb4_unicode_ci")
+        opts = MySQLCreateTableOptions(
+            dialect, engine="InnoDB", charset="utf8mb4", collate="utf8mb4_unicode_ci"
+        )
         expr = CreateTableExpression(
             dialect=dialect, table="test", columns=columns, table_options=opts,
         )
@@ -189,19 +167,6 @@ class TestMySQLTableComment:
         assert "ENGINE=" in sql
         assert "DEFAULT CHARSET=" in sql
         assert "COLLATE=" in sql
-
-    def test_table_options_prefer_over_dialect_options(self):
-        """Test that typed table_options take precedence over dialect_options."""
-        dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        opts = CreateTableOptions(dialect, engine="MyISAM", charset="latin1")
-        expr = CreateTableExpression(
-            dialect=dialect, table="test", columns=columns,
-            table_options=opts, dialect_options={"engine": "InnoDB", "charset": "utf8mb4"},
-        )
-        sql, params = expr.to_sql()
-        assert "ENGINE='MyISAM'" in sql
-        assert "DEFAULT CHARSET='latin1'" in sql
 
 
 class TestMySQLColumnComment:
@@ -231,7 +196,8 @@ class TestMySQLColumnComment:
             ColumnDefinition(dialect, "name", VarCharType(dialect, 100), comment="名称"),
         ]
         expr = CreateTableExpression(
-            dialect=dialect, table="users", columns=columns, dialect_options={"comment": "用户表"}
+            dialect=dialect, table="users", columns=columns,
+            table_options=CreateTableOptions(dialect, comment="用户表"),
         )
         sql, params = expr.to_sql()
         assert "COMMENT '主键'" in sql
@@ -655,7 +621,7 @@ class TestMySQLCompleteTableCreation:
             indexes=indexes,
             if_not_exists=True,
             storage_options={"ENGINE": "InnoDB", "DEFAULT CHARSET": "utf8mb4", "COLLATE": "utf8mb4_unicode_ci"},
-            dialect_options={"comment": "User information table"},
+            table_options=CreateTableOptions(dialect, comment="User information table"),
         )
 
         sql, params = expr.to_sql()
