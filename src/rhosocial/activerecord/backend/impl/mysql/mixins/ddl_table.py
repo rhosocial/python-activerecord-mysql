@@ -152,6 +152,11 @@ class MySQLTableMixin:
             if constraint.is_auto_increment:
                 parts.append("AUTO_INCREMENT")
 
+        attr_sql, attr_params = self.format_column_attributes(col_def)
+        if attr_sql:
+            parts.append(attr_sql.strip())
+        params.extend(attr_params)
+
         if isinstance(col_def, MySQLColumnDefinition):
             if col_def.character_set:
                 parts.append(f"CHARACTER SET {self.format_identifier(col_def.character_set)}")

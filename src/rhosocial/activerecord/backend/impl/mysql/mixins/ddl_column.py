@@ -7,6 +7,14 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 class MySQLDDLColumnMixin:
     """MySQL DDL column definition and ALTER TABLE column actions."""
 
+    def format_identity_clause(self, expr) -> Tuple[str, Tuple]:
+        """MySQL renders an identity column as ``AUTO_INCREMENT``.
+
+        MySQL has no ``GENERATED ... AS IDENTITY`` column syntax; seed and
+        increment are table-level options, so only the marker is emitted.
+        """
+        return " AUTO_INCREMENT", ()
+
     def format_column(self, expr) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
 
