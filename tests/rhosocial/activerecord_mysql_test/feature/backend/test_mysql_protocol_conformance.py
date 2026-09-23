@@ -149,6 +149,9 @@ class TestMySQLDialectProtocolConformance:
 # decision (move to MYSQL_PROTOCOLS or revert).
 MYSQL_NOT_IMPLEMENTED = [
     # --- Intentional non-support ---
+    # MySQL has no standalone COMMENT ON statement; inline table/column
+    # comments are rendered by CREATE TABLE instead.
+    dialect_protocols.CommentSupport,
     # The generic DatabaseSupport protocol is not composed by MySQLDialect.
     dialect_protocols.DatabaseSupport,
     # MySQL has no SQL/XML support.
