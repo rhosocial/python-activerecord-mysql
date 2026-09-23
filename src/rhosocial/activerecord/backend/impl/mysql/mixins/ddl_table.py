@@ -34,6 +34,22 @@ class MySQLTableMixin:
     def supports_inline_index(self) -> bool:
         return True
 
+    def supports_table_comment(self) -> bool:
+        """Whether inline ``COMMENT 'text'`` on ``CREATE TABLE`` is supported.
+
+        MySQL renders the table comment as an inline table option (and the
+        column comment inside the column definition), so both capabilities
+        advertise True and the inline path is the rendering path. Comment
+        length limits (table 2048 / column 1024 characters) are a known
+        boundary and are not enforced.
+        """
+        return True
+
+    def supports_column_comment(self) -> bool:
+        """Whether inline ``COMMENT 'text'`` in a column definition is
+        supported. MySQL renders it natively."""
+        return True
+
     def supports_storage_engine_option(self) -> bool:
         return True
 
@@ -99,9 +115,9 @@ class MySQLTableMixin:
             MySQLCreateTableOptions,
         )
         table_options = getattr(expr, "table_options", None)
-        if table_options is not None and getattr(table_options, "comment", None):
-            comment_sql, _ = self.format_table_comment(table_options.comment)
-            parts.append(comment_sql)
+        if table_options is not None and getattr(table_options, "comment", None) is not None:
+            comment_sql, _ = self.format_table_comment_clause(table_options.comment)
+            parts.append(comment_sql.strip())
 
         if isinstance(table_options, MySQLCreateTableOptions):
             if table_options.engine:
@@ -167,9 +183,9 @@ class MySQLTableMixin:
             if col_def.invisible:
                 parts.append("INVISIBLE")
 
-        if col_def.comment:
-            escaped_comment = self._escape_sql_string(col_def.comment)
-            parts.append(f"COMMENT '{escaped_comment}'")
+        if col_def.comment is not None:
+            comment_sql, _ = self.format_column_comment_clause(col_def.comment)
+            parts.append(comment_sql.strip())
 
         if col_def.generated_expression is not None:
             gen_sql, gen_params = col_def.generated_expression.to_sql()

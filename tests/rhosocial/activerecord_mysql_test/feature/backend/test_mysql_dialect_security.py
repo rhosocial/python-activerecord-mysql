@@ -15,6 +15,7 @@ from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnConstraintType,
 )
+from rhosocial.activerecord.backend.expression import ColumnCommentClause, TableCommentClause
 from rhosocial.activerecord.backend.expression.types import VarCharType
 from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
     MySQLJSONTableExpression,
@@ -44,7 +45,7 @@ def test_mysql_format_column_definition_default_string_escaping(dialect):
 
 def test_mysql_format_column_definition_comment_string_escaping(dialect):
     """Test COMMENT string is escaped in MySQL column definition."""
-    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), comment="Comment with 'single quote'")
+    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), comment=ColumnCommentClause(dialect, "Comment with 'single quote'"))
 
     sql, params = dialect.format_column_definition(col_def)
     assert "Comment with ''single quote''" in sql
@@ -442,7 +443,7 @@ class TestMySQLCreateTableCommentEscaping:
             dialect=dialect,
             table="test_table",
             columns=[],
-            table_options=CreateTableOptions(dialect, comment="Table's comment with 'quotes'"),
+            table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Table's comment with 'quotes'")),
         )
 
         sql, params = dialect.format_create_table_statement(expr)
@@ -463,7 +464,7 @@ class TestMySQLCreateTableCommentEscaping:
             dialect=dialect,
             table="test_table",
             columns=[],
-            table_options=CreateTableOptions(dialect, comment="Test\\value"),
+            table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Test\\value")),
         )
 
         sql, params = dialect.format_create_table_statement(expr)
