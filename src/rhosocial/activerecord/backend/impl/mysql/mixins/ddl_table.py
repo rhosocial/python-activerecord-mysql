@@ -66,6 +66,18 @@ class MySQLTableMixin:
         - AUTO_INCREMENT in column definitions
         - Partition clause
         """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
+        if expr.tablespace:
+            raise UnsupportedFeatureError(
+                self.name, "TABLESPACE",
+                "MySQL does not support table tablespaces.",
+            )
+        if expr.inherits:
+            raise UnsupportedFeatureError(
+                self.name, "table INHERITS",
+                "MySQL does not support table inheritance.",
+            )
         all_params: List[Any] = []
 
         options_part = ""
