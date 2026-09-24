@@ -21,7 +21,7 @@ system and the MySQL backend:
 
 import pytest
 
-from rhosocial.activerecord.backend.dialect.mixins.ddl_type import DDLTypeMixin
+from rhosocial.activerecord.backend.dialect.mixins import DataTypeMixin
 from rhosocial.activerecord.backend.expression.types import (
     DataType,
     DecimalType,
@@ -74,9 +74,9 @@ class TestSupportFormatCorrespondence:
             assert issubclass(klass, DataType), name
 
     def test_inherits_mixin_scan_implementation(self, dialect):
-        # The merge comes from DDLTypeMixin's scan-based
+        # The merge comes from DataTypeMixin's scan-based
         # supports_data_types(); MySQL only declares the per-type pairs.
-        assert MySQLDialect.supports_data_types is DDLTypeMixin.supports_data_types
+        assert MySQLDialect.supports_data_types is DataTypeMixin.supports_data_types
 
 
 class TestSupportsDataTypesMapping:
