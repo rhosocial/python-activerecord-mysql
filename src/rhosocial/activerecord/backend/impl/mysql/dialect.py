@@ -35,7 +35,9 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TruncateSupport,
     TransactionControlSupport,
     SQLFunctionSupport,
-    DDLTypeSupport,
+    DataTypeSupport,
+    UserDefinedTypeSupport,
+    DomainSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CollationMixin,
@@ -69,6 +71,8 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DQLMixin,
     DMLMixin,
     DDLColumnMixin,
+    UserDefinedTypeMixin,
+    DomainMixin,
     TransactionControlMixin,
     SetOperationMixin,
 )
@@ -205,6 +209,8 @@ class MySQLDialect(
     MySQLModifyColumnMixin,
     MySQLJsonDualityViewMixin,
     MySQLTypeSupportMixin,
+    UserDefinedTypeMixin,
+    DomainMixin,
     MySQLOptimizerHintMixin,
     MySQLTableStatementMixin,
     MySQLMaintenanceMixin,
@@ -265,7 +271,9 @@ class MySQLDialect(
     MySQLLoadXMLSupport,
     MySQLAdminCommandSupport,
     SQLFunctionSupport,
-    DDLTypeSupport,
+    DataTypeSupport,
+    UserDefinedTypeSupport,
+    DomainSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
