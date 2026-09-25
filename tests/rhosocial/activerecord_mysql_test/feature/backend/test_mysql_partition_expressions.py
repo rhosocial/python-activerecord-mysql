@@ -39,19 +39,6 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLTruncatePartitionExpression,
 )
 
-from rhosocial.activerecord.ddl import PartitionLifecycle, PartitionOperation
-
-
-class _LifecycleSource:
-    @classmethod
-    def table_name(cls):
-        return "events"
-
-    @classmethod
-    def schema_name(cls):
-        return None
-
-
 @pytest.fixture
 def dialect():
     """Create a MySQL dialect for expression tests."""
@@ -62,11 +49,10 @@ def _partition_value(dialect, value):
     return MySQLPartitionValue(dialect, value)
 
 
-def test_partition_lifecycle_provider_constructs_mysql_expressions(dialect):
-    dialect.version = (8, 0, 0)
-    lifecycle = PartitionLifecycle(_LifecycleSource, dialect)
-    assert lifecycle.capabilities().supports(PartitionOperation.ADD)
-    expression = lifecycle.drop_partition("p0")
+def test_partition_capabilities_and_direct_drop_expression(dialect):
+    assert dialect.supports_add_partition() is True
+    assert dialect.supports_drop_partition() is True
+    expression = MySQLDropPartitionExpression(dialect, "events", ["p0"])
     assert isinstance(expression, MySQLDropPartitionExpression)
     assert "DROP PARTITION" in expression.to_sql()[0]
 

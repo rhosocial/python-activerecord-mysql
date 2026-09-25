@@ -3,14 +3,16 @@
 import pytest
 from unittest.mock import patch
 
-from rhosocial.activerecord.ddl import TableDDLDeriver
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.expression import (
     Column,
+    ColumnDefinition,
+    CreateTableExpression,
     TableExpression,
     QueryExpression,
     CreateViewExpression,
 )
+from rhosocial.activerecord.backend.expression.types import IntegerType
 from rhosocial.activerecord.backend.expression.statements import ViewOptions, ViewCheckOption
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
@@ -144,14 +146,27 @@ class TestMySQLTableDeclarationGating:
 
             id: int
 
-        expression = TableDDLDeriver(Plain, MySQLDialect()).create_table()
+        dialect = MySQLDialect()
+        expression = CreateTableExpression(
+            dialect,
+            Plain.__table_name__,
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            inherits=Plain.table_inherits(),
+            tablespace=Plain.table_tablespace(),
+        )
         assert expression.inherits == []
         assert expression.tablespace is None
 
     def test_table_inherits_is_propagated_and_rejected(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         assert dialect.supports_table_inheritance() is False
-        expression = TableDDLDeriver(InheritedTable, dialect).create_table()
+        expression = CreateTableExpression(
+            dialect,
+            InheritedTable.__table_name__,
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            inherits=InheritedTable.table_inherits(),
+            tablespace=InheritedTable.table_tablespace(),
+        )
         assert expression.inherits == ["parent_a", "parent_b"]
         with pytest.raises(UnsupportedFeatureError, match="INHERITS"):
             expression.to_sql()
@@ -159,7 +174,13 @@ class TestMySQLTableDeclarationGating:
     def test_table_tablespace_is_propagated_and_rejected(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         assert dialect.supports_table_tablespace() is False
-        expression = TableDDLDeriver(TablespacedTable, dialect).create_table()
+        expression = CreateTableExpression(
+            dialect,
+            TablespacedTable.__table_name__,
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            inherits=TablespacedTable.table_inherits(),
+            tablespace=TablespacedTable.table_tablespace(),
+        )
         assert expression.tablespace == "ts_data"
         with pytest.raises(UnsupportedFeatureError, match="TABLESPACE"):
             expression.to_sql()

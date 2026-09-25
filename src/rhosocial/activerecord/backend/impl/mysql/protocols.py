@@ -442,9 +442,6 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Whether ALTER TABLE ... REPAIR PARTITION is supported."""
         ...
 
-    def get_partition_lifecycle_provider(self) -> Any:
-        ...
-
     def format_partition_definition(self, definition: "MySQLPartitionDefinition") -> Tuple[str, tuple]:
         """Format a MySQL PARTITION definition."""
         ...

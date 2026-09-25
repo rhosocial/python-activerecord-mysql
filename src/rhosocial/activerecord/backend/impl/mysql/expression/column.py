@@ -101,9 +101,8 @@ class MySQLColumnDefinition(ColumnDefinition):
 class MySQLColumnOptions(ColumnOptions):
     """MySQL per-column options declaration.
 
-    Carries MySQL-only typed attributes; the deriver builds a
-    ``MySQLColumnDefinition`` and this declaration transfers its fields onto
-    it via :meth:`apply_to`.
+    Carries MySQL-only typed attributes; callers apply them to a
+    ``MySQLColumnDefinition`` via :meth:`apply_to`.
     """
 
     def __init__(
