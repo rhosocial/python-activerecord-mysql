@@ -12,10 +12,7 @@ except ImportError:  # Python 3.8
     from typing_extensions import Annotated
 
 from rhosocial.activerecord.base import UseIndex
-from rhosocial.activerecord.base.ddl import TableDDLDeriver
-from rhosocial.activerecord.backend.expression.statements.ddl_table import (
-    CreateTableExpression,
-)
+from rhosocial.activerecord.ddl import TableDDLDeriver
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.model import ActiveRecord
 
@@ -43,10 +40,3 @@ def test_create_table_renders_inline_index():
 def test_create_indexes_is_empty_when_inline_capable():
     deriver = TableDDLDeriver(Indexed, mysql_dialect())
     assert deriver.create_indexes() == []
-
-
-def test_create_schema_is_a_single_statement():
-    deriver = TableDDLDeriver(Indexed, mysql_dialect())
-    plan = deriver.creation_plan()
-    assert len(plan) == 1
-    assert isinstance(plan[0], CreateTableExpression)

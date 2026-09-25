@@ -1,16 +1,15 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/test_mysql_ddl_improvements.py
 """Tests for MySQL DDL improvements: capability gating, UnsupportedFeatureError."""
 import pytest
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch
 
-from rhosocial.activerecord.base.ddl import TableDDLDeriver
+from rhosocial.activerecord.ddl import TableDDLDeriver
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.expression import (
     Column,
     TableExpression,
     QueryExpression,
     CreateViewExpression,
-    DropViewExpression,
 )
 from rhosocial.activerecord.backend.expression.statements import ViewOptions, ViewCheckOption
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
