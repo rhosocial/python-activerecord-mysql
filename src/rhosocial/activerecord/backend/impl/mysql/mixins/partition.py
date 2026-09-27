@@ -8,7 +8,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.statements import PartitionClause
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
-        MySQLAddPartitionHelper,
         MySQLDropPartitionExpression,
         MySQLGetPartitionsExpression,
         MySQLPartitionByHash,
@@ -33,6 +32,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLRepairPartitionExpression,
         MySQLSubpartitionClause,
         MySQLSubpartitionDefinition,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.partition_lifecycle import (
+        MySQLAddPartitionHelper,
         MySQLCoalescePartitionHelper,
         MySQLDropOldestPartitionHelper,
         MySQLReorganizePartitionHelper,

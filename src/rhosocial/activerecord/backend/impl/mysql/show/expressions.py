@@ -21,7 +21,7 @@ from typing import Optional, TYPE_CHECKING
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
 if TYPE_CHECKING:
-    from ...dialect import MySQLDialect
+    from ..dialect import MySQLDialect
 
 
 class ShowExpression(BaseExpression):
