@@ -11,6 +11,7 @@ This example demonstrates:
 import os
 from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
 from rhosocial.activerecord.backend.expression import (
     CreateTableExpression,
     DropTableExpression,
@@ -78,7 +79,7 @@ create_table = CreateTableExpression(
         ),
     ],
     if_not_exists=True,
-    dialect_options={"engine": "InnoDB"},
+    table_options=MySQLCreateTableOptions(dialect, engine="InnoDB"),
 )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)

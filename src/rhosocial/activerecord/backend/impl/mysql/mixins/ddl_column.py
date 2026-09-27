@@ -1,11 +1,19 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py
-from typing import Any, Tuple
+from typing import Tuple
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
 
 class MySQLDDLColumnMixin:
     """MySQL DDL column definition and ALTER TABLE column actions."""
+
+    def format_identity_clause(self, expr) -> Tuple[str, Tuple]:
+        """MySQL renders an identity column as ``AUTO_INCREMENT``.
+
+        MySQL has no ``GENERATED ... AS IDENTITY`` column syntax; seed and
+        increment are table-level options, so only the marker is emitted.
+        """
+        return " AUTO_INCREMENT", ()
 
     def format_column(self, expr) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
@@ -31,7 +39,7 @@ class MySQLDDLColumnMixin:
                      "Pre-check information_schema.COLUMNS before ALTER."
             )
         column_sql, column_params = self.format_column_definition(action.column)
-        after = action.dialect_options.get("after")
+        after = getattr(action, "after", None)
         if after:
             return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(after)}", column_params
         return f"ADD COLUMN {column_sql}", column_params

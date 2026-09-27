@@ -26,7 +26,7 @@ subclasses only declare their semantic parameters through
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
@@ -55,9 +55,8 @@ class MySQLIntType(IntegerType):
     zerofill: bool = False
 
     def __init__(self, dialect=None, *, unsigned: bool = False,
-                 zerofill: bool = False,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+                 zerofill: bool = False):
+        super().__init__(dialect)
         self.unsigned = unsigned
         self.zerofill = zerofill
 
@@ -78,9 +77,8 @@ class MySQLTinyIntType(TinyIntType):
     zerofill: bool = False
 
     def __init__(self, dialect=None, *, unsigned: bool = False,
-                 zerofill: bool = False,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+                 zerofill: bool = False):
+        super().__init__(dialect)
         self.unsigned = unsigned
         self.zerofill = zerofill
 
@@ -101,9 +99,8 @@ class MySQLSmallIntType(SmallIntType):
     zerofill: bool = False
 
     def __init__(self, dialect=None, *, unsigned: bool = False,
-                 zerofill: bool = False,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+                 zerofill: bool = False):
+        super().__init__(dialect)
         self.unsigned = unsigned
         self.zerofill = zerofill
 
@@ -124,9 +121,8 @@ class MySQLBigIntType(BigIntType):
     zerofill: bool = False
 
     def __init__(self, dialect=None, *, unsigned: bool = False,
-                 zerofill: bool = False,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+                 zerofill: bool = False):
+        super().__init__(dialect)
         self.unsigned = unsigned
         self.zerofill = zerofill
 
@@ -205,9 +201,8 @@ class MySQLBitType(DataType):
 
     n: Optional[int] = None
 
-    def __init__(self, dialect=None, n: Optional[int] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+    def __init__(self, dialect=None, n: Optional[int] = None):
+        super().__init__(dialect)
         self.n = n
 
     def _type_params(self) -> tuple:
@@ -225,9 +220,8 @@ class MySQLYearType(DataType):
 
     display_width: Optional[int] = None
 
-    def __init__(self, dialect=None, display_width: Optional[int] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+    def __init__(self, dialect=None, display_width: Optional[int] = None):
+        super().__init__(dialect)
         self.display_width = display_width
 
     def _type_params(self) -> tuple:
@@ -243,9 +237,8 @@ class MySQLBinaryType(BinaryType):
 
     name = "mysql_binary"
 
-    def __init__(self, dialect=None, length: Optional[int] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+    def __init__(self, dialect=None, length: Optional[int] = None):
+        super().__init__(dialect)
         self.length = length
 
 
@@ -254,9 +247,8 @@ class MySQLVarBinaryType(VarBinaryType):
 
     name = "mysql_varbinary"
 
-    def __init__(self, dialect=None, length: Optional[int] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+    def __init__(self, dialect=None, length: Optional[int] = None):
+        super().__init__(dialect)
         self.length = length
 
 
@@ -278,13 +270,12 @@ class MySQLEnumType(EnumType):
     collation: Optional[str] = None
 
     def __init__(self, dialect=None, values: Optional[List[str]] = None,
-                 charset: Optional[str] = None, collation: Optional[str] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
+                 charset: Optional[str] = None, collation: Optional[str] = None):
         if values is None:
             raise ValueError("MySQLEnumType requires values")
         if not values:
             raise ValueError("ENUM must have at least one value")
-        super().__init__(dialect, values=values, dialect_options=dialect_options)
+        super().__init__(dialect, values=values)
         self.charset = charset
         self.collation = collation
 
@@ -315,9 +306,8 @@ class MySQLSetType(DataType):
     collation: Optional[str] = None
 
     def __init__(self, dialect=None, values: Optional[List[str]] = None,
-                 charset: Optional[str] = None, collation: Optional[str] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+                 charset: Optional[str] = None, collation: Optional[str] = None):
+        super().__init__(dialect)
         if values is None:
             raise ValueError("MySQLSetType requires values")
         if not values:
@@ -345,9 +335,8 @@ class MySQLGeometryType(DataType):
 
     srid: Optional[int] = None
 
-    def __init__(self, dialect=None, srid: Optional[int] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+    def __init__(self, dialect=None, srid: Optional[int] = None):
+        super().__init__(dialect)
         self.srid = srid
 
     def _type_params(self) -> tuple:
@@ -407,9 +396,8 @@ class MySQLVectorType(DataType):
 
     dim: Optional[int] = None
 
-    def __init__(self, dialect=None, dim: Optional[int] = None,
-                 dialect_options: Optional[Dict[str, Any]] = None):
-        super().__init__(dialect, dialect_options=dialect_options)
+    def __init__(self, dialect=None, dim: Optional[int] = None):
+        super().__init__(dialect)
         if dim is None:
             raise ValueError("MySQLVectorType requires dim")
         self.dim = dim

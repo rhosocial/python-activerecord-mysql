@@ -12,7 +12,8 @@ Official Documentation:
 import pytest
 import pytest_asyncio
 
-from rhosocial.activerecord.backend.expression.statements import InsertExpression, ValuesSource
+from rhosocial.activerecord.backend.expression.statements import ValuesSource
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLInsertExpression
 from rhosocial.activerecord.backend.expression import core
 
 
@@ -41,14 +42,14 @@ class TestMySQLInsertIgnore:
         """Test INSERT IGNORE with no conflict - should insert normally."""
         dialect = mysql_backend.dialect
 
-        expr = InsertExpression(
+        expr = MySQLInsertExpression(
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]]
             ),
             columns=["email", "name"],
-            dialect_options={"ignore": True},
+            ignore=True,
         )
 
         sql, params = expr.to_sql()
@@ -73,12 +74,12 @@ class TestMySQLInsertIgnore:
         )
 
         # Try to insert duplicate with IGNORE
-        expr = InsertExpression(
+        expr = MySQLInsertExpression(
             dialect=dialect,
             into=test_table,
             source=ValuesSource(dialect, [[core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]]),
             columns=["email", "name"],
-            dialect_options={"ignore": True},
+            ignore=True,
         )
 
         sql, params = expr.to_sql()
@@ -103,7 +104,7 @@ class TestMySQLInsertIgnore:
         )
 
         # Insert multiple rows, one conflicts
-        expr = InsertExpression(
+        expr = MySQLInsertExpression(
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
@@ -115,7 +116,7 @@ class TestMySQLInsertIgnore:
                 ],
             ),
             columns=["email", "name"],
-            dialect_options={"ignore": True},
+            ignore=True,
         )
 
         sql, params = expr.to_sql()
@@ -142,7 +143,7 @@ class TestMySQLInsertIgnore:
         )
 
         # Regular insert without IGNORE should fail
-        expr = InsertExpression(
+        expr = MySQLInsertExpression(
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
@@ -187,14 +188,14 @@ class TestMySQLAsyncInsertIgnore:
         )
 
         # Try to insert duplicate with IGNORE
-        expr = InsertExpression(
+        expr = MySQLInsertExpression(
             dialect=dialect,
             into=test_table,
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Duplicate")]]
             ),
             columns=["email", "name"],
-            dialect_options={"ignore": True},
+            ignore=True,
         )
 
         sql, params = expr.to_sql()

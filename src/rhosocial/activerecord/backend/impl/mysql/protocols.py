@@ -10,7 +10,7 @@ When a MySQL protocol extends a generic protocol, dialects only need to implemen
 the MySQL-specific protocol - isinstance checks for the generic protocol will still work.
 """
 
-from typing import Protocol, runtime_checkable, Tuple, Any, Dict, Sequence, TYPE_CHECKING
+from typing import Protocol, runtime_checkable, Tuple, Any, Sequence, FrozenSet, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
@@ -79,6 +79,7 @@ if TYPE_CHECKING:
         MySQLPartitionByRangeColumns,
         MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
+        MySQLPartitionOptions,
         MySQLPartitionValue,
         MySQLRebuildPartitionExpression,
         MySQLReorganizePartitionExpression,
@@ -134,13 +135,14 @@ class MySQLDMLOperationSupport(Protocol):
     - LOAD DATA INFILE: All MySQL versions
 
     Usage:
-        INSERT IGNORE is supported via dialect_options in InsertExpression:
+        INSERT IGNORE is carried as a typed field on the backend's
+        ``MySQLInsertExpression``:
         ```python
-        InsertExpression(
+        MySQLInsertExpression(
             dialect,
             into='users',
             source=ValuesSource(...),
-            dialect_options={'ignore': True}  # Generates INSERT IGNORE
+            ignore=True,  # Generates INSERT IGNORE
         )
         ```
     """
@@ -316,13 +318,6 @@ class MySQLTableSupport(TableSupport, Protocol):
         """
         ...
 
-    def supports_inline_index(self) -> bool:
-        """Whether inline index definitions are supported.
-
-        MySQL allows INDEX/KEY definitions within CREATE TABLE.
-        """
-        ...
-
     def supports_storage_engine_option(self) -> bool:
         """Whether ENGINE option is supported.
 
@@ -351,12 +346,16 @@ class MySQLTableSupport(TableSupport, Protocol):
         """Format a column definition with MySQL-specific syntax (AUTO_INCREMENT, etc.)."""
         ...
 
+    def supports_column_comment(self) -> bool:
+        """Whether an inline column COMMENT is supported (MySQL: yes)."""
+        ...
+
     def format_table_constraint(self, t_const: Any) -> Tuple[str, tuple]:
         """Format a table-level constraint."""
         ...
 
-    def format_inline_index(self, idx_def: Any) -> str:
-        """Format inline INDEX definition within CREATE TABLE."""
+    def format_index_definition(self, idx_def: Any) -> Tuple[str, tuple]:
+        """Format an inline INDEX definition inside CREATE TABLE."""
         ...
 
     def format_storage_options(self, expr: Any) -> Tuple[str, tuple]:
@@ -400,6 +399,30 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
 
     def supports_partition_value_maxvalue(self) -> bool:
         """Whether MAXVALUE partition boundary token is supported."""
+        ...
+
+    def supports_add_partition(self) -> bool:
+        """Whether ADD PARTITION is supported."""
+        ...
+
+    def supports_drop_partition(self) -> bool:
+        """Whether DROP PARTITION is supported."""
+        ...
+
+    def supports_truncate_partition(self) -> bool:
+        """Whether TRUNCATE PARTITION is supported."""
+        ...
+
+    def supports_reorganize_partition(self) -> bool:
+        """Whether REORGANIZE PARTITION is supported."""
+        ...
+
+    def supports_attach_partition(self) -> bool:
+        """Whether ATTACH PARTITION is supported."""
+        ...
+
+    def supports_detach_partition(self) -> bool:
+        """Whether DETACH PARTITION is supported."""
         ...
 
     def supports_remove_partitioning(self) -> bool:
@@ -447,7 +470,9 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format a MySQL PARTITION definition."""
         ...
 
-    def format_partition_definition_options(self, options: dict) -> Tuple[str, tuple]:
+    def format_partition_definition_options(
+        self, options: "MySQLPartitionOptions"
+    ) -> Tuple[str, tuple]:
         """Format MySQL PARTITION definition options."""
         ...
 
@@ -488,8 +513,8 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
-            definition: MySQLSubpartitionDefinition with name and optional
-                        dialect_options.
+            definition: MySQLSubpartitionDefinition with name and typed
+                        partition options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
@@ -1658,4 +1683,49 @@ class MySQLAdminCommandSupport(Protocol):
         ...
 
     def format_revoke_statement(self, expr: "MySQLRevokeExpression") -> Tuple[str, tuple]:
+        ...
+
+
+@runtime_checkable
+class MySQLCharsetCollationSupport(Protocol):
+    """Version-aware MySQL charset / collation / storage-engine support.
+
+    Implementations expose the values available on the configured server
+    version and validate user input against that whitelist.
+    """
+
+    def supported_charsets(self) -> FrozenSet[str]:
+        """Character sets available on the configured server version."""
+        ...
+
+    def supports_charset(self, name: object) -> bool:
+        """Whether ``name`` is a known charset (version-gated)."""
+        ...
+
+    def validate_charset_name(self, name: object) -> str:
+        """Return the normalized charset name or raise ``ValueError``."""
+        ...
+
+    def supported_collations(self, charset: Optional[str] = None) -> FrozenSet[str]:
+        """Collations available on the configured server version."""
+        ...
+
+    def supports_collation_name(self, name: str) -> bool:
+        """Whether ``name`` is a known collation (version-gated)."""
+        ...
+
+    def validate_collation_by_name(self, name: str) -> str:
+        """Return the normalized collation name or raise ``ValueError``."""
+        ...
+
+    def supported_storage_engines(self) -> FrozenSet[str]:
+        """Storage engines available on the configured server version."""
+        ...
+
+    def supports_storage_engine(self, name: object) -> bool:
+        """Whether ``name`` is a known storage engine (version-gated)."""
+        ...
+
+    def validate_storage_engine_name(self, name: object) -> str:
+        """Return the canonical storage engine name or raise ``ValueError``."""
         ...

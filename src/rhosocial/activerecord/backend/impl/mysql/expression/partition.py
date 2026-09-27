@@ -7,15 +7,15 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 from math import isfinite
-from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING, Union
+from typing import Any, List, Optional, Sequence, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValueExpression
-from rhosocial.activerecord.backend.expression.mixins import (
-    AliasableMixin,
-    ComparisonMixin,
-)
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.core import TableExpression
-from rhosocial.activerecord.backend.expression.statements import PartitionClause
+from rhosocial.activerecord.backend.expression.statements import (
+    PartitionClause,
+    PartitionDefinition,
+    SubpartitionDefinition,
+)
 
 
 class MySQLPartitionStrategy(Enum):
@@ -45,19 +45,56 @@ class MySQLSubpartitionStrategy(Enum):
 
 
 @dataclass
-class MySQLSubpartitionDefinition:
-    """A single named subpartition within a partition definition.
+class MySQLPartitionOptions:
+    """Typed MySQL storage options for a partition or subpartition definition.
 
-    Used when individual subpartitions need explicit names or distinct
-    storage options. When omitted, MySQL applies the template from the
-    ``SUBPARTITION BY`` clause automatically.
+    Replaces the generic ``dialect_options`` bag with one attribute per MySQL
+    ``PARTITION`` option keyword rendered by the MySQL formatter.
 
-    Raises:
-        ValueError: if name is empty or whitespace-only.
+    Attributes:
+        engine: Storage engine name (``ENGINE``).
+        comment: Free-form comment (``COMMENT``).
+        data_directory: Data directory path (``DATA DIRECTORY``).
+        index_directory: Index directory path (``INDEX DIRECTORY``).
+        max_rows: Maximum number of rows (``MAX_ROWS``).
+        min_rows: Minimum number of rows (``MIN_ROWS``).
+        tablespace: Tablespace name (``TABLESPACE``).
     """
 
-    name: str
-    dialect_options: Optional[Dict[str, Any]] = None
+    engine: Optional[str] = None
+    comment: Optional[str] = None
+    data_directory: Optional[str] = None
+    index_directory: Optional[str] = None
+    max_rows: Optional[int] = None
+    min_rows: Optional[int] = None
+    tablespace: Optional[str] = None
+
+
+@dataclass
+class MySQLSubpartitionDefinition(SubpartitionDefinition):
+    """A single named subpartition within a partition definition.
+
+    MySQL subpartitions carry no explicit boundary (the ``SUBPARTITION BY``
+    template applies), so this subclass adds nothing beyond the base name and
+    options. It exists as the MySQL-owned type derived from the generic
+    :class:`~rhosocial.activerecord.backend.expression.statements.SubpartitionDefinition`.
+
+    Raises:
+        TypeError: if ``partition_options`` is not a :class:`MySQLPartitionOptions`
+            when provided.
+    """
+
+    partition_options: Optional[MySQLPartitionOptions] = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.partition_options is not None and not isinstance(
+            self.partition_options, MySQLPartitionOptions
+        ):
+            raise TypeError(
+                "partition_options must be a MySQLPartitionOptions value, "
+                f"got {type(self.partition_options).__name__}"
+            )
 
 
 class MySQLSubpartitionClause(BaseExpression):
@@ -144,8 +181,12 @@ class MySQLPartitionValue(BaseExpression):
 
 
 @dataclass
-class MySQLPartitionDefinition:
+class MySQLPartitionDefinition(PartitionDefinition):
     """A MySQL ``PARTITION ... VALUES ...`` definition.
+
+    Derives from the generic
+    :class:`~rhosocial.activerecord.backend.expression.statements.PartitionDefinition`
+    and tightens validation: MySQL requires exactly one boundary form.
 
     For single-column LIST COLUMNS, ``in_values`` accepts a flat sequence
     of ``BaseExpression`` (e.g. ``[val('a'), val('b')]`` → ``VALUES IN ('a', 'b')``).
@@ -157,30 +198,30 @@ class MySQLPartitionDefinition:
 
     When subpartitioning is used, ``subpartition_definitions`` optionally
     overrides the template from the ``SUBPARTITION BY`` clause for this
-    specific partition.
+    specific partition. ``partition_options`` carries MySQL-only storage
+    options typed on :class:`MySQLPartitionOptions`.
 
     Raises:
         ValueError: if both ``less_than`` and ``in_values`` are provided,
                     or if neither is provided.
-        TypeError: if ``dialect_options`` is not a dict when provided.
+        TypeError: if ``partition_options`` is not a
+                   :class:`MySQLPartitionOptions` when provided.
     """
 
-    name: str
-    less_than: Optional[Sequence[BaseExpression]] = None
-    in_values: Optional[Sequence[Union[BaseExpression, Sequence[BaseExpression]]]] = None
     subpartition_definitions: Optional[Sequence["MySQLSubpartitionDefinition"]] = None
-    dialect_options: Optional[dict] = None
+    partition_options: Optional[MySQLPartitionOptions] = None
 
     def __post_init__(self) -> None:
-        if self.less_than is not None and self.in_values is not None:
-            raise ValueError("less_than and in_values are mutually exclusive")
+        super().__post_init__()
+        if self.partition_options is not None and not isinstance(
+            self.partition_options, MySQLPartitionOptions
+        ):
+            raise TypeError(
+                "partition_options must be a MySQLPartitionOptions value, "
+                f"got {type(self.partition_options).__name__}"
+            )
         if self.less_than is None and self.in_values is None:
             raise ValueError("partition definition requires less_than or in_values")
-        if self.dialect_options is not None and not isinstance(self.dialect_options, dict):
-            raise TypeError(
-                "dialect_options must be dict or None, "
-                f"got {type(self.dialect_options).__name__}"
-            )
 
 
 class MySQLPartitionClause(PartitionClause):

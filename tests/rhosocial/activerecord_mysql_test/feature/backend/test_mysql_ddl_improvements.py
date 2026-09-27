@@ -1,15 +1,19 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/test_mysql_ddl_improvements.py
 """Tests for MySQL DDL improvements: capability gating, UnsupportedFeatureError."""
 import pytest
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch
 
+from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.expression import (
     Column,
+    ColumnDefinition,
+    CreateTableExpression,
     TableExpression,
     QueryExpression,
     CreateViewExpression,
-    DropViewExpression,
 )
+from rhosocial.activerecord.backend.expression.types import IntegerType
+from rhosocial.activerecord.backend.expression.statements import ViewOptions, ViewCheckOption
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
@@ -36,6 +40,22 @@ class TestMySQLViewCapabilityGating:
         """MySQL does not support materialized views."""
         dialect = MySQLDialect()
         assert dialect.supports_materialized_view() is False
+
+    def test_create_view_check_option_gated(self):
+        """WITH CHECK OPTION must fail fast when the capability is off."""
+        dialect = MySQLDialect()
+        query = QueryExpression(
+            dialect, select=[Column(dialect, "id")], from_=TableExpression(dialect, "t")
+        )
+        expr = CreateViewExpression(
+            dialect,
+            view_name="v",
+            query=query,
+            options=ViewOptions(check_option=ViewCheckOption.CASCADED),
+        )
+        with patch.object(type(dialect), "supports_view_check_option", return_value=False):
+            with pytest.raises(UnsupportedFeatureError, match="CHECK OPTION"):
+                expr.to_sql()
 
 
 class TestMySQLColumnCapabilityGating:
@@ -97,3 +117,70 @@ class TestMySQLSchemaCapabilityGating:
         """MySQL supports DROP SCHEMA (alias for DROP DATABASE)."""
         dialect = MySQLDialect()
         assert dialect.supports_drop_schema() is True
+
+
+class InheritedTable(ActiveRecord):
+    __table_name__ = "inherited"
+
+    id: int
+
+    @classmethod
+    def table_inherits(cls):
+        return ["parent_a", "parent_b"]
+
+
+class TablespacedTable(ActiveRecord):
+    __table_name__ = "tablespaced"
+
+    id: int
+
+    @classmethod
+    def table_tablespace(cls):
+        return "ts_data"
+
+
+class TestMySQLTableDeclarationGating:
+    def test_table_declaration_defaults_are_absent(self):
+        class Plain(ActiveRecord):
+            __table_name__ = "plain_table_defaults"
+
+            id: int
+
+        dialect = MySQLDialect()
+        expression = CreateTableExpression(
+            dialect,
+            Plain.__table_name__,
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            inherits=Plain.table_inherits(),
+            tablespace=Plain.table_tablespace(),
+        )
+        assert expression.inherits == []
+        assert expression.tablespace is None
+
+    def test_table_inherits_is_propagated_and_rejected(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        assert dialect.supports_table_inheritance() is False
+        expression = CreateTableExpression(
+            dialect,
+            InheritedTable.__table_name__,
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            inherits=InheritedTable.table_inherits(),
+            tablespace=InheritedTable.table_tablespace(),
+        )
+        assert expression.inherits == ["parent_a", "parent_b"]
+        with pytest.raises(UnsupportedFeatureError, match="INHERITS"):
+            expression.to_sql()
+
+    def test_table_tablespace_is_propagated_and_rejected(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        assert dialect.supports_table_tablespace() is False
+        expression = CreateTableExpression(
+            dialect,
+            TablespacedTable.__table_name__,
+            columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
+            inherits=TablespacedTable.table_inherits(),
+            tablespace=TablespacedTable.table_tablespace(),
+        )
+        assert expression.tablespace == "ts_data"
+        with pytest.raises(UnsupportedFeatureError, match="TABLESPACE"):
+            expression.to_sql()

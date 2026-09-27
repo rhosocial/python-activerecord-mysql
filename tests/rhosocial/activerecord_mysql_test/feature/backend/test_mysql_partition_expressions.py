@@ -31,13 +31,13 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
+    MySQLPartitionOptions,
     MySQLPartitionValue,
     MySQLSubpartitionStrategy,
     MySQLSubpartitionClause,
     MySQLSubpartitionDefinition,
     MySQLTruncatePartitionExpression,
 )
-
 
 @pytest.fixture
 def dialect():
@@ -47,6 +47,14 @@ def dialect():
 
 def _partition_value(dialect, value):
     return MySQLPartitionValue(dialect, value)
+
+
+def test_partition_capabilities_and_direct_drop_expression(dialect):
+    assert dialect.supports_add_partition() is True
+    assert dialect.supports_drop_partition() is True
+    expression = MySQLDropPartitionExpression(dialect, "events", ["p0"])
+    assert isinstance(expression, MySQLDropPartitionExpression)
+    assert "DROP PARTITION" in expression.to_sql()[0]
 
 
 def test_partition_by_range_expression(dialect):
@@ -244,12 +252,12 @@ def test_partition_definition_options_are_formatted(dialect):
     definition = MySQLPartitionDefinition(
         name="p2026",
         less_than=[_partition_value(dialect, "2027-01-01")],
-        dialect_options={
-            "engine": "InnoDB",
-            "comment": "tenant's partition",
-            "max_rows": 1000,
-            "tablespace": "ts_hot",
-        },
+        partition_options=MySQLPartitionOptions(
+            engine="InnoDB",
+            comment="tenant's partition",
+            max_rows=1000,
+            tablespace="ts_hot",
+        ),
     )
 
     sql, params = dialect.format_partition_definition(definition)
@@ -263,11 +271,11 @@ def test_partition_definition_options_are_formatted(dialect):
 
 def test_partition_definition_options_reject_invalid_options(dialect):
     """Unsupported or invalid partition options should fail clearly."""
-    with pytest.raises(ValueError, match="Unsupported partition definition option"):
-        dialect.format_partition_definition_options({"unknown": "value"})
+    with pytest.raises(TypeError, match="engine option must be a non-empty string"):
+        dialect.format_partition_definition_options(MySQLPartitionOptions(engine=""))
 
     with pytest.raises(TypeError, match="max_rows option"):
-        dialect.format_partition_definition_options({"max_rows": -1})
+        dialect.format_partition_definition_options(MySQLPartitionOptions(max_rows=-1))
 
 def test_extended_partition_maintenance_expressions(dialect):
     """MySQL maintenance expressions should delegate to public formatters."""
@@ -441,11 +449,9 @@ def test_subpartition_with_explicit_definitions(dialect):
 
 
 def test_subpartition_definition_rejects_empty_name(dialect):
-    """Subpartition definition should reject empty names."""
-    definition = MySQLSubpartitionDefinition(name="")
-
-    with pytest.raises(ValueError, match="must not be empty"):
-        dialect.format_subpartition_definition(definition)
+    """Subpartition definition should reject empty names at construction."""
+    with pytest.raises(ValueError, match="non-empty string"):
+        MySQLSubpartitionDefinition(name="")
 
 
 def test_subpartition_clause_rejects_invalid_strategy(dialect):
@@ -465,11 +471,11 @@ def test_subpartition_clause_rejects_invalid_count(dialect):
         )
 
 
-def test_subpartition_preserves_dialect_options_on_subpartition_definitions(dialect):
-    """Subpartition definitions should accept dialect_options."""
+def test_subpartition_preserves_partition_options_on_subpartition_definitions(dialect):
+    """Subpartition definitions should accept typed partition_options."""
     sub_def = MySQLSubpartitionDefinition(
         name="sp_active",
-        dialect_options={"engine": "InnoDB", "comment": "active subpartition"},
+        partition_options=MySQLPartitionOptions(engine="InnoDB", comment="active subpartition"),
     )
 
     sql, params = dialect.format_subpartition_definition(sub_def)
@@ -635,13 +641,13 @@ def test_partition_value_with_datetime(dialect):
     assert params == ()
 
 
-def test_partition_definition_rejects_invalid_dialect_options(dialect):
-    """MySQLPartitionDefinition should reject non-dict dialect_options."""
-    with pytest.raises(TypeError, match="dialect_options must be dict"):
+def test_partition_definition_rejects_invalid_partition_options(dialect):
+    """MySQLPartitionDefinition should reject non-MySQLPartitionOptions values."""
+    with pytest.raises(TypeError, match="partition_options must be a MySQLPartitionOptions"):
         MySQLPartitionDefinition(
             name="p0",
             less_than=[MySQLPartitionValue(dialect, 100)],
-            dialect_options="invalid",  # type: ignore[arg-type]
+            partition_options="invalid",  # type: ignore[arg-type]
         )
 
 

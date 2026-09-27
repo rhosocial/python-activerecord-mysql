@@ -19,6 +19,15 @@ Directory structure:
 - types.py          - MySQL-specific DataType subclasses for DDL
 """
 
+from .table_options import MySQLRowFormat, MySQLCreateTableOptions
+from .dml import MySQLInsertExpression
+from .alter_column import MySQLAddColumn
+from .column import (
+    MySQLColumnFormat,
+    MySQLColumnStorage,
+    MySQLColumnDefinition,
+    MySQLColumnOptions,
+)
 from .load_data import MySQLLoadDataExpression, LoadDataOptions
 from .json_table import MySQLJSONTableExpression, JSONTableColumn, NestedPath
 from .json import (
@@ -90,6 +99,7 @@ from .partition import (
     MySQLPartitionByListColumns,
     MySQLPartitionByHash,
     MySQLPartitionByKey,
+    MySQLPartitionOptions,
     MySQLAddPartitionExpression,
     MySQLDropPartitionExpression,
     MySQLTruncatePartitionExpression,
@@ -200,6 +210,14 @@ from .types import (
 __all__ = [
     "MySQLLoadDataExpression",
     "LoadDataOptions",
+    "MySQLCreateTableOptions",
+    "MySQLRowFormat",
+    "MySQLInsertExpression",
+    "MySQLAddColumn",
+    "MySQLColumnFormat",
+    "MySQLColumnStorage",
+    "MySQLColumnDefinition",
+    "MySQLColumnOptions",
     "MySQLJSONTableExpression",
     "JSONTableColumn",
     "NestedPath",
@@ -261,6 +279,7 @@ __all__ = [
     "MySQLPartitionByListColumns",
     "MySQLPartitionByHash",
     "MySQLPartitionByKey",
+    "MySQLPartitionOptions",
     "MySQLAddPartitionExpression",
     "MySQLDropPartitionExpression",
     "MySQLTruncatePartitionExpression",

@@ -87,9 +87,8 @@ class MySQLRoutineMixin:
     ) -> Tuple[str, tuple]:
         """Format ``DROP FUNCTION [IF EXISTS] name`` (stored function).
 
-        Note this formats the stored-function form. The loadable UDF form
-        ``DROP FUNCTION name`` is identical syntactically and shares this
-        method when ``dialect_options['udf']`` is set.
+        The loadable UDF form ``DROP FUNCTION name`` is syntactically
+        identical and shares this method.
         """
         expr.validate(strict=self.strict_validation)
         parts = ["DROP FUNCTION"]

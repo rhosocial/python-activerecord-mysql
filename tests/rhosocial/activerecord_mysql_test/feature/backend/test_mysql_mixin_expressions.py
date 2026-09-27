@@ -55,6 +55,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
+    MySQLPartitionOptions,
     MySQLPartitionValue,
     MySQLReorganizePartitionExpression,
     MySQLTruncatePartitionExpression,
@@ -1051,7 +1052,7 @@ class TestMySQLPartitionExpressionEdgeCases:
         defn = MySQLPartitionDefinition(
             name="p_2024",
             in_values=[MySQLPartitionValue(dialect, "2024-01-01")],
-            dialect_options={"comment": "Partition for 2024 data"},
+            partition_options=MySQLPartitionOptions(comment="Partition for 2024 data"),
         )
         sql, params = mixin.format_partition_definition(defn)
         assert "COMMENT" in sql

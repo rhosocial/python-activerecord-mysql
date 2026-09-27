@@ -10,7 +10,7 @@ from typing import Union, List, Optional, TYPE_CHECKING
 from rhosocial.activerecord.backend.expression import bases
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .dialect import MySQLDialect
+    from ..dialect import MySQLDialect
 
 
 def match_against(

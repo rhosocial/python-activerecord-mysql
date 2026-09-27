@@ -12,7 +12,7 @@ level (as opposed to the partition-level variants in ``partition.py``):
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
@@ -61,7 +61,6 @@ class MySQLTableMaintenanceExpression(BaseExpression):
         operation: Statement keyword (ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR).
         tables: List of table names (may be schema-qualified tuples).
         no_write_to_binlog: NO_WRITE_TO_BINLOG / LOCAL selector (where supported).
-        dialect_options: Additional MySQL-specific options.
     """
 
     operation: str = ""
@@ -72,12 +71,10 @@ class MySQLTableMaintenanceExpression(BaseExpression):
         tables: List[Any],
         *,
         no_write_to_binlog: "NoWriteToBinlogOption" = NoWriteToBinlogOption.NONE,
-        dialect_options: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(dialect)
         self.tables: List[Any] = list(tables)
         self.no_write_to_binlog: NoWriteToBinlogOption = no_write_to_binlog
-        self.dialect_options: Dict[str, Any] = dialect_options or {}
 
     def validate(self, strict: bool = True) -> None:
         """Validate table list.
@@ -120,13 +117,11 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
         tables: List[Any],
         *,
         options: Optional[List[CheckTableOption]] = None,
-        dialect_options: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             dialect,
             tables,
             no_write_to_binlog=NoWriteToBinlogOption.NONE,
-            dialect_options=dialect_options,
         )
         self.options: List[CheckTableOption] = list(options or [])
 
@@ -148,13 +143,11 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
         tables: List[Any],
         *,
         option: Optional[ChecksumTableOption] = None,
-        dialect_options: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             dialect,
             tables,
             no_write_to_binlog=NoWriteToBinlogOption.NONE,
-            dialect_options=dialect_options,
         )
         self.option: Optional[ChecksumTableOption] = option
 
@@ -183,13 +176,11 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
         *,
         no_write_to_binlog: "NoWriteToBinlogOption" = NoWriteToBinlogOption.NONE,
         options: Optional[List[RepairTableOption]] = None,
-        dialect_options: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(
             dialect,
             tables,
             no_write_to_binlog=no_write_to_binlog,
-            dialect_options=dialect_options,
         )
         self.options: List[RepairTableOption] = list(options or [])
 

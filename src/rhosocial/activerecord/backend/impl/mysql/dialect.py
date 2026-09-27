@@ -6,10 +6,9 @@ This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
-from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
 from rhosocial.activerecord.backend.dialect.protocols import (
     CollationSupport,
     CTESupport,
@@ -36,7 +35,9 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TruncateSupport,
     TransactionControlSupport,
     SQLFunctionSupport,
-    DDLTypeSupport,
+    DataTypeSupport,
+    UserDefinedTypeSupport,
+    DomainSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
     CollationMixin,
@@ -70,10 +71,11 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DQLMixin,
     DMLMixin,
     DDLColumnMixin,
+    UserDefinedTypeMixin,
+    DomainMixin,
     TransactionControlMixin,
     SetOperationMixin,
 )
-from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from .protocols import (
     MySQLTriggerSupport,
     MySQLTableSupport,
@@ -120,7 +122,7 @@ from .mixins import (
     MySQLLoadXMLLMixin,
     MySQLAdminCommandMixin,
     MySQLDateTimeMixin,
-    MySQLCollationMixin,
+    MySQLCharsetCollationMixin,
     MySQLCTEMixin,
     MySQLWindowMixin,
     MySQLGroupingMixin,
@@ -131,6 +133,7 @@ from .mixins import (
     MySQLDDLColumnMixin,
     MySQLViewMixin,
     MySQLSchemaMixin,
+    MySQLDatabaseMixin,
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
@@ -139,24 +142,8 @@ from .reserved_words import MYSQL_RESERVED_WORDS
 from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.collation import CollateExpression
     from rhosocial.activerecord.backend.expression.statements import (
-        CreateTableExpression,
-        CreateViewExpression,
-        DropViewExpression,
-        ExplainExpression,
         InsertExpression,
-    )
-    from rhosocial.activerecord.backend.expression.statements.fulltext_match import (
-        FulltextMatchExpression,
-    )
-    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
-        CreateTriggerExpression,
-        DropTriggerExpression,
-    )
-    from rhosocial.activerecord.backend.expression.transaction import (
-        SetTransactionExpression,
-        BeginTransactionExpression,
     )
 
 
@@ -164,7 +151,7 @@ class MySQLDialect(
     SQLDialectBase,
     # MySQL-specific mixins (before generic mixins to override methods)
     MySQLDateTimeMixin,
-    MySQLCollationMixin,
+    MySQLCharsetCollationMixin,
     MySQLCTEMixin,
     MySQLWindowMixin,
     MySQLGroupingMixin,
@@ -175,6 +162,7 @@ class MySQLDialect(
     MySQLDDLColumnMixin,
     MySQLViewMixin,
     MySQLSchemaMixin,
+    MySQLDatabaseMixin,
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
@@ -221,6 +209,8 @@ class MySQLDialect(
     MySQLModifyColumnMixin,
     MySQLJsonDualityViewMixin,
     MySQLTypeSupportMixin,
+    UserDefinedTypeMixin,
+    DomainMixin,
     MySQLOptimizerHintMixin,
     MySQLTableStatementMixin,
     MySQLMaintenanceMixin,
@@ -281,7 +271,9 @@ class MySQLDialect(
     MySQLLoadXMLSupport,
     MySQLAdminCommandSupport,
     SQLFunctionSupport,
-    DDLTypeSupport,
+    DataTypeSupport,
+    UserDefinedTypeSupport,
+    DomainSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -411,9 +403,10 @@ class MySQLDialect(
     def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
         """Format INSERT statement with MySQL-specific options.
 
-        Extends the base implementation to support:
-        - INSERT IGNORE via dialect_options={'ignore': True}
-        - REPLACE INTO via dialect_options={'replace': True}
+        Extends the base implementation to support the typed flags on
+        ``MySQLInsertExpression``:
+        - ``ignore=True`` → ``INSERT IGNORE``
+        - ``replace=True`` → ``REPLACE INTO``
 
         Args:
             expr: InsertExpression instance
@@ -430,8 +423,8 @@ class MySQLDialect(
             expr.validate(strict=True)
 
         # Check for conflicting options
-        is_replace = expr.dialect_options.get("replace", False)
-        is_ignore = expr.dialect_options.get("ignore", False)
+        is_replace = getattr(expr, "replace", False)
+        is_ignore = getattr(expr, "ignore", False)
 
         if is_replace and is_ignore:
             raise ValueError("Cannot use both 'replace' and 'ignore' options together")

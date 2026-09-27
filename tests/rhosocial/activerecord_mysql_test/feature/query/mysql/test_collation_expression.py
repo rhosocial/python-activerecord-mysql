@@ -8,7 +8,6 @@ import pytest
 from rhosocial.activerecord.backend.expression import Column, Literal
 from rhosocial.activerecord.backend.impl.mysql import (
     MySQLCollation,
-    MySQLCollationValidator,
     MySQLDialect,
 )
 
@@ -35,20 +34,23 @@ def collation_table(mysql_backend):
     mysql_backend.execute("DROP TABLE IF EXISTS test_collation_expression")
 
 
-class TestMySQLCollationValidator:
+class TestMySQLCollationSupport:
     def test_supports_known_legacy_collation(self):
-        assert MySQLCollationValidator.is_supported("utf8mb4_unicode_ci", (5, 7, 0))
+        assert MySQLDialect(version=(5, 7, 0)).supports_collation_name("utf8mb4_unicode_ci")
 
     def test_rejects_mysql_8_collation_on_older_version(self):
-        assert not MySQLCollationValidator.is_supported("utf8mb4_0900_ai_ci", (5, 7, 0))
-        assert MySQLCollationValidator.is_supported("utf8mb4_0900_ai_ci", (8, 0, 0))
+        assert not MySQLDialect(version=(5, 7, 0)).supports_collation_name("utf8mb4_0900_ai_ci")
+        assert MySQLDialect(version=(8, 0, 0)).supports_collation_name("utf8mb4_0900_ai_ci")
 
     def test_validate_normalizes_case(self):
-        assert MySQLCollationValidator.validate("UTF8MB4_BIN", (5, 7, 0)) == "utf8mb4_bin"
+        assert (
+            MySQLDialect(version=(5, 7, 0)).validate_collation_by_name("UTF8MB4_BIN")
+            == "utf8mb4_bin"
+        )
 
     def test_validate_rejects_unknown_collation(self):
         with pytest.raises(ValueError, match="Unsupported MySQL collation"):
-            MySQLCollationValidator.validate("unknown_ci", (8, 0, 0))
+            MySQLDialect(version=(8, 0, 0)).validate_collation_by_name("unknown_ci")
 
     def test_enum_contains_representative_collations(self):
         values = {collation.value for collation in MySQLCollation}
