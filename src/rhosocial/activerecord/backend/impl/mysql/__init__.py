@@ -89,7 +89,7 @@ from .functions import (
 )
 
 # Import MySQL SHOW command expressions
-from .show.expressions import (
+from .expression.show import (
     ShowExpression,
     ShowCreateTableExpression,
     ShowColumnsExpression,
