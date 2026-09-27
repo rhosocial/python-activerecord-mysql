@@ -99,6 +99,9 @@ markers = [
     "benchmark_sync: marks sync benchmark tests",
     "benchmark_write: marks write benchmark tests",
     "benchmark_read: marks read benchmark tests",
+    "feature: category label for feature-area tests; changes collection grouping only, not ordering",
+    "benchmark_relation: marks relation benchmarks; changes collection grouping only, not ordering",
+
 ]
 
 [tool.coverage.run]
