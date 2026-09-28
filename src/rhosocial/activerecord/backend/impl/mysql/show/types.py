@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/show_types.py
+# src/rhosocial/activerecord/backend/impl/mysql/show/types.py
 """
 MySQL SHOW command result types.
 
