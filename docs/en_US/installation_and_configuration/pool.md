@@ -15,7 +15,8 @@ Both `MySQLBackend` (synchronous) and `AsyncMySQLBackend` (asynchronous) maintai
 `MySQLBackend.connect()` calls `mysql.connector.connect()` with credentials and timeout parameters. The `pool_name`, `pool_size`, and related fields are silently skipped.
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
     host="localhost",
@@ -35,9 +36,8 @@ backend.connect()     # opens one persistent connection
 
 ```python
 import asyncio
-from rhosocial.activerecord.backend.impl.mysql import (
-    AsyncMySQLBackend, MySQLConnectionConfig,
-)
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
     host="localhost",
@@ -68,9 +68,8 @@ Configure your models once at application startup (not inside request handlers).
 # application startup (e.g., FastAPI lifespan)
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from rhosocial.activerecord.backend.impl.mysql import (
-    AsyncMySQLBackend, MySQLConnectionConfig,
-)
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from myapp.models import User, Order
 
 _config = MySQLConnectionConfig(

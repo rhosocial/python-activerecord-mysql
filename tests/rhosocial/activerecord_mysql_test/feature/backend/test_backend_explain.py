@@ -15,10 +15,7 @@ from rhosocial.activerecord.backend.explain import (
 )
 from rhosocial.activerecord.backend.expression import RawSQLExpression
 from rhosocial.activerecord.backend.expression.statements import ExplainOptions
-from rhosocial.activerecord.backend.impl.mysql import (
-    MySQLExplainResult,
-    MySQLExplainRow,
-)
+from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult, MySQLExplainRow
 
 
 # ---------------------------------------------------------------------------

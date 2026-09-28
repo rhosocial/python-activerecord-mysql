@@ -15,7 +15,8 @@
 `MySQLBackend.connect()` 调用 `mysql.connector.connect()`，传入认证信息和超时参数。`pool_name`、`pool_size` 等字段会被静默跳过。
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
     host="localhost",
@@ -35,9 +36,8 @@ backend.connect()     # 建立一条持久连接
 
 ```python
 import asyncio
-from rhosocial.activerecord.backend.impl.mysql import (
-    AsyncMySQLBackend, MySQLConnectionConfig,
-)
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
     host="localhost",
@@ -68,9 +68,8 @@ asyncio.run(main())
 # 应用启动（以 FastAPI lifespan 为例）
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from rhosocial.activerecord.backend.impl.mysql import (
-    AsyncMySQLBackend, MySQLConnectionConfig,
-)
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from myapp.models import User, Order
 
 _config = MySQLConnectionConfig(

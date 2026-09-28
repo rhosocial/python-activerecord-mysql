@@ -37,7 +37,7 @@ def demonstrate_pool_config_ignored() -> None:
     print("=" * 60)
 
     try:
-        from rhosocial.activerecord.backend.impl.mysql import MySQLConnectionConfig  # type: ignore
+        from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     except ImportError:
         print("  (MySQLConnectionConfig not importable — skipping live check)")
         _demo_pool_config_ignored_static()

@@ -41,7 +41,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..",
                              "python-activerecord-mysql", "src"))
 
 from rhosocial.activerecord.connection.pool import PoolConfig, AsyncBackendPool
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 

@@ -53,7 +53,8 @@
 
 ```python
 import multiprocessing
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from models import Comment, Post, User
 
 def worker(post_ids: list[int]):
@@ -99,7 +100,8 @@ if __name__ == "__main__":
 ```python
 import asyncio
 import multiprocessing
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from models import AsyncComment, AsyncPost, AsyncUser
 
 async def async_worker_main(post_ids: list[int]):
@@ -862,7 +864,7 @@ thread2: with group.get_backend().context(): ...  # 不安全！
 # database.py - 请求级连接管理器
 from contextlib import asynccontextmanager
 from rhosocial.activerecord.connection import AsyncBackendGroup
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
 
 @asynccontextmanager
 async def get_request_db():

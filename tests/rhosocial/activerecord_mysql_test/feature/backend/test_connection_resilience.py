@@ -233,7 +233,8 @@ import asyncio
 import time
 import logging
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
 
 
 logger = logging.getLogger(__name__)

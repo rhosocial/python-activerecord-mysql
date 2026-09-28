@@ -148,7 +148,7 @@ def resolve_connection_config_from_args(args):
 
 def create_backend(args):
     """Create, connect, and introspect a MySQL backend from parsed args."""
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
     config = resolve_connection_config_from_args(args)
     backend = MySQLBackend(connection_config=config)

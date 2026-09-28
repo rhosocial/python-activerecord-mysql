@@ -41,7 +41,7 @@ def transfer_money(from_account, to_account, amount):
 ### 2. 捕获死锁错误
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 
 backend = MySQLBackend(

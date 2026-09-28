@@ -4,7 +4,8 @@
 named-expression requires connection arguments, output arguments, and --rich-ascii.
 """
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.options import ExecutionOptions
 
 from .connection import create_connection_parent_parser, resolve_connection_config_from_args

@@ -7,7 +7,8 @@ Savepoint 允许在事务中创建中间保存点，实现部分回滚。
 ## 使用 Savepoint
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 config = MySQLConnectionConfig(

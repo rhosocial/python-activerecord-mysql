@@ -24,7 +24,7 @@ from rhosocial.activerecord.backend.expression import (
     WildcardExpression,
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, VarCharType
-from rhosocial.activerecord.backend.impl.mysql import MySQLExplainResult, MySQLExplainRow
+from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult, MySQLExplainRow
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,

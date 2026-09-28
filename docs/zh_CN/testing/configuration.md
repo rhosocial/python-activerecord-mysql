@@ -10,9 +10,8 @@
 
 ```python
 from rhosocial.activerecord.model import ActiveRecord
-from rhosocial.activerecord.backend.impl.dummy import DummyBackend, DummyConnectionConfig
-
-
+from rhosocial.activerecord.backend.impl.dummy.backend import DummyBackend
+rhosocial.activerecord.backend.config import ConnectionConfig
 class User(ActiveRecord):
     name: str
     email: str
@@ -25,7 +24,7 @@ class User(ActiveRecord):
 
 
 # 配置 Dummy 后端
-config = DummyConnectionConfig()
+config = ConnectionConfig()
 User.configure(config, DummyBackend)
 ```
 
@@ -34,7 +33,8 @@ User.configure(config, DummyBackend)
 对于需要真实数据库行为的测试，可以使用 SQLite 后端：
 
 ```python
-from rhosocial.activerecord.backend.impl.sqlite import SQLiteBackend, SQLiteConnectionConfig
+from rhosocial.activerecord.backend.impl.sqlite.backend import SQLiteBackend
+from rhosocial.activerecord.backend.impl.sqlite.config import SQLiteConnectionConfig
 
 
 class User(ActiveRecord):
@@ -59,7 +59,8 @@ User.configure(config, SQLiteBackend)
 
 ```python
 import os
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 class User(ActiveRecord):
@@ -88,7 +89,8 @@ User.configure(config, MySQLBackend)
 
 ```python
 import pytest
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 @pytest.fixture

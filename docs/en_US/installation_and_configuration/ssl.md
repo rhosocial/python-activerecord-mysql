@@ -7,7 +7,7 @@ When the MySQL server has a valid CA-signed certificate, clients can connect wit
 ## Basic Usage (No Additional Configuration Required)
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 # When server certificate is signed by a trusted CA and is valid, no additional config needed
 backend = MySQLBackend(
@@ -50,7 +50,7 @@ backend = MySQLBackend(**config)
 ## Verify SSL Connection
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(
     host='mysql.example.com',

@@ -12,7 +12,7 @@ from contextlib import redirect_stderr, redirect_stdout
 
 import pytest
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.__main__ import main
 from providers.scenarios import get_scenario_raw
 

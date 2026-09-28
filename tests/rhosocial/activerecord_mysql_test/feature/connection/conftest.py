@@ -14,7 +14,8 @@ import pytest
 import pytest_asyncio
 import yaml
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.connection.pool import (
     PoolConfig,

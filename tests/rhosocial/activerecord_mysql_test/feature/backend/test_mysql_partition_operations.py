@@ -28,7 +28,7 @@ from rhosocial.activerecord.backend.expression import (
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql import ShowCreateTableExpression
+from rhosocial.activerecord.backend.impl.mysql.show import ShowCreateTableExpression
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLAddPartitionExpression,
     MySQLCoalescePartitionExpression,

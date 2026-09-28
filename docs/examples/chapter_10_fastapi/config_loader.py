@@ -10,7 +10,7 @@ _src = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..",
 if _src not in sys.path:
     sys.path.insert(0, _src)
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 def load_config() -> MySQLConnectionConfig:

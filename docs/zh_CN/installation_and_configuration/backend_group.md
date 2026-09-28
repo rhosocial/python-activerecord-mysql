@@ -6,7 +6,8 @@
 
 ```python
 from rhosocial.activerecord.connection import BackendGroup
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.model import ActiveRecord
 
 

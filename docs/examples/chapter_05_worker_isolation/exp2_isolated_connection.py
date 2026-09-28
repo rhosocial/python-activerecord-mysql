@@ -79,7 +79,7 @@ def worker_task_isolated_connection(
 
     This is the correct approach for process-based parallelism.
     """
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
     from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     from models import User, Order, Post, Comment, ALL_MODELS
 
@@ -211,7 +211,7 @@ def run_experiment(config_dict: Dict[str, Any], num_workers: int, ops_per_worker
 
     # Setup initial database state (in main process)
     print("Step 1: Setting up database...")
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
     from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     from models import User, ALL_MODELS
     from config import setup_database

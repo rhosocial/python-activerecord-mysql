@@ -7,7 +7,7 @@ MySQL Full-Text Search example - MATCH...AGAINST.
 # ============================================================
 import os
 
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(

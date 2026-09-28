@@ -93,7 +93,7 @@ def worker_task(
         use_isolated: If True, use isolated connection (correct pattern)
                      If False, use shared connection (anti-pattern)
     """
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
     from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     from models import User, Order, Post, Comment, ALL_MODELS
 
@@ -234,7 +234,7 @@ def run_endurance_test(
     stats = ExperimentStats()
 
     # Setup database
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
     from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     from models import User, ALL_MODELS
     from config import setup_database
