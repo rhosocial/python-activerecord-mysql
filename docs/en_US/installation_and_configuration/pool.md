@@ -36,7 +36,7 @@ backend.connect()     # opens one persistent connection
 
 ```python
 import asyncio
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
@@ -68,7 +68,7 @@ Configure your models once at application startup (not inside request handlers).
 # application startup (e.g., FastAPI lifespan)
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from myapp.models import User, Order
 

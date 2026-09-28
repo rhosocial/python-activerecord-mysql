@@ -39,7 +39,7 @@ from ..expression.show import (
 
 if TYPE_CHECKING:
     from ..backend import MySQLBackend
-    from ..async_backend import AsyncMySQLBackend
+    from .async_backend import AsyncMySQLBackend
 
 
 class MySQLShowFunctionality:

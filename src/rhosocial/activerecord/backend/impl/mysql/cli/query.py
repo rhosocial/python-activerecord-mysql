@@ -10,7 +10,7 @@ import logging
 import sys
 
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 
 from .connection import add_connection_args, resolve_connection_config_from_args

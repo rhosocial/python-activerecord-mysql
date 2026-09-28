@@ -101,7 +101,7 @@ if __name__ == "__main__":
 ```python
 import asyncio
 import multiprocessing
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from models import AsyncComment, AsyncPost, AsyncUser
 
@@ -866,7 +866,7 @@ In FastAPI + MySQL + async backend scenario:
 # database.py - Request-level connection manager
 from contextlib import asynccontextmanager
 from rhosocial.activerecord.connection import AsyncBackendGroup
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 @asynccontextmanager
 async def get_request_db():

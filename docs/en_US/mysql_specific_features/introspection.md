@@ -230,7 +230,7 @@ for collation in collations:
 The async backend provides identical introspection methods with the same names as the sync version:
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 backend = AsyncMySQLBackend(
     host="localhost",

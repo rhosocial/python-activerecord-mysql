@@ -36,7 +36,7 @@ backend.connect()     # 建立一条持久连接
 
 ```python
 import asyncio
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 config = MySQLConnectionConfig(
@@ -68,7 +68,7 @@ asyncio.run(main())
 # 应用启动（以 FastAPI lifespan 为例）
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from myapp.models import User, Order
 

@@ -141,7 +141,7 @@ class FastAPIBenchmarkProvider:
         await self._cleanup_async()
 
     async def _setup_async_model(self, model_class: Type[ActiveRecord], scenario: str) -> Type[ActiveRecord]:
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
         _, config = get_scenario(scenario)
         await model_class.configure(config, AsyncMySQLBackend)
@@ -156,7 +156,7 @@ class FastAPIBenchmarkProvider:
         await backend.execute(self._schema_sql(), options=ddl_options)
 
     def _create_async_context_factory(self, config):
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
         @asynccontextmanager
         async def context_factory():
@@ -173,7 +173,7 @@ class FastAPIBenchmarkProvider:
             raise ValueError(f"unsupported FastAPI benchmark connection strategy: {connection_strategy}") from exc
 
     async def _create_async_pool(self, config, runtime_config):
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
         from rhosocial.activerecord.connection.pool import AsyncBackendPool, PoolConfig
 
         pool_config = PoolConfig(

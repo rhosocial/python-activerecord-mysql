@@ -94,7 +94,7 @@ def mysql_backend_sync_context(request, benchmark_size):
 
 @pytest.fixture(scope="function", params=SCENARIO_PARAMS)
 def mysql_backend_async_context(request, benchmark_size):
-    from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
     scenario = request.param
     _, config = get_scenario(scenario)

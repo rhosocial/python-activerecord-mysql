@@ -122,7 +122,7 @@ class CrudBenchmarkProvider:
         return model_class
 
     async def _setup_async_model(self, model_class: Type[ActiveRecord], scenario: str) -> Type[ActiveRecord]:
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
         _, config = get_scenario(scenario)
         await model_class.configure(config, AsyncMySQLBackend)

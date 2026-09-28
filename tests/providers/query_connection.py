@@ -109,7 +109,7 @@ class QueryConnectionProvider(IQueryConnectionProvider):
 
     async def setup_async_pool_and_model(self, scenario_name: str) -> Tuple[AsyncBackendPool, Type[AsyncActiveRecord]]:
         """Setup async connection pool and model for query context tests."""
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
         _, config = get_scenario(scenario_name)
 

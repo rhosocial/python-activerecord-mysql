@@ -38,7 +38,7 @@ _src = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..",
 if _src not in sys.path:
     sys.path.insert(0, _src)
 
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 from config_loader import load_config  # noqa: E402

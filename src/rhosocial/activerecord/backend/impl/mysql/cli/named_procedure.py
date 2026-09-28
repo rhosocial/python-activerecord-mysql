@@ -5,7 +5,7 @@ named-procedure requires connection arguments, output arguments, and --rich-asci
 """
 
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 from .connection import create_connection_parent_parser, resolve_connection_config_from_args
 from .output import create_provider

@@ -229,7 +229,7 @@ for collation in collations:
 异步后端提供相同的内省方法，方法名与同步版本相同：
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 backend = AsyncMySQLBackend(
     host="localhost",

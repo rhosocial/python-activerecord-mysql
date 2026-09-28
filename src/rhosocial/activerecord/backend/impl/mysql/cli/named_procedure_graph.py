@@ -64,7 +64,7 @@ def handle(args):
 
         def backend_async_factory():
             nonlocal async_backend
-            from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend
+            from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
             config = resolve_connection_config_from_args(args)
             async_backend = AsyncMySQLBackend(connection_config=config)
