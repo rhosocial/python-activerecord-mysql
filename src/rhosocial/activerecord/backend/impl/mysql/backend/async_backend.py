@@ -147,7 +147,7 @@ class AsyncMySQLBackend(
     def _create_introspector(self) -> Any:
         """Create an AsyncMySQLIntrospector backed by an AsyncIntrospectorExecutor."""
         from rhosocial.activerecord.backend.introspection.executor import AsyncIntrospectorExecutor
-        from .introspection import AsyncMySQLIntrospector
+        from ..introspection import AsyncMySQLIntrospector
 
         return AsyncMySQLIntrospector(self, AsyncIntrospectorExecutor(self))
 
@@ -650,7 +650,7 @@ class AsyncMySQLBackend(
         MySQLBackendMixin) because _ExplainMixinBase appears earlier in the MRO
         and would otherwise take precedence.
         """
-        from .explain import MySQLExplainResult, MySQLExplainRow
+        from ..explain import MySQLExplainResult, MySQLExplainRow
 
         rows = [MySQLExplainRow(**r) for r in raw_rows]
         return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)
