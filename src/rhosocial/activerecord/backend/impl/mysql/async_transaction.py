@@ -18,7 +18,7 @@ from rhosocial.activerecord.backend.transaction import (
 from .mixins import MySQLTransactionMixin
 
 if TYPE_CHECKING:
-    from .async_backend import AsyncMySQLBackend
+    from .backend.async_backend import AsyncMySQLBackend
 
 
 class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManager):
