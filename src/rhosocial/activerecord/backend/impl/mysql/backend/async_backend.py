@@ -188,16 +188,18 @@ class AsyncMySQLBackend(
                 "sql_mode": getattr(self.config, "sql_mode", "STRICT_TRANS_TABLES"),
             }
 
-            # Add SSL parameters if provided
-            if hasattr(self.config, "ssl_ca"):
+            # Add SSL parameters. Certificate material is only forwarded when it
+            # is actually set, so mysql-connector's own defaults stay in effect
+            # for everything the caller did not ask for.
+            if self.config.ssl_ca:
                 conn_params["ssl_ca"] = self.config.ssl_ca
-            if hasattr(self.config, "ssl_cert"):
+            if self.config.ssl_cert:
                 conn_params["ssl_cert"] = self.config.ssl_cert
-            if hasattr(self.config, "ssl_key"):
+            if self.config.ssl_key:
                 conn_params["ssl_key"] = self.config.ssl_key
-            if hasattr(self.config, "ssl_verify_cert"):
+            if self.config.ssl_verify_cert:
                 conn_params["ssl_verify_cert"] = self.config.ssl_verify_cert
-            if hasattr(self.config, "ssl_verify_identity"):
+            if self.config.ssl_verify_identity:
                 conn_params["ssl_verify_identity"] = self.config.ssl_verify_identity
 
             # Add additional parameters if they exist in config
@@ -218,6 +220,8 @@ class AsyncMySQLBackend(
                 "client_flags",
                 "unix_socket",
                 "ssl_disabled",
+                "tls_versions",
+                "tls_ciphersuites",
                 # Note: Connection pool parameters (pool_name, pool_size,
                 # pool_pre_ping, etc.) are not supported by async connector
             ]
