@@ -901,9 +901,9 @@ git push origin --delete release/v1.2.0  # Optional
 
 - Require pull request reviews (minimum 1 approval)
 - **Require status checks to pass**:
-  - `test-with-coverage` (Python 3.14 with coverage ≥90%)
-  - `test-other-versions` (Python 3.8-3.13 compatibility)
-  - `test-free-threaded` (Python 3.13t, 3.14t)
+  - `test` (Python 3.14 with coverage ≥90%)
+  - `test` (Python 3.8-3.13 compatibility)
+  - `test` (Python 3.13t, 3.14t)
 - **Require branches to be up to date before merge**
 - **Require linear history** (no merge commits)
 - Include administrators in restrictions
@@ -2743,54 +2743,43 @@ git push origin maint/1.2.x v1.2.6
 
 ### Capability Declaration System
 
-Backends MUST declare their supported capabilities using the `DatabaseCapabilities` system:
+There is **no** `rhosocial.activerecord.backend.capabilities` module, and no
+`DatabaseCapabilities` / `CapabilityCategory` / `CTECapability` classes, and no
+`_initialize_capabilities()` hook. Capabilities are declared the ordinary way:
+the dialect implements a Protocol from
+`rhosocial.activerecord.backend.dialect.protocols` and answers a
+`supports_*` switch.
 
 ```python
-# Backend capability declaration example
-from rhosocial.activerecord.backend.capabilities import (
-    DatabaseCapabilities,
-    CapabilityCategory,
-    CTECapability,
-    WindowFunctionCapability,
-)
+# mixins/cte.py on the MySQL backend -- the real mechanism
+from rhosocial.activerecord.backend.dialect.protocols import CTESupport
 
-class MySQLBackend(StorageBackend):
-    def _initialize_capabilities(self):
-        """Declare backend capabilities based on server version."""
-        capabilities = DatabaseCapabilities()
-        version = self.get_server_version()
-        
-        # CTEs supported from MySQL 8.0+
-        if version >= (8, 0, 0):
-            capabilities.add_cte([
-                CTECapability.BASIC_CTE,
-                CTECapability.RECURSIVE_CTE,
-            ])
-        
-        # Window functions from MySQL 8.0+
-        if version >= (8, 0, 0):
-            capabilities.add_window_function(ALL_WINDOW_FUNCTIONS)
-        
-        return capabilities
+class MySQLCTEMixin(CTESupport):
+    def supports_basic_cte(self) -> bool:
+        return self.version >= (8, 0, 0)
+
+    def supports_recursive_cte(self) -> bool:
+        return self.version >= (8, 0, 0)
 ```
+
+`SQLDialectBase` is adapted to the live server on connect
+(`backend.introspect_and_adapt()`), which is what populates `self.version` the
+gates compare against. A `version` of `None` means "not adapted", and every
+gate then raises `DialectNotAdaptedException`.
 
 ### Capability-Driven Test Execution
 
-Tests automatically skip when required capabilities are unavailable:
+Tests branch on the same `supports_*` switches rather than on a decorator:
 
 ```python
-from rhosocial.activerecord.backend.capabilities import (
-    CapabilityCategory,
-    CTECapability,
-)
-from rhosocial.activerecord.testsuite.utils import requires_capability
-
-@requires_capability(CapabilityCategory.CTE, CTECapability.RECURSIVE_CTE)
-def test_recursive_cte(tree_fixtures):
-    """Test requires recursive CTE support."""
-    Node = tree_fixtures[0]
-    # Test implementation
+dialect = backend.dialect
+if dialect.supports_recursive_cte():
+    ...  # exercise the recursive-CTE path
 ```
+
+Note that `supports_*` names are not uniform: some take an argument (for
+example `supports_collation_name(name)`, `supports_json_table()`), and many
+take none.
 
 **Capability Version Tracking**:
 
@@ -3021,7 +3010,7 @@ rhosocial-activerecord-{backend}/
 
 **Backend Class**: `{Backend}Backend`
 
-- Examples: `MySQLBackend`, `PostgreSQLBackend`
+- Examples: `MySQLBackend`, `PostgresBackend` (note: not `PostgreSQLBackend`)
 
 #### Interface Compliance
 
@@ -3030,7 +3019,7 @@ All backends MUST implement:
 1. **StorageBackend Interface**:
 
    ```python
-   from rhosocial.activerecord.backend import StorageBackend
+   from rhosocial.activerecord.backend.base import StorageBackend
    
    class MyBackend(StorageBackend):
        def connect(self) -> None: ...
@@ -3045,20 +3034,24 @@ All backends MUST implement:
 
 2. **Capability Declaration**:
 
+   There is no `_initialize_capabilities()` and no `DatabaseCapabilities`
+   object. Declare capabilities by implementing the `supports_*` switches on
+   the dialect:
+
    ```python
-   def _initialize_capabilities(self) -> DatabaseCapabilities:
-       """Declare backend capabilities."""
-       capabilities = DatabaseCapabilities()
-       # Add supported capabilities based on version/config
-       return capabilities
+   def supports_basic_cte(self) -> bool:
+       return self.version >= (8, 0, 0)
    ```
 
 3. **Test Provider Implementation**:
 
    ```python
-   from rhosocial.activerecord.testsuite.core import IProvider
+   # There is no `IProvider`. The testsuite defines per-category interfaces:
+   # IBasicProvider, IQueryProvider, IRelationProvider, IEventsProvider,
+   # IMixinsProvider (see tests/providers/registry.py).
+   from rhosocial.activerecord.testsuite.core import IBasicProvider
    
-   class MyBackendProvider(IProvider):
+   class MyBackendProvider(IBasicProvider):
        def setup_fixtures(self, scenario: str) -> Tuple[Type[ActiveRecord], ...]:
            # Setup models and schemas
            pass
@@ -3070,36 +3063,31 @@ All backends MUST implement:
 
 #### Capability Declaration Requirements
 
-Backends MUST accurately declare capabilities:
+Backends MUST answer the `supports_*` switches truthfully, against the real
+`self.version` populated by `introspect_and_adapt()`:
 
 ```python
-def _initialize_capabilities(self):
-    capabilities = DatabaseCapabilities()
-    version = self.get_server_version()
-    
-    # Example: MySQL 8.0+ features
-    if version >= (8, 0, 0):
-        capabilities.add_cte([
-            CTECapability.BASIC_CTE,
-            CTECapability.RECURSIVE_CTE,
-        ])
-        capabilities.add_window_function(ALL_WINDOW_FUNCTIONS)
-    
-    # JSON operations
-    if version >= (5, 7, 0):
-        capabilities.add_json([
-            JSONCapability.JSON_EXTRACT,
-            JSONCapability.JSON_SET,
-        ])
-    
-    return capabilities
+# mixins/cte.py
+def supports_basic_cte(self) -> bool:
+    return self.version >= (8, 0, 0)
+
+# mixins/window.py
+def supports_window_functions(self) -> bool:
+    return self.version >= (8, 0, 0)
+
+# mixins/json.py -- note the patch level: 5.7.0 is NOT enough
+def supports_json_type(self) -> bool:
+    return self.version >= (5, 7, 8)
 ```
 
 **Capability Testing**:
 
-- Backend must pass all tests for declared capabilities
-- Tests automatically skip for unsupported capabilities
-- False capability declarations fail during CI
+- Tests branch on the same switches the renderer consults
+- A gate that claims a feature the server lacks fails at DDL time, not
+  silently
+- The version ladder used to exercise gates is a *lower bound*: probe below
+  the oldest real release too, or a capability that is really "available
+  everywhere" gets misreported as gated at the floor
 
 #### Version Management for Extensions
 
@@ -3177,7 +3165,7 @@ Forks creating independent implementations have full autonomy but should:
 
    ```python
    # Still use rhosocial.activerecord namespace
-   from rhosocial.activerecord.backend import StorageBackend
+   from rhosocial.activerecord.backend.base import StorageBackend
    ```
 
 2. **Document Compatibility**:

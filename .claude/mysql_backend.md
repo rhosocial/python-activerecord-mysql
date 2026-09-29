@@ -14,18 +14,18 @@ The `rhosocial-activerecord-mysql` repository provides a MySQL-specific backend 
 ### Repository Structure
 - `src/rhosocial/activerecord/backend/impl/mysql/` - Core MySQL backend implementation
 - `tests/` - MySQL-specific tests and shared test suite adapters
-- `.gemini/` - Knowledge base and AI assistant guidance
+- `.claude/` - Knowledge base and AI assistant guidance
 
 ## Core Components
 
 ### Backend Implementation
 The MySQL backend is implemented in several key files:
 
-- `backend.py` - Core MySQL backend class implementation
+- `backend/backend.py` - Core MySQL backend class implementation
 - `config.py` - MySQL-specific configuration handling
 - `dialect.py` - MySQL-specific SQL dialect and syntax
 - `types.py` - MySQL-specific data type handling
-- `type_converters.py` - Type conversion utilities for MySQL
+- `adapters.py` - Type conversion utilities for MySQL
 - `transaction.py` - MySQL-specific transaction handling
 
 ### Key Features
@@ -33,8 +33,8 @@ The MySQL backend is implemented in several key files:
 #### MySQL-Specific Capabilities
 1. **JSON Type Support**: Full support for MySQL's native JSON data type
 2. **Full-Text Search**: Integration with MySQL's MATCH...AGAINST functionality
-3. **Window Functions**: Support for MySQL 8.0+ window functions
-4. **Common Table Expressions**: Support for recursive and materialized CTEs
+3. **Window Functions**: gated on MySQL >= 8.0.0 (`supports_window_functions()`)
+4. **Common Table Expressions**: `supports_basic_cte` / `supports_recursive_cte` gate at 8.0.0, but `supports_unconditional_cte_order_by` needs 8.0.31
 5. **Connection Pooling**: Built-in support for MySQL connection pooling
 6. **Enum/Set Types**: Support for MySQL-specific ENUM and SET data types
 
@@ -51,14 +51,14 @@ The MySQL backend is implemented in several key files:
 2. **MySQL-Specific Tests**: Validates MySQL-specific functionality
 
 ### Test Configuration
-- Tests require a MySQL server (version 8.0+ recommended)
-- Configuration via `tests/config.yml` or environment variables
+- Tests require a MySQL server. CI covers 5.6 through 9.7, with a narrowed schema on 5.6/5.7
+- Configuration via `tests/config/mysql_scenarios.yaml` or environment variables
 - Schema conversion from shared SQLite schemas to MySQL syntax
 
 ## Configuration and Setup
 
 ### MySQL Server Requirements
-- MySQL version 8.0 or higher (for full feature support)
+- MySQL 5.6 or higher (8.0+ for the full feature set)
 - Required plugins: JSON, Full-text search (if using those features)
 
 ### Configuration Options
@@ -74,10 +74,7 @@ config = {
     'charset': 'utf8mb4',
     'autocommit': True,
     'pool_size': 10,
-    'pool_name': 'activerecord_pool',
-    'connection_timeout': 10,
-    'read_timeout': 10,
-    'write_timeout': 10
+    'pool_name': 'activerecord_pool'
 }
 ```
 
@@ -149,8 +146,8 @@ results = Article.where(
 - JSON_TABLE function
 - Descending indexes
 
-### MySQL 5.7+ Features
-- Native JSON data type
+### MySQL 5.7.8+ Features
+- Native JSON data type (`supports_json_type()` gates on 5.7.8; arrow operators need 5.7.9, `JSON_MERGE_PATCH` 8.0.3, `JSON_SCHEMA_VALID` 8.0.17, `JSON_VALUE` 8.0.21)
 - JSON functions (JSON_EXTRACT, JSON_SEARCH, etc.)
 
 ### Legacy Support
