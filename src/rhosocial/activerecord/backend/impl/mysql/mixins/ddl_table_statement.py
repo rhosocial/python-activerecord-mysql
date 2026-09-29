@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/mixins/table_statement.py
+# src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table_statement.py
 from typing import List, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover

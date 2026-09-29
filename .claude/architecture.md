@@ -16,22 +16,23 @@
 ```
 python-activerecord-mysql/
 ├── src/rhosocial/activerecord/backend/impl/mysql/
-│   ├── __init__.py           # Backend initialization
 │   ├── __main__.py           # CLI entry point
-│   ├── backend.py            # Sync backend implementation
-│   ├── async_backend.py      # Async backend implementation
+│   ├── backend/              # sync + async backend classes
+│   │   ├── backend.py        # MySQLBackend
+│   │   ├── async_backend.py  # AsyncMySQLBackend
+│   │   └── common.py
 │   ├── config.py             # Configuration
 │   ├── dialect.py            # MySQL dialect
 │   ├── protocols.py          # Protocol definitions
 │   ├── transaction.py        # Transaction management
 │   ├── adapters.py           # Type adapters
-│   ├── mixins.py             # MySQL-specific mixins
+│   ├── mixins/               # MySQL-specific mixins (45+ modules)
 │   ├── types.py              # MySQL-specific types
+│   ├── reserved_words.py     # Version-aware reserved word list
 │   ├── cli/                  # CLI commands
 │   ├── expression/           # MySQL-specific expressions
 │   │   ├── json.py           # JSON functions
 │   │   ├── match_against.py  # FULLTEXT search
-│   │   ├── locking.py        # Locking expressions
 │   │   └── spatial.py        # Spatial functions
 │   ├── functions/            # MySQL-specific functions
 │   ├── introspection/        # Schema introspection

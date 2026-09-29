@@ -16,7 +16,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
 
 @pytest.fixture
 def dialect():
-    from rhosocial.activerecord.backend.impl.mysql import MySQLDialect
+    from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
     return MySQLDialect((8, 0, 0))
 

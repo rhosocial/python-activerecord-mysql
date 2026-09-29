@@ -90,10 +90,8 @@ class User(UUIDMixin, TimestampMixin, ActiveRecord):
 ### 3. 配置后端
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import (
-    MySQLBackend,
-    MySQLConnectionConfig,
-)
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 # 配置 MySQL 连接
 config = MySQLConnectionConfig(

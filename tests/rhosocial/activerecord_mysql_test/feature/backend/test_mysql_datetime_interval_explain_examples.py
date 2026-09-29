@@ -19,7 +19,7 @@ from rhosocial.activerecord.backend.expression.functions import (
     extract,
 )
 from rhosocial.activerecord.backend.expression.query_parts import OrderByClause
-from rhosocial.activerecord.backend.impl.mysql import MySQLExplainResult
+from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 

@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/mixins/table.py
+# src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py
 from typing import Any, List, TYPE_CHECKING, Tuple
 import re
 

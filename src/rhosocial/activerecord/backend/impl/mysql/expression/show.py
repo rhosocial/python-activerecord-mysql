@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/show/expressions.py
+# src/rhosocial/activerecord/backend/impl/mysql/expression/show.py
 """
 MySQL SHOW command expression classes.
 

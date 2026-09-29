@@ -192,7 +192,7 @@ class EventsAsyncProvider(EventsProviderBase, IEventsAsyncProvider):
     async def _setup_async_model(
         self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str
     ) -> Type[ActiveRecord]:
-        from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
         from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression

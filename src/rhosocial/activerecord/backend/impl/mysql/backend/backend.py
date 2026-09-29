@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/backend.py
+# src/rhosocial/activerecord/backend/impl/mysql/backend/backend.py
 """
 MySQL-specific implementation of the StorageBackend.
 
@@ -29,10 +29,10 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from rhosocial.activerecord.backend.explain import SyncExplainBackendMixin
-from .config import MySQLConnectionConfig
-from .dialect import MySQLDialect
-from .transaction import MySQLTransactionManager
-from .mixins import MySQLBackendMixin, MySQLConcurrencyMixin
+from ..config import MySQLConnectionConfig
+from ..dialect import MySQLDialect
+from ..transaction import MySQLTransactionManager
+from ..mixins import MySQLBackendMixin, MySQLConcurrencyMixin
 
 
 class MySQLBackend(
@@ -145,7 +145,7 @@ class MySQLBackend(
     def _create_introspector(self) -> Any:
         """Create a SyncMySQLIntrospector backed by a SyncIntrospectorExecutor."""
         from rhosocial.activerecord.backend.introspection.executor import SyncIntrospectorExecutor
-        from .introspection import SyncMySQLIntrospector
+        from ..introspection import SyncMySQLIntrospector
 
         return SyncMySQLIntrospector(self, SyncIntrospectorExecutor(self))
 
@@ -187,16 +187,18 @@ class MySQLBackend(
                 "sql_mode": getattr(self.config, "sql_mode", "STRICT_TRANS_TABLES"),
             }
 
-            # Add SSL parameters if provided
-            if hasattr(self.config, "ssl_ca"):
+            # Add SSL parameters. Certificate material is only forwarded when it
+            # is actually set, so mysql-connector's own defaults stay in effect
+            # for everything the caller did not ask for.
+            if self.config.ssl_ca:
                 conn_params["ssl_ca"] = self.config.ssl_ca
-            if hasattr(self.config, "ssl_cert"):
+            if self.config.ssl_cert:
                 conn_params["ssl_cert"] = self.config.ssl_cert
-            if hasattr(self.config, "ssl_key"):
+            if self.config.ssl_key:
                 conn_params["ssl_key"] = self.config.ssl_key
-            if hasattr(self.config, "ssl_verify_cert"):
+            if self.config.ssl_verify_cert:
                 conn_params["ssl_verify_cert"] = self.config.ssl_verify_cert
-            if hasattr(self.config, "ssl_verify_identity"):
+            if self.config.ssl_verify_identity:
                 conn_params["ssl_verify_identity"] = self.config.ssl_verify_identity
 
             # Add additional parameters if they exist in config
@@ -217,6 +219,8 @@ class MySQLBackend(
                 "client_flags",
                 "unix_socket",
                 "ssl_disabled",
+                "tls_versions",
+                "tls_ciphersuites",
                 # Note: pool_pre_ping is not supported by mysql.connector
             ]
 
@@ -650,7 +654,7 @@ class MySQLBackend(
         MySQLBackendMixin) because _ExplainMixinBase appears earlier in the MRO
         and would otherwise take precedence.
         """
-        from .explain import MySQLExplainResult, MySQLExplainRow
+        from ..explain import MySQLExplainResult, MySQLExplainRow
 
         rows = [MySQLExplainRow(**r) for r in raw_rows]
         return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)

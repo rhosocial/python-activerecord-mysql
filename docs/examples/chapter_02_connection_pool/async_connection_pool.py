@@ -37,7 +37,7 @@ def demonstrate_pool_config_ignored() -> None:
     print("=" * 60)
 
     try:
-        from rhosocial.activerecord.backend.impl.mysql import MySQLConnectionConfig  # type: ignore
+        from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     except ImportError:
         print("  (MySQLConnectionConfig not importable — skipping live check)")
         _demo_pool_config_ignored_static()
@@ -64,7 +64,7 @@ def demonstrate_pool_config_ignored() -> None:
 
     # Verify the async backend's connect() skips pool_* params
     try:
-        from rhosocial.activerecord.backend.impl.mysql.async_backend import AsyncMySQLBackend  # type: ignore
+        from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend  # type: ignore
         source = inspect.getsource(AsyncMySQLBackend.connect)
         skips_pool = "pool_" in source and "startswith('pool_')" in source
         print(f"\n  AsyncMySQLBackend.connect() skips pool_* params: {skips_pool}")

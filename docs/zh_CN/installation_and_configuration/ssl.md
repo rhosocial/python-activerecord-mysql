@@ -7,7 +7,7 @@
 ## 基础用法（无需额外配置）
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 # 服务器证书由可信机构签发且在有效期内时，无需额外配置
 backend = MySQLBackend(
@@ -50,7 +50,7 @@ backend = MySQLBackend(**config)
 ## 验证 SSL 连接
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(
     host='mysql.example.com',

@@ -26,7 +26,7 @@ if _src not in sys.path:
 
 from fastapi import Request
 from rhosocial.activerecord.connection import AsyncBackendGroup
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 from config_loader import load_config
 from models import AsyncUser, AsyncPost, AsyncComment

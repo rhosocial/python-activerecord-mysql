@@ -162,7 +162,8 @@ def prepare_orders_demo(backend) -> None:
 if __name__ == "__main__":
     import os
 
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
     config = MySQLConnectionConfig(
         host=os.getenv("MYSQL_HOST", "127.0.0.1"),

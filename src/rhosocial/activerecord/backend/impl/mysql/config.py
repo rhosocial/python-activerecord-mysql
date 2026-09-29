@@ -6,7 +6,7 @@ the base ConnectionConfig with MySQL-specific parameters and functionality.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import List, Optional, Dict, Any
 
 from rhosocial.activerecord.backend.config import (
     ConnectionConfig,
@@ -17,6 +17,13 @@ from rhosocial.activerecord.backend.config import (
     VersionMixin,
     LoggingMixin,
 )
+
+
+#: Generic SSLMixin fields that mysql-connector-python has no equivalent for.
+UNSUPPORTED_SSL_FIELDS = {
+    "ssl_mode": "MySQL negotiates TLS implicitly; use tls_versions/ssl_disabled instead",
+    "ssl_ciphers": "MySQL uses tls_ciphersuites (a list, e.g. ['TLSv1.3'])",
+}
 
 
 @dataclass
@@ -46,6 +53,25 @@ class MySQLConnectionConfig(
     get_warnings: bool = False
     ssl_disabled: Optional[bool] = None
 
+    # TLS protocol/cipher selection. mysql-connector-python exposes these
+    # directly; the generic ssl_mode/ssl_ciphers fields have no counterpart.
+    tls_versions: Optional[List[str]] = None
+    tls_ciphersuites: Optional[List[str]] = None
+
+    def validate(self) -> bool:
+        """Validate the configuration.
+
+        Raises:
+            ValueError: If a generic SSL field is set that mysql-connector-python
+                cannot honour. Failing loudly is deliberate: silently ignoring
+                it would leave the caller believing a weaker or different TLS
+                policy is in effect.
+        """
+        for field, hint in UNSUPPORTED_SSL_FIELDS.items():
+            if getattr(self, field, None):
+                raise ValueError(f"{field} is not supported by the MySQL backend. {hint}")
+        return True
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary, including MySQL-specific parameters."""
         # Get base config
@@ -62,6 +88,8 @@ class MySQLConnectionConfig(
             "use_pure": self.use_pure,
             "get_warnings": self.get_warnings,
             "ssl_disabled": self.ssl_disabled,
+            "tls_versions": self.tls_versions,
+            "tls_ciphersuites": self.tls_ciphersuites,
         }
 
         # Only include non-None values

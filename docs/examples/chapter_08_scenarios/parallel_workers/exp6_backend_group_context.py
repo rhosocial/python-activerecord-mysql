@@ -37,7 +37,7 @@ if _src not in sys.path:
     sys.path.insert(0, _src)
 
 from rhosocial.activerecord.connection import BackendGroup
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 from config_loader import load_config
 from models import Comment, Post, User

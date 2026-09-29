@@ -191,7 +191,7 @@ def handle(args):
     named_conn = getattr(args, "named_connection", None)
     if named_conn or args.database:
         try:
-            from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+            from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
             config = resolve_connection_config_from_args(args)
             backend = MySQLBackend(connection_config=config)

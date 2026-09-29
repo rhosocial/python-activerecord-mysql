@@ -9,7 +9,7 @@ This example demonstrates:
 """
 
 import os
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
 from rhosocial.activerecord.backend.expression import (

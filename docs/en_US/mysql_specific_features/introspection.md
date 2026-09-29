@@ -19,7 +19,7 @@ The MySQL introspection system is accessible via `backend.introspector` and prov
 ### Accessing the Introspector
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(
     host="localhost",
@@ -230,7 +230,7 @@ for collation in collations:
 The async backend provides identical introspection methods with the same names as the sync version:
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 backend = AsyncMySQLBackend(
     host="localhost",

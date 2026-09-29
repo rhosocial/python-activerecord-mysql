@@ -6,10 +6,8 @@ Tests for expression-level COLLATE support on MySQL.
 import pytest
 
 from rhosocial.activerecord.backend.expression import Column, Literal
-from rhosocial.activerecord.backend.impl.mysql import (
-    MySQLCollation,
-    MySQLDialect,
-)
+from rhosocial.activerecord.backend.impl.mysql.mixins import MySQLCollation
+from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 
 @pytest.fixture

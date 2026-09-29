@@ -50,7 +50,7 @@ print(OrderProcessingProcedure.static_diagram("sequence"))
 
 ```python
 from order_workflow import OrderProcessingProcedure
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(config)
 dialect = backend.get_dialect()

@@ -57,7 +57,7 @@ def worker_task_shared_connection(worker_id: int, num_operations: int, config_di
 
     WARNING: This will cause problems!
     """
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
     from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
     for model in ALL_MODELS:
@@ -161,7 +161,7 @@ def run_experiment(config_dict: Dict[str, Any], num_workers: int, ops_per_worker
 
     # Configure globally ONCE (this is the anti-pattern)
     print("Step 1: Configuring ActiveRecord globally (shared connection)...")
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
     from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
     config = MySQLConnectionConfig(**config_dict)

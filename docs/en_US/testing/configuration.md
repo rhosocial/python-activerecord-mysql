@@ -10,9 +10,8 @@ The `dummy` backend is recommended for unit tests as it does not require a real 
 
 ```python
 from rhosocial.activerecord.model import ActiveRecord
-from rhosocial.activerecord.backend.impl.dummy import DummyBackend, DummyConnectionConfig
-
-
+from rhosocial.activerecord.backend.impl.dummy.backend import DummyBackend
+rhosocial.activerecord.backend.config import ConnectionConfig
 class User(ActiveRecord):
     name: str
     email: str
@@ -25,7 +24,7 @@ class User(ActiveRecord):
 
 
 # Configure Dummy backend
-config = DummyConnectionConfig()
+config = ConnectionConfig()
 User.configure(config, DummyBackend)
 ```
 
@@ -34,7 +33,8 @@ User.configure(config, DummyBackend)
 For tests requiring real database behavior, use the SQLite backend:
 
 ```python
-from rhosocial.activerecord.backend.impl.sqlite import SQLiteBackend, SQLiteConnectionConfig
+from rhosocial.activerecord.backend.impl.sqlite.backend import SQLiteBackend
+from rhosocial.activerecord.backend.impl.sqlite.config import SQLiteConnectionConfig
 
 
 class User(ActiveRecord):
@@ -59,7 +59,8 @@ For complete MySQL behavior testing, use the MySQL backend:
 
 ```python
 import os
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 class User(ActiveRecord):
@@ -88,7 +89,8 @@ User.configure(config, MySQLBackend)
 
 ```python
 import pytest
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/async_backend.py
+# src/rhosocial/activerecord/backend/impl/mysql/backend/async_backend.py
 """
 Asynchronous MySQL-specific implementation of the AsyncStorageBackend.
 
@@ -30,10 +30,10 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from rhosocial.activerecord.backend.explain import AsyncExplainBackendMixin
-from .config import MySQLConnectionConfig
-from .dialect import MySQLDialect
-from .async_transaction import AsyncMySQLTransactionManager
-from .mixins import MySQLBackendMixin, AsyncMySQLConcurrencyMixin
+from ..config import MySQLConnectionConfig
+from ..dialect import MySQLDialect
+from ..async_transaction import AsyncMySQLTransactionManager
+from ..mixins import MySQLBackendMixin, AsyncMySQLConcurrencyMixin
 
 
 class AsyncMySQLBackend(
@@ -147,7 +147,7 @@ class AsyncMySQLBackend(
     def _create_introspector(self) -> Any:
         """Create an AsyncMySQLIntrospector backed by an AsyncIntrospectorExecutor."""
         from rhosocial.activerecord.backend.introspection.executor import AsyncIntrospectorExecutor
-        from .introspection import AsyncMySQLIntrospector
+        from ..introspection import AsyncMySQLIntrospector
 
         return AsyncMySQLIntrospector(self, AsyncIntrospectorExecutor(self))
 
@@ -188,16 +188,18 @@ class AsyncMySQLBackend(
                 "sql_mode": getattr(self.config, "sql_mode", "STRICT_TRANS_TABLES"),
             }
 
-            # Add SSL parameters if provided
-            if hasattr(self.config, "ssl_ca"):
+            # Add SSL parameters. Certificate material is only forwarded when it
+            # is actually set, so mysql-connector's own defaults stay in effect
+            # for everything the caller did not ask for.
+            if self.config.ssl_ca:
                 conn_params["ssl_ca"] = self.config.ssl_ca
-            if hasattr(self.config, "ssl_cert"):
+            if self.config.ssl_cert:
                 conn_params["ssl_cert"] = self.config.ssl_cert
-            if hasattr(self.config, "ssl_key"):
+            if self.config.ssl_key:
                 conn_params["ssl_key"] = self.config.ssl_key
-            if hasattr(self.config, "ssl_verify_cert"):
+            if self.config.ssl_verify_cert:
                 conn_params["ssl_verify_cert"] = self.config.ssl_verify_cert
-            if hasattr(self.config, "ssl_verify_identity"):
+            if self.config.ssl_verify_identity:
                 conn_params["ssl_verify_identity"] = self.config.ssl_verify_identity
 
             # Add additional parameters if they exist in config
@@ -218,6 +220,8 @@ class AsyncMySQLBackend(
                 "client_flags",
                 "unix_socket",
                 "ssl_disabled",
+                "tls_versions",
+                "tls_ciphersuites",
                 # Note: Connection pool parameters (pool_name, pool_size,
                 # pool_pre_ping, etc.) are not supported by async connector
             ]
@@ -650,7 +654,7 @@ class AsyncMySQLBackend(
         MySQLBackendMixin) because _ExplainMixinBase appears earlier in the MRO
         and would otherwise take precedence.
         """
-        from .explain import MySQLExplainResult, MySQLExplainRow
+        from ..explain import MySQLExplainResult, MySQLExplainRow
 
         rows = [MySQLExplainRow(**r) for r in raw_rows]
         return MySQLExplainResult(raw_rows=raw_rows, sql=sql, duration=duration, rows=rows)

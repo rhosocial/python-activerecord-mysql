@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 from typing import ClassVar
 from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.base import FieldProxy
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.expression import (
     ColumnDefinition,
     CreateTableExpression,
@@ -39,7 +39,7 @@ class User(ActiveRecord):
 
 def main():
     # Configure with MySQL backend
-    from rhosocial.activerecord.backend.impl.mysql import MySQLConnectionConfig
+    from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
     config = MySQLConnectionConfig(
         host=os.environ.get("MYSQL_HOST", "localhost"),

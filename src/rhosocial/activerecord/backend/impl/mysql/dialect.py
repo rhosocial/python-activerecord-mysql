@@ -400,6 +400,17 @@ class MySQLDialect(
         """
         return "ON DUPLICATE KEY"
 
+    def supports_on_conflict_clause(self) -> bool:
+        """Whether INSERT can carry an ON CONFLICT style clause.
+
+        MySQL expresses upsert via ON DUPLICATE KEY UPDATE.
+        """
+        return True
+
+    def supports_multiple_on_conflict_clauses(self) -> bool:
+        """MySQL's ON DUPLICATE KEY UPDATE allows only a single clause."""
+        return False
+
     def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
         """Format INSERT statement with MySQL-specific options.
 

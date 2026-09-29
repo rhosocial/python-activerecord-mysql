@@ -135,7 +135,8 @@ from rhosocial.activerecord.backend.named_expression import ProcedureRunner, Tra
 if __name__ == "__main__":
     import os
 
-    from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+    from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+    from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
     from rhosocial.activerecord.backend.impl.mysql.examples.named_expressions.order_expressions import (
         prepare_orders_demo,
     )

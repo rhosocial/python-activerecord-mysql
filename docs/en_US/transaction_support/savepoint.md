@@ -7,7 +7,8 @@ Savepoints allow creating intermediate checkpoints within a transaction, enablin
 ## Using Savepoints
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 config = MySQLConnectionConfig(

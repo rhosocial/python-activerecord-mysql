@@ -16,7 +16,8 @@ MySQL 支持多种事务隔离级别，不同的隔离级别决定了并发事�
 ## 设置隔离级别
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend, MySQLConnectionConfig
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 
 config = MySQLConnectionConfig(

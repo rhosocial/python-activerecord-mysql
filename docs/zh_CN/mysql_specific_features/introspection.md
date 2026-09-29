@@ -19,7 +19,7 @@ MySQL 内省系统位于 `backend.introspector` 属性中，提供：
 ### 访问内省器
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(
     host="localhost",
@@ -229,7 +229,7 @@ for collation in collations:
 异步后端提供相同的内省方法，方法名与同步版本相同：
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 
 backend = AsyncMySQLBackend(
     host="localhost",

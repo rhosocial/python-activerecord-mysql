@@ -18,7 +18,7 @@ from mysql.connector.errors import (
     OperationalError as MySQLOperationalError,
 )
 
-from rhosocial.activerecord.backend.impl.mysql import AsyncMySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.errors import (
     IntegrityError,
     DatabaseError,

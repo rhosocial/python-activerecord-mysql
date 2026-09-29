@@ -35,7 +35,7 @@ MySQL supports multiple character sets and collations. Correctly configuring cha
 Specify character set and collation when creating the backend:
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(
     host='localhost',

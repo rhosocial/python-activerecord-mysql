@@ -4,7 +4,7 @@
 import os
 from dataclasses import replace
 from typing import Dict, Any, Tuple, Type
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.testsuite.core.pool import pooled_database_name
 

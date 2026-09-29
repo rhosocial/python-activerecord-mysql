@@ -40,7 +40,7 @@ pip install mysql-connector-python
 ## 验证安装
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql import MySQLBackend
+from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 
 backend = MySQLBackend(
     host='localhost',
