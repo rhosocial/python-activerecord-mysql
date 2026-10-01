@@ -4,7 +4,40 @@
 
 MySQL has some specific SQL syntax and functions. This section covers commonly used MySQL-specific expressions.
 
+## Schema Names
+
+In MySQL, `schema` and `database` are the same thing under two names. A
+`schema_name` on a model or an expression therefore names a **database**:
+
+```python
+class Order(ActiveRecord):
+    __schema_name__ = "app"   # this is the database
+    __tablename__ = "orders"
+```
+
+```sql
+-- generated
+SELECT * FROM `app`.`orders`
+```
+
+Both spellings are accepted by the server, and they list the same things:
+
+```sql
+CREATE SCHEMA app;   -- same as CREATE DATABASE app
+SHOW SCHEMAS;        -- same as SHOW DATABASES
+```
+
+Two consequences worth knowing:
+
+- **Columns are not schema-qualified.** A column reference takes at most two
+  parts here, so `` `orders`.`id` `` is correct and a three-part reference is a
+  syntax error. The table carries the database; the column does not repeat it.
+- **`get_current_schema()` returns the current database.** The method name is
+  the shared API; the thing it reads is a database. It is `None` when no
+  database has been selected.
+
 ## DDL Statements
+
 
 ### CREATE TABLE ... LIKE
 
