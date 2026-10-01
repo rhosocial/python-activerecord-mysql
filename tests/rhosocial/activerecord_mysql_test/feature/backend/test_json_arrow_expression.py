@@ -15,6 +15,7 @@ from rhosocial.activerecord.backend.expression.advanced_functions import (
     JSONPathMode,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLSignedType, MySQLUnsignedType
 
 
 @pytest.fixture
@@ -43,7 +44,9 @@ class TestArrowExpression:
         assert params == ()
 
     def test_arrow_with_cast_types(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.age", "->>", mode=JSONPathMode.ARROW).cast("UNSIGNED")
+        expr = JSONExpression(
+            dialect, "data", "$.age", "->>", mode=JSONPathMode.ARROW
+        ).cast(MySQLUnsignedType(dialect))
         sql, params = expr.to_sql()
         assert sql == "CAST(`data`->>'$.age' AS UNSIGNED)"
         assert params == ()
@@ -102,7 +105,9 @@ class TestFunctionExpression:
         assert params == ()
 
     def test_function_with_cast_types(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.age", "->>", mode=JSONPathMode.FUNCTION).cast("SIGNED")
+        expr = JSONExpression(
+            dialect, "data", "$.age", "->>", mode=JSONPathMode.FUNCTION
+        ).cast(MySQLSignedType(dialect))
         sql, params = expr.to_sql()
         assert sql == "CAST(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.age')) AS SIGNED)"
         assert params == ()

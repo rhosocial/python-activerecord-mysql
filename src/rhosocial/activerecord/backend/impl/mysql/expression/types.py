@@ -68,6 +68,29 @@ class MySQLIntType(IntegerType):
         return {'IntegerType'}
 
 
+class MySQLSignedType(IntegerType):
+    """MySQL ``SIGNED`` — the integer cast idiom ``CAST(x AS SIGNED)``.
+
+    MySQL spells "cast this to a signed integer" as a cast to a type named
+    SIGNED rather than to INTEGER, and rejects the two as different. Modelling
+    it keeps ``cast`` from rendering something the server will not accept.
+    """
+
+    name = "mysql_signed"
+
+    def _type_params(self) -> tuple:
+        return ()
+
+
+class MySQLUnsignedType(IntegerType):
+    """MySQL ``UNSIGNED`` — the unsigned counterpart of :class:`MySQLSignedType`."""
+
+    name = "mysql_unsigned"
+
+    def _type_params(self) -> tuple:
+        return ()
+
+
 class MySQLTinyIntType(TinyIntType):
     """MySQL ``TINYINT`` with optional UNSIGNED / ZEROFILL."""
 
