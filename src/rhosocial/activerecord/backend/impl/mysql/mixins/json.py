@@ -20,6 +20,16 @@ class MySQLJSONFunctionMixin:
     def supports_json_type(self) -> bool:
         return self.version >= (5, 7, 8)
 
+    def supports_json_path(self) -> bool:
+        """Whether a JSON path can be read on this server.
+
+        Gate is 5.7.0, where JSON_EXTRACT appeared, not 5.7.8 where the native
+        JSON type did. Between those two versions the server reads a path
+        perfectly well and has no JSON column type, so gating on the type
+        would refuse queries it answers.
+        """
+        return self.version >= (5, 7, 0)
+
     def supports_json_merge_patch(self) -> bool:
         return self.version >= (8, 0, 3)
 
