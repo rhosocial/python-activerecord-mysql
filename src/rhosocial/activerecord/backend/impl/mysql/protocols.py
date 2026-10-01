@@ -729,6 +729,27 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """Whether JSON data type is supported (MySQL 5.7+)."""
         ...
 
+    def supports_json_path(self) -> bool:
+        """Whether a JSON path can be read on this server (MySQL 5.7.0+).
+
+        Declared separately from supports_json_type because the two versions
+        differ: JSON_EXTRACT arrived in 5.7.0 and the JSON type in 5.7.8, so a
+        server can read a path with nothing to store the document in.
+        """
+        ...
+
+    def format_json_function_expression(self, expr) -> Tuple[str, tuple]:
+        """Render a JSON path with JSON_EXTRACT / JSON_UNQUOTE."""
+        ...
+
+    def format_json_arrow_expression(self, expr) -> Tuple[str, tuple]:
+        """Render a JSON path with the -> and ->> operators."""
+        ...
+
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Render a JSON_TABLE query."""
+        ...
+
     def supports_json_merge_patch(self) -> bool:
         """Whether JSON_MERGE_PATCH is supported (MySQL 8.0.3+)."""
         ...
