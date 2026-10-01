@@ -14,6 +14,7 @@ This module provides expression classes for MySQL spatial functions:
 - CreateSpatialIndexExpression
 """
 
+from rhosocial.activerecord.backend.expression.core import _validate_schema_name
 from typing import TYPE_CHECKING, Optional
 
 from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
@@ -271,9 +272,11 @@ class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValu
         column: str,
         *,
         alias: Optional[str] = None,
+        schema_name: Optional[str] = None,
     ):
         super().__init__(dialect)
         self.index_name = index_name
+        self.schema_name = _validate_schema_name(schema_name, type(self).__name__)
         self.table_name = table_name
         self.column = column
         self.alias = alias
