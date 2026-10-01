@@ -25,6 +25,7 @@ from rhosocial.activerecord.backend.dialect.mixins import DataTypeMixin
 from rhosocial.activerecord.backend.expression.types import (
     DataType,
     DecimalType,
+    EnumType,
     FloatType,
     IntegerType,
     TimestampType,
@@ -127,9 +128,17 @@ class TestSuggestedDataTypes:
         sql, _ = klass(dialect, 16).to_sql()
         assert sql == "BINARY(16)"
 
-    def test_enum_suggested_as_mysql_enum(self, dialect):
+    def test_enum_is_rendered_not_suggested(self, dialect):
+        """MySQL has a native ENUM, so the generic type is renderable here.
+
+        It used to be suggested as MySQLEnumType, which is a mapping meaning
+        "I cannot render this, use that instead" — said by a dialect that can.
+        A name in both sets is one of the two being a lie, so the generic type
+        is rendered and the suggestion went.
+        """
         suggestions = dialect.suggested_data_types()
-        assert suggestions.get("enum") is MySQLEnumType
+        assert "enum" not in suggestions
+        assert dialect.supports_data_types()["enum"] is EnumType
 
 
 class TestMySQLEnumRendering:
