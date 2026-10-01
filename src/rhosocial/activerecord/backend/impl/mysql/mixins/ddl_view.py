@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_view.py
 from typing import Tuple
+from ....expression.core import TableExpression
 
 
 class MySQLViewMixin:
@@ -40,7 +41,7 @@ class MySQLViewMixin:
             parts.append("OR REPLACE")
 
         parts.append("VIEW")
-        parts.append(self.format_view_name(expr))
+        parts.append(TableExpression(self, expr.view_name, schema_name=expr.schema_name).to_sql()[0])
 
         if expr.column_aliases:
             cols = ", ".join(self.format_identifier(c) for c in expr.column_aliases)
@@ -66,5 +67,5 @@ class MySQLViewMixin:
         parts = ["DROP VIEW"]
         if expr.if_exists:
             parts.append("IF EXISTS")
-        parts.append(self.format_view_name(expr))
+        parts.append(TableExpression(self, expr.view_name, schema_name=expr.schema_name).to_sql()[0])
         return " ".join(parts), ()
