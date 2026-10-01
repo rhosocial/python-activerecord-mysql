@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/vector.py
 from typing import List, Tuple
+from ....expression.core import TableExpression
 
 
 class MySQLVectorMixin:
@@ -111,8 +112,8 @@ class MySQLVectorMixin:
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "VECTOR indexes (requires MySQL 9.0.1+)")
         return (
-            f"CREATE VECTOR INDEX {self.format_identifier(expr.index_name)} "
-            f"ON {self.format_identifier(expr.table_name)} "
+            f"CREATE VECTOR INDEX {TableExpression(self, expr.index_name, schema_name=expr.schema_name).to_sql()[0]} "
+            f"ON {TableExpression(self, expr.table_name, schema_name=expr.schema_name).to_sql()[0]} "
             f"({self.format_identifier(expr.column)})",
             (),
         )

@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/fulltext.py
 from typing import Tuple
+from ....expression.core import TableExpression
 
 
 class MySQLFullTextSearchMixin:
@@ -36,7 +37,7 @@ class MySQLFullTextSearchMixin:
             )
 
         col_parts = [self.format_identifier(c) for c in expr.columns]
-        sql = f"FULLTEXT {self.format_identifier(expr.index_name)} ({', '.join(col_parts)})"
+        sql = f"FULLTEXT {TableExpression(self, expr.index_name, schema_name=expr.schema_name).to_sql()[0]} ({', '.join(col_parts)})"
         if expr.parser_name:
             sql += f" WITH PARSER {self.format_identifier(expr.parser_name)}"
         return sql, ()

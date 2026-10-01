@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/spatial.py
 from typing import Optional, Tuple
+from ....expression.core import TableExpression
 
 
 class MySQLSpatialMixin:
@@ -138,8 +139,8 @@ class MySQLSpatialMixin:
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(self.name, "SPATIAL indexes (requires MySQL 5.7+)")
         return (
-            f"CREATE SPATIAL INDEX {self.format_identifier(expr.index_name)} "
-            f"ON {self.format_identifier(expr.table_name)} "
+            f"CREATE SPATIAL INDEX {TableExpression(self, expr.index_name, schema_name=expr.schema_name).to_sql()[0]} "
+            f"ON {TableExpression(self, expr.table_name, schema_name=expr.schema_name).to_sql()[0]} "
             f"({self.format_identifier(expr.column)})",
             (),
         )

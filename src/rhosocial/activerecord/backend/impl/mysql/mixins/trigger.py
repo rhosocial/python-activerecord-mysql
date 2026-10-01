@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/trigger.py
 from typing import TYPE_CHECKING, Tuple
+from ....expression.core import TableExpression
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
@@ -75,19 +76,19 @@ class MySQLTriggerMixin:
         if expr.if_not_exists and self.supports_trigger_if_not_exists():
             parts.append("IF NOT EXISTS")
 
-        parts.append(self.format_identifier(expr.trigger_name))
+        parts.append(TableExpression(self, expr.trigger_name, schema_name=expr.schema_name).to_sql()[0])
         parts.append(expr.timing.value)
 
         if expr.events:
             parts.append(expr.events[0].value)
 
         parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(TableExpression(self, expr.table_name, schema_name=expr.schema_name).to_sql()[0])
         parts.append("FOR EACH ROW")
 
         if expr.function_name:
             parts.append("CALL")
-            parts.append(self.format_identifier(expr.function_name))
+            parts.append(TableExpression(self, expr.function_name, schema_name=expr.schema_name).to_sql()[0])
 
         return " ".join(parts), ()
 
@@ -103,6 +104,6 @@ class MySQLTriggerMixin:
         if expr.if_exists:
             parts.append("IF EXISTS")
 
-        parts.append(self.format_identifier(expr.trigger_name))
+        parts.append(TableExpression(self, expr.trigger_name, schema_name=expr.schema_name).to_sql()[0])
 
         return " ".join(parts), ()

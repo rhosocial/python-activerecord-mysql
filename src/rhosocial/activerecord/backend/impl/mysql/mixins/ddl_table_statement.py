@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table_statement.py
 from typing import List, TYPE_CHECKING, Tuple
+from ....expression.core import TableExpression
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
@@ -37,7 +38,7 @@ class MySQLTableStatementMixin:
     def format_table_statement(self, expr: "MySQLTableExpression") -> Tuple[str, tuple]:
         """Format ``TABLE <table> [ORDER BY ...] [LIMIT ...]``."""
         expr.validate(strict=self.strict_validation)
-        parts = ["TABLE", self.format_identifier(expr.table_name)]
+        parts = ["TABLE", TableExpression(self, expr.table_name, schema_name=expr.schema_name).to_sql()[0]]
         _format_table_limit(parts, expr.order_by, expr.limit, expr.offset, self.format_identifier)
         return " ".join(parts), ()
 
