@@ -151,6 +151,27 @@ class AsyncMySQLBackend(
 
         return AsyncMySQLIntrospector(self, AsyncIntrospectorExecutor(self))
 
+    async def get_current_schema(self) -> Optional[str]:
+        """Get the namespace an unqualified reference resolves against.
+
+        Asks the server via DATABASE(). MySQL has no schema namespace distinct
+        from the database, so this is the namespace an unqualified reference
+        resolves against.
+        """
+        from ....expression import core
+        from ....expression.statements.dql import QueryExpression
+        from ..functions.schema import current_schema
+
+        query = QueryExpression(
+            dialect=self.dialect,
+            select=[current_schema(self.dialect)],
+        )
+        sql, params = query.to_sql()
+        row = await self.fetch_one(sql, params)
+        if not row:
+            return None
+        return next(iter(row.values()), None)
+
     async def introspect_and_adapt(self) -> None:
         """Introspect backend and adapt backend instance to actual server capabilities.
 
