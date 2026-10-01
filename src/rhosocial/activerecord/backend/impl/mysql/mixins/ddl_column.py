@@ -21,6 +21,13 @@ class MySQLDDLColumnMixin:
         MySQL uses database-qualified references (db.table.column) rather
         than schema-qualified ones, so schema_name is silently ignored here.
         """
+        if expr.schema_name and not expr.table:
+            # A column reference cannot be qualified without a table. The core
+            # dialect raises here; MySQL qualifies by *database* rather than
+            # schema, so a schema on a bare column is meaningless rather than
+            # dangerous. Warn instead of raising so one model definition can
+            # still target both PostgreSQL and MySQL.
+            _warn_qualification_dropped(self.name, expr, "MySQL")
         if expr.table:
             col_sql = f"{self.format_identifier(expr.table, expr.table_need_quote)}.{self.format_identifier(expr.name, expr.name_need_quote)}"
         else:
@@ -87,3 +94,16 @@ class MySQLDDLColumnMixin:
             return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value)}", ()
 
         return super().format_alter_column_action(action)
+
+
+def _warn_qualification_dropped(dialect_name: str, expr, label: str) -> None:
+    """Warn that a supplied ``schema_name`` cannot be rendered on a bare column."""
+    import warnings
+
+    warnings.warn(
+        f"{label}: dropping schema_name={expr.schema_name!r} from column "
+        f"{expr.name!r} because no table was given; a column reference needs "
+        "a table to be qualified",
+        UserWarning,
+        stacklevel=3,
+    )
