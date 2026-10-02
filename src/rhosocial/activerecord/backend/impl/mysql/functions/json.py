@@ -8,35 +8,10 @@ json_set, json_remove, json_type, json_valid, json_search
 
 from typing import Union, Optional, Any, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core
+from rhosocial.activerecord.backend.expression import bases, core, JSONColumn
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.dialect import SQLDialectBase
     from ..dialect import MySQLDialect
-
-
-def _convert_to_expression(
-    dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
-    handle_numeric_literals: bool = True,
-) -> "bases.BaseExpression":
-    """
-    Helper function to convert an input value to an appropriate BaseExpression.
-
-    Args:
-        dialect: The SQL dialect instance
-        expr: The expression to convert
-        handle_numeric_literals: Whether to treat numeric values as literals
-
-    Returns:
-        A BaseExpression instance
-    """
-    if isinstance(expr, bases.BaseExpression):
-        return expr
-    elif handle_numeric_literals and isinstance(expr, (int, float)):
-        return core.Literal(dialect, expr)
-    else:
-        return core.Column(dialect, expr)
 
 
 def json_extract(
@@ -66,7 +41,11 @@ def json_extract(
 
     Version: MySQL 5.7.8+
     """
-    doc_expr = _convert_to_expression(dialect, json_doc)
+    doc_expr = (
+        json_doc if isinstance(json_doc, bases.BaseExpression)
+        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else JSONColumn(dialect, json_doc)
+    )
     path_expr = core.Literal(dialect, path)
     args = [doc_expr, path_expr]
     for p in paths:
@@ -92,7 +71,11 @@ def json_unquote(
 
     Version: MySQL 5.7.8+
     """
-    val_expr = _convert_to_expression(dialect, json_val)
+    val_expr = (
+        json_val if isinstance(json_val, bases.BaseExpression)
+        else core.Literal(dialect, json_val) if isinstance(json_val, (int, float))
+        else JSONColumn(dialect, json_val)
+    )
     return core.FunctionCall(dialect, "JSON_UNQUOTE", val_expr)
 
 
@@ -176,7 +159,11 @@ def json_contains(
 
     Version: MySQL 5.7.8+
     """
-    target_expr = _convert_to_expression(dialect, target)
+    target_expr = (
+        target if isinstance(target, bases.BaseExpression)
+        else core.Literal(dialect, target) if isinstance(target, (int, float))
+        else JSONColumn(dialect, target)
+    )
     candidate_expr = core.Literal(dialect, candidate)
     if path is not None:
         path_expr = core.Literal(dialect, path)
@@ -208,7 +195,11 @@ def json_set(
 
     Version: MySQL 5.7.8+
     """
-    doc_expr = _convert_to_expression(dialect, json_doc)
+    doc_expr = (
+        json_doc if isinstance(json_doc, bases.BaseExpression)
+        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else JSONColumn(dialect, json_doc)
+    )
     args = [doc_expr, core.Literal(dialect, path), core.Literal(dialect, value)]
     for i in range(0, len(path_value_pairs), 2):
         if i + 1 < len(path_value_pairs):
@@ -239,7 +230,11 @@ def json_remove(
 
     Version: MySQL 5.7.8+
     """
-    doc_expr = _convert_to_expression(dialect, json_doc)
+    doc_expr = (
+        json_doc if isinstance(json_doc, bases.BaseExpression)
+        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else JSONColumn(dialect, json_doc)
+    )
     args = [doc_expr, core.Literal(dialect, path)]
     for p in paths:
         args.append(core.Literal(dialect, p))
@@ -264,7 +259,11 @@ def json_type(
 
     Version: MySQL 5.7.8+
     """
-    val_expr = _convert_to_expression(dialect, json_val)
+    val_expr = (
+        json_val if isinstance(json_val, bases.BaseExpression)
+        else core.Literal(dialect, json_val) if isinstance(json_val, (int, float))
+        else JSONColumn(dialect, json_val)
+    )
     return core.FunctionCall(dialect, "JSON_TYPE", val_expr)
 
 
@@ -286,7 +285,11 @@ def json_valid(
 
     Version: MySQL 5.7.8+
     """
-    val_expr = _convert_to_expression(dialect, json_val)
+    val_expr = (
+        json_val if isinstance(json_val, bases.BaseExpression)
+        else core.Literal(dialect, json_val) if isinstance(json_val, (int, float))
+        else JSONColumn(dialect, json_val)
+    )
     return core.FunctionCall(dialect, "JSON_VALID", val_expr)
 
 
@@ -314,7 +317,11 @@ def json_search(
 
     Version: MySQL 5.7.8+
     """
-    doc_expr = _convert_to_expression(dialect, json_doc)
+    doc_expr = (
+        json_doc if isinstance(json_doc, bases.BaseExpression)
+        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else JSONColumn(dialect, json_doc)
+    )
     one_or_all = "all" if search_all else "one"
     one_or_all_expr = core.Literal(dialect, one_or_all)
     search_expr = core.Literal(dialect, search_str)
