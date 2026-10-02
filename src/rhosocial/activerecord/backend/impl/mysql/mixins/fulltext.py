@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/fulltext.py
 from typing import Tuple
-from ....expression.core import TableExpression
+from rhosocial.activerecord.backend.expression.core import TableExpression
 
 
 class MySQLFullTextSearchMixin:

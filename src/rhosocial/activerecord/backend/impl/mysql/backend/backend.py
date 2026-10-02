@@ -156,8 +156,8 @@ class MySQLBackend(
         namespace distinct from the database, so this is the namespace an
         unqualified reference resolves against.
         """
-        from ....expression import core
-        from ....expression.statements.dql import QueryExpression
+        from rhosocial.activerecord.backend.expression import core
+        from rhosocial.activerecord.backend.expression.statements.dql import QueryExpression
         from ..functions.schema import current_schema
 
         query = QueryExpression(

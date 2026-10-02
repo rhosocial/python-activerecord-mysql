@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/trigger.py
 from typing import TYPE_CHECKING, Tuple
-from ....expression.core import TableExpression
+from rhosocial.activerecord.backend.expression.core import TableExpression
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (

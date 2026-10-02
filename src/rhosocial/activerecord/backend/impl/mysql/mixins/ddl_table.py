@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py
 from typing import Any, List, TYPE_CHECKING, Tuple
-from ....expression.core import TableExpression
+from rhosocial.activerecord.backend.expression.core import TableExpression
 import re
 
 if TYPE_CHECKING:

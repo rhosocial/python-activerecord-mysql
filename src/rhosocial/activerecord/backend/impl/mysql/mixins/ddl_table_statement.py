@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table_statement.py
 from typing import List, TYPE_CHECKING, Tuple
-from ....expression.core import TableExpression
+from rhosocial.activerecord.backend.expression.core import TableExpression
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
