@@ -15,7 +15,6 @@ This module provides expression classes for MySQL vector functions:
 Note: Vector support requires MySQL 9.0+
 """
 
-from rhosocial.activerecord.backend.expression.core import _validate_schema_name
 from typing import TYPE_CHECKING, Optional
 
 from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
@@ -246,7 +245,7 @@ class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue
         """
         super().__init__(dialect)
         self.index_name = index_name
-        self.schema_name = _validate_schema_name(schema_name, type(self).__name__)
+        self.schema_name = schema_name
         self.table_name = table_name
         self.column = column
         self.alias = alias

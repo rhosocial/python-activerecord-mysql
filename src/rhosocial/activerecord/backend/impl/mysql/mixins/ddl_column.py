@@ -21,6 +21,11 @@ class MySQLDDLColumnMixin:
         MySQL uses database-qualified references (db.table.column) rather
         than schema-qualified ones, so schema_name is silently ignored here.
         """
+        from rhosocial.activerecord.backend.dialect.protocols import SchemaSupport
+
+        if isinstance(self, SchemaSupport):
+            self.validate_schema_name(expr)
+
         if expr.schema_name and not expr.table:
             # A column reference cannot be qualified without a table. The core
             # dialect raises here; MySQL qualifies by *database* rather than

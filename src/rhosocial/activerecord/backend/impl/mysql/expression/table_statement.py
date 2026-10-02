@@ -13,7 +13,6 @@ row list be used as a table value constructor.
 from typing import Any, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
-from rhosocial.activerecord.backend.expression.core import _validate_schema_name
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -75,7 +74,7 @@ class MySQLTableExpression(MySQLBaseTableStatement):
             offset=offset,
         )
         self.table_name: str = table_name
-        self.schema_name = _validate_schema_name(schema_name, type(self).__name__)
+        self.schema_name = schema_name
 
     def validate(self, strict: bool = True) -> None:
         if not strict:

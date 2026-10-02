@@ -1,7 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/expression/fulltext.py
 """MySQL FULLTEXT index expression classes."""
 
-from rhosocial.activerecord.backend.expression.core import _validate_schema_name
 from typing import TYPE_CHECKING, List, Optional
 
 from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
@@ -46,7 +45,7 @@ class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLVa
         """
         super().__init__(dialect)
         self.index_name = index_name
-        self.schema_name = _validate_schema_name(schema_name, type(self).__name__)
+        self.schema_name = schema_name
         self.columns = columns
         self.index_type = index_type
         self.parser_name = parser_name
