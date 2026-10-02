@@ -21,6 +21,7 @@
     *   **[字符集与排序规则](installation_and_configuration/charset.md)**: utf8mb4 配置
 
 3. **[MySQL 特性 (MySQL Specific Features)](mysql_specific_features/README.md)**
+    *   **[Schema 命名空间](mysql_specific_features/schema_namespace.md)**: `__schema_name__`、`schema` 实为 database 另一种叫法、两段式列引用
     *   **[MySQL 特定字段类型](mysql_specific_features/field_types.md)**: SET, ENUM, JSON, TEXT vs VARCHAR
     *   **[MySQL Dialect 表达式](mysql_specific_features/dialect.md)**: MySQL 特定的 SQL 方言
     *   **[存储引擎](mysql_specific_features/storage_engine.md)**: InnoDB, MyISAM 选择

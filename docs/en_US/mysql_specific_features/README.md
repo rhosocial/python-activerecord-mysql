@@ -4,6 +4,7 @@ This section covers MySQL-specific features and usage.
 
 ## Table of Contents
 
+- [Schema Namespaces](schema_namespace.md): `__schema_name__`, the fact that `schema` is another name for a database, two-part column references
 - [MySQL-Specific Field Types](field_types.md): SET, ENUM, JSON, TEXT vs VARCHAR
 - [MySQL Dialect Expressions](dialect.md): MySQL-specific SQL dialect
 - [Storage Engines](storage_engine.md): InnoDB, MyISAM selection

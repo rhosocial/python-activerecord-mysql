@@ -21,6 +21,7 @@
     *   **[Character Set and Collation](installation_and_configuration/charset.md)**: utf8mb4 configuration
 
 3. **[MySQL Specific Features](mysql_specific_features/README.md)**
+    *   **[Schema Namespaces](mysql_specific_features/schema_namespace.md)**: `__schema_name__`, `schema` is another name for a database, two-part column references
     *   **[MySQL-Specific Field Types](mysql_specific_features/field_types.md)**: SET, ENUM, JSON, TEXT vs VARCHAR
     *   **[MySQL Dialect Expressions](mysql_specific_features/dialect.md)**: MySQL-specific SQL dialect
     *   **[Storage Engines](mysql_specific_features/storage_engine.md)**: InnoDB, MyISAM selection
