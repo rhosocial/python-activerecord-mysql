@@ -1,10 +1,10 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/test_schema_support.py
 """Tests for the SchemaSupport capability declared on the MySQL dialect.
 
-Under strict semantics MySQL has no schema namespace layer inside a database:
-``SCHEMA`` is only an alias for ``DATABASE``. The umbrella flag therefore must
-be False, while the granular DDL flags stay True because servers do accept
-CREATE/DROP SCHEMA as synonyms of their DATABASE counterparts.
+MySQL treats ``SCHEMA`` as a synonym for ``DATABASE`` rather than as a distinct
+namespace level. A ``schema_name`` is therefore usable -- it resolves to a
+database -- so the umbrella flag is True. The granular DDL flags stay True as
+well, because the server accepts the SCHEMA spelling for CREATE/DROP.
 """
 from rhosocial.activerecord.backend.dialect.protocols import SchemaSupport
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -16,8 +16,9 @@ class TestSchemaCapability:
     def _dialect(self) -> MySQLDialect:
         return MySQLDialect()
 
-    def test_supports_schema_is_false(self):
-        assert self._dialect().supports_schema() is False
+    def test_supports_schema_is_true(self):
+        """A schema_name resolves to a database, which is usable."""
+        assert self._dialect().supports_schema() is True
 
     def test_implements_schema_support_protocol(self):
         assert isinstance(self._dialect(), SchemaSupport)
