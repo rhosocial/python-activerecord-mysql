@@ -6,8 +6,8 @@ MySQL 有一些特定的 SQL 语法和函数，本节介绍常用的 MySQL 特�
 
 ## schema 名称
 
-在 MySQL 中，`schema` 与 `database` 是同一个东西的两个名字。
-因此模型或表达式上的 `schema_name` 指向的是一个 **database**：
+MySQL 里 `schema` 和 `database` 是同一个东西的两种叫法。模型或表达式上的
+`schema_name`，指的就是一个 database：
 
 ```python
 class Order(ActiveRecord):
@@ -16,11 +16,11 @@ class Order(ActiveRecord):
 ```
 
 ```sql
--- 生成
+-- 生成的 SQL
 SELECT * FROM `app`.`orders`
 ```
 
-服务端接受两种写法，列出来的内容也相同：
+服务端两种写法都认，列出来的东西也一样：
 
 ```sql
 CREATE SCHEMA app;   -- 等同于 CREATE DATABASE app
@@ -29,10 +29,10 @@ SHOW SCHEMAS;        -- 等同于 SHOW DATABASES
 
 两点值得注意：
 
-- **列引用不带 schema。** 这里的列引用最多两段，因此 `` `orders`.`id` `` 是正确的，
-  三段式引用是语法错误。database 由表承载，列不会重复它。
-- **`get_current_schema()` 返回当前 database。** 方法名是共享 API，
-  读到的却是 database。未选中任何 database 时为 `None`。
+- **列引用不带 schema。** 这里的列引用最多两段，所以 `` `orders`.`id` `` 是对的，
+  写成三段是语法错误。database 记在表上，列不会再重复一遍。
+- **`get_current_schema()` 返回当前 database。** 方法名是统一的 API，读的却是
+  database。一个 database 都没选时返回 `None`。
 
 ## DDL 语句
 
