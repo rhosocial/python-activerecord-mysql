@@ -61,6 +61,13 @@ class MySQLTableExpression(MySQLBaseTableStatement):
         offset: Optional[int] = None,
         schema_name: Optional[str] = None,
     ):
+        """
+        Args:
+            schema_name: Namespace to qualify the table with, e.g. ``app``.
+                None leaves the name unqualified. An empty string raises
+                ValueError, and a dialect with no namespace raises
+                UnsupportedFeatureError.
+        """
         super().__init__(
             dialect,
             order_by=order_by,
