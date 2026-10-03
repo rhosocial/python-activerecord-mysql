@@ -55,11 +55,13 @@ from ..expression.types import (
     MySQLPointType,
     MySQLPolygonType,
     MySQLSetType,
+    MySQLSignedType,
     MySQLSmallIntType,
     MySQLTextType,
     MySQLTinyBlobType,
     MySQLTinyIntType,
     MySQLTinyTextType,
+    MySQLUnsignedType,
     MySQLVarBinaryType,
     MySQLVectorType,
     MySQLYearType,
@@ -84,6 +86,18 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
     # ------------------------------------------------------------------
 
     # --- MySQL-specific type formatters (dispatch key = type name) ---
+
+    def format_data_type_mysql_signed(self, data_type: MySQLSignedType) -> Tuple[str, tuple]:
+        """``CAST(x AS SIGNED)`` -- MySQL's spelling of a signed integer.
+
+        Not an alias for INTEGER: the server treats the two as different types
+        and rejects a CAST that names the wrong one.
+        """
+        return "SIGNED", ()
+
+    def format_data_type_mysql_unsigned(self, data_type: MySQLUnsignedType) -> Tuple[str, tuple]:
+        """``CAST(x AS UNSIGNED)`` -- the unsigned counterpart."""
+        return "UNSIGNED", ()
 
     def format_data_type_mysql_tinyint(self, data_type: MySQLTinyIntType) -> Tuple[str, tuple]:
         sql = "TINYINT"
