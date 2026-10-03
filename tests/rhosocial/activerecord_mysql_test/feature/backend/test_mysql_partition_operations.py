@@ -52,7 +52,7 @@ PARTITION_TABLE = "ar_mysql_partition_events"
 
 
 def _drop_table_expression(dialect):
-    return DropTableExpression(dialect=dialect, table=PARTITION_TABLE, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=TableExpression(dialect, PARTITION_TABLE), if_exists=True)
 
 
 def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDefinition]:
@@ -71,7 +71,7 @@ def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDef
 def _create_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PARTITION_TABLE,
+        table=TableExpression(dialect, PARTITION_TABLE),
         columns=[
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
@@ -294,7 +294,7 @@ def _base_columns_without_pk(dialect):
 def _create_nonpartitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=NEGATIVE_TABLE,
+        table=TableExpression(dialect, NEGATIVE_TABLE),
         columns=_base_columns_without_pk(dialect),
     )
 
@@ -302,7 +302,7 @@ def _create_nonpartitioned_table_expression(dialect):
 def _create_negative_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=NEGATIVE_PARTITIONED_TABLE,
+        table=TableExpression(dialect, NEGATIVE_PARTITIONED_TABLE),
         columns=_base_columns_without_pk(dialect),
         partition=MySQLPartitionByRange(
             dialect=dialect,
@@ -318,7 +318,7 @@ def _create_negative_partitioned_table_expression(dialect):
 def _create_negative_hash_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=NEGATIVE_HASH_TABLE,
+        table=TableExpression(dialect, NEGATIVE_HASH_TABLE),
         columns=_base_columns_without_pk(dialect),
         partition=MySQLPartitionByHash(
             dialect=dialect,
@@ -367,7 +367,7 @@ PRODUCTION_PARTITIONS = (
 
 
 def _drop_named_table_expression(dialect, table_name: str):
-    return DropTableExpression(dialect=dialect, table=table_name, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True)
 
 
 def _production_columns(dialect):
@@ -406,7 +406,7 @@ def _partition_definition(dialect, name: str, upper_bound: str):
 def _create_production_partitioned_table_expression(dialect, partitions):
     return CreateTableExpression(
         dialect=dialect,
-        table=PRODUCTION_PARTITION_TABLE,
+        table=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
         columns=_production_columns(dialect),
         indexes=_production_indexes(dialect),
         table_constraints=_production_table_constraints(dialect),
@@ -424,7 +424,7 @@ def _create_production_partitioned_table_expression(dialect, partitions):
 def _create_production_archive_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PRODUCTION_ARCHIVE_TABLE,
+        table=TableExpression(dialect, PRODUCTION_ARCHIVE_TABLE),
         columns=_production_columns(dialect),
         indexes=_production_indexes(dialect),
         table_constraints=_production_table_constraints(dialect),
@@ -434,7 +434,7 @@ def _create_production_archive_table_expression(dialect):
 def _create_production_maxvalue_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PRODUCTION_MAXVALUE_TABLE,
+        table=TableExpression(dialect, PRODUCTION_MAXVALUE_TABLE),
         columns=_production_columns(dialect),
         indexes=_production_indexes(dialect),
         table_constraints=_production_table_constraints(dialect),
@@ -1213,7 +1213,7 @@ def _subpartition_columns(dialect):
 def _create_subpartitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=SUBPARTITION_TABLE,
+        table=TableExpression(dialect, SUBPARTITION_TABLE),
         columns=_subpartition_columns(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,

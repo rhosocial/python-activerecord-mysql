@@ -2,6 +2,7 @@
 """Real MySQL EXPLAIN tests for partitioned tables."""
 
 from __future__ import annotations
+from rhosocial.activerecord.backend.expression.core import TableExpression
 
 from datetime import datetime
 from typing import Optional
@@ -40,13 +41,13 @@ def _partition_value(dialect, value):
 
 
 def _drop_partition_explain_table_expression(dialect):
-    return DropTableExpression(dialect=dialect, table=PARTITION_EXPLAIN_TABLE, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=TableExpression(dialect, PARTITION_EXPLAIN_TABLE), if_exists=True)
 
 
 def _create_partition_explain_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PARTITION_EXPLAIN_TABLE,
+        table=TableExpression(dialect, PARTITION_EXPLAIN_TABLE),
         columns=[
             ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),

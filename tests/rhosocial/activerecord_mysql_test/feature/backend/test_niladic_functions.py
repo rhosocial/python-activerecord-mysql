@@ -13,6 +13,7 @@ MySQL is unique in accepting both forms:
 Both are valid in DDL DEFAULT and SELECT contexts across MySQL 5.6+.
 """
 
+from rhosocial.activerecord.backend.expression.core import TableExpression
 import pytest
 
 from rhosocial.activerecord.backend.expression import (
@@ -114,11 +115,11 @@ class TestMySQLNiladicDDLContext:
         table_name = "test_niladic_ddl_1"
 
         # Clean up
-        mysql_backend.execute(*DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql())
+        mysql_backend.execute(*DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table=table_name,
+            table=TableExpression(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
                     "id",
@@ -150,7 +151,7 @@ class TestMySQLNiladicDDLContext:
             col_names = [c.name for c in cols]
             assert "ts" in col_names
         finally:
-            mysql_backend.execute(*DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql())
+            mysql_backend.execute(*DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql())
 
     def test_ddl_default_current_timestamp_with_parens(self, mysql_backend):
         """DEFAULT CURRENT_TIMESTAMP() (with parentheses) also works in MySQL DDL."""
@@ -158,11 +159,11 @@ class TestMySQLNiladicDDLContext:
         table_name = "test_niladic_ddl_2"
 
         # Clean up
-        mysql_backend.execute(*DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql())
+        mysql_backend.execute(*DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table=table_name,
+            table=TableExpression(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
                     "id",
@@ -196,7 +197,7 @@ class TestMySQLNiladicDDLContext:
             col_names = [c.name for c in cols]
             assert "ts" in col_names
         finally:
-            mysql_backend.execute(*DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql())
+            mysql_backend.execute(*DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql())
 
     def test_ddl_default_current_timestamp_with_precision(self, mysql_backend):
         """DEFAULT CURRENT_TIMESTAMP(6) (with precision) works in MySQL DDL."""
@@ -204,11 +205,11 @@ class TestMySQLNiladicDDLContext:
         table_name = "test_niladic_ddl_3"
 
         # Clean up
-        mysql_backend.execute(*DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql())
+        mysql_backend.execute(*DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql())
 
         create = CreateTableExpression(
             dialect=dialect,
-            table=table_name,
+            table=TableExpression(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
                     "id",
@@ -239,7 +240,7 @@ class TestMySQLNiladicDDLContext:
             col_names = [c.name for c in cols]
             assert "ts" in col_names
         finally:
-            mysql_backend.execute(*DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql())
+            mysql_backend.execute(*DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql())
 
 
 class TestAsyncMySQLNiladicSelectContext:
@@ -270,12 +271,12 @@ class TestAsyncMySQLNiladicDDLContext:
 
         # Clean up
         await async_mysql_backend.execute(
-            *DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql()
+            *DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql()
         )
 
         create = CreateTableExpression(
             dialect=dialect,
-            table=table_name,
+            table=TableExpression(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
                     "id",
@@ -305,5 +306,5 @@ class TestAsyncMySQLNiladicDDLContext:
             assert "ts" in col_names
         finally:
             await async_mysql_backend.execute(
-                *DropTableExpression(dialect=dialect, table=table_name, if_exists=True).to_sql()
+                *DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True).to_sql()
             )

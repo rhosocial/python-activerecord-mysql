@@ -1,5 +1,6 @@
 """Real MySQL tests for partition strategies beyond RANGE COLUMNS."""
 
+from rhosocial.activerecord.backend.expression.core import TableExpression
 from typing import Sequence
 
 import pytest
@@ -63,7 +64,7 @@ STRATEGY_TABLES = (
 
 
 def _drop_named_table_expression(dialect, table_name: str):
-    return DropTableExpression(dialect=dialect, table=table_name, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=TableExpression(dialect, table_name), if_exists=True)
 
 
 def _base_columns(dialect):
@@ -82,7 +83,7 @@ def _partition_value(dialect, value):
 def _create_range_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=RANGE_TABLE,
+        table=TableExpression(dialect, RANGE_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByRange(
             dialect=dialect,
@@ -98,7 +99,7 @@ def _create_range_table_expression(dialect):
 def _create_range_columns_multi_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=RANGE_COLUMNS_MULTI_TABLE,
+        table=TableExpression(dialect, RANGE_COLUMNS_MULTI_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
@@ -124,7 +125,7 @@ def _create_range_columns_multi_table_expression(dialect):
 def _create_list_columns_multi_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=LIST_COLUMNS_MULTI_TABLE,
+        table=TableExpression(dialect, LIST_COLUMNS_MULTI_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByListColumns(
             dialect=dialect,
@@ -152,7 +153,7 @@ def _create_list_columns_multi_table_expression(dialect):
 def _create_list_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=LIST_TABLE,
+        table=TableExpression(dialect, LIST_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByList(
             dialect=dialect,
@@ -174,7 +175,7 @@ def _create_list_table_expression(dialect):
 def _create_list_columns_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=LIST_COLUMNS_TABLE,
+        table=TableExpression(dialect, LIST_COLUMNS_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByListColumns(
             dialect=dialect,
@@ -196,7 +197,7 @@ def _create_list_columns_table_expression(dialect):
 def _create_hash_table_expression(dialect, table_name: str, *, linear: bool = False):
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=TableExpression(dialect, table_name),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByHash(
             dialect=dialect,
@@ -210,7 +211,7 @@ def _create_hash_table_expression(dialect, table_name: str, *, linear: bool = Fa
 def _create_key_table_expression(dialect, table_name: str, *, linear: bool = False):
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=TableExpression(dialect, table_name),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByKey(
             dialect=dialect,
@@ -571,7 +572,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=TableExpression(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByRange(
                     dialect=mysql_backend.dialect,
@@ -616,7 +617,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=TableExpression(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByList(
                     dialect=mysql_backend.dialect,
@@ -667,7 +668,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=TableExpression(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByHash(
                     dialect=mysql_backend.dialect,
@@ -709,7 +710,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=TableExpression(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByKey(
                     mysql_backend.dialect,
@@ -753,7 +754,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=dialect,
-                table=table,
+                table=TableExpression(dialect, table),
                 columns=[
                     ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
                     ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
