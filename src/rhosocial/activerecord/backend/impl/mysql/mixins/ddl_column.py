@@ -5,6 +5,16 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 
 
 class MySQLDDLColumnMixin:
+    def supports_index_schema_qualification(self) -> bool:
+        """An index belongs to its table; the grammar rejects a qualified name.
+
+        MySQL resolves an index inside the namespace of the table that owns
+        it, so qualifying the index name is a syntax error. Asking for one is
+        refused rather than rendered into SQL the server rejects; the namespace
+        goes on the table instead.
+        """
+        return False
+
     """MySQL DDL column definition and ALTER TABLE column actions."""
 
     def format_identity_clause(self, expr) -> Tuple[str, Tuple]:
