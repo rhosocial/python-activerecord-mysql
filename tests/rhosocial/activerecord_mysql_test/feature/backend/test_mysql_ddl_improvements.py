@@ -149,7 +149,7 @@ class TestMySQLTableDeclarationGating:
         dialect = MySQLDialect()
         expression = CreateTableExpression(
             dialect,
-            Plain.__table_name__,
+            TableExpression(dialect, Plain.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             inherits=Plain.table_inherits(),
             tablespace=Plain.table_tablespace(),
@@ -162,7 +162,7 @@ class TestMySQLTableDeclarationGating:
         assert dialect.supports_table_inheritance() is False
         expression = CreateTableExpression(
             dialect,
-            InheritedTable.__table_name__,
+            TableExpression(dialect, InheritedTable.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             inherits=InheritedTable.table_inherits(),
             tablespace=InheritedTable.table_tablespace(),
@@ -176,7 +176,7 @@ class TestMySQLTableDeclarationGating:
         assert dialect.supports_table_tablespace() is False
         expression = CreateTableExpression(
             dialect,
-            TablespacedTable.__table_name__,
+            TableExpression(dialect, TablespacedTable.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             inherits=TablespacedTable.table_inherits(),
             tablespace=TablespacedTable.table_tablespace(),
