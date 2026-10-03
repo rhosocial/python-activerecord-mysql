@@ -376,6 +376,12 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
     def supports_data_type_mysql_smallint(self) -> bool:
         return True
 
+    def supports_data_type_mysql_signed(self) -> bool:
+        return True
+
+    def supports_data_type_mysql_unsigned(self) -> bool:
+        return True
+
     def supports_data_type_mysql_int(self) -> bool:
         return True
 
