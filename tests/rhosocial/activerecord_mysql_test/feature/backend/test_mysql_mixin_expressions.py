@@ -265,10 +265,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="before_insert_user",
-            table_name="users",
+            table=TableExpression(dialect, "users"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
-            function_name="validate_user",
+            function_name=TableExpression(dialect, "validate_user"),
         )
         sql, params = expr.to_sql()
         assert "CREATE TRIGGER" in sql
@@ -281,10 +281,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="after_update_log",
-            table_name="orders",
+            table=TableExpression(dialect, "orders"),
             timing=TriggerTiming.AFTER,
             events=[TriggerEvent.UPDATE],
-            function_name="log_change",
+            function_name=TableExpression(dialect, "log_change"),
         )
         sql, params = expr.to_sql()
         assert "CREATE TRIGGER" in sql
@@ -295,10 +295,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="my_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
-            function_name="my_func",
+            function_name=TableExpression(dialect, "my_func"),
             if_not_exists=True,
         )
         sql, params = expr.to_sql()
@@ -309,10 +309,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="bad_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.INSTEAD_OF,
             events=[TriggerEvent.INSERT],
-            function_name="f",
+            function_name=TableExpression(dialect, "f"),
         )
         with pytest.raises(Exception):
             expr.to_sql()
@@ -322,10 +322,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="bad_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
-            function_name="f",
+            function_name=TableExpression(dialect, "f"),
             level=TriggerLevel.STATEMENT,
         )
         with pytest.raises(Exception):
@@ -336,10 +336,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="bad_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
-            function_name="f",
+            function_name=TableExpression(dialect, "f"),
             condition=MagicMock(),
         )
         with pytest.raises(Exception):
@@ -350,10 +350,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="bad_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT],
-            function_name="f",
+            function_name=TableExpression(dialect, "f"),
             referencing="OLD AS o",
         )
         with pytest.raises(Exception):
@@ -364,10 +364,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="bad_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.INSERT, TriggerEvent.UPDATE],
-            function_name="f",
+            function_name=TableExpression(dialect, "f"),
         )
         with pytest.raises(Exception):
             expr.to_sql()
@@ -377,10 +377,10 @@ class TestMySQLTriggerExpressions:
         expr = CreateTriggerExpression(
             dialect=dialect,
             trigger_name="bad_trigger",
-            table_name="t",
+            table=TableExpression(dialect, "t"),
             timing=TriggerTiming.BEFORE,
             events=[TriggerEvent.UPDATE],
-            function_name="f",
+            function_name=TableExpression(dialect, "f"),
             update_columns=["col1"],
         )
         with pytest.raises(Exception):

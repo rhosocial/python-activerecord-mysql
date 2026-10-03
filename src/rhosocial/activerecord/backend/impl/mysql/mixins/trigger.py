@@ -83,12 +83,12 @@ class MySQLTriggerMixin:
             parts.append(expr.events[0].value)
 
         parts.append("ON")
-        parts.append(TableExpression(self, expr.table_name, schema_name=expr.schema_name).to_sql()[0])
+        parts.append(expr.table.to_sql()[0])
         parts.append("FOR EACH ROW")
 
-        if expr.function_name:
+        if expr.function is not None:
             parts.append("CALL")
-            parts.append(TableExpression(self, expr.function_name, schema_name=expr.schema_name).to_sql()[0])
+            parts.append(expr.function.to_sql()[0])
 
         return " ".join(parts), ()
 
