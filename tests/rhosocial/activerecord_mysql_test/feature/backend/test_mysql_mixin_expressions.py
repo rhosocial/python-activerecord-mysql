@@ -531,7 +531,7 @@ class TestMySQLTableDDLExpressions:
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        expr = CreateTableExpression(dialect=dialect, table="t", columns=columns)
+        expr = CreateTableExpression(dialect=dialect, table=TableExpression(dialect, "t"), columns=columns)
         sql, params = expr.to_sql()
         assert "DEFAULT" in sql
         assert params == ()
@@ -548,7 +548,7 @@ class TestMySQLTableDDLExpressions:
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        expr = CreateTableExpression(dialect=dialect, table="t", columns=columns)
+        expr = CreateTableExpression(dialect=dialect, table=TableExpression(dialect, "t"), columns=columns)
         sql, params = expr.to_sql()
         assert "DEFAULT 'active'" in sql
 
@@ -564,7 +564,7 @@ class TestMySQLTableDDLExpressions:
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        expr = CreateTableExpression(dialect=dialect, table="t", columns=columns)
+        expr = CreateTableExpression(dialect=dialect, table=TableExpression(dialect, "t"), columns=columns)
         sql, params = expr.to_sql()
         assert "DEFAULT 0" in sql
 
@@ -578,7 +578,7 @@ class TestMySQLTableDDLExpressions:
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        expr = CreateTableExpression(dialect=dialect, table="t", columns=columns)
+        expr = CreateTableExpression(dialect=dialect, table=TableExpression(dialect, "t"), columns=columns)
         sql, params = expr.to_sql()
         assert "NULL" in sql
 
@@ -592,7 +592,7 @@ class TestMySQLTableDDLExpressions:
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
-        expr = CreateTableExpression(dialect=dialect, table="t", columns=columns)
+        expr = CreateTableExpression(dialect=dialect, table=TableExpression(dialect, "t"), columns=columns)
         sql, params = expr.to_sql()
         assert "UNIQUE" in sql
 
@@ -608,7 +608,7 @@ class TestMySQLTableDDLExpressions:
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         expr = CreateTableExpression(
-            dialect=dialect, table="users", columns=columns,
+            dialect=dialect, table=TableExpression(dialect, "users"), columns=columns,
             table_constraints=table_constraints
         )
         sql, params = expr.to_sql()
@@ -629,7 +629,7 @@ class TestMySQLTableDDLExpressions:
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         expr = CreateTableExpression(
-            dialect=dialect, table="orders", columns=columns,
+            dialect=dialect, table=TableExpression(dialect, "orders"), columns=columns,
             table_constraints=table_constraints
         )
         sql, params = expr.to_sql()
@@ -652,7 +652,7 @@ class TestMySQLTableDDLExpressions:
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         expr = CreateTableExpression(
-            dialect=dialect, table="payments", columns=columns,
+            dialect=dialect, table=TableExpression(dialect, "payments"), columns=columns,
             table_constraints=table_constraints
         )
         sql, params = expr.to_sql()
@@ -663,7 +663,7 @@ class TestMySQLTableDDLExpressions:
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
         expr = CreateTableExpression(
-            dialect=dialect, table="tmp", columns=columns, temporary=True
+            dialect=dialect, table=TableExpression(dialect, "tmp"), columns=columns, temporary=True
         )
         sql, params = expr.to_sql()
         assert sql.startswith("CREATE TEMPORARY TABLE")
@@ -683,7 +683,7 @@ class TestMySQLTableDDLExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = CreateTableExpression(
             dialect,
-            table="t",
+            table=TableExpression(dialect, "t"),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             table_options=CreateTableOptions(dialect, or_replace=True),
         )
@@ -697,7 +697,7 @@ class TestMySQLTableDDLExpressions:
         indexes = [IndexDefinition(dialect, "idx_id", ["id"], type="BTREE")]
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         expr = CreateTableExpression(
-            dialect=dialect, table="t", columns=columns, indexes=indexes
+            dialect=dialect, table=TableExpression(dialect, "t"), columns=columns, indexes=indexes
         )
         sql, params = expr.to_sql()
         assert "USING BTREE" in sql
@@ -707,7 +707,7 @@ class TestMySQLTableDDLExpressions:
         from rhosocial.activerecord.backend.expression.statements import CreateTableExpression
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
         expr = CreateTableExpression(
-            dialect=dialect, table="t", columns=columns,
+            dialect=dialect, table=TableExpression(dialect, "t"), columns=columns,
             storage_options={"AUTO_INCREMENT": 1000, "ENGINE": "InnoDB"}
         )
         sql, params = expr.to_sql()

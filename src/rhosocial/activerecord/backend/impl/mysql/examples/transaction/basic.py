@@ -45,13 +45,13 @@ from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E40
 from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name="accounts", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=TableExpression(dialect, "accounts"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="accounts",
+    table=TableExpression(dialect, "accounts"),
     columns=[
         ColumnDefinition(
             "id",

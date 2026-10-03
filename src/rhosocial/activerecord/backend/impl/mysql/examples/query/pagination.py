@@ -33,19 +33,19 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     ValuesSource,
     DropTableExpression,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+from rhosocial.activerecord.backend.expression.core import Literal, Column, TableExpression  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnDefinition,
 )
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=TableExpression(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="users",
+    table=TableExpression(dialect, "users"),
     columns=[
         ColumnDefinition("id", "INT"),
         ColumnDefinition("name", "VARCHAR(100)"),
@@ -115,7 +115,7 @@ print(f"Pagination result: {result.data}")
 # ============================================================
 # SECTION: Teardown
 # ============================================================
-drop_expr = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_expr = DropTableExpression(dialect=dialect, table=TableExpression(dialect, "users"), if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

@@ -62,7 +62,7 @@ def test_charset_version_gating():
 
 
 def test_auto_increment_and_row_format_rendered():
-    from rhosocial.activerecord.backend.expression import CreateTableExpression
+    from rhosocial.activerecord.backend.expression import CreateTableExpression, TableExpression
     from rhosocial.activerecord.backend.expression.statements import ColumnDefinition
     from rhosocial.activerecord.backend.expression.types import IntegerType
     from rhosocial.activerecord.backend.impl.mysql.expression import MySQLRowFormat
@@ -73,7 +73,7 @@ def test_auto_increment_and_row_format_rendered():
     )
     expr = CreateTableExpression(
         dialect,
-        "t",
+        TableExpression(dialect, "t"),
         [ColumnDefinition(dialect, "id", IntegerType(dialect))],
         table_options=options,
     )

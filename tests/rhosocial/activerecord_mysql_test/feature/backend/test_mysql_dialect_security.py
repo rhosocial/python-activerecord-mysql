@@ -439,9 +439,10 @@ class TestMySQLCreateTableCommentEscaping:
             CreateTableOptions,
         )
 
+        from rhosocial.activerecord.backend.expression.core import TableExpression
         expr = CreateTableExpression(
             dialect=dialect,
-            table="test_table",
+            table=TableExpression(dialect, "test_table"),
             columns=[],
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Table's comment with 'quotes'")),
         )
@@ -460,9 +461,10 @@ class TestMySQLCreateTableCommentEscaping:
             CreateTableOptions,
         )
 
+        from rhosocial.activerecord.backend.expression.core import TableExpression
         expr = CreateTableExpression(
             dialect=dialect,
-            table="test_table",
+            table=TableExpression(dialect, "test_table"),
             columns=[],
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Test\\value")),
         )

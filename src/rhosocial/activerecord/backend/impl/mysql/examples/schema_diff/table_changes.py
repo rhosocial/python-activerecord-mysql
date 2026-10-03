@@ -27,11 +27,12 @@ dialect = backend.dialect
 # Clean up any leftover tables
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     DropTableExpression,
+    TableExpression,
 )
-expr = DropTableExpression(dialect, "users", if_exists=True)
+expr = DropTableExpression(dialect, TableExpression(dialect, "users"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, "orders", if_exists=True)
+expr = DropTableExpression(dialect, TableExpression(dialect, "orders"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 
@@ -57,7 +58,7 @@ snapshot_before = builder.build()
 
 # Create one table, drop another (if it existed)
 expr = CreateTableExpression(
-    dialect=dialect, table="users", columns=[
+    dialect=dialect, table=TableExpression(dialect, "users"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
@@ -69,7 +70,7 @@ expr = CreateTableExpression(
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 expr = CreateTableExpression(
-    dialect=dialect, table="orders", columns=[
+    dialect=dialect, table=TableExpression(dialect, "orders"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
@@ -98,10 +99,10 @@ print(f"Diff is empty:  {diff.is_empty}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-expr = DropTableExpression(dialect, "users", if_exists=True)
+expr = DropTableExpression(dialect, TableExpression(dialect, "users"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, "orders", if_exists=True)
+expr = DropTableExpression(dialect, TableExpression(dialect, "orders"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

@@ -35,17 +35,18 @@ dialect = backend.dialect
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     DropTableExpression, CreateTableExpression, ColumnDefinition,
     ColumnConstraint, ColumnConstraintType,
+    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
     IntegerType, VarCharType,
 )
 
-expr = DropTableExpression(dialect, "demo", if_exists=True)
+expr = DropTableExpression(dialect, TableExpression(dialect, "demo"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 # Create table without explicit charset to inherit database/server default
 expr = CreateTableExpression(
-    dialect=dialect, table="demo", columns=[
+    dialect=dialect, table=TableExpression(dialect, "demo"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
@@ -79,7 +80,7 @@ if "demo" in snapshot.tables:
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-expr = DropTableExpression(dialect, "demo", if_exists=True)
+expr = DropTableExpression(dialect, TableExpression(dialect, "demo"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()
