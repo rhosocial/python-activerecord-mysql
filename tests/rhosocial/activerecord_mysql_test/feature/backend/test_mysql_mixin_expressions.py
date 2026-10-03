@@ -14,6 +14,7 @@ from rhosocial.activerecord.backend.expression.statements import (
     TableConstraintType,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from rhosocial.activerecord.backend.expression.core import TableExpression
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
     AddColumn,
     AlterTableExpression,
@@ -728,7 +729,7 @@ class TestMySQLColumnModificationExpressions:
             column=ColumnDefinition(dialect, "name", VarCharType(dialect, 200)),
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "ALTER TABLE" in sql
@@ -742,7 +743,7 @@ class TestMySQLColumnModificationExpressions:
             first=True,
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "MODIFY COLUMN" in sql
@@ -756,7 +757,7 @@ class TestMySQLColumnModificationExpressions:
             after_column="id",
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "MODIFY COLUMN" in sql
@@ -770,7 +771,7 @@ class TestMySQLColumnModificationExpressions:
             column=ColumnDefinition(dialect, "login_name", VarCharType(dialect, 150)),
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -784,7 +785,7 @@ class TestMySQLColumnModificationExpressions:
             first=True,
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -799,7 +800,7 @@ class TestMySQLColumnModificationExpressions:
             after_column="id",
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -818,7 +819,7 @@ class TestMySQLColumnModificationExpressions:
             ),
         )
         expr = AlterTableExpression(
-            dialect=dialect, table_name="users", actions=[action]
+            dialect=dialect, table=TableExpression(dialect, "users"), actions=[action]
         )
         sql, params = expr.to_sql()
         assert "NOT NULL" in sql
