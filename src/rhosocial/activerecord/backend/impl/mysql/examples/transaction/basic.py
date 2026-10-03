@@ -108,7 +108,7 @@ dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 with backend.transaction():
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=TableExpression(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 50)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
@@ -136,7 +136,7 @@ try:
     with backend.transaction():
         update_expr = UpdateExpression(
             dialect=dialect,
-            table="accounts",
+            table=TableExpression(dialect, "accounts"),
             assignments={"balance": Literal(dialect, -100)},
             where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
         )
@@ -154,7 +154,7 @@ except Exception as e:
 with backend.transaction():
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=TableExpression(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 40)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
@@ -165,7 +165,7 @@ with backend.transaction():
     try:
         update_expr2 = UpdateExpression(
             dialect=dialect,
-            table="accounts",
+            table=TableExpression(dialect, "accounts"),
             assignments={"balance": Literal(dialect, 20)},
             where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
         )

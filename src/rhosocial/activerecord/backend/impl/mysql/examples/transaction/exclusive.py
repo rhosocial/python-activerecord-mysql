@@ -122,7 +122,7 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ
     # Update within the transaction
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=TableExpression(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 1100)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
@@ -184,7 +184,7 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERI
     # Update Bob's balance
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=TableExpression(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 600)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Bob")),
     )
@@ -201,7 +201,7 @@ print("\n--- Per-transaction isolation level ---")
 with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=TableExpression(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 1200)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )

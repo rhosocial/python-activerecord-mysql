@@ -33,6 +33,7 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     ValuesSource,
     DropTableExpression,
     UpdateExpression,
+    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
@@ -96,7 +97,7 @@ backend.execute(sql, params)
 # ============================================================
 update_expr = UpdateExpression(
     dialect=dialect,
-    table="users",
+    table=TableExpression(dialect, "users"),
     assignments={"age": Literal(dialect, 26)},
     where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
 )
@@ -113,7 +114,7 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 update_expr = UpdateExpression(
     dialect=dialect,
-    table="users",
+    table=TableExpression(dialect, "users"),
     assignments={
         "age": BinaryArithmeticExpression(dialect, "+", Column(dialect, "age"), Literal(dialect, 1)),
     },
@@ -129,7 +130,7 @@ print(f"Updated rows: {result.affected_rows}")
 # ============================================================
 update_expr = UpdateExpression(
     dialect=dialect,
-    table="users",
+    table=TableExpression(dialect, "users"),
     assignments={"age": Literal(dialect, 99)},
 )
 sql, params = update_expr.to_sql()
