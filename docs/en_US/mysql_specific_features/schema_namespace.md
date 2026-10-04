@@ -18,11 +18,14 @@
 
 ## How this page was verified
 
-SQL fragments were rendered by the expression layer through
-`MySQLDialect()` with no server involved:
+SQL fragments were rendered by the expression layer through `MySQLDialect()`
+with no server involved, and through `MySQLDialect(version=(8, 0, 46))` where a
+capability is version-gated — the CTE example below is the only one that needs
+it. Both were run against the core library on this branch:
 
 ```
-PYTHONPATH=src .venv3.14-ubuntu26.04/bin/python
+PYTHONPATH=/mnt/i/GitHubRepositories/rhosocial/.worktrees/core-schema-name/src \
+  .venv3.14-ubuntu26.04/bin/python
 ```
 
 Statements that describe the server rather than the renderer were executed
@@ -119,6 +122,7 @@ class Order(ActiveRecord):
 
     id: Optional[int] = None
     user_id: Optional[int] = None
+    total: Optional[int] = None
 ```
 
 `__schema_name__` is optional and defaults to `None`, which means unqualified.
@@ -290,29 +294,48 @@ gates on MySQL 8.0 and later.
 
 `__schema_name__` selects the database that reads and writes go to. It is not
 consulted when DDL is built — a migration has to name the database it means —
-and every statement that names a schema-bearing object accepts a `schema_name` of
-its own, so qualification no longer has to be assembled by hand.
+but no statement has to assemble a qualifier by hand either.
+
+**A statement whose target is a table takes a `TableExpression`, not a name.**
+Every one of them rejects a bare string at construction:
+
+```
+TypeError: table must be a TableExpression, got str
+```
+
+The statements that take one are `CreateTableExpression`, `DropTableExpression`,
+`TruncateExpression`, `AlterTableExpression`, `CreateIndexExpression`,
+`DropIndexExpression`, `CreateFulltextIndexExpression`,
+`DropFulltextIndexExpression`, `CreateTriggerExpression` and
+`DropTriggerExpression`. On none of them is `schema_name` what qualifies the
+table — the `TableExpression` is. `CREATE TABLE`, `DROP TABLE`, `TRUNCATE` and
+`ALTER TABLE` have no `schema_name` parameter at all; the index and trigger
+statements do keep one, and there it qualifies the index or trigger *name*
+instead, which is what the two subsections below are about.
 
 ```python
-TruncateExpression(dialect, "users", schema_name="app").to_sql()[0]
+TruncateExpression(dialect, TableExpression(dialect, "users", schema_name="app")).to_sql()[0]
 # TRUNCATE TABLE `app`.`users`
-
-CreateViewExpression(dialect, "v_users", query, schema_name="app").to_sql()[0]
-# CREATE VIEW `app`.`v_users` AS ...
-
-DropViewExpression(dialect, "v_users", schema_name="app", if_exists=True).to_sql()[0]
-# DROP VIEW IF EXISTS `app`.`v_users`
 
 DropTableExpression(dialect, TableExpression(dialect, "users", schema_name="app"),
                     if_exists=True).to_sql()[0]
 # DROP TABLE IF EXISTS `app`.`users`
 ```
 
-Each of these was executed against all seven instances.
+**The objects that are not tables keep a `schema_name` of their own** — a view,
+a trigger, a sequence, a type, a function, a domain, and the schema or database
+the statement creates or drops:
 
-`CREATE TABLE` and `DROP TABLE` are the two plain forms that take a qualified
-`TableExpression` rather than a `schema_name` of their own — they have no
-`schema_name` parameter.
+```python
+CreateViewExpression(dialect, "v_users", query, schema_name="app").to_sql()[0]
+# CREATE VIEW `app`.`v_users` AS ...
+
+DropViewExpression(dialect, "v_users", schema_name="app", if_exists=True).to_sql()[0]
+# DROP VIEW IF EXISTS `app`.`v_users`
+```
+
+The four statements above — `TRUNCATE`, `DROP TABLE`, `CREATE VIEW` and
+`DROP VIEW` — were also executed against all seven instances.
 
 `CREATE SCHEMA` and `DROP SCHEMA` are the statements where the value is not a
 qualifier but the object itself. Both spellings work here and both create or
@@ -328,9 +351,15 @@ DropSchemaExpression(dialect, "app", if_exists=True).to_sql()[0]
 ```
 
 `CreateDatabaseExpression` and `DropDatabaseExpression` render the `DATABASE`
-spelling and behave identically:
+spelling and behave identically. They are not re-exported from the expression
+package, so import them from their module:
 
 ```python
+from rhosocial.activerecord.backend.expression.statements.ddl_database import (
+    CreateDatabaseExpression,
+    DropDatabaseExpression,
+)
+
 CreateDatabaseExpression(dialect, "app").to_sql()[0]                # CREATE DATABASE `app`
 DropDatabaseExpression(dialect, "app", if_exists=True).to_sql()[0]  # DROP DATABASE IF EXISTS `app`
 ```
@@ -338,10 +367,43 @@ DropDatabaseExpression(dialect, "app", if_exists=True).to_sql()[0]  # DROP DATAB
 On MySQL, `CreateDatabaseExpression` is the more descriptive spelling to reach
 for in a migration, because it says what the statement actually does.
 
-### `CREATE INDEX` and `DROP INDEX` do not take one
+### `CREATE INDEX` and `DROP INDEX` qualify the table, not the index
 
-MySQL does not accept a qualified index name. An index belongs to the table it
-is defined on, and `CREATE INDEX db.name` is a syntax error:
+An index belongs to the table it is defined on, and MySQL rejects a qualified
+index name. `supports_index_schema_qualification()` is `False` here, and
+supplying `schema_name` to either statement is refused while the statement
+renders:
+
+```
+UnsupportedFeatureError: 'MySQL' dialect does not support a namespace-qualified
+index name. Suggestion: MySQL places an index in the namespace of its table and
+rejects a qualified index name. Qualify the table instead by passing it as a
+TableExpression with schema_name set.
+```
+
+`schema_name` on these two statements qualifies **the index name only**. It no
+longer has any say over the table, which is why qualifying the index is now an
+error instead of a syntax error the server would report:
+
+```python
+CreateIndexExpression(dialect, "idx_a", TableExpression(dialect, "orders", schema_name="app"),
+                      ["total"], schema_name="app").to_sql()[0]
+# UnsupportedFeatureError (as above)
+```
+
+Qualify the table instead and leave the index name alone:
+
+```python
+CreateIndexExpression(dialect, "idx_a", TableExpression(dialect, "orders", schema_name="app"),
+                      ["total"]).to_sql()[0]
+# CREATE INDEX `idx_a` ON `app`.`orders` (`total`)
+
+DropIndexExpression(dialect, "idx_a", TableExpression(dialect, "orders", schema_name="app")).to_sql()[0]
+# DROP INDEX `idx_a` ON `app`.`orders`
+```
+
+Both renderings were checked against the instances above; the server accepts
+both, and refuses the hand-written form the old behaviour produced:
 
 ```
 1064 (42000): You have an error in your SQL syntax; check the manual that
@@ -349,22 +411,19 @@ corresponds to your MySQL server version for the right syntax to use near
 '.`idx_a` ON `ar_shop`.`orders` (`total`)' at line 1
 ```
 
-Passing `schema_name` to `CreateIndexExpression` or `DropIndexExpression`
-qualifies the index name as well as the table, which is what produces that
-error. The two statements also take `table_name` as a `str`, not a
-`TableExpression`, so a qualified range cannot be supplied there in place of the
-value. Both were checked against the instances above.
-
-An unqualified index name against an unqualified table is accepted:
+Because of that refusal, `build_create_index_statement()` and
+`build_drop_index_statement()` cannot be used on a schema-bound model: they
+default the index's namespace to `schema_name()`, and `None` means "inherit the
+model's", not "unqualified". A model declaring `__schema_name__ = "ar_shop"`
+therefore raises `UnsupportedFeatureError` from the factory — passing
+`index_schema_name=None` does not help, because that is the spelling that means
+"inherit the model's". Build the `CreateIndexExpression` by hand, as above, to
+create an index in that database:
 
 ```python
-CreateIndexExpression(dialect, "idx_a", "orders", ["total"]).to_sql()[0]
-# CREATE INDEX `idx_a` ON `orders` (`total`)
+Order.build_create_index_statement(dialect, "idx_a", ["total"]).to_sql()[0]
+# UnsupportedFeatureError (as above)
 ```
-
-So an index is created on the connection's current database. To create one in a
-different database, run the statement against a connection configured for that
-database, rather than passing `schema_name`.
 
 ## Which database an unqualified name resolves against
 
@@ -405,7 +464,9 @@ backend.get_current_schema()          # 'ar_shop'
 It is rejected, but **not when the expression is built**: an expression only
 collects parameters at that point, so strict validation happens while the
 statement is rendered, where the statement is known to be whole. The failure
-therefore arrives later than expected:
+therefore arrives later than expected. The message names the expression that
+carried the value, not the statement the caller wrote, and a model's columns
+carry it — so the `Column` wording is what a query raises:
 
 ```python
 class Bad(ActiveRecord):
@@ -419,11 +480,9 @@ Bad.query().select(Bad.c.id)             # query     -- no error
 Bad.query().select(Bad.c.id).to_sql()    # ValueError -- here
 ```
 
-The message names the expression at fault:
-
 ```
-ValueError: TableExpression.schema_name must be a non-empty string; use None for
-an unqualified reference
+ValueError: Column.schema_name must be a non-empty string; use None for an
+unqualified reference
 ```
 
 A blank string is rejected the same way as an empty one — the check strips
@@ -431,12 +490,29 @@ whitespace first, so `"   "` is refused too. A non-string is rejected the same
 way, with its own message:
 
 ```
-ValueError: TableExpression.schema_name must be a string or None, not int
+ValueError: Column.schema_name must be a string or None, not int
 ```
 
-`TruncateExpression` raises the `TableExpression` wording, because it renders
-its table through a `TableExpression` internally — the message names the object
-that validated the value, not the statement the caller wrote.
+An expression that names its table directly names `TableExpression` instead:
+
+```python
+TableExpression(dialect, "orders", schema_name="").to_sql()[0]
+# ValueError: TableExpression.schema_name must be a non-empty string; use None
+#             for an unqualified reference
+
+TableExpression(dialect, "orders", schema_name=123).to_sql()[0]
+# ValueError: TableExpression.schema_name must be a string or None, not int
+```
+
+`TruncateExpression` raises the `TableExpression` wording for the same reason:
+its target *is* a `TableExpression`, so that is the object that validates the
+value.
+
+```python
+TruncateExpression(dialect, TableExpression(dialect, "orders", schema_name="")).to_sql()[0]
+# ValueError: TableExpression.schema_name must be a non-empty string; use None
+#             for an unqualified reference
+```
 
 ## Identifier case and quoting
 
@@ -526,9 +602,20 @@ range as well, or the server reports an unknown column. See
 the statement renders, and nothing warns about a wrong database name — a model
 pointing at a database the connection cannot reach simply fails at execution.
 
+**Passing a table name as a string to a DDL statement.** `TRUNCATE`,
+`CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, the index statements and the trigger
+statements all take a `TableExpression`, so a bare string is a `TypeError` at
+construction rather than a silently unqualified name:
+
+```python
+TruncateExpression(dialect, "users")
+# TypeError: table must be a TableExpression, got str
+```
+
 **Passing `schema_name` to an index statement.** MySQL has no qualified index
-name to give. See
-[`CREATE INDEX` and `DROP INDEX` do not take one](#create-index-and-drop-index-do-not-take-one).
+name to give, so the value is refused rather than rendered. Qualify the table
+through its own `TableExpression` instead. See
+[`CREATE INDEX` and `DROP INDEX` qualify the table, not the index](#create-index-and-drop-index-qualify-the-table-not-the-index).
 
 ## Related pages
 

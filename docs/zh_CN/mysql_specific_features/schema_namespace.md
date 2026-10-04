@@ -16,10 +16,13 @@
 
 ## 本文结论的验证方式
 
-文中的 SQL 由表达式层配合 `MySQLDialect()` 渲染得出，过程中没有连接服务端：
+文中的 SQL 由表达式层配合 `MySQLDialect()` 渲染得出，过程中没有连接服务端；涉及版本门控的
+能力（只有下面 CTE 那个例子）改用 `MySQLDialect(version=(8, 0, 46))`。两者都是在**本分支**
+的核心库上运行的：
 
 ```
-PYTHONPATH=src .venv3.14-ubuntu26.04/bin/python
+PYTHONPATH=/mnt/i/GitHubRepositories/rhosocial/.worktrees/core-schema-name/src \
+  .venv3.14-ubuntu26.04/bin/python
 ```
 
 描述服务端而非渲染器的部分，则在 `tests/config/mysql_scenarios.yaml` 声明的每一个实例上
@@ -108,6 +111,7 @@ class Order(ActiveRecord):
 
     id: Optional[int] = None
     user_id: Optional[int] = None
+    total: Optional[int] = None
 ```
 
 `__schema_name__` 是可选的，默认 `None`，也就是不加限定。设置之后，模型生成的每一条语句
@@ -262,28 +266,46 @@ cte.from_cte("recent_orders").select("*").to_sql()[0]
 ## DDL 语句要各自写明 database
 
 `__schema_name__` 决定读写的 database。构造 DDL 时并不读取它——迁移必须自己写明它要的
-database——凡是涉及带 schema 对象的名字的语句都接受自己的 `schema_name`，因此不必再手工
-拼限定名。
+database——但也不必再手工拼限定名。
+
+**凡是目标是一个表的语句，收的都是 `TableExpression`，不是表名字符串。** 传裸字符串一律在
+**构造期**报错：
+
+```
+TypeError: table must be a TableExpression, got str
+```
+
+收 `TableExpression` 的语句有 `CreateTableExpression`、`DropTableExpression`、
+`TruncateExpression`、`AlterTableExpression`、`CreateIndexExpression`、
+`DropIndexExpression`、`CreateFulltextIndexExpression`、
+`DropFulltextIndexExpression`、`CreateTriggerExpression` 与
+`DropTriggerExpression`。它们之中，限定表的都不是 `schema_name`，而是那个
+`TableExpression`。`CREATE TABLE`、`DROP TABLE`、`TRUNCATE`、`ALTER TABLE` 干脆没有
+`schema_name` 参数；索引类与触发器类语句则保留了一个，但那里它限定的是索引名或触发器名
+——正是下面两小节要讲的事。
 
 ```python
-TruncateExpression(dialect, "users", schema_name="app").to_sql()[0]
+TruncateExpression(dialect, TableExpression(dialect, "users", schema_name="app")).to_sql()[0]
 # TRUNCATE TABLE `app`.`users`
-
-CreateViewExpression(dialect, "v_users", query, schema_name="app").to_sql()[0]
-# CREATE VIEW `app`.`v_users` AS ...
-
-DropViewExpression(dialect, "v_users", schema_name="app", if_exists=True).to_sql()[0]
-# DROP VIEW IF EXISTS `app`.`v_users`
 
 DropTableExpression(dialect, TableExpression(dialect, "users", schema_name="app"),
                     if_exists=True).to_sql()[0]
 # DROP TABLE IF EXISTS `app`.`users`
 ```
 
-以上四条都在七个实例上实际执行过。
+**不是表的对象仍然各自带 `schema_name`**——视图、触发器、序列、类型、函数、域，以及语句
+要创建或删除的 schema / database 本身：
 
-`CREATE TABLE` 与 `DROP TABLE` 属于另一种形态：它们没有 `schema_name` 参数，要传的是一个
-已限定的 `TableExpression`。
+```python
+CreateViewExpression(dialect, "v_users", query, schema_name="app").to_sql()[0]
+# CREATE VIEW `app`.`v_users` AS ...
+
+DropViewExpression(dialect, "v_users", schema_name="app", if_exists=True).to_sql()[0]
+# DROP VIEW IF EXISTS `app`.`v_users`
+```
+
+上面这四条语句——`TRUNCATE`、`DROP TABLE`、`CREATE VIEW`、`DROP VIEW`——同样在七个实例上
+实际执行过。
 
 `CREATE SCHEMA` 与 `DROP SCHEMA` 是另两回事：在这两条语句里，这个值不是限定符，**就是**
 语句所指的对象本身。两种写法在这里都可用，建的都是 database、删的也都是 database：
@@ -298,19 +320,54 @@ DropSchemaExpression(dialect, "app", if_exists=True).to_sql()[0]
 ```
 
 `CreateDatabaseExpression` 与 `DropDatabaseExpression` 渲染成 `DATABASE` 写法，行为完全
-一致：
+一致。它们没有从表达式包里再导出，因此要按模块路径导入：
 
 ```python
+from rhosocial.activerecord.backend.expression.statements.ddl_database import (
+    CreateDatabaseExpression,
+    DropDatabaseExpression,
+)
+
 CreateDatabaseExpression(dialect, "app").to_sql()[0]                # CREATE DATABASE `app`
 DropDatabaseExpression(dialect, "app", if_exists=True).to_sql()[0]  # DROP DATABASE IF EXISTS `app`
 ```
 
 在 MySQL 上，迁移里用 `CreateDatabaseExpression` 更贴切——它直接说明了这条语句实际做的事。
 
-### `CREATE INDEX` 与 `DROP INDEX` 不接受这个值
+### `CREATE INDEX` 与 `DROP INDEX` 限定的是表，不是索引
 
-MySQL 不接受带 database 的索引名。索引属于它所依附的表，`CREATE INDEX db.name` 是语法
-错误：
+索引属于它所依附的表，MySQL 拒绝带 database 的索引名。本后端的
+`supports_index_schema_qualification()` 为 `False`，给这两条语句传 `schema_name` 会在
+渲染阶段直接被拒：
+
+```
+UnsupportedFeatureError: 'MySQL' dialect does not support a namespace-qualified
+index name. Suggestion: MySQL places an index in the namespace of its table and
+rejects a qualified index name. Qualify the table instead by passing it as a
+TableExpression with schema_name set.
+```
+
+在这两条语句上，`schema_name` **只**限定索引名，对表已经没有影响——这也正是「限定索引」
+如今变成报错、而不是一条交给服务端报语法错误的 SQL 的原因：
+
+```python
+CreateIndexExpression(dialect, "idx_a", TableExpression(dialect, "orders", schema_name="app"),
+                      ["total"], schema_name="app").to_sql()[0]
+# UnsupportedFeatureError（同上）
+```
+
+正确做法是只限定表，索引名保持裸名：
+
+```python
+CreateIndexExpression(dialect, "idx_a", TableExpression(dialect, "orders", schema_name="app"),
+                      ["total"]).to_sql()[0]
+# CREATE INDEX `idx_a` ON `app`.`orders` (`total`)
+
+DropIndexExpression(dialect, "idx_a", TableExpression(dialect, "orders", schema_name="app")).to_sql()[0]
+# DROP INDEX `idx_a` ON `app`.`orders`
+```
+
+这两种渲染结果都在上述实例上核对过，服务端都接受；而旧行为手工拼出的那种写法会被拒绝：
 
 ```
 1064 (42000): You have an error in your SQL syntax; check the manual that
@@ -318,19 +375,16 @@ corresponds to your MySQL server version for the right syntax to use near
 '.`idx_a` ON `ar_shop`.`orders` (`total`)' at line 1
 ```
 
-给 `CreateIndexExpression` 或 `DropIndexExpression` 传 `schema_name`，会把索引名连同表名
-一起限定，正是上面这个错误的来源。这两个语句的 `table_name` 参数收的是 `str` 而不是
-`TableExpression`，所以也无法改传一个已限定的范围来替代该值。以上都在上述实例上核对过。
-
-不带限定的索引名配不带限定的表名是能被接受的：
+也正因为有这个拒绝，带 `__schema_name__` 的模型用不了 `build_create_index_statement()` 与
+`build_drop_index_statement()`：它们把索引的命名空间默认成 `schema_name()`，而传
+`index_schema_name=None` 恰恰表示「沿用模型的」，不是「不限定」。所以一个声明了
+`__schema_name__ = "ar_shop"` 的模型从工厂拿到的就是 `UnsupportedFeatureError`；要在那个
+database 里建索引，就照上面的样子手工构造 `CreateIndexExpression`：
 
 ```python
-CreateIndexExpression(dialect, "idx_a", "orders", ["total"]).to_sql()[0]
-# CREATE INDEX `idx_a` ON `orders` (`total`)
+Order.build_create_index_statement(dialect, "idx_a", ["total"]).to_sql()[0]
+# UnsupportedFeatureError（同上）
 ```
-
-也就是说索引建在连接当前的 database 上。要在别的 database 里建索引，应改用指向那个
-database 的连接去执行，而不是传 `schema_name`。
 
 ## 不加限定的名字落在哪个 database
 
@@ -366,7 +420,8 @@ backend.get_current_schema()          # 'ar_shop'
 
 `""` 是一个错误，而不是表达「不加限定」——那件事由 `None` 负责。它会被拒绝，但**不是在
 表达式构造时**：那个阶段表达式只是收集参数，严格校验要等到渲染、也就是语句完整之后才
-进行。因此这个失败比预想的来得晚：
+进行。因此这个失败比预想的来得晚。报错信息里指的是**带着这个值的那个表达式**，而不是调用方
+写下的那条语句；模型构造出来的列自带这个值，所以查询抛出的是 `Column` 那条措辞：
 
 ```python
 class Bad(ActiveRecord):
@@ -380,22 +435,37 @@ Bad.query().select(Bad.c.id)             # query     -- 不报错
 Bad.query().select(Bad.c.id).to_sql()    # ValueError -- 到这里才报错
 ```
 
-报错信息会指出是哪个表达式：
-
 ```
-ValueError: TableExpression.schema_name must be a non-empty string; use None for
-an unqualified reference
+ValueError: Column.schema_name must be a non-empty string; use None for an
+unqualified reference
 ```
 
 纯空白串与空串同样被拒——校验前会先 strip，所以 `"   "` 也过不去。非字符串同样被拒，
 只是换成另一条信息：
 
 ```
-ValueError: TableExpression.schema_name must be a string or None, not int
+ValueError: Column.schema_name must be a string or None, not int
 ```
 
-`TruncateExpression` 抛的是 `TableExpression` 那条措辞，因为它在内部通过一个
-`TableExpression` 渲染表——信息里指的是执行校验的那个对象，而不是调用方写下的那条语句。
+直接写出表名的表达式则报 `TableExpression` 那一条：
+
+```python
+TableExpression(dialect, "orders", schema_name="").to_sql()[0]
+# ValueError: TableExpression.schema_name must be a non-empty string; use None
+#             for an unqualified reference
+
+TableExpression(dialect, "orders", schema_name=123).to_sql()[0]
+# ValueError: TableExpression.schema_name must be a string or None, not int
+```
+
+`TruncateExpression` 抛 `TableExpression` 那条措辞也是同一个原因：它的目标**就是**一个
+`TableExpression`，执行校验的正是那个对象。
+
+```python
+TruncateExpression(dialect, TableExpression(dialect, "orders", schema_name="")).to_sql()[0]
+# ValueError: TableExpression.schema_name must be a non-empty string; use None
+#             for an unqualified reference
+```
 
 ## 标识符的大小写与引号
 
@@ -477,8 +547,18 @@ Report.query().select(Report.c.app_total).to_sql()[0]
 写错的 database 名也不会有警告——模型指向一个连接够不到的 database，结果就是在执行时
 失败。
 
-**给索引语句传 `schema_name`。** MySQL 上没有可限定的索引名。参见
-[`CREATE INDEX` 与 `DROP INDEX` 不接受这个值](#create-index-与-drop-index-不接受这个值)。
+**把表名字符串传给 DDL 语句。** `TRUNCATE`、`CREATE TABLE`、`DROP TABLE`、
+`ALTER TABLE`、索引类语句与触发器语句收的都是 `TableExpression`，因此传裸字符串是在
+**构造期**就抛 `TypeError`，而不是被悄悄当成不带限定的名字：
+
+```python
+TruncateExpression(dialect, "users")
+# TypeError: table must be a TableExpression, got str
+```
+
+**给索引语句传 `schema_name`。** MySQL 上没有可限定的索引名，因此这个值会被直接拒绝，
+而不是渲染出来。要限定的是表，请改用表自己的 `TableExpression`。参见
+[`CREATE INDEX` 与 `DROP INDEX` 限定的是表，不是索引](#create-index-与-drop-index-限定的是表不是索引)。
 
 ## 相关页面
 
