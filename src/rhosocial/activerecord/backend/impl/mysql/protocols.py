@@ -140,11 +140,14 @@ class MySQLDMLOperationSupport(Protocol):
         ```python
         MySQLInsertExpression(
             dialect,
-            into='users',
+            into=TableExpression(dialect, 'users'),
             source=ValuesSource(...),
             ignore=True,  # Generates INSERT IGNORE
         )
         ```
+        ``into`` must be a ``TableExpression``: a bare string is refused at
+        construction rather than wrapped, so the target's namespace is always
+        stated explicitly.
     """
 
     def supports_insert_ignore(self) -> bool:
@@ -189,7 +192,7 @@ class MySQLDMLOperationSupport(Protocol):
         ON CONFLICT clause for upsert operations.
 
         Args:
-            expr: OnConflictExpression or equivalent instance
+            expr: OnConflictClause instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)

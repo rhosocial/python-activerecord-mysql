@@ -7,11 +7,11 @@ This module provides expression classes for MySQL spatial functions:
 - MySQLSTDistanceExpression
 - MySQLSTWithinExpression
 - MySQLSTContainsExpression
-- SpatialLiteralExpression
-- STGeomFromWKBExpression
-- STAsTextExpression
-- STAsGeoJSONExpression
-- CreateSpatialIndexExpression
+- MySQLSpatialLiteralExpression
+- MySQLSTGeomFromWKBExpression
+- MySQLSTAsTextExpression
+- MySQLSTAsGeoJSONExpression
+- MySQLCreateSpatialIndexExpression
 """
 
 from typing import TYPE_CHECKING, Optional

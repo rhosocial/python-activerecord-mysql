@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 from math import isfinite
-from typing import Any, List, Optional, Sequence, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, TYPE_CHECKING, Union
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.core import TableExpression
@@ -379,7 +379,7 @@ class MySQLAddPartitionExpression(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Union[str, TableExpression],
         partitions: List[MySQLPartitionDefinition],
     ):
         super().__init__(dialect)
@@ -399,7 +399,12 @@ class MySQLAddPartitionExpression(BaseExpression):
 class MySQLDropPartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... DROP PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -417,7 +422,12 @@ class MySQLDropPartitionExpression(BaseExpression):
 class MySQLTruncatePartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... TRUNCATE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -438,7 +448,7 @@ class MySQLReorganizePartitionExpression(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Union[str, TableExpression],
         partition: str,
         into: List[MySQLPartitionDefinition],
     ):
@@ -463,9 +473,9 @@ class MySQLExchangePartitionExpression(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Union[str, TableExpression],
         partition: str,
-        exchange_table: str,
+        exchange_table: Union[str, TableExpression],
         *,
         with_validation: bool = True,
     ):
@@ -491,7 +501,7 @@ class MySQLExchangePartitionExpression(BaseExpression):
 class MySQLRemovePartitioningExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... REMOVE PARTITIONING``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str):
+    def __init__(self, dialect: "MySQLDialect", table: Union[str, TableExpression]):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -508,7 +518,7 @@ class MySQLRemovePartitioningExpression(BaseExpression):
 class MySQLCoalescePartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... COALESCE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, count: int):
+    def __init__(self, dialect: "MySQLDialect", table: Union[str, TableExpression], count: int):
         super().__init__(dialect)
         if not isinstance(count, int) or count <= 0:
             raise ValueError("count must be a positive integer")
@@ -528,7 +538,12 @@ class MySQLCoalescePartitionExpression(BaseExpression):
 class MySQLAnalyzePartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... ANALYZE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -546,7 +561,12 @@ class MySQLAnalyzePartitionExpression(BaseExpression):
 class MySQLCheckPartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... CHECK PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -564,7 +584,12 @@ class MySQLCheckPartitionExpression(BaseExpression):
 class MySQLOptimizePartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... OPTIMIZE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -582,7 +607,12 @@ class MySQLOptimizePartitionExpression(BaseExpression):
 class MySQLRebuildPartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... REBUILD PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table
@@ -600,7 +630,12 @@ class MySQLRebuildPartitionExpression(BaseExpression):
 class MySQLRepairPartitionExpression(BaseExpression):
     """Expression for ``ALTER TABLE ... REPAIR PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
+    def __init__(
+        self,
+        dialect: "MySQLDialect",
+        table: Union[str, TableExpression],
+        partitions: Sequence[str],
+    ):
         super().__init__(dialect)
         if isinstance(table, TableExpression):
             self.table = table

@@ -7,10 +7,10 @@ This module provides expression classes for MySQL vector functions:
 - MySQLDistanceEuclideanExpression
 - MySQLDistanceCosineExpression
 - MySQLDistanceDotExpression
-- StringToVectorExpression
-- VectorToStringExpression
-- VectorDimExpression
-- CreateVectorIndexExpression
+- MySQLStringToVectorExpression
+- MySQLVectorToStringExpression
+- MySQLVectorDimExpression
+- MySQLCreateVectorIndexExpression
 
 Note: Vector support requires MySQL 9.0+
 """

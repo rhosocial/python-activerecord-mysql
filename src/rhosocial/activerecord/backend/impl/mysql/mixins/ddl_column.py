@@ -5,6 +5,8 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 
 
 class MySQLDDLColumnMixin:
+    """MySQL DDL column definition and ALTER TABLE column actions."""
+
     def supports_index_schema_qualification(self) -> bool:
         """An index belongs to its table; the grammar rejects a qualified name.
 
@@ -14,8 +16,6 @@ class MySQLDDLColumnMixin:
         goes on the table instead.
         """
         return False
-
-    """MySQL DDL column definition and ALTER TABLE column actions."""
 
     def format_identity_clause(self, expr) -> Tuple[str, Tuple]:
         """MySQL renders an identity column as ``AUTO_INCREMENT``.
@@ -28,8 +28,12 @@ class MySQLDDLColumnMixin:
     def format_column(self, expr) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
 
-        MySQL uses database-qualified references (db.table.column) rather
-        than schema-qualified ones, so schema_name is silently ignored here.
+        MySQL qualifies a column by *database* rather than by schema, so a
+        ``schema_name`` on a column that carries no table cannot be rendered.
+        It is not ignored in silence: the qualifier is dropped and a
+        ``UserWarning`` names what was dropped, because the core dialect raises
+        in the same place and one model definition may have to target both
+        PostgreSQL and MySQL. See ``_warn_qualification_dropped``.
         """
         from rhosocial.activerecord.backend.dialect.protocols import SchemaSupport
 
