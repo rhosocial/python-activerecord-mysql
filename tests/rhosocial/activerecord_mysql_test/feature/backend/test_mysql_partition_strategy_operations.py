@@ -225,7 +225,7 @@ def _create_key_table_expression(dialect, table_name: str, *, linear: bool = Fal
 def _insert_rows_expression(dialect, table_name: str, rows: Sequence[Sequence[object]]):
     return InsertExpression(
         dialect=dialect,
-        into=table_name,
+        into=TableExpression(dialect, table_name),
         columns=["id", "shard_id", "category", "payload"],
         source=ValuesSource(
             dialect,
@@ -587,7 +587,7 @@ class TestMySQLPartitionStrategies:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=TableExpression(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -638,7 +638,7 @@ class TestMySQLPartitionStrategies:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=TableExpression(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -680,7 +680,7 @@ class TestMySQLPartitionStrategies:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=TableExpression(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -723,7 +723,7 @@ class TestMySQLPartitionStrategies:
             # KEY partition using `id` which is NOT NULL; verify normal inserts work
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=TableExpression(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,

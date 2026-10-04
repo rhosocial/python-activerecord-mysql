@@ -104,7 +104,7 @@ backend.execute(sql, params)
 # Initial insert
 insert_expr = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=TableExpression(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -135,7 +135,7 @@ print(f"Initial insert: {result.data}")
 # Insert again with ON DUPLICATE KEY UPDATE - will update
 upsert_expr = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=TableExpression(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -167,7 +167,7 @@ print(f"After UPSERT: {result.data}")
 
 insert_result = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=TableExpression(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -182,7 +182,7 @@ print(f"Insert affected_rows: {result.affected_rows}")
 
 upsert_result = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=TableExpression(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -209,7 +209,7 @@ print(f"Update affected_rows: {result.affected_rows}")
 
 multi_upsert = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=TableExpression(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,

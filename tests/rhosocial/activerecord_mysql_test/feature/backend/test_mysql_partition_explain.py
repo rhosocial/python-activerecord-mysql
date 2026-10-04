@@ -91,7 +91,7 @@ def _seed_partition_explain_rows_expression(dialect):
     ]
     return InsertExpression(
         dialect=dialect,
-        into=PARTITION_EXPLAIN_TABLE,
+        into=TableExpression(dialect, PARTITION_EXPLAIN_TABLE),
         columns=["id", "tenant_id", "created_at", "payload"],
         source=ValuesSource(
             dialect,

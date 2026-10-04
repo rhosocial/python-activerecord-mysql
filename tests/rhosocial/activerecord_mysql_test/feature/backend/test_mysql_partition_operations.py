@@ -92,7 +92,7 @@ def _create_partitioned_table_expression(dialect):
 def _insert_events_expression(dialect, rows):
     return InsertExpression(
         dialect=dialect,
-        into=PARTITION_TABLE,
+        into=TableExpression(dialect, PARTITION_TABLE),
         columns=["id", "created_at", "payload"],
         source=ValuesSource(
             dialect,
@@ -455,7 +455,7 @@ def _create_production_maxvalue_partitioned_table_expression(dialect):
 def _insert_production_events_into_expression(dialect, table_name: str, rows):
     return InsertExpression(
         dialect=dialect,
-        into=table_name,
+        into=TableExpression(dialect, table_name),
         columns=["id", "created_at", "tenant_id", "payload"],
         source=ValuesSource(
             dialect,
@@ -1337,7 +1337,7 @@ class TestMySQLSubpartitionOperations:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=SUBPARTITION_TABLE,
+                into=TableExpression(mysql_backend.dialect, SUBPARTITION_TABLE),
                 columns=["id", "created_at", "region", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -1389,7 +1389,7 @@ class TestAsyncMySQLSubpartitionOperations:
         try:
             insert = InsertExpression(
                 dialect=async_mysql_backend.dialect,
-                into=SUBPARTITION_TABLE,
+                into=TableExpression(async_mysql_backend.dialect, SUBPARTITION_TABLE),
                 columns=["id", "created_at", "region", "payload"],
                 source=ValuesSource(
                     async_mysql_backend.dialect,
