@@ -481,6 +481,30 @@ _DECLARED_GAP = {
         "as a CREATE TABLE option and a column comment inline, which "
         "format_column_definition already renders.",
     ),
+    # --- SEQUENCE is not a MySQL object. -----------------------------------
+    # These three rendered before this branch dropped SequenceMixin from the
+    # base list, and what they rendered was the defect: MySQL has no sequence
+    # object -- it numbers rows with AUTO_INCREMENT columns -- while the
+    # inherited formatters never consult supports_sequence() and only checked
+    # the option-level probes, which also answer False. So
+    # ``CREATE SEQUENCE `s` NO CYCLE`` came back out of a dialect whose own
+    # supports_sequence() said the feature was absent. They now refuse through
+    # the dispatch, which is the same declared gap as the property-graph rows
+    # above and stated for the same reason. Naming a sequence is untouched:
+    # SequenceNameMixin stays, so Sequence(dialect, "s").to_sql() renders.
+    "statements.ddl_sequence.CreateSequenceExpression": (
+        "format_create_sequence_statement",
+        "MySQL has no sequence object; AUTO_INCREMENT columns are how rows are "
+        "numbered. MySQLDialect mixes in no base providing this formatter.",
+    ),
+    "statements.ddl_sequence.DropSequenceExpression": (
+        "format_drop_sequence_statement",
+        "MySQL has no sequence object; no format_drop_sequence_statement.",
+    ),
+    "statements.ddl_sequence.AlterSequenceExpression": (
+        "format_alter_sequence_statement",
+        "MySQL has no sequence object; no format_alter_sequence_statement.",
+    ),
     # --- XML functions are not in MySQL. -----------------------------------
     "xml.XMLAggExpression": (
         "format_xmlagg_expression",

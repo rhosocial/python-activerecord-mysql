@@ -133,10 +133,7 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.CreateIndexSupport,
     dialect_protocols.DropIndexSupport,
     dialect_protocols.FulltextIndexSupport,
-    # --- DDL: sequence / trigger / type / domain ---
-    dialect_protocols.CreateSequenceSupport,
-    dialect_protocols.AlterSequenceSupport,
-    dialect_protocols.DropSequenceSupport,
+    # --- DDL: trigger / type / domain ---
     dialect_protocols.CreateTriggerSupport,
     dialect_protocols.CreateTypeSupport,
     dialect_protocols.AlterTypeSupport,
@@ -238,6 +235,15 @@ MYSQL_NOT_IMPLEMENTED = [
     dialect_protocols.SQLXMLConstructionSupport,
     dialect_protocols.SQLXMLAggregationSupport,
     dialect_protocols.SQLXMLQueryingSupport,
+    # MySQL has no sequence object -- it numbers rows with AUTO_INCREMENT
+    # columns -- so sequence DDL is absent from the base list rather than
+    # inherited and declined, and these three protocols name formatters that
+    # therefore do not exist. Naming a sequence is a different capability and is
+    # still met: SequenceObjectSupport above is satisfied by SequenceNameMixin,
+    # so a Sequence is accepted as an identifier.
+    dialect_protocols.CreateSequenceSupport,
+    dialect_protocols.AlterSequenceSupport,
+    dialect_protocols.DropSequenceSupport,
 ]
 
 

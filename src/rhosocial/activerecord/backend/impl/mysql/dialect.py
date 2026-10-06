@@ -82,7 +82,6 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     JoinMixin,
     ViewMixin,
     IndexMixin,
-    SequenceMixin,
     TableMixin,
     ConstraintMixin,
     TruncateMixin,
@@ -251,7 +250,16 @@ class MySQLDialect(
     JoinMixin,
     ViewMixin,
     IndexMixin,
-    SequenceMixin,
+    # No SequenceMixin here, and its absence is deliberate rather than an
+    # oversight: MySQL has no sequence object. It numbers rows with AUTO_INCREMENT
+    # columns, so CREATE / DROP / ALTER SEQUENCE is not a statement the server
+    # parses -- and the core formatters never consult supports_sequence(), so
+    # inheriting them would render well-formed SQL MySQL would refuse rather
+    # than refuse it here. Leaving the mixin out makes the absence structural:
+    # the dispatch finds no formatter and raises UnsupportedFeatureError naming
+    # the dialect and the statement. SequenceNameMixin above is kept, and is a
+    # separate job: it names the object, so a Sequence is still accepted as an
+    # identifier and Sequence(dialect, "s").to_sql() keeps rendering.
     MySQLPartitionMixin,
     PartitionMixin,
     MySQLTransactionMixin,
