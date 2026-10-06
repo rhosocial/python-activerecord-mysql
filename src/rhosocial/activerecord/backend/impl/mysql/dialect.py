@@ -93,6 +93,8 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DQLMixin,
     DMLMixin,
     DDLColumnMixin,
+    AutoIncrementMixin,
+    IdentityColumnMixin,
     UserDefinedTypeMixin,
     DomainMixin,
     TransactionControlMixin,
@@ -225,6 +227,19 @@ class MySQLDialect(
     MySQLDatabaseMixin,
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
+    # The two auto-increment mechanisms are separate mixins, and their order
+    # here is load-bearing. MySQLGeneratedColumnMixin declares the
+    # parameterless AUTO_INCREMENT marker True; AutoIncrementMixin supplies
+    # the fail-closed default and the formatter that consults the probe, so it
+    # must come after the MySQL declaration for the True to win. IdentityColumnMixin
+    # supplies the SQL-standard identity clause's probes and formatter; MySQL
+    # has no GENERATED ... AS IDENTITY grammar (every version measured refuses
+    # it), so every one of its probes inherits the False default and an
+    # identity request is refused by name. Mixing the mixin in, rather than
+    # keeping a local format_identity_clause override, is what stops ALWAYS and
+    # start/increment from being silently dropped into a bare AUTO_INCREMENT.
+    AutoIncrementMixin,
+    IdentityColumnMixin,
     MySQLFunctionMixin,
     # Generic mixins
     CollationMixin,

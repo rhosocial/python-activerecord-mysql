@@ -123,7 +123,16 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.TruncateSupport,
     dialect_protocols.ConstraintSupport,
     dialect_protocols.ColumnAttributeSupport,
-    dialect_protocols.AutoIncrementSupport,
+    # Two mechanisms, two protocols, and MySQL answers them differently.
+    # AUTO_INCREMENT is a real MySQL column marker, so the dialect declares it
+    # and renders it. The SQL-standard GENERATED ... AS IDENTITY clause is not:
+    # every MySQL version measured rejects the grammar, so the dialect carries
+    # the protocol's methods and declines the capability (supports_identity_column
+    # answers False, the formatter refuses by name). It is listed positive
+    # because the declaration *is* the answer -- the same way core's SQLite
+    # satisfies IdentityColumnSupport while answering False.
+    dialect_protocols.AutoIncrementColumnSupport,
+    dialect_protocols.IdentityColumnSupport,
     dialect_protocols.GeneratedColumnSupport,
     dialect_protocols.PartitionSupport,
     # --- DDL: view / index ---

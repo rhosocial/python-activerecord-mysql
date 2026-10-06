@@ -178,6 +178,9 @@ class MySQLTableMixin:
         from rhosocial.activerecord.backend.impl.mysql.expression.column import (
             MySQLColumnDefinition,
         )
+        from rhosocial.activerecord.backend.expression.statements import (
+            AutoIncrementClause,
+        )
 
         type_sql, type_params = col_def.data_type.to_sql()
         parts = [self.format_identifier(col_def.name), type_sql]
@@ -190,7 +193,14 @@ class MySQLTableMixin:
                 parts.append(constraint_text)
             params.extend(list(cp))
             if constraint.is_auto_increment:
-                parts.append("AUTO_INCREMENT")
+                # The marker is rendered by the dialect's
+                # format_auto_increment_clause, not spelled here: the formatter
+                # consults supports_auto_increment_column(), so the capability
+                # probe decides, and a dialect that declines the marker refuses
+                # rather than emitting a token its server rejects.
+                marker_sql, marker_params = AutoIncrementClause(self).to_sql()
+                parts.append(marker_sql.strip())
+                params.extend(marker_params)
 
         attr_sql, attr_params = self.format_column_attributes(col_def)
         if attr_sql:
