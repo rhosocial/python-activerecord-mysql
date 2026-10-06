@@ -18,8 +18,14 @@ class MySQLDDLColumnMixin:
     def format_column(self, expr) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
 
-        MySQL uses database-qualified references (db.table.column) rather
-        than schema-qualified ones, so schema_name is silently ignored here.
+        A column reference carries at most a table, and this renders
+        ``table.column``. A column cannot be qualified any further: MySQL has
+        no inner schema for ``db.schema.column`` to mean, and a caller who
+        supplies one is told so rather than having it dropped -- a qualifier
+        that vanishes without a word produces a statement against a different
+        column than the caller named. For a column addressed through a relation
+        that *does* carry a database, hand the relation object to the dialect
+        and let the column follow its rendered name.
         """
         if expr.table:
             col_sql = f"{self.format_identifier(expr.table, expr.table_need_quote)}.{self.format_identifier(expr.name, expr.name_need_quote)}"

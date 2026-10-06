@@ -39,13 +39,13 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
 )
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="users",
+    table=Table(dialect, "users"),
     columns=[
         ColumnDefinition("id", "INT"),
         ColumnDefinition("name", "VARCHAR(100)"),
@@ -58,7 +58,7 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["id", "name"],
     source=ValuesSource(
         dialect,
@@ -80,14 +80,14 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
-    TableExpression,
     LimitOffsetClause,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 query = QueryExpression(
     dialect=dialect,
     select=[Column(dialect, "id"), Column(dialect, "name")],
-    from_=TableExpression(dialect, "users"),
+    from_=Table(dialect, "users"),
     limit_offset=LimitOffsetClause(dialect, limit=3),
 )
 sql, params = query.to_sql()
@@ -104,7 +104,7 @@ print(f"LIMIT result: {result.data}")
 query_offset = QueryExpression(
     dialect=dialect,
     select=[Column(dialect, "id"), Column(dialect, "name")],
-    from_=TableExpression(dialect, "users"),
+    from_=Table(dialect, "users"),
     limit_offset=LimitOffsetClause(dialect, limit=2, offset=2),
 )
 sql, params = query_offset.to_sql()
@@ -115,7 +115,7 @@ print(f"Pagination result: {result.data}")
 # ============================================================
 # SECTION: Teardown
 # ============================================================
-drop_expr = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_expr = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

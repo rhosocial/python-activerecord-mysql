@@ -41,17 +41,17 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
 )
 
 # Drop dependent tables first for clean setup
-drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="users",
+    table=Table(dialect, "users"),
     columns=[
         ColumnDefinition(
             "id",
@@ -77,7 +77,7 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["name"],
     source=ValuesSource(
         dialect,
@@ -97,10 +97,11 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import DeleteExpression  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 delete_expr = DeleteExpression(
     dialect=dialect,
-    table="users",
+    tables=Table(dialect, "users"),
     where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
 )
 sql, params = delete_expr.to_sql()
@@ -116,7 +117,7 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 delete_expr = DeleteExpression(
     dialect=dialect,
-    table="users",
+    tables=Table(dialect, "users"),
     where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Bob")),
 )
 sql, params = delete_expr.to_sql()
@@ -127,7 +128,7 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Delete All Rows
 # ============================================================
-delete_expr = DeleteExpression(dialect=dialect, table="users")
+delete_expr = DeleteExpression(dialect=dialect, tables=Table(dialect, "users"))
 sql, params = delete_expr.to_sql()
 print(f"Delete all SQL: {sql}")
 result = backend.execute(sql, params, options=options)
@@ -136,11 +137,11 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_expr = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_expr = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

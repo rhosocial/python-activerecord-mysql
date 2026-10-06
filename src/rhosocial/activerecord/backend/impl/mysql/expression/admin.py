@@ -132,8 +132,17 @@ class MySQLCacheIndexExpression(BaseExpression):
         cache_entries: List[Dict[str, Any]],
         key_cache: str,
     ):
+        """Bind the statement to the tables whose indexes are being cached.
+
+        Args:
+            dialect: SQL dialect.
+            cache_entries: Each entry is ``{"table": <Table>, "indexes": [<str>]``,
+                where ``"indexes"`` is optional and the table is a
+                :class:`~rhosocial.activerecord.backend.expression.objects.Table`
+                so it can name its own database.
+            key_cache: The named key cache to load into.
+        """
         super().__init__(dialect)
-        # Each entry: {"table": name, "indexes": [names]} (indexes optional)
         self.cache_entries: List[Dict[str, Any]] = list(cache_entries)
         self.key_cache: str = key_cache
 
@@ -152,6 +161,15 @@ class MySQLLoadIndexIntoCacheExpression(BaseExpression):
         dialect: "SQLDialectBase",
         cache_entries: List[Dict[str, Any]],
     ):
+        """Bind the statement to the tables whose indexes are being loaded.
+
+        Args:
+            dialect: SQL dialect.
+            cache_entries: Each entry is ``{"table": <Table>, "indexes": [<str>]``,
+                where ``"indexes"`` is optional and the table is a
+                :class:`~rhosocial.activerecord.backend.expression.objects.Table`
+                so it can name its own database.
+        """
         super().__init__(dialect)
         self.cache_entries: List[Dict[str, Any]] = list(cache_entries)
 
@@ -307,7 +325,12 @@ class MySQLBinlogExpression(BaseExpression):
 
 
 class MySQLHandlerOpenExpression(BaseExpression):
-    """Represent ``HANDLER table OPEN [AS alias]``."""
+    """Represent ``HANDLER table OPEN [AS alias]``.
+
+    ``table`` is a
+    :class:`~rhosocial.activerecord.backend.expression.objects.Table`, so the
+    handler may be opened on a table in another database.
+    """
 
     def __init__(
         self,
@@ -327,7 +350,11 @@ class MySQLHandlerOpenExpression(BaseExpression):
 
 
 class MySQLHandlerReadExpression(BaseExpression):
-    """Represent ``HANDLER table READ {FIRST | NEXT}`` and variants."""
+    """Represent ``HANDLER table READ {FIRST | NEXT}`` and variants.
+
+    ``table`` is a
+    :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
+    """
 
     def __init__(
         self,
@@ -356,7 +383,11 @@ class MySQLHandlerReadExpression(BaseExpression):
 
 
 class MySQLHandlerCloseExpression(BaseExpression):
-    """Represent ``HANDLER table CLOSE``."""
+    """Represent ``HANDLER table CLOSE``.
+
+    ``table`` is a
+    :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
+    """
 
     def __init__(
         self,

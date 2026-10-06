@@ -4,14 +4,7 @@ from typing import TYPE_CHECKING, Tuple
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
 if TYPE_CHECKING:  # pragma: no cover
-    pass
-
-
-def _format_table_name(dialect, table):
-    if isinstance(table, tuple):
-        schema, name = table
-        return f"{dialect.format_identifier(schema)}.{dialect.format_identifier(name)}"
-    return dialect.format_identifier(table)
+    from rhosocial.activerecord.backend.expression.objects import RelationObject
 
 
 class MySQLMaintenanceMixin:
@@ -19,6 +12,11 @@ class MySQLMaintenanceMixin:
 
     Implements ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR TABLE,
     distinct from the partition-level variants in MySQLPartitionMixin.
+
+    Each table is a schema object, so a qualified name is a property of the
+    object the caller built rather than a string the dialect has to re-split:
+    ``ANALYZE TABLE ``db`.`users` `` comes from
+    ``Table(dialect, "users", catalog_name="db")``.
     """
 
     def supports_analyze_table(self) -> bool:
@@ -50,7 +48,7 @@ class MySQLMaintenanceMixin:
         if hasattr(expr, "no_write_to_binlog") and expr.no_write_to_binlog.value:
             parts.append(expr.no_write_to_binlog.value)
 
-        table_parts = [_format_table_name(self, t) for t in expr.tables]
+        table_parts = [self._format_maintenance_table(t) for t in expr.tables]
         parts.append(", ".join(table_parts))
 
         if operation == "CHECK" and getattr(expr, "options", None):
@@ -61,3 +59,11 @@ class MySQLMaintenanceMixin:
             parts.append(" ".join(option.value for option in expr.options))
 
         return " ".join(parts), ()
+
+    def _format_maintenance_table(self, table: "RelationObject") -> str:
+        """Render one maintenance target through its own formatter.
+
+        The object carries the catalog, so there is no tuple to unpack and no
+        second copy of the qualification rule to drift out of step.
+        """
+        return table.to_sql()[0]

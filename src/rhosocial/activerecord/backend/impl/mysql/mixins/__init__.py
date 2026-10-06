@@ -45,7 +45,13 @@ from .ddl_database import MySQLDatabaseMixin
 from .constraint import MySQLConstraintMixin
 from .generated_column import MySQLGeneratedColumnMixin
 from .function import MySQLFunctionMixin
+from .namespace import MySQLNamespaceMixin
 
+# ``__all__`` is the mixin surface: the names ``dialect.py`` mixes into
+# MySQLDialect. ``require_kind`` from ``.object_kind`` is deliberately absent --
+# it is a helper the formatters call, not a mixin -- and it is imported
+# explicitly by the modules that use it, which is what every other name here
+# does too.
 __all__ = [
     "MySQLIntrospectionMixin",
     "MySQLTransactionMixin",
@@ -92,4 +98,5 @@ __all__ = [
     "MySQLConstraintMixin",
     "MySQLGeneratedColumnMixin",
     "MySQLFunctionMixin",
+    "MySQLNamespaceMixin",
 ]

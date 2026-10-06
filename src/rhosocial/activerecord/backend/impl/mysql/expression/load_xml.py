@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.objects import Table
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -41,7 +42,7 @@ class MySQLLoadXMLEXpression(BaseExpression):
 
     Attributes:
         file_path: Path to the XML file.
-        table: Target table name.
+        table: Target table, as a schema object.
         local: Use the LOCAL keyword (client-side file).
         priority: LOW_PRIORITY / CONCURRENT selector.
         conflict_mode: REPLACE / IGNORE selector.
@@ -54,7 +55,7 @@ class MySQLLoadXMLEXpression(BaseExpression):
         self,
         dialect: "SQLDialectBase",
         file_path: str,
-        table: str,
+        table: "Table",
         *,
         local: bool = False,
         priority: "LoadXMLPriority" = LoadXMLPriority.NONE,
@@ -64,9 +65,20 @@ class MySQLLoadXMLEXpression(BaseExpression):
         ignore_count: Optional[int] = None,
         ignore_unit: str = "LINES",
     ):
+        """Bind the statement to a target table.
+
+        Args:
+            dialect: SQL dialect.
+            file_path: Path to the XML file.
+            table: Target table as a
+                :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
+                Passing an object rather than a bare string is what makes
+                ``INTO TABLE `other_db`.`users``` expressible; a string can
+                only ever mean the session's current database.
+        """
         super().__init__(dialect)
         self.file_path: str = file_path
-        self.table: str = table
+        self.table: "Table" = table
         self.local: bool = local
         self.priority: LoadXMLPriority = priority
         self.conflict_mode: LoadXMLConflictMode = conflict_mode
@@ -86,8 +98,11 @@ class MySQLLoadXMLEXpression(BaseExpression):
             return
         if not isinstance(self.file_path, str):
             raise TypeError(f"file_path must be str, got {type(self.file_path)}")
-        if not isinstance(self.table, str):
-            raise TypeError(f"table must be str, got {type(self.table)}")
+        if not isinstance(self.table, Table):
+            raise TypeError(
+                f"table must be a Table object, got {type(self.table).__name__}; "
+                f"pass Table(self.dialect, 'users', catalog_name='app') to qualify the name"
+            )
         if self.priority != LoadXMLPriority.NONE and self.local:
             raise ValueError("LOW_PRIORITY/CONCURRENT cannot be combined with LOCAL")
         if self.ignore_count is not None and self.ignore_count < 0:

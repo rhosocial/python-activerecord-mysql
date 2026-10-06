@@ -9,6 +9,7 @@ based on the MySQL version provided at initialization.
 from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
+from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.dialect.protocols import (
     CollationSupport,
     CTESupport,
@@ -27,19 +28,42 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     LateralJoinSupport,
     WildcardSupport,
     JoinSupport,
-    ViewSupport,
-    SchemaSupport,
-    SequenceSupport,
+    ViewObjectSupport,
+    NamespaceSupport,
+    SequenceObjectSupport,
     ConstraintSupport,
     IntrospectionSupport,
     TruncateSupport,
     TransactionControlSupport,
     SQLFunctionSupport,
     DataTypeSupport,
-    UserDefinedTypeSupport,
-    DomainSupport,
+    TypeObjectSupport,
+    CreateTypeSupport,
+    AlterTypeSupport,
+    DropTypeSupport,
+    CreateDomainSupport,
+    AlterDomainSupport,
+    DropDomainSupport,
 )
 from rhosocial.activerecord.backend.dialect.mixins import (
+    # Named objects: each *NameMixin inherits NamespaceMixin, so they precede it.
+    RelationSourceMixin,
+    NamespaceMixin,
+    TableNameMixin,
+    ViewNameMixin,
+    MaterializedViewNameMixin,
+    ForeignTableNameMixin,
+    IndexNameMixin,
+    SequenceNameMixin,
+    TriggerNameMixin,
+    FunctionNameMixin,
+    ProcedureNameMixin,
+    TypeNameMixin,
+    DomainNameMixin,
+    SynonymNameMixin,
+    SchemaNameMixin,
+    DatabaseNameMixin,
+    PropertyGraphNameMixin,
     CollationMixin,
     CTEMixin,
 
@@ -57,7 +81,6 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     LateralJoinMixin,
     JoinMixin,
     ViewMixin,
-    SchemaMixin,
     IndexMixin,
     SequenceMixin,
     TableMixin,
@@ -98,6 +121,7 @@ from .protocols import (
     MySQLAdminCommandSupport,
 )
 from .mixins import (
+    MySQLNamespaceMixin,
     MySQLTransactionMixin,
     MySQLDMLOperationMixin,
     MySQLFullTextSearchMixin,
@@ -116,9 +140,9 @@ from .mixins import (
     MySQLTypeSupportMixin,
     MySQLRenameTableMixin,
     MySQLTruncateMixin,
-    MySQLTableStatementMixin,
     MySQLMaintenanceMixin,
     MySQLRoutineMixin,
+    MySQLTableStatementMixin,
     MySQLLoadXMLLMixin,
     MySQLAdminCommandMixin,
     MySQLDateTimeMixin,
@@ -138,6 +162,7 @@ from .mixins import (
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
 )
+from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
 from .show.dialect import MySQLShowDialectMixin
 
@@ -149,6 +174,42 @@ if TYPE_CHECKING:
 
 class MySQLDialect(
     SQLDialectBase,
+    # MySQL's own namespace rules first, and before NamespaceMixin for the C3
+    # reason: MySQLNamespaceMixin overrides supports_catalog,
+    # supports_catalog_qualification, validate_namespace and
+    # format_qualified_name, so it has to precede the mixin that supplies the
+    # defaults it replaces. It comes before the *NameMixin classes too, because
+    # those inherit NamespaceMixin and would otherwise win.
+    MySQLNamespaceMixin,
+    # MySQLTableStatementMixin comes before RelationSourceMixin, and not for
+    # tidiness: both declare supports_values_table_constructor. Core's
+    # RelationSourceMixin answers False because SQL Server has no VALUES table
+    # source; this backend's answers from the MySQL version, since VALUES as a
+    # table value constructor arrived in 8.0.19. Only the first in the list wins,
+    # so with RelationSourceMixin first this backend reported False at every
+    # version and `VALUES ROW(...)` was reported unsupported on a server that
+    # has supported it since 8.0.19.
+    MySQLTableStatementMixin,
+    # Named objects: a statement now holds a schema object and asks it for its
+    # own SQL, so each kind needs a formatter here. The *NameMixin classes all
+    # derive from NamespaceMixin and therefore precede it (C3).
+    RelationSourceMixin,
+    TableNameMixin,
+    ViewNameMixin,
+    MaterializedViewNameMixin,
+    ForeignTableNameMixin,
+    IndexNameMixin,
+    SequenceNameMixin,
+    TriggerNameMixin,
+    FunctionNameMixin,
+    ProcedureNameMixin,
+    TypeNameMixin,
+    DomainNameMixin,
+    SynonymNameMixin,
+    SchemaNameMixin,
+    DatabaseNameMixin,
+    PropertyGraphNameMixin,
+    NamespaceMixin,
     # MySQL-specific mixins (before generic mixins to override methods)
     MySQLDateTimeMixin,
     MySQLCharsetCollationMixin,
@@ -189,7 +250,6 @@ class MySQLDialect(
     LateralJoinMixin,
     JoinMixin,
     ViewMixin,
-    SchemaMixin,
     IndexMixin,
     SequenceMixin,
     MySQLPartitionMixin,
@@ -212,7 +272,6 @@ class MySQLDialect(
     UserDefinedTypeMixin,
     DomainMixin,
     MySQLOptimizerHintMixin,
-    MySQLTableStatementMixin,
     MySQLMaintenanceMixin,
     MySQLRoutineMixin,
     MySQLLoadXMLLMixin,
@@ -246,9 +305,8 @@ class MySQLDialect(
     LateralJoinSupport,
     WildcardSupport,
     JoinSupport,
-    ViewSupport,
-    SchemaSupport,
-    SequenceSupport,
+    ViewObjectSupport,
+    SequenceObjectSupport,
     MySQLTableSupport,
     ConstraintSupport,
     IntrospectionSupport,
@@ -272,8 +330,16 @@ class MySQLDialect(
     MySQLAdminCommandSupport,
     SQLFunctionSupport,
     DataTypeSupport,
-    UserDefinedTypeSupport,
-    DomainSupport,
+    TypeObjectSupport,
+    CreateTypeSupport,
+    AlterTypeSupport,
+    DropTypeSupport,
+    CreateDomainSupport,
+    AlterDomainSupport,
+    DropDomainSupport,
+    # The naming protocol every object protocol above derives from, so it has
+    # to come last: C3 requires a base to follow each of its subclasses.
+    NamespaceSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.
@@ -426,12 +492,20 @@ class MySQLDialect(
             Tuple of (SQL string, parameters tuple)
 
         Raises:
+            TypeError: If ``expr.into`` is not a Table. Checked here rather than
+                in the constructor because the dialect is known at render time
+                and not necessarily at construction time, and a View or a
+                Sequence in the INTO slot renders through its own formatter --
+                a well-formed INSERT writing to something the caller never
+                named.
             ValueError: If both 'ignore' and 'replace' are specified, or if
                        'replace' is used with 'on_conflict'
         """
         # Perform strict parameter validation
         if self.strict_validation:
             expr.validate(strict=True)
+
+        require_kind(expr.into, Table, "InsertExpression.into")
 
         # Check for conflicting options
         is_replace = getattr(expr, "replace", False)

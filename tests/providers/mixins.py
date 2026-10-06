@@ -17,6 +17,7 @@ import logging
 from typing import Type, List
 
 from rhosocial.activerecord.model import ActiveRecord
+from rhosocial.activerecord.backend.expression.objects import Table  # noqa: E402
 
 # Setup logging for fixture selection debugging
 logger = logging.getLogger(__name__)
@@ -136,7 +137,7 @@ class MixinsSyncProvider(MixinsProviderBase, IMixinsSyncProvider):
     def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.mixins import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -151,7 +152,7 @@ class MixinsSyncProvider(MixinsProviderBase, IMixinsSyncProvider):
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, table_name),
+                    table=Table(backend_instance.dialect, table_name),
                     if_exists=True,
                 )
                 backend_instance.execute(*drop_expr.to_sql(), options=options)
@@ -221,7 +222,7 @@ class MixinsAsyncProvider(MixinsProviderBase, IMixinsAsyncProvider):
         from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.mixins import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -236,7 +237,7 @@ class MixinsAsyncProvider(MixinsProviderBase, IMixinsAsyncProvider):
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, table_name),
+                    table=Table(backend_instance.dialect, table_name),
                     if_exists=True,
                 )
                 await backend_instance.execute(*drop_expr.to_sql(), options=options)

@@ -2,6 +2,9 @@
 from typing import TYPE_CHECKING, Any, List, Tuple
 
 from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.objects import Table
+
+from .object_kind import require_kind
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
@@ -23,7 +26,14 @@ class MySQLDMLOperationMixin:
         return True
 
     def format_load_data_statement(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
-        """Format LOAD DATA INFILE statement."""
+        """Format LOAD DATA INFILE statement.
+
+        Raises:
+            TypeError: ``expr.table`` is not a Table. LOAD DATA writes rows, so a
+                wrong kind there would render a statement loading into whatever
+                object's name was supplied.
+        """
+        require_kind(expr.table, Table, "MySQLLoadDataExpression.table")
         expr.validate(strict=self.strict_validation)
 
         all_params: List[Any] = []
@@ -44,7 +54,7 @@ class MySQLDMLOperationMixin:
             parts.append("IGNORE")
 
         parts.append("INTO TABLE")
-        parts.append(self.format_identifier(expr.table))
+        parts.append(expr.table.to_sql()[0])
 
         if expr.options.character_set:
             parts.append(f"CHARACTER SET {expr.options.character_set}")

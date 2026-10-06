@@ -15,6 +15,7 @@ import pytest_asyncio
 from rhosocial.activerecord.backend.expression.statements import ValuesSource
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLInsertExpression
 from rhosocial.activerecord.backend.expression import core
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 class TestMySQLInsertIgnore:
@@ -44,7 +45,7 @@ class TestMySQLInsertIgnore:
 
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]]
             ),
@@ -76,7 +77,7 @@ class TestMySQLInsertIgnore:
         # Try to insert duplicate with IGNORE
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(dialect, [[core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]]),
             columns=["email", "name"],
             ignore=True,
@@ -106,7 +107,7 @@ class TestMySQLInsertIgnore:
         # Insert multiple rows, one conflicts
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect,
                 [
@@ -145,7 +146,7 @@ class TestMySQLInsertIgnore:
         # Regular insert without IGNORE should fail
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Duplicate")]]
             ),
@@ -190,7 +191,7 @@ class TestMySQLAsyncInsertIgnore:
         # Try to insert duplicate with IGNORE
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Duplicate")]]
             ),

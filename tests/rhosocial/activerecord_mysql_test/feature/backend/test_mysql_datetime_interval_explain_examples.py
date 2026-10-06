@@ -10,7 +10,6 @@ from rhosocial.activerecord.backend.expression import (
     Literal,
     LogicalPredicate,
     QueryExpression,
-    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.functions import (
     date_add,
@@ -22,6 +21,7 @@ from rhosocial.activerecord.backend.expression.query_parts import OrderByClause
 from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 _SETUP_SQL = """
@@ -125,7 +125,7 @@ def _datetime_expression_query(dialect):
                 "duration_minutes"
             ),
         ],
-        from_=TableExpression(dialect, "explain_temporal_events"),
+        from_=Table(dialect, "explain_temporal_events"),
         where=_category_created_filter(dialect),
         order_by=OrderByClause(
             dialect,
@@ -141,7 +141,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
             QueryExpression(
                 dialect,
                 select=[Column(dialect, "id"), Column(dialect, "created_at")],
-                from_=TableExpression(dialect, "explain_temporal_events"),
+                from_=Table(dialect, "explain_temporal_events"),
                 where=_range_filter(
                     dialect,
                     "created_at",
@@ -167,7 +167,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
                     Column(dialect, "category"),
                     Column(dialect, "created_at"),
                 ],
-                from_=TableExpression(dialect, "explain_temporal_events"),
+                from_=Table(dialect, "explain_temporal_events"),
                 where=_category_created_filter(dialect),
             )
         )
@@ -183,7 +183,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
             QueryExpression(
                 dialect,
                 select=[Column(dialect, "category"), Column(dialect, "created_at")],
-                from_=TableExpression(dialect, "explain_temporal_events"),
+                from_=Table(dialect, "explain_temporal_events"),
                 where=_category_created_filter(dialect),
             )
         )
@@ -228,7 +228,7 @@ class TestAsyncMySQLDateTimeIntervalExplainExamples:
                     Column(dialect, "category"),
                     Column(dialect, "created_at"),
                 ],
-                from_=TableExpression(dialect, "explain_temporal_events"),
+                from_=Table(dialect, "explain_temporal_events"),
                 where=_category_created_filter(dialect),
             )
         )

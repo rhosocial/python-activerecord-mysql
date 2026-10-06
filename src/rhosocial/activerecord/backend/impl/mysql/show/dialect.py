@@ -13,7 +13,14 @@ All methods follow the pattern:
 - Return (sql, params) tuple
 """
 
-from typing import Tuple, TYPE_CHECKING
+from typing import Any, Tuple, TYPE_CHECKING
+
+from rhosocial.activerecord.backend.expression.objects import (
+    SchemaObject,
+    Trigger,
+    View,
+    Table,
+)
 
 if TYPE_CHECKING:
     from ..expression.show import (
@@ -48,6 +55,28 @@ class MySQLShowDialectMixin:
     This mixin is added to MySQLDialect to provide SHOW functionality.
     """
 
+    def _format_show_target(self, target: Any, schema: Any, kind: type) -> str:
+        """Render the object a SHOW variant is about.
+
+        ``SHOW CREATE TABLE``, ``SHOW COLUMNS FROM`` and ``SHOW INDEX FROM``
+        all take a qualified object name. Building ``schema``.``name`` here by
+        hand would be a second copy of the qualification rule, so the target is
+        normalised to a schema object of the right *kind*, which renders itself
+        through its own ``format_<kind>_object``.
+
+        Args:
+            target: The object being shown, either already a schema object or
+                a bare name string.
+            schema: The database name carried separately by the expression, or
+                ``None``. Ignored when *target* is already an object, because
+                an object knows its own database and two disagreeing sources
+                for one namespace is the bug this indirection exists to remove.
+            kind: The schema-object class to build when *target* is a string.
+        """
+        if isinstance(target, SchemaObject):
+            return target.to_sql()[0]
+        return kind(self, target, catalog_name=schema or None).to_sql()[0]
+
     # ========== SHOW CREATE Statements ==========
 
     def format_show_create_table(self, expr: "ShowCreateTableExpression") -> Tuple[str, tuple]:
@@ -56,11 +85,7 @@ class MySQLShowDialectMixin:
         table_name = params["table_name"]
         schema = params.get("schema")
 
-        if schema:
-            sql = f"SHOW CREATE TABLE {self.format_identifier(schema)}.{self.format_identifier(table_name)}"
-        else:
-            sql = f"SHOW CREATE TABLE {self.format_identifier(table_name)}"
-        return sql, ()
+        return f"SHOW CREATE TABLE {self._format_show_target(table_name, schema, Table)}", ()
 
     def format_show_create_view(self, expr: "ShowCreateViewExpression") -> Tuple[str, tuple]:
         """Format SHOW CREATE VIEW statement."""
@@ -68,11 +93,7 @@ class MySQLShowDialectMixin:
         view_name = params["view_name"]
         schema = params.get("schema")
 
-        if schema:
-            sql = f"SHOW CREATE VIEW {self.format_identifier(schema)}.{self.format_identifier(view_name)}"
-        else:
-            sql = f"SHOW CREATE VIEW {self.format_identifier(view_name)}"
-        return sql, ()
+        return f"SHOW CREATE VIEW {self._format_show_target(view_name, schema, View)}", ()
 
     def format_show_create_trigger(self, expr: "ShowCreateTriggerExpression") -> Tuple[str, tuple]:
         """Format SHOW CREATE TRIGGER statement."""
@@ -80,11 +101,7 @@ class MySQLShowDialectMixin:
         trigger_name = params["trigger_name"]
         schema = params.get("schema")
 
-        if schema:
-            sql = f"SHOW CREATE TRIGGER {self.format_identifier(schema)}.{self.format_identifier(trigger_name)}"
-        else:
-            sql = f"SHOW CREATE TRIGGER {self.format_identifier(trigger_name)}"
-        return sql, ()
+        return f"SHOW CREATE TRIGGER {self._format_show_target(trigger_name, schema, Trigger)}", ()
 
     # ========== SHOW COLUMNS/INDEX ==========
 
@@ -100,9 +117,7 @@ class MySQLShowDialectMixin:
         if full:
             parts.append("FULL")
         parts.append("COLUMNS FROM")
-        if schema:
-            parts.append(f"{self.format_identifier(schema)}.")
-        parts.append(self.format_identifier(table_name))
+        parts.append(self._format_show_target(table_name, schema, Table))
 
         sql_params = ()
         if like_pattern:
@@ -117,11 +132,7 @@ class MySQLShowDialectMixin:
         table_name = params["table_name"]
         schema = params.get("schema")
 
-        if schema:
-            sql = f"SHOW INDEX FROM {self.format_identifier(schema)}.{self.format_identifier(table_name)}"
-        else:
-            sql = f"SHOW INDEX FROM {self.format_identifier(table_name)}"
-        return sql, ()
+        return f"SHOW INDEX FROM {self._format_show_target(table_name, schema, Table)}", ()
 
     # ========== SHOW TABLES/DATABASES ==========
 

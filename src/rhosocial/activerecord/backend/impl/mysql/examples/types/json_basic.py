@@ -37,14 +37,14 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name="documents", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 # Create table with JSON column (MySQL 5.7+)
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="documents",
+    table=Table(dialect, "documents"),
     columns=[
         ColumnDefinition(
             "id",
@@ -63,7 +63,7 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into="documents",
+    into=Table(dialect, "documents"),
     columns=["data"],
     source=ValuesSource(
         dialect,
@@ -81,10 +81,10 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
-    TableExpression,
     Column,
 )
 from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 query = QueryExpression(
     dialect=dialect,
@@ -93,7 +93,7 @@ query = QueryExpression(
         json_unquote(dialect, json_extract(dialect, Column(dialect, "data"), "$.name")).as_("name"),
         json_extract(dialect, Column(dialect, "data"), "$.age").as_("age"),
     ],
-    from_=TableExpression(dialect, "documents"),
+    from_=Table(dialect, "documents"),
 )
 
 sql, params = query.to_sql()

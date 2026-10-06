@@ -10,12 +10,12 @@ from math import isfinite
 from typing import Any, List, Optional, Sequence, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
-from rhosocial.activerecord.backend.expression.core import TableExpression
 from rhosocial.activerecord.backend.expression.statements import (
     PartitionClause,
     PartitionDefinition,
     SubpartitionDefinition,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 class MySQLPartitionStrategy(Enum):
@@ -373,20 +373,58 @@ class MySQLPartitionByKey(MySQLPartitionClause):
         self.linear = linear
 
 
-class MySQLAddPartitionExpression(BaseExpression):
+class MySQLPartitionTableExpression(BaseExpression):
+    """Base for every ``ALTER TABLE ... <partition action>`` statement.
+
+    All twelve of them name exactly one base table, and a base table is the
+    only kind of relation MySQL accepts in that position: partitioning is a
+    property of the table definition, so a view or a materialized view has
+    none. The target is therefore a :class:`Table` rather than the broader
+    :class:`~rhosocial.activerecord.backend.expression.objects.RelationObject`
+    the whole-table maintenance statements take -- ``ANALYZE TABLE`` and
+    ``OPTIMIZE TABLE`` do accept views, but ``ALTER TABLE ... ADD PARTITION``
+    does not, and admitting a view here would emit SQL the server rejects.
+
+    The object is required rather than coerced. A bare string says nothing
+    about which database it belongs to, so accepting one would make
+    ``ALTER TABLE `other_db`.`events``` inexpressible while every spelling that
+    *was* accepted meant only the session's current database.
+    """
+
+    def __init__(self, dialect: "MySQLDialect", table: Table):
+        """
+        Args:
+            dialect: SQL dialect.
+            table: The table being altered, as a
+                :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
+
+        Raises:
+            TypeError: ``table`` is not a :class:`Table`. A bare string is
+                refused rather than wrapped, because it cannot say which
+                database it names and a dropped qualifier would address a
+                different table than the caller meant.
+        """
+        super().__init__(dialect)
+        if not isinstance(table, Table):
+            raise TypeError(
+                f"{type(self).__name__} target must be a Table object, got "
+                f"{type(table).__name__}; pass "
+                f"Table(dialect, 'users', catalog_name='app') to name a table "
+                f"in another database"
+            )
+        self.table = table
+
+
+class MySQLAddPartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... ADD PARTITION``."""
 
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partitions: List[MySQLPartitionDefinition],
     ):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+        super().__init__(dialect, table)
         self.partitions = partitions
 
     @property
@@ -396,15 +434,11 @@ class MySQLAddPartitionExpression(BaseExpression):
 
 
 
-class MySQLDropPartitionExpression(BaseExpression):
+class MySQLDropPartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... DROP PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -414,15 +448,11 @@ class MySQLDropPartitionExpression(BaseExpression):
 
 
 
-class MySQLTruncatePartitionExpression(BaseExpression):
+class MySQLTruncatePartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... TRUNCATE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -432,21 +462,17 @@ class MySQLTruncatePartitionExpression(BaseExpression):
 
 
 
-class MySQLReorganizePartitionExpression(BaseExpression):
+class MySQLReorganizePartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... REORGANIZE PARTITION``."""
 
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partition: str,
         into: List[MySQLPartitionDefinition],
     ):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+        super().__init__(dialect, table)
         self.partition = partition
         self.into = into
 
@@ -457,28 +483,28 @@ class MySQLReorganizePartitionExpression(BaseExpression):
 
 
 
-class MySQLExchangePartitionExpression(BaseExpression):
+class MySQLExchangePartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... EXCHANGE PARTITION``."""
 
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partition: str,
-        exchange_table: str,
+        exchange_table: Table,
         *,
         with_validation: bool = True,
     ):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+        super().__init__(dialect, table)
         self.partition = partition
-        if isinstance(exchange_table, TableExpression):
-            self.exchange_table = exchange_table
-        else:
-            self.exchange_table = TableExpression(dialect, exchange_table)
+        if not isinstance(exchange_table, Table):
+            raise TypeError(
+                "exchange_table must be a Table object, got "
+                f"{type(exchange_table).__name__}; pass "
+                f"Table(dialect, 'users', catalog_name='app') to name a table "
+                f"in another database"
+            )
+        self.exchange_table = exchange_table
         self.with_validation = with_validation
 
     @property
@@ -488,15 +514,11 @@ class MySQLExchangePartitionExpression(BaseExpression):
 
 
 
-class MySQLRemovePartitioningExpression(BaseExpression):
+class MySQLRemovePartitioningExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... REMOVE PARTITIONING``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table):
+        super().__init__(dialect, table)
 
     @property
     def format_method(self) -> str:
@@ -505,17 +527,13 @@ class MySQLRemovePartitioningExpression(BaseExpression):
 
 
 
-class MySQLCoalescePartitionExpression(BaseExpression):
+class MySQLCoalescePartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... COALESCE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, count: int):
-        super().__init__(dialect)
+    def __init__(self, dialect: "MySQLDialect", table: Table, count: int):
         if not isinstance(count, int) or count <= 0:
             raise ValueError("count must be a positive integer")
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+        super().__init__(dialect, table)
         self.count = count
 
     @property
@@ -525,15 +543,11 @@ class MySQLCoalescePartitionExpression(BaseExpression):
 
 
 
-class MySQLAnalyzePartitionExpression(BaseExpression):
+class MySQLAnalyzePartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... ANALYZE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -543,15 +557,11 @@ class MySQLAnalyzePartitionExpression(BaseExpression):
 
 
 
-class MySQLCheckPartitionExpression(BaseExpression):
+class MySQLCheckPartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... CHECK PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -561,15 +571,11 @@ class MySQLCheckPartitionExpression(BaseExpression):
 
 
 
-class MySQLOptimizePartitionExpression(BaseExpression):
+class MySQLOptimizePartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... OPTIMIZE PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -579,15 +585,11 @@ class MySQLOptimizePartitionExpression(BaseExpression):
 
 
 
-class MySQLRebuildPartitionExpression(BaseExpression):
+class MySQLRebuildPartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... REBUILD PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -597,15 +599,11 @@ class MySQLRebuildPartitionExpression(BaseExpression):
 
 
 
-class MySQLRepairPartitionExpression(BaseExpression):
+class MySQLRepairPartitionExpression(MySQLPartitionTableExpression):
     """Expression for ``ALTER TABLE ... REPAIR PARTITION``."""
 
-    def __init__(self, dialect: "MySQLDialect", table: str, partitions: Sequence[str]):
-        super().__init__(dialect)
-        if isinstance(table, TableExpression):
-            self.table = table
-        else:
-            self.table = TableExpression(dialect, table)
+    def __init__(self, dialect: "MySQLDialect", table: Table, partitions: Sequence[str]):
+        super().__init__(dialect, table)
         self.partitions = list(partitions)
 
     @property
@@ -621,6 +619,11 @@ class MySQLGetPartitionsExpression(BaseExpression):
     Generates a SELECT statement retrieving partition name, method,
     expression, description, and storage statistics for the given table.
     Delegates SQL generation to the dialect's ``format_get_partitions_expression``.
+
+    ``table_name`` stays a plain string here, and is matched against the
+    ``TABLE_NAME`` *column* rather than used to name a relation: this is a
+    catalogue lookup, not a statement acting on a table, so there is no
+    object to build and no qualifier to lose.
 
     Raises:
         ValueError: if table_name is empty.

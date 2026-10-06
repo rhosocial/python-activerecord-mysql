@@ -6,6 +6,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_database import (
     DropDatabaseExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.expression.objects import Database
 
 
 def _dialect():
@@ -19,11 +20,11 @@ def test_database_capabilities():
 
 
 def test_create_database_renders():
-    sql, params = CreateDatabaseExpression(_dialect(), database_name="app").to_sql()
+    sql, params = CreateDatabaseExpression(_dialect(), database=Database(_dialect(), "app")).to_sql()
     assert "CREATE DATABASE" in sql
     assert params == ()
 
 
 def test_drop_database_renders():
-    sql, _ = DropDatabaseExpression(_dialect(), database_name="app").to_sql()
+    sql, _ = DropDatabaseExpression(_dialect(), database=Database(_dialect(), "app")).to_sql()
     assert "DROP DATABASE" in sql

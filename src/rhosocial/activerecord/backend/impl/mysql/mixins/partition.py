@@ -3,6 +3,9 @@ from typing import Any, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.objects import Table
+
+from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.statements import PartitionClause
@@ -441,10 +444,12 @@ class MySQLPartitionMixin:
             LogicalPredicate,
             OrderByClause,
             QueryExpression,
-            TableExpression,
         )
 
-        partitions = TableExpression(expr.dialect, "PARTITIONS", schema_name="information_schema")
+        # MySQL's database is the catalog and there is no inner schema, so
+        # ``information_schema`` is the outer slot. Putting it in ``schema_name``
+        # would be refused rather than silently dropped.
+        partitions = Table(expr.dialect, "PARTITIONS", catalog_name="information_schema")
         query = QueryExpression(
             expr.dialect,
             select=[
@@ -575,9 +580,19 @@ class MySQLPartitionMixin:
         return " ".join(parts), tuple(params)
 
     def format_add_partition_statement(self, expr: "MySQLAddPartitionExpression") -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... ADD PARTITION."""
+        """Format ALTER TABLE ... ADD PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_add_partition():
             raise UnsupportedFeatureError(self.name, "ADD PARTITION")
+        require_kind(expr.table, Table, "MySQLAddPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         params: List[Any] = list(table_params)
         partition_sql_parts = []
@@ -589,17 +604,37 @@ class MySQLPartitionMixin:
         return sql, tuple(params)
 
     def format_drop_partition_statement(self, expr: "MySQLDropPartitionExpression") -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... DROP PARTITION."""
+        """Format ALTER TABLE ... DROP PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_drop_partition():
             raise UnsupportedFeatureError(self.name, "DROP PARTITION")
+        require_kind(expr.table, Table, "MySQLDropPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = ", ".join(self.format_identifier(partition) for partition in expr.partitions)
         return f"ALTER TABLE {table_sql} DROP PARTITION {partitions}", tuple(table_params)
 
     def format_truncate_partition_statement(self, expr: "MySQLTruncatePartitionExpression") -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... TRUNCATE PARTITION."""
+        """Format ALTER TABLE ... TRUNCATE PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_truncate_partition():
             raise UnsupportedFeatureError(self.name, "TRUNCATE PARTITION")
+        require_kind(expr.table, Table, "MySQLTruncatePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = ", ".join(self.format_identifier(partition) for partition in expr.partitions)
         return f"ALTER TABLE {table_sql} TRUNCATE PARTITION {partitions}", tuple(table_params)
@@ -608,9 +643,21 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLReorganizePartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... REORGANIZE PARTITION."""
+        """Format ALTER TABLE ... REORGANIZE PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_reorganize_partition():
             raise UnsupportedFeatureError(self.name, "REORGANIZE PARTITION")
+        require_kind(
+            expr.table, Table, "MySQLReorganizePartitionExpression.table"
+        )
         table_sql, table_params = expr.table.to_sql()
         params: List[Any] = list(table_params)
         into_sql_parts = []
@@ -628,9 +675,22 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLExchangePartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... EXCHANGE PARTITION."""
+        """Format ALTER TABLE ... EXCHANGE PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` or ``expr.exchange_table`` is not a Table.
+        """
         if not self.supports_exchange_partition():
             raise UnsupportedFeatureError(self.name, "EXCHANGE PARTITION")
+        require_kind(expr.table, Table, "MySQLExchangePartitionExpression.table")
+        require_kind(
+            expr.exchange_table, Table, "MySQLExchangePartitionExpression.exchange_table"
+        )
         table_sql, table_params = expr.table.to_sql()
         exchange_table_sql, exchange_table_params = expr.exchange_table.to_sql()
         validation = "WITH VALIDATION" if expr.with_validation else "WITHOUT VALIDATION"
@@ -650,9 +710,21 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLRemovePartitioningExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... REMOVE PARTITIONING."""
+        """Format ALTER TABLE ... REMOVE PARTITIONING.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_remove_partitioning():
             raise UnsupportedFeatureError(self.name, "REMOVE PARTITIONING")
+        require_kind(
+            expr.table, Table, "MySQLRemovePartitioningExpression.table"
+        )
         table_sql, table_params = expr.table.to_sql()
         return f"ALTER TABLE {table_sql} REMOVE PARTITIONING", tuple(table_params)
 
@@ -660,9 +732,21 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLCoalescePartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... COALESCE PARTITION."""
+        """Format ALTER TABLE ... COALESCE PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_coalesce_partition():
             raise UnsupportedFeatureError(self.name, "COALESCE PARTITION")
+        require_kind(
+            expr.table, Table, "MySQLCoalescePartitionExpression.table"
+        )
         table_sql, table_params = expr.table.to_sql()
         return f"ALTER TABLE {table_sql} COALESCE PARTITION {expr.count}", tuple(table_params)
 
@@ -670,9 +754,19 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLAnalyzePartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... ANALYZE PARTITION."""
+        """Format ALTER TABLE ... ANALYZE PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_analyze_partition():
             raise UnsupportedFeatureError(self.name, "ANALYZE PARTITION")
+        require_kind(expr.table, Table, "MySQLAnalyzePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} ANALYZE PARTITION {partitions}", tuple(table_params)
@@ -681,9 +775,19 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLCheckPartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... CHECK PARTITION."""
+        """Format ALTER TABLE ... CHECK PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_check_partition():
             raise UnsupportedFeatureError(self.name, "CHECK PARTITION")
+        require_kind(expr.table, Table, "MySQLCheckPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} CHECK PARTITION {partitions}", tuple(table_params)
@@ -692,9 +796,19 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLOptimizePartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... OPTIMIZE PARTITION."""
+        """Format ALTER TABLE ... OPTIMIZE PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_optimize_partition():
             raise UnsupportedFeatureError(self.name, "OPTIMIZE PARTITION")
+        require_kind(expr.table, Table, "MySQLOptimizePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} OPTIMIZE PARTITION {partitions}", tuple(table_params)
@@ -703,9 +817,19 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLRebuildPartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... REBUILD PARTITION."""
+        """Format ALTER TABLE ... REBUILD PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_rebuild_partition():
             raise UnsupportedFeatureError(self.name, "REBUILD PARTITION")
+        require_kind(expr.table, Table, "MySQLRebuildPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REBUILD PARTITION {partitions}", tuple(table_params)
@@ -714,9 +838,19 @@ class MySQLPartitionMixin:
         self,
         expr: "MySQLRepairPartitionExpression",
     ) -> Tuple[str, tuple]:
-        """Format ALTER TABLE ... REPAIR PARTITION."""
+        """Format ALTER TABLE ... REPAIR PARTITION.
+
+        Each object is checked before it is rendered because a partition
+        statement names its table and only its table: a View or a Sequence in
+        that slot renders through its own formatter and produces a
+        well-formed ALTER TABLE against the wrong kind of object.
+
+        Raises:
+            ``expr.table`` is not a Table.
+        """
         if not self.supports_repair_partition():
             raise UnsupportedFeatureError(self.name, "REPAIR PARTITION")
+        require_kind(expr.table, Table, "MySQLRepairPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REPAIR PARTITION {partitions}", tuple(table_params)

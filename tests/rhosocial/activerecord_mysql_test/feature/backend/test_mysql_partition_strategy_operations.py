@@ -19,7 +19,6 @@ from rhosocial.activerecord.backend.expression import (
     QueryExpression,
     TableConstraint,
     TableConstraintType,
-    TableExpression,
     ValuesSource,
     WildcardExpression,
 )
@@ -38,6 +37,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionValue,
     MySQLTruncatePartitionExpression,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 RANGE_TABLE = "ar_mysql_partition_strategy_range"
@@ -63,7 +63,7 @@ STRATEGY_TABLES = (
 
 
 def _drop_named_table_expression(dialect, table_name: str):
-    return DropTableExpression(dialect=dialect, table=table_name, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=Table(dialect, table_name), if_exists=True)
 
 
 def _base_columns(dialect):
@@ -82,7 +82,7 @@ def _partition_value(dialect, value):
 def _create_range_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=RANGE_TABLE,
+        table=Table(dialect, RANGE_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByRange(
             dialect=dialect,
@@ -98,7 +98,7 @@ def _create_range_table_expression(dialect):
 def _create_range_columns_multi_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=RANGE_COLUMNS_MULTI_TABLE,
+        table=Table(dialect, RANGE_COLUMNS_MULTI_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
@@ -124,7 +124,7 @@ def _create_range_columns_multi_table_expression(dialect):
 def _create_list_columns_multi_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=LIST_COLUMNS_MULTI_TABLE,
+        table=Table(dialect, LIST_COLUMNS_MULTI_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByListColumns(
             dialect=dialect,
@@ -152,7 +152,7 @@ def _create_list_columns_multi_table_expression(dialect):
 def _create_list_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=LIST_TABLE,
+        table=Table(dialect, LIST_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByList(
             dialect=dialect,
@@ -174,7 +174,7 @@ def _create_list_table_expression(dialect):
 def _create_list_columns_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=LIST_COLUMNS_TABLE,
+        table=Table(dialect, LIST_COLUMNS_TABLE),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByListColumns(
             dialect=dialect,
@@ -196,7 +196,7 @@ def _create_list_columns_table_expression(dialect):
 def _create_hash_table_expression(dialect, table_name: str, *, linear: bool = False):
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=Table(dialect, table_name),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByHash(
             dialect=dialect,
@@ -210,7 +210,7 @@ def _create_hash_table_expression(dialect, table_name: str, *, linear: bool = Fa
 def _create_key_table_expression(dialect, table_name: str, *, linear: bool = False):
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=Table(dialect, table_name),
         columns=_base_columns(dialect),
         partition=MySQLPartitionByKey(
             dialect=dialect,
@@ -224,7 +224,7 @@ def _create_key_table_expression(dialect, table_name: str, *, linear: bool = Fal
 def _insert_rows_expression(dialect, table_name: str, rows: Sequence[Sequence[object]]):
     return InsertExpression(
         dialect=dialect,
-        into=table_name,
+        into=Table(dialect, table_name),
         columns=["id", "shard_id", "category", "payload"],
         source=ValuesSource(
             dialect,
@@ -237,7 +237,7 @@ def _select_payloads_expression(dialect, table_name: str):
     return QueryExpression(
         dialect,
         select=[Column(dialect, "payload")],
-        from_=TableExpression(dialect, table_name),
+        from_=Table(dialect, table_name),
         order_by=OrderByClause(dialect, [(Column(dialect, "id"), "ASC")]),
     )
 
@@ -246,12 +246,12 @@ def _select_count_expression(dialect, table_name: str):
     return QueryExpression(
         dialect,
         select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
-        from_=TableExpression(dialect, table_name),
+        from_=Table(dialect, table_name),
     )
 
 
 def _partition_metadata_expression(dialect, table_name: str):
-    partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
+    partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
     return QueryExpression(
         dialect,
         select=[
@@ -406,7 +406,7 @@ class TestMySQLPartitionStrategies:
             mysql_backend.execute(
                 *MySQLAddPartitionExpression(
                     mysql_backend.dialect,
-                    RANGE_TABLE,
+                    Table(mysql_backend.dialect, RANGE_TABLE),
                     [
                         MySQLPartitionDefinition(
                             "p_high",
@@ -435,7 +435,7 @@ class TestMySQLPartitionStrategies:
             mysql_backend.execute(
                 *MySQLTruncatePartitionExpression(
                     mysql_backend.dialect,
-                    RANGE_TABLE,
+                    Table(mysql_backend.dialect, RANGE_TABLE),
                     ["p_high", "p_higher"],
                 ).to_sql()
             )
@@ -444,7 +444,7 @@ class TestMySQLPartitionStrategies:
             mysql_backend.execute(
                 *MySQLDropPartitionExpression(
                     mysql_backend.dialect,
-                    RANGE_TABLE,
+                    Table(mysql_backend.dialect, RANGE_TABLE),
                     ["p_high", "p_higher"],
                 ).to_sql()
             )
@@ -491,7 +491,7 @@ class TestMySQLPartitionStrategies:
             # Drop partitions sequentially to verify routing
             mysql_backend.execute(
                 *MySQLDropPartitionExpression(
-                    mysql_backend.dialect, RANGE_COLUMNS_MULTI_TABLE, ["p_low"]
+                    mysql_backend.dialect, Table(mysql_backend.dialect, RANGE_COLUMNS_MULTI_TABLE), ["p_low"]
                 ).to_sql()
             )
             remaining = mysql_backend.fetch_all(
@@ -501,7 +501,7 @@ class TestMySQLPartitionStrategies:
 
             mysql_backend.execute(
                 *MySQLDropPartitionExpression(
-                    mysql_backend.dialect, RANGE_COLUMNS_MULTI_TABLE, ["p_mid"]
+                    mysql_backend.dialect, Table(mysql_backend.dialect, RANGE_COLUMNS_MULTI_TABLE), ["p_mid"]
                 ).to_sql()
             )
             remaining = mysql_backend.fetch_all(
@@ -542,7 +542,7 @@ class TestMySQLPartitionStrategies:
 
             mysql_backend.execute(
                 *MySQLDropPartitionExpression(
-                    mysql_backend.dialect, LIST_COLUMNS_MULTI_TABLE, ["p_group_a"]
+                    mysql_backend.dialect, Table(mysql_backend.dialect, LIST_COLUMNS_MULTI_TABLE), ["p_group_a"]
                 ).to_sql()
             )
             remaining = mysql_backend.fetch_all(
@@ -571,7 +571,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=Table(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByRange(
                     dialect=mysql_backend.dialect,
@@ -586,7 +586,7 @@ class TestMySQLPartitionStrategies:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -616,7 +616,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=Table(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByList(
                     dialect=mysql_backend.dialect,
@@ -637,7 +637,7 @@ class TestMySQLPartitionStrategies:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -667,7 +667,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=Table(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByHash(
                     dialect=mysql_backend.dialect,
@@ -679,7 +679,7 @@ class TestMySQLPartitionStrategies:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -709,7 +709,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=mysql_backend.dialect,
-                table=table,
+                table=Table(mysql_backend.dialect, table),
                 columns=columns,
                 partition=MySQLPartitionByKey(
                     mysql_backend.dialect,
@@ -722,7 +722,7 @@ class TestMySQLPartitionStrategies:
             # KEY partition using `id` which is NOT NULL; verify normal inserts work
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=table,
+                into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -753,7 +753,7 @@ class TestMySQLPartitionStrategies:
         mysql_backend.execute(
             *CreateTableExpression(
                 dialect=dialect,
-                table=table,
+                table=Table(dialect, table),
                 columns=[
                     ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
                     ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
@@ -863,7 +863,7 @@ class TestMySQLPartitionStrategies:
 
             await async_mysql_backend.execute(
                 *MySQLDropPartitionExpression(
-                    async_mysql_backend.dialect, RANGE_COLUMNS_MULTI_TABLE, ["p_low"]
+                    async_mysql_backend.dialect, Table(async_mysql_backend.dialect, RANGE_COLUMNS_MULTI_TABLE), ["p_low"]
                 ).to_sql()
             )
             remaining = await async_mysql_backend.fetch_all(

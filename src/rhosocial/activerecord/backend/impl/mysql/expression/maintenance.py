@@ -12,9 +12,10 @@ level (as opposed to the partition-level variants in ``partition.py``):
 """
 
 from enum import Enum
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.objects import RelationObject
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -59,7 +60,12 @@ class MySQLTableMaintenanceExpression(BaseExpression):
 
     Attributes:
         operation: Statement keyword (ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR).
-        tables: List of table names (may be schema-qualified tuples).
+        tables: List of target relations, as
+            :class:`~rhosocial.activerecord.backend.expression.objects.RelationObject`
+            instances. Each carries its own database, so
+            ``ANALYZE TABLE `app`.`users``` needs no separate qualifier
+            argument -- and a qualifier can no longer be supplied in a form
+            that silently disagrees with the name.
         no_write_to_binlog: NO_WRITE_TO_BINLOG / LOCAL selector (where supported).
     """
 
@@ -68,30 +74,37 @@ class MySQLTableMaintenanceExpression(BaseExpression):
     def __init__(
         self,
         dialect: "SQLDialectBase",
-        tables: List[Any],
+        tables: List[RelationObject],
         *,
         no_write_to_binlog: "NoWriteToBinlogOption" = NoWriteToBinlogOption.NONE,
     ):
         super().__init__(dialect)
-        self.tables: List[Any] = list(tables)
+        self.tables: List[RelationObject] = list(tables)
         self.no_write_to_binlog: NoWriteToBinlogOption = no_write_to_binlog
 
     def validate(self, strict: bool = True) -> None:
         """Validate table list.
 
         Raises:
-            ValueError: If the table list is empty or malformed.
+            ValueError: If the table list is empty.
+            TypeError: If an entry is not a relation object. A ``(schema,
+                table)`` tuple is refused outright rather than being accepted
+                and unpacked: a tuple cannot say which part is the database and
+                which is the name, which is exactly the ambiguity a schema
+                object removes.
         """
         if not strict:
             return
         if not self.tables:
             raise ValueError(f"{self.operation} TABLE requires at least one table")
         for table in self.tables:
-            if isinstance(table, tuple):
-                if len(table) != 2 or not all(isinstance(part, str) for part in table):
-                    raise ValueError(f"Invalid schema-qualified table: {table!r}")
-            elif not isinstance(table, str):
-                raise TypeError(f"table must be str or (schema, table) tuple, got {type(table)}")
+            if not isinstance(table, RelationObject):
+                raise TypeError(
+                    f"{self.operation} TABLE expects relation objects "
+                    f"(Table, View, MaterializedView, ForeignTable), got "
+                    f"{type(table).__name__}; pass "
+                    f"Table(self.dialect, 'users', catalog_name='app') to qualify the name"
+                )
 
     @property
     def format_method(self) -> str:
@@ -114,7 +127,7 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
     def __init__(
         self,
         dialect: "SQLDialectBase",
-        tables: List[Any],
+        tables: List[RelationObject],
         *,
         options: Optional[List[CheckTableOption]] = None,
     ):
@@ -140,7 +153,7 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
     def __init__(
         self,
         dialect: "SQLDialectBase",
-        tables: List[Any],
+        tables: List[RelationObject],
         *,
         option: Optional[ChecksumTableOption] = None,
     ):
@@ -172,7 +185,7 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
     def __init__(
         self,
         dialect: "SQLDialectBase",
-        tables: List[Any],
+        tables: List[RelationObject],
         *,
         no_write_to_binlog: "NoWriteToBinlogOption" = NoWriteToBinlogOption.NONE,
         options: Optional[List[RepairTableOption]] = None,

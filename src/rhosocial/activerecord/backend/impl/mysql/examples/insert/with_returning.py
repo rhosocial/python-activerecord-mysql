@@ -19,7 +19,6 @@ from rhosocial.activerecord.backend.expression import (
     InsertExpression,
     ValuesSource,
     QueryExpression,
-    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column, FunctionCall
 from rhosocial.activerecord.backend.expression.statements import (
@@ -29,6 +28,7 @@ from rhosocial.activerecord.backend.expression.statements import (
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
+from rhosocial.activerecord.backend.expression.objects import Table
 
 config = MySQLConnectionConfig(
     host=os.getenv("MYSQL_HOST", "localhost"),
@@ -43,13 +43,13 @@ dialect = backend.dialect
 
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="users",
+    table=Table(dialect, "users"),
     columns=[
         ColumnDefinition(
             "id",
@@ -80,7 +80,7 @@ backend.execute(sql, params)
 # 1. Insert a row
 insert_expr = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["name", "email"],
     source=ValuesSource(
         dialect,
@@ -114,7 +114,7 @@ print(f"Generated ID: {result.data}")
 verify_query = QueryExpression(
     dialect=dialect,
     select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "email")],
-    from_=TableExpression(dialect, "users"),
+    from_=Table(dialect, "users"),
 )
 sql, params = verify_query.to_sql()
 result = backend.execute(sql, params, options=dql_options)
@@ -123,7 +123,7 @@ print(f"Users: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

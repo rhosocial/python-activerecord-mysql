@@ -18,6 +18,7 @@ from rhosocial.activerecord.backend.expression import (
 from rhosocial.activerecord.backend.expression.types import IntegerType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.model import ActiveRecord
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 class Indexed(ActiveRecord):
@@ -35,7 +36,7 @@ def _create_indexed_table():
     dialect = mysql_dialect()
     return CreateTableExpression(
         dialect,
-        Indexed.__table_name__,
+        Table(dialect, Indexed.__table_name__),
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect)),
             ColumnDefinition(dialect, "email", VarCharType(dialect, 255)),

@@ -43,16 +43,16 @@ from rhosocial.activerecord.backend.impl.mysql.expression.types import (  # noqa
     MySQLLongTextType,
 )
 
-expr = DropTableExpression(dialect, "documents56", if_exists=True)
+expr = DropTableExpression(dialect, Table(dialect, "documents56"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, "documents57", if_exists=True)
+expr = DropTableExpression(dialect, Table(dialect, "documents57"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 
 # Simulate MySQL 5.6: store JSON as TEXT
 expr = CreateTableExpression(
-    dialect=dialect, table="documents56", columns=[
+    dialect=dialect, table=Table(dialect, "documents56"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
@@ -65,7 +65,7 @@ sql, params = expr.to_sql()
 backend.execute(sql, params)
 # Simulate MySQL 5.7+: native JSON column
 expr = CreateTableExpression(
-    dialect=dialect, table="documents57", columns=[
+    dialect=dialect, table=Table(dialect, "documents57"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
                 ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
@@ -83,6 +83,7 @@ backend.execute(sql, params)
 from rhosocial.activerecord.backend.schema import (  # noqa: E402
     SyncSchemaSnapshotBuilder,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
 snapshot = builder.build()
@@ -102,10 +103,10 @@ for tbl_name in ("documents56", "documents57"):
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-expr = DropTableExpression(dialect, "documents56", if_exists=True)
+expr = DropTableExpression(dialect, Table(dialect, "documents56"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, "documents57", if_exists=True)
+expr = DropTableExpression(dialect, Table(dialect, "documents57"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

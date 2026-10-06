@@ -49,5 +49,5 @@ class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLVa
 
 
 __all__ = [
-    "FulltextIndexOptionsExpression",
+    "MySQLFulltextIndexOptionsExpression",
 ]

@@ -1,6 +1,10 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_view.py
 from typing import Tuple
 
+from rhosocial.activerecord.backend.expression.objects import View
+
+from .object_kind import require_kind
+
 
 class MySQLViewMixin:
     """MySQL view support."""
@@ -30,7 +34,15 @@ class MySQLViewMixin:
         return True
 
     def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
-        """Format CREATE VIEW statement for MySQL."""
+        """Format CREATE VIEW statement for MySQL.
+
+        Raises:
+            TypeError: ``expr.view`` is not a View. A Table there would render
+                through its own formatter and produce ``CREATE VIEW `users```,
+                which is a well-formed statement creating a view over something
+                the caller never named.
+        """
+        require_kind(expr.view, View, "CreateViewExpression.view")
         parts = ["CREATE"]
 
         if expr.temporary:
@@ -40,7 +52,7 @@ class MySQLViewMixin:
             parts.append("OR REPLACE")
 
         parts.append("VIEW")
-        parts.append(self.format_identifier(expr.view_name))
+        parts.append(expr.view.to_sql()[0])
 
         if expr.column_aliases:
             cols = ", ".join(self.format_identifier(c) for c in expr.column_aliases)
@@ -62,9 +74,15 @@ class MySQLViewMixin:
         return " ".join(parts), query_params
 
     def format_drop_view_statement(self, expr: "DropViewExpression") -> Tuple[str, tuple]:
-        """Format DROP VIEW statement for MySQL."""
+        """Format DROP VIEW statement for MySQL.
+
+        Raises:
+            TypeError: ``expr.view`` is not a View; a Table there would render
+                through its own formatter and be dropped by name.
+        """
+        require_kind(expr.view, View, "DropViewExpression.view")
         parts = ["DROP VIEW"]
         if expr.if_exists:
             parts.append("IF EXISTS")
-        parts.append(self.format_identifier(expr.view_name))
+        parts.append(expr.view.to_sql()[0])
         return " ".join(parts), ()

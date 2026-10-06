@@ -273,31 +273,67 @@ Every dialect inherits from:
 |----------|-------|-------------|
 | `WindowFunctionSupport` | `WindowFunctionMixin` | Window functions (OVER, PARTITION BY) |
 | `CTESupport` | `CTEMixin` | Common Table Expressions (WITH clause) |
-| `AdvancedGroupingSupport` | `AdvancedGroupingMixin` | ROLLUP, CUBE, GROUPING SETS |
-| `ReturningSupport` | `ReturningMixin` | RETURNING clause |
+| `AdvancedGroupingSupport` | `DQLMixin` | ROLLUP, CUBE, GROUPING SETS |
+| `ReturningSupport` | `DMLMixin` | RETURNING clause |
 | `UpsertSupport` | `UpsertMixin` | UPSERT operations (ON CONFLICT) |
 | `LateralJoinSupport` | `LateralJoinMixin` | LATERAL joins |
 | `ArraySupport` | `ArrayMixin` | Array types and operations |
 | `JSONSupport` | `JSONMixin` | JSON types and operations |
-| `ExplainSupport` | `ExplainMixin` | EXPLAIN statement |
-| `FilterClauseSupport` | `FilterClauseMixin` | FILTER clause for aggregates |
-| `OrderedSetAggregationSupport` | `OrderedSetAggregationMixin` | WITHIN GROUP (ORDER BY) |
+| `ExplainSupport` | `MySQLExplainMixin` | EXPLAIN statement |
+| `FilterClauseSupport` | `ExpressionMixin` | FILTER clause for aggregates |
+| `OrderedSetAggregationSupport` | `ExpressionMixin` | WITHIN GROUP (ORDER BY) |
 | `MergeSupport` | `MergeMixin` | MERGE statement |
 | `TemporalTableSupport` | `TemporalTableMixin` | FOR SYSTEM_TIME queries |
-| `QualifyClauseSupport` | `QualifyClauseMixin` | QUALIFY clause |
-| `LockingSupport` | `LockingMixin` | FOR UPDATE, SKIP LOCKED |
+| `QualifyClauseSupport` | `DQLMixin` | QUALIFY clause |
+| `LockingSupport` | `DQLMixin` | FOR UPDATE, SKIP LOCKED |
 | `GraphSupport` | `GraphMixin` | Graph queries (MATCH) |
-| `JoinSupport` | `JoinMixin` | JOIN operations |
+| `JoinSupport` | `MySQLJoinMixin` | JOIN operations |
 | `SetOperationSupport` | `SetOperationMixin` | UNION, INTERSECT, EXCEPT |
 | `ILIKESupport` | `ILIKEMixin` | Case-insensitive LIKE |
-| `TableSupport` | `TableMixin` | CREATE/DROP/ALTER TABLE |
-| `ViewSupport` | `ViewMixin` | CREATE/DROP VIEW |
-| `TruncateSupport` | `TruncateMixin` | TRUNCATE TABLE |
-| `SchemaSupport` | `SchemaMixin` | CREATE/DROP SCHEMA |
-| `IndexSupport` | `IndexMixin` | CREATE/DROP INDEX |
-| `SequenceSupport` | `SequenceMixin` | CREATE/DROP/ALTER SEQUENCE |
-| `TriggerSupport` | `TriggerMixin` | CREATE/DROP TRIGGER (SQL:1999) |
-| `FunctionSupport` | `FunctionMixin` | CREATE/DROP FUNCTION (SQL/PSM) |
+| `TruncateSupport` | `MySQLTruncateMixin` | TRUNCATE TABLE |
+| `CreateTableSupport` / `DropTableSupport` / `AlterTableSupport` | `MySQLTableMixin` | CREATE/DROP/ALTER TABLE |
+| `CreateViewSupport` / `DropViewSupport` / `MaterializedViewSupport` | `MySQLViewMixin` | CREATE/DROP VIEW |
+| `CreateSchemaSupport` / `DropSchemaSupport` | `MySQLSchemaMixin` | CREATE/DROP SCHEMA |
+| `CreateIndexSupport` / `DropIndexSupport` / `FulltextIndexSupport` | `IndexMixin` | CREATE/DROP INDEX |
+| `CreateSequenceSupport` / `DropSequenceSupport` / `AlterSequenceSupport` | `SequenceMixin` | CREATE/DROP/ALTER SEQUENCE |
+| `CreateTriggerSupport` / `DropTriggerSupport` | `MySQLTriggerMixin` | CREATE/DROP TRIGGER (SQL:1999) |
+| `CreateRoutineSupport` / `DropRoutineSupport` | `MySQLRoutineMixin` | CREATE/DROP FUNCTION (SQL/PSM) |
+
+One statement, one protocol: there is no `TableSupport` covering CREATE and DROP
+together, so a dialect that supports `CREATE TABLE` but not `DROP TABLE` says so
+by implementing one and inheriting the other's default. A combined protocol
+would force both answers to move together.
+
+##### Naming a qualified object
+
+`NamespaceSupport` is the naming protocol, not a DDL one: it answers whether a
+name may be *qualified*, which is a different question from whether the engine has
+the object at all. Whether the engine has schemas is `CreateSchemaSupport` /
+`CreateDatabaseSupport`, and an engine can answer the two differently.
+
+A dialect states its own levels in one naming-side mixin, overriding only what
+differs from core's two-slot default:
+
+| Method | Responsibility |
+|--------|----------------|
+| `validate_namespace(expr)` | Accept or refuse the levels `expr` carries. Raises `UnsupportedFeatureError`; returns `None`. |
+| `format_qualified_name(expr)` | Spell the name, joining the levels present with `separator` (default `"."`). |
+
+The two are separate on purpose. Validation asks whether the levels are
+expressible; spelling asks how they are written. Conflating them is what let one
+method be five checks and three spelling steps while named for the second.
+
+Levels are read from the object's own slots — `catalog_name`, `schema_name`,
+`name` — not from a tuple, so which slot a level goes in is the dialect's
+decision, and it is the level's *position* that the spelling depends on. MySQL's
+one level is a database and therefore lives in `catalog_name`; Oracle's single
+level is a schema and therefore lives in `schema_name`. Core's two-slot shape fits
+only the dialects that have both, and fits the others by accident.
+
+MySQL's answer is in
+`rhosocial/activerecord/backend/impl/mysql/mixins/namespace.py`: one level, and a
+`schema_name` is refused rather than dropped, because dropping it renders the
+name of a table in a database the caller did not ask for.
 
 ##### Principles for Adding New Protocols/Mixins
 
@@ -315,8 +351,8 @@ Every dialect inherits from:
 
 | Feature | SQL Standard? | Location |
 |---------|---------------|----------|
-| `CREATE TRIGGER` | Yes (SQL:1999) | Main Package (`TriggerSupport`) |
-| `CREATE FUNCTION` | Yes (SQL/PSM) | Main Package (`FunctionSupport`) |
+| `CREATE TRIGGER` | Yes (SQL:1999) | Main Package (`CreateTriggerSupport`) |
+| `CREATE FUNCTION` | Yes (SQL/PSM) | Main Package (`CreateRoutineSupport`) |
 | `COMMENT ON` | No (PostgreSQL/Oracle) | PostgreSQL Extension |
 | `CREATE TYPE ... AS ENUM` | No (PostgreSQL-specific) | PostgreSQL Extension |
 | `AUTO_INCREMENT` | No (MySQL-specific) | MySQL Extension |

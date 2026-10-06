@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.objects import Table
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -56,19 +57,24 @@ class MySQLLoadDataExpression(BaseExpression):
 
     Attributes:
         file_path: Path to the data file
-        table: Target table name
+        table: Target table, as a schema object
         options: Load options
     """
 
     def __init__(
-        self, dialect: "SQLDialectBase", file_path: str, table: str, options: Optional[LoadDataOptions] = None
+        self,
+        dialect: "SQLDialectBase", file_path: str, table: "Table", options: Optional[LoadDataOptions] = None
     ):
         """Initialize LOAD DATA expression.
 
         Args:
             dialect: SQL dialect
             file_path: Path to the data file
-            table: Target table name
+            table: Target table as a
+                :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
+                Supplying an object rather than a bare string is what makes
+                ``LOAD DATA ... INTO TABLE `other_db`.`users``` expressible;
+                a string can only ever mean the session's current database.
             options: Load options (default: LoadDataOptions())
         """
         super().__init__(dialect)
@@ -92,8 +98,11 @@ class MySQLLoadDataExpression(BaseExpression):
         if not isinstance(self.file_path, str):
             raise TypeError(f"file_path must be str, got {type(self.file_path)}")
 
-        if not isinstance(self.table, str):
-            raise TypeError(f"table must be str, got {type(self.table)}")
+        if not isinstance(self.table, Table):
+            raise TypeError(
+                f"table must be a Table object, got {type(self.table).__name__}; "
+                f"pass Table(self.dialect, 'users', catalog_name='app') to qualify the name"
+            )
 
         if not isinstance(self.options, LoadDataOptions):
             raise TypeError(f"options must be LoadDataOptions, got {type(self.options)}")

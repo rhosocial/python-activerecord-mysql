@@ -24,11 +24,11 @@ dialect = backend.dialect
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode  # noqa: E402
-from rhosocial.activerecord.backend.expression.core import TableExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 # Create a full-text search expression
 # MySQL 5.6+ supports FULLTEXT indexes on InnoDB
-articles = TableExpression(dialect, "articles")
+articles = Table(dialect, "articles")
 
 # Natural language search (default)
 match_expr = MySQLMatchAgainstExpression(

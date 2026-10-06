@@ -64,47 +64,88 @@ def get_own_protocol_methods(proto: type) -> set:
 
 
 MYSQL_PROTOCOLS = [
-    dialect_protocols.CollationSupport,
+    # --- Query features ---
     dialect_protocols.CTESupport,
-    dialect_protocols.ColumnAttributeSupport,
     dialect_protocols.FilterClauseSupport,
     dialect_protocols.WindowFunctionSupport,
-    dialect_protocols.JSONSupport,
-    dialect_protocols.ReturningSupport,
     dialect_protocols.AdvancedGroupingSupport,
+    dialect_protocols.SetOperationSupport,
+    dialect_protocols.QualifyClauseSupport,
+    dialect_protocols.WildcardSupport,
+    dialect_protocols.JSONSupport,
     dialect_protocols.ArraySupport,
-    dialect_protocols.ExplainSupport,
     dialect_protocols.GraphSupport,
-    dialect_protocols.LockingSupport,
+    dialect_protocols.ExplainSupport,
+    dialect_protocols.DateTimeSupport,
+    dialect_protocols.DqlOrderSupport,
+    dialect_protocols.CollationSupport,
+    dialect_protocols.DataTypeSupport,
+    # --- DML / locking / transactions ---
+    dialect_protocols.ReturningSupport,
+    dialect_protocols.UpsertSupport,
     dialect_protocols.MergeSupport,
     dialect_protocols.OrderedSetAggregationSupport,
-    dialect_protocols.PartitionSupport,
-    dialect_protocols.QualifyClauseSupport,
+    dialect_protocols.LockingSupport,
     dialect_protocols.TemporalTableSupport,
-    dialect_protocols.UpsertSupport,
     dialect_protocols.LateralJoinSupport,
-    dialect_protocols.WildcardSupport,
     dialect_protocols.JoinSupport,
-    dialect_protocols.ViewSupport,
-    dialect_protocols.SchemaSupport,
-    dialect_protocols.IndexSupport,
-    dialect_protocols.SequenceSupport,
-    dialect_protocols.TableSupport,
-    dialect_protocols.ConstraintSupport,
-    dialect_protocols.IntrospectionSupport,
     dialect_protocols.TransactionControlSupport,
+    dialect_protocols.IntrospectionSupport,
     dialect_protocols.SQLFunctionSupport,
-    # Generic protocols MySQL also satisfies (previously omitted from this list).
+    # --- Naming: which namespace levels a name may be qualified with ---
+    # MySQL's database is the catalog and there is no inner schema, so this is
+    # answered True for the catalog and False for schema qualification. It is
+    # the base every *ObjectSupport below inherits.
+    dialect_protocols.NamespaceSupport,
+    dialect_protocols.TableObjectSupport,
+    dialect_protocols.ViewObjectSupport,
+    dialect_protocols.MaterializedViewObjectSupport,
+    dialect_protocols.ForeignTableObjectSupport,
+    dialect_protocols.IndexObjectSupport,
+    dialect_protocols.SequenceObjectSupport,
+    dialect_protocols.TriggerObjectSupport,
+    dialect_protocols.TypeObjectSupport,
+    dialect_protocols.SynonymObjectSupport,
+    # A routine names the function or procedure it calls, so spelling one is
+    # required even by a dialect that manages routines through its own
+    # protocol. Whether MySQL *manages* routines is asked separately, by
+    # CreateRoutineSupport and DropRoutineSupport below.
+    dialect_protocols.RoutineObjectSupport,
+    # --- DDL: table ---
+    dialect_protocols.CreateTableSupport,
+    dialect_protocols.CreateTableAsSupport,
+    dialect_protocols.CreateTableLikeSupport,
+    dialect_protocols.CreateTableCloneSupport,
+    dialect_protocols.CreateTableUsingTemplateSupport,
+    dialect_protocols.DropTableSupport,
+    dialect_protocols.AlterTableSupport,
     dialect_protocols.AlterTableModifierSupport,
-    dialect_protocols.DataTypeSupport,
-    dialect_protocols.UserDefinedTypeSupport,
-    dialect_protocols.DomainSupport,
-    dialect_protocols.SetOperationSupport,
-    dialect_protocols.TriggerSupport,
     dialect_protocols.TruncateSupport,
+    dialect_protocols.ConstraintSupport,
+    dialect_protocols.ColumnAttributeSupport,
     dialect_protocols.AutoIncrementSupport,
     dialect_protocols.GeneratedColumnSupport,
-    # MySQL-specific protocols
+    dialect_protocols.PartitionSupport,
+    # --- DDL: view / index ---
+    dialect_protocols.CreateViewSupport,
+    dialect_protocols.DropViewSupport,
+    dialect_protocols.MaterializedViewSupport,
+    dialect_protocols.CreateIndexSupport,
+    dialect_protocols.DropIndexSupport,
+    dialect_protocols.FulltextIndexSupport,
+    # --- DDL: sequence / trigger / type / domain ---
+    dialect_protocols.CreateSequenceSupport,
+    dialect_protocols.AlterSequenceSupport,
+    dialect_protocols.DropSequenceSupport,
+    dialect_protocols.CreateTriggerSupport,
+    dialect_protocols.CreateTypeSupport,
+    dialect_protocols.AlterTypeSupport,
+    dialect_protocols.DropTypeSupport,
+    dialect_protocols.CreateDomainSupport,
+    dialect_protocols.AlterDomainSupport,
+    dialect_protocols.DropDomainSupport,
+    dialect_protocols.AlterDatabaseSupport,
+    # --- MySQL-specific protocols ---
     mysql_protocols.MySQLDMLOperationSupport,
     mysql_protocols.MySQLTriggerSupport,
     mysql_protocols.MySQLTableSupport,
@@ -149,13 +190,47 @@ class TestMySQLDialectProtocolConformance:
 # Listing them makes the omission a deliberate, tested contract: if MySQL ever
 # satisfies one by accident, the negative test fails and forces a conscious
 # decision (move to MYSQL_PROTOCOLS or revert).
+#
+# Each entry below is unsatisfied for a *stated* reason. Where MySQL plainly
+# does have the feature but not every probe the generic protocol asks for, the
+# comment says so: the missing probes are named, because "MySQL has no CREATE
+# DATABASE" would be false and would make this list a place where drift hides.
 MYSQL_NOT_IMPLEMENTED = [
-    # --- Intentional non-support ---
     # MySQL has no standalone COMMENT ON statement; inline table/column
     # comments are rendered by CREATE TABLE instead.
     dialect_protocols.CommentSupport,
-    # The generic DatabaseSupport protocol is not composed by MySQLDialect.
-    dialect_protocols.DatabaseSupport,
+    # MySQL spells CREATE SCHEMA as a synonym for CREATE DATABASE and renders
+    # it through the database formatter, so no schema statement exists.
+    dialect_protocols.CreateSchemaSupport,
+    dialect_protocols.DropSchemaSupport,
+    # MySQL does have CREATE/DROP DATABASE. MySQLDatabaseMixin implements the
+    # formatters but not every probe these protocols require:
+    #   CreateDatabaseSupport -- supports_database_owner, _template,
+    #     _tablespace, _comment, _connection_limit, _or_replace
+    #   DropDatabaseSupport -- supports_undrop_database, _database_force_drop
+    # Until those probes exist MySQL satisfies neither, which is why
+    # AlterDatabaseSupport (complete enough) is in the positive list and these
+    # two are here. Adding the probes moves them across.
+    dialect_protocols.CreateDatabaseSupport,
+    dialect_protocols.DropDatabaseSupport,
+    # MySQL does have stored routines, through MySQLRoutineMixin. The generic
+    # protocols ask for probes MySQL does not answer:
+    #   CreateRoutineSupport -- supports_function, _create_function,
+    #     _function_parameters, _function_or_replace
+    #   DropRoutineSupport -- supports_drop_function, _drop_function_if_exists,
+    #     _drop_function_cascade
+    dialect_protocols.CreateRoutineSupport,
+    dialect_protocols.DropRoutineSupport,
+    # MySQL does have DROP TRIGGER. DropTriggerSupport additionally requires
+    # supports_trigger_if_exists, which MySQLTriggerMixin does not answer.
+    # CreateTriggerSupport is satisfied and is in the positive list.
+    dialect_protocols.DropTriggerSupport,
+    # MySQL has no SQL/PGQ property-graph tables.
+    dialect_protocols.GraphTableSupport,
+    # MySQL LIKE is case-insensitive by default; there is no ILIKE operator.
+    dialect_protocols.ILIKESupport,
+    # MySQL has no PIVOT / UNPIVOT.
+    dialect_protocols.PivotSupport,
     # MySQL has no SQL/XML support.
     dialect_protocols.SQLXMLSupport,
     dialect_protocols.SQLXMLParsingSupport,
@@ -163,29 +238,21 @@ MYSQL_NOT_IMPLEMENTED = [
     dialect_protocols.SQLXMLConstructionSupport,
     dialect_protocols.SQLXMLAggregationSupport,
     dialect_protocols.SQLXMLQueryingSupport,
-    # MySQL has no SQL/PGQ property-graph tables.
-    dialect_protocols.GraphTableSupport,
-    # MySQL LIKE is case-insensitive by default; there is no ILIKE operator.
-    dialect_protocols.ILIKESupport,
-    # MySQL exposes routine DDL through its own MySQLRoutineSupport protocol
-    # rather than the generic SQL/PSM FunctionSupport.
-    dialect_protocols.FunctionSupport,
 ]
 
 
-def get_all_generic_protocols() -> dict:
-    """Discover every generic dialect protocol defined in protocols.py."""
+def get_all_generic_protocols() -> set:
+    """Discover every generic dialect protocol defined in the protocols package."""
     from typing import Protocol
 
-    discovered = {}
+    discovered = set()
     for name, obj in inspect.getmembers(dialect_protocols, inspect.isclass):
         if Protocol not in getattr(obj, "__mro__", []) or not name.endswith("Support"):
             continue
         if name == "DDLTypeSupport":
-            assert obj is dialect_protocols.DataTypeSupport
             continue
         assert name == obj.__name__, f"unexpected protocol alias: {name}"
-        discovered[name] = obj
+        discovered.add(name)
     return discovered
 
 
@@ -207,8 +274,13 @@ class TestMySQLDialectNegativeProtocolConformance:
 
     def test_positive_and_negative_lists_partition_all_protocols(self):
         """Every generic protocol must be classified for MySQL."""
-        all_protos = set(get_all_generic_protocols())
-        positive = {p.__name__ for p in MYSQL_PROTOCOLS if p.__module__ == dialect_protocols.__name__}
+        all_protos = get_all_generic_protocols()
+        # Each protocol lives in a submodule of the protocols package, so the
+        # generic ones are identified by the package they live in rather than by
+        # an exact module path.
+        generic = [p for p in MYSQL_PROTOCOLS
+                   if p.__module__.startswith(dialect_protocols.__name__ + ".")]
+        positive = {p.__name__ for p in generic}
         negative = {p.__name__ for p in MYSQL_NOT_IMPLEMENTED}
 
         overlap = positive & negative
@@ -229,43 +301,39 @@ class TestProtocolNonOverlap:
 
     def test_no_interface_overlap_between_protocols(self):
         """No two protocols should share the same method name."""
-        member_map = {proto.__name__: get_all_protocol_methods(proto) for proto in MYSQL_PROTOCOLS}
+        # Own members only: the named-object protocols share NamespaceSupport by
+        # design, and shared base members are not a collision.
+        member_map = {proto.__name__: get_own_protocol_methods(proto) for proto in MYSQL_PROTOCOLS}
 
         for name, members in member_map.items():
             assert len(members) > 0, f"Protocol {name} has no members defined"
 
         excluded_overlaps = {
-            # MySQL-specific protocols extend generic protocols (intentional inheritance)
+            # Each pair below is a MySQL-specific protocol deliberately
+            # restating part of a generic one, which is the whole point of a
+            # backend protocol: MySQL's spelling and capability probes differ,
+            # and the generic protocol stays untouched.
             ("JSONSupport", "MySQLJSONFunctionSupport"),
-            ("MySQLJSONFunctionSupport", "JSONSupport"),
+            ("JSONSupport", "MySQLSetTypeSupport"),
             ("LockingSupport", "MySQLLockingSupport"),
-            ("MySQLLockingSupport", "LockingSupport"),
-            ("TableSupport", "MySQLTableSupport"),
-            ("MySQLTableSupport", "TableSupport"),
-            # Partitioning extends table DDL capabilities.
-            ("TableSupport", "PartitionSupport"),
-            ("PartitionSupport", "TableSupport"),
+            ("CreateTableSupport", "MySQLTableSupport"),
+            ("CreateTableLikeSupport", "MySQLTableSupport"),
+            # The sibling of the CreateTableSupport pair above: MySQL's table DDL
+            # surface is one protocol, so it carries both halves of the
+            # IF [NOT] EXISTS story that the generic side splits across a create
+            # protocol and a drop one.
+            ("DropTableSupport", "MySQLTableSupport"),
+            ("ConstraintSupport", "MySQLTableSupport"),
+            ("CreateTriggerSupport", "MySQLTriggerSupport"),
+            ("FulltextIndexSupport", "MySQLFullTextSearchSupport"),
             ("PartitionSupport", "MySQLPartitionSupport"),
-            ("MySQLPartitionSupport", "PartitionSupport"),
-            # MySQL DML includes upsert capabilities (ON DUPLICATE KEY UPDATE)
+            ("AlterTableSupport", "MySQLRenameTableSupport"),
             ("UpsertSupport", "MySQLDMLOperationSupport"),
-            ("MySQLDMLOperationSupport", "UpsertSupport"),
-            # MySQL fulltext search includes index capabilities
-            ("IndexSupport", "MySQLFullTextSearchSupport"),
-            ("MySQLFullTextSearchSupport", "IndexSupport"),
-            # RENAME TABLE extends table DDL capabilities
-            ("TableSupport", "MySQLRenameTableSupport"),
-            ("MySQLRenameTableSupport", "TableSupport"),
-            ("MySQLTableSupport", "MySQLRenameTableSupport"),
-            ("MySQLRenameTableSupport", "MySQLTableSupport"),
-            # MySQL trigger protocol restates the generic trigger capability.
-            ("TriggerSupport", "MySQLTriggerSupport"),
-            ("MySQLTriggerSupport", "TriggerSupport"),
         }
 
         violations = []
         for (name_a, members_a), (name_b, members_b) in combinations(member_map.items(), 2):
-            if (name_a, name_b) in excluded_overlaps:
+            if (name_a, name_b) in excluded_overlaps or (name_b, name_a) in excluded_overlaps:
                 continue
             overlap = members_a & members_b
             if overlap:
@@ -285,7 +353,7 @@ class TestMySQLProtocolDerivation:
     """
 
     PROTOCOL_DERIVATIONS = [
-        ("MySQLTableSupport", "TableSupport"),
+        ("MySQLTableSupport", "TableObjectSupport"),
         ("MySQLPartitionSupport", "PartitionSupport"),
         ("MySQLLockingSupport", "LockingSupport"),
         ("MySQLJSONFunctionSupport", "JSONSupport"),
@@ -342,7 +410,7 @@ class TestMySQLExpressionDialectSeparation:
         ("MySQLReorganizePartitionExpression", "format_reorganize_partition_statement"),
         ("MySQLExchangePartitionExpression", "format_exchange_partition_statement"),
         ("MySQLRenameTableExpression", "format_rename_table_statement"),
-        ("MySQLTableExpression", "format_table_statement"),
+        ("MySQLTableStatement", "format_table_statement"),
         ("MySQLValuesExpression", "format_values_statement"),
         ("MySQLAnalyzeTableExpression", "format_table_maintenance_statement"),
         ("MySQLCheckTableExpression", "format_table_maintenance_statement"),
@@ -434,19 +502,10 @@ class TestProtocolMethodSignatureConformance:
         """Create a MySQLDialect instance for testing."""
         return mysql_dialect.MySQLDialect()
 
-    # Known signature mismatches between MySQL dialect and generic protocols.
-    # MySQL uses **kwargs or different parameter names for some methods.
-    # These are pre-existing issues that require a broader refactoring to fix.
+    # Known signature mismatches between the MySQL dialect and the generic
+    # protocols. MySQL takes **kwargs for EXPLAIN options where the protocol
+    # names them positionally; every other protocol pair matches.
     _SIGNATURE_MISMATCH_EXCLUSIONS = {
-        # JSONSupport: MySQL uses expr-based signatures instead of named params
-        ("JSONSupport", "format_json_expression"),
-        ("JSONSupport", "format_json_table_expression"),
-        # MySQLJSONFunctionSupport inherits from JSONSupport, same signature issues
-        ("MySQLJSONFunctionSupport", "format_json_expression"),
-        ("MySQLJSONFunctionSupport", "format_json_table_expression"),
-        # ArraySupport: MySQL doesn't support arrays natively
-        ("ArraySupport", "format_array_expression"),
-        # ExplainSupport: MySQL uses **kwargs for explain options
         ("ExplainSupport", "format_explain_statement"),
     }
 

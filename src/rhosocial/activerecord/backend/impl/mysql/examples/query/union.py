@@ -41,13 +41,13 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
 )
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="users",
+    table=Table(dialect, "users"),
     columns=[
         ColumnDefinition(
             "id",
@@ -67,7 +67,7 @@ backend.execute(sql, params)
 # Insert data into table_a
 insert = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["id", "name"],
     source=ValuesSource(
         dialect,
@@ -86,15 +86,15 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
-    TableExpression,
     SetOperationExpression,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 # First query
 query1 = QueryExpression(
     dialect=dialect,
     select=[Column(dialect, "name")],
-    from_=TableExpression(dialect, "users"),
+    from_=Table(dialect, "users"),
 )
 
 query2 = QueryExpression(
@@ -135,7 +135,7 @@ print(f"UNION ALL result: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_expr = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_expr = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

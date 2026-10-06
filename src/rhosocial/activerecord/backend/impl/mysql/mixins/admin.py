@@ -1,6 +1,10 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/admin.py
 from typing import TYPE_CHECKING, Tuple
 
+from rhosocial.activerecord.backend.expression.objects import Table
+
+from .object_kind import require_kind
+
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
         MySQLCacheIndexExpression,
@@ -62,13 +66,36 @@ class MySQLAdminCommandMixin:
     def _format_cache_entries(self, cache_entries) -> str:
         entries = []
         for entry in cache_entries:
-            table = entry["table"]
-            table_sql = _fmt_table(self, table)
+            table_sql = self._format_admin_table(entry["table"])
             if entry.get("indexes"):
                 idx = ", ".join(self.format_identifier(i) for i in entry["indexes"])
                 table_sql += f" INDEX ({idx})"
             entries.append(table_sql)
         return ", ".join(entries)
+
+    def _format_admin_table(self, table) -> str:
+        """Render one administrative statement's table through its own formatter.
+
+        ``HANDLER``, ``CACHE INDEX`` and ``LOAD INDEX INTO CACHE`` all name a
+        table; the object carries its own database, so a qualified name needs no
+        tuple unpacking here.
+
+        Raises:
+            TypeError: *table* is not a Table. The check is here rather than in
+                each of the five statements that call this helper because they
+                all reach it through the same line, and a wrong kind would render
+                through whichever object's own formatter it happened to be.
+        """
+        require_kind(table, Table, "administrative statement table")
+        return table.to_sql()[0]
+
+    def _format_accounts(self, accounts) -> str:
+        """Format account specifications as ``'user'@'host'``."""
+        parts = []
+        for acct in accounts:
+            host = acct.host if acct.host else "%"
+            parts.append(f"'{acct.user}'@'{host}'")
+        return ", ".join(parts)
 
     def format_cache_index_statement(
         self,
@@ -186,7 +213,7 @@ class MySQLAdminCommandMixin:
         expr: "MySQLHandlerOpenExpression",
     ) -> Tuple[str, tuple]:
         """Format ``HANDLER table OPEN [AS alias]``."""
-        parts = ["HANDLER", _fmt_table(self, expr.table), "OPEN"]
+        parts = ["HANDLER", self._format_admin_table(expr.table), "OPEN"]
         if expr.alias:
             parts.append("AS")
             parts.append(self.format_identifier(expr.alias))
@@ -198,7 +225,7 @@ class MySQLAdminCommandMixin:
     ) -> Tuple[str, tuple]:
         """Format ``HANDLER table READ ...``."""
         params = []
-        parts = ["HANDLER", _fmt_table(self, expr.table), "READ"]
+        parts = ["HANDLER", self._format_admin_table(expr.table), "READ"]
         if expr.index:
             parts.append(self.format_identifier(expr.index))
         parts.append(expr.mode.value)
@@ -223,7 +250,7 @@ class MySQLAdminCommandMixin:
         expr: "MySQLHandlerCloseExpression",
     ) -> Tuple[str, tuple]:
         """Format ``HANDLER table CLOSE``."""
-        return f"HANDLER {_fmt_table(self, expr.table)} CLOSE", ()
+        return f"HANDLER {self._format_admin_table(expr.table)} CLOSE", ()
 
     # --- DO / KILL / SHUTDOWN / HELP ---
 
@@ -282,7 +309,7 @@ class MySQLAdminCommandMixin:
         parts = ["CREATE USER"]
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(self._format_accounts(expr.accounts))
         if expr.identified_by:
             parts.append(f"IDENTIFIED BY '{expr.identified_by}'")
         return " ".join(parts), ()
@@ -295,7 +322,7 @@ class MySQLAdminCommandMixin:
         parts = ["DROP USER"]
         if expr.if_exists:
             parts.append("IF EXISTS")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(self._format_accounts(expr.accounts))
         return " ".join(parts), ()
 
     def supports_grant(self) -> bool:
@@ -314,7 +341,7 @@ class MySQLAdminCommandMixin:
         parts.append("ON")
         parts.append(expr.on_object or "*.*")
         parts.append("TO")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(self._format_accounts(expr.accounts))
         if expr.with_grant_option:
             parts.append("WITH GRANT OPTION")
         return " ".join(parts), ()
@@ -335,22 +362,5 @@ class MySQLAdminCommandMixin:
         parts.append("ON")
         parts.append(expr.on_object or "*.*")
         parts.append("FROM")
-        parts.append(_format_accounts(self, expr.accounts))
+        parts.append(self._format_accounts(expr.accounts))
         return " ".join(parts), ()
-
-
-def _fmt_table(dialect, table):
-    """Format a possibly schema-qualified table name."""
-    if isinstance(table, tuple):
-        schema, name = table
-        return f"{dialect.format_identifier(schema)}.{dialect.format_identifier(name)}"
-    return dialect.format_identifier(table)
-
-
-def _format_accounts(dialect, accounts) -> str:
-    """Format account specifications as ``'user'@'host'``."""
-    parts = []
-    for acct in accounts:
-        host = acct.host if acct.host else "%"
-        parts.append(f"'{acct.user}'@'{host}'")
-    return ", ".join(parts)

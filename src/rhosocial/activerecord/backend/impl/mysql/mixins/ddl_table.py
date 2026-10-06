@@ -2,6 +2,10 @@
 from typing import Any, List, TYPE_CHECKING, Tuple
 import re
 
+from rhosocial.activerecord.backend.expression.objects import Table
+
+from .object_kind import require_kind
+
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnDefinition,
@@ -65,9 +69,15 @@ class MySQLTableMixin:
         - Table-level comments
         - AUTO_INCREMENT in column definitions
         - Partition clause
+
+        Raises:
+            TypeError: ``expr.table`` is not a Table. A View or a Sequence there
+                renders through its own formatter and would produce a
+                well-formed CREATE TABLE over the wrong kind of object's name.
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
+        require_kind(expr.table, Table, "CreateTableExpression.table")
         if expr.tablespace:
             raise UnsupportedFeatureError(
                 self.name, "TABLESPACE",
@@ -95,7 +105,9 @@ class MySQLTableMixin:
         parts.append("TABLE")
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
+        table_sql, table_params = expr.table.to_sql()
+        parts.append(table_sql)
+        all_params.extend(table_params)
 
         column_parts = []
         for col_def in expr.columns:
@@ -207,12 +219,24 @@ class MySQLTableMixin:
         return " ".join(parts), params
 
     def format_table_constraint(self, t_const: "TableConstraint") -> Tuple[str, tuple]:
-        """Format a table-level constraint."""
+        """Format a table-level constraint.
+
+        Raises:
+            TypeError: ``t_const.foreign_key_table`` is set and is not a Table.
+                The rendered statement would reference whatever object's name
+                was in that slot.
+        """
         from rhosocial.activerecord.backend.expression.statements import (
             ForeignKeyConstraint,
             ReferentialAction,
             TableConstraintType,
         )
+        if t_const.foreign_key_table is not None:
+            require_kind(
+                t_const.foreign_key_table,
+                Table,
+                "TableConstraint.foreign_key_table",
+            )
         parts = []
         params: List[Any] = []
 
@@ -242,7 +266,7 @@ class MySQLTableMixin:
             if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
                 cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
                 ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                ref_table = self.format_identifier(t_const.foreign_key_table)
+                ref_table = t_const.foreign_key_table.to_sql()[0]
                 parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
                 if isinstance(t_const, ForeignKeyConstraint):
                     if t_const.on_delete and t_const.on_delete != ReferentialAction.NO_ACTION:

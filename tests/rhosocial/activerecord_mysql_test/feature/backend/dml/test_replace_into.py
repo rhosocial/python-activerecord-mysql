@@ -15,6 +15,7 @@ import pytest_asyncio
 from rhosocial.activerecord.backend.expression.statements import ValuesSource
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLInsertExpression
 from rhosocial.activerecord.backend.expression import core
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 class TestMySQLReplaceInto:
@@ -44,7 +45,7 @@ class TestMySQLReplaceInto:
 
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]]
             ),
@@ -80,7 +81,7 @@ class TestMySQLReplaceInto:
         # REPLACE with new data
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(dialect, [[core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]]),
             columns=["email", "name"],
             replace=True,
@@ -111,7 +112,7 @@ class TestMySQLReplaceInto:
         # REPLACE multiple rows, one conflicts
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect,
                 [
@@ -152,7 +153,7 @@ class TestMySQLReplaceInto:
         with pytest.raises(ValueError, match="REPLACE INTO does not support ON CONFLICT"):
             expr = MySQLInsertExpression(
                 dialect=dialect,
-                into=test_table,
+                into=Table(dialect, test_table),
                 source=ValuesSource(
                     dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
                 ),
@@ -169,7 +170,7 @@ class TestMySQLReplaceInto:
         with pytest.raises(ValueError, match="Cannot use both 'replace' and 'ignore'"):
             expr = MySQLInsertExpression(
                 dialect=dialect,
-                into=test_table,
+                into=Table(dialect, test_table),
                 source=ValuesSource(
                     dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
                 ),
@@ -209,7 +210,7 @@ class TestMySQLAsyncReplaceInto:
         # REPLACE with new data
         expr = MySQLInsertExpression(
             dialect=dialect,
-            into=test_table,
+            into=Table(dialect, test_table),
             source=ValuesSource(
                 dialect, [[core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Replaced Async")]]
             ),

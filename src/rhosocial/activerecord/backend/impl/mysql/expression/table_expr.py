@@ -66,6 +66,6 @@ class MySQLStorageOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExp
 
 
 __all__ = [
-    "InlineIndexExpression",
-    "StorageOptionsExpression",
+    "MySQLInlineIndexExpression",
+    "MySQLStorageOptionsExpression",
 ]

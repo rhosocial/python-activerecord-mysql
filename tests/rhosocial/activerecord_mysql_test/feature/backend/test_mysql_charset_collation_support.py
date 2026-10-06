@@ -17,6 +17,7 @@ from rhosocial.activerecord.backend.impl.mysql.mixins import (
 from rhosocial.activerecord.backend.impl.mysql.protocols import (
     MySQLCharsetCollationSupport,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 def test_dialect_implements_protocol():
@@ -73,7 +74,7 @@ def test_auto_increment_and_row_format_rendered():
     )
     expr = CreateTableExpression(
         dialect,
-        "t",
+        Table(dialect, "t"),
         [ColumnDefinition(dialect, "id", IntegerType(dialect))],
         table_options=options,
     )
