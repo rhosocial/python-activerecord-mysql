@@ -34,9 +34,11 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from rhosocial.activerecord.backend.expression.core import Column
 from rhosocial.activerecord.backend.expression.objects import Table, View
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
+from rhosocial.activerecord.backend.expression.query_sources import CTEExpression
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     ColumnConstraint,
     ColumnConstraintType,
+    CreateTableAsExpression,
     TableConstraint,
     TableConstraintType,
 )
@@ -46,6 +48,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_truncate import (
 from rhosocial.activerecord.backend.expression.statements.ddl_view import (
     DropViewExpression,
 )
+from rhosocial.activerecord.backend.expression.statements.dql import QueryExpression
 from rhosocial.activerecord.backend.expression.transaction import (
     BeginTransactionExpression,
     SetTransactionExpression,
@@ -65,6 +68,10 @@ def _dialect(version=PAIR_GUARD_VERSION):
 
 def _table(d, name="t"):
     return Table(d, name)
+
+
+def _query(d):
+    return QueryExpression(d, select=[Column(d, "id")], from_=_table(d))
 
 
 def _fk(d, **kw):
@@ -203,6 +210,22 @@ PAIR_CASES = (
         "not_deferrable",
         a_error=r"(?<!NOT )DEFERRABLE\b",
         b_error=r"NOT DEFERRABLE\b",
+    ),
+    PairCase(
+        "BeginTransactionExpression.wait",
+        lambda d, **kw: BeginTransactionExpression(d, **kw),
+        "wait",
+        "no_wait",
+        a_error=r"(?<!NO )WAIT\b",
+        b_error=r"NO WAIT\b",
+    ),
+    PairCase(
+        "SetTransactionExpression.wait",
+        lambda d, **kw: SetTransactionExpression(d, **kw),
+        "wait",
+        "no_wait",
+        a_error=r"(?<!NO )WAIT\b",
+        b_error=r"NO WAIT\b",
     ),
     PairCase(
         "TableConstraint.enforced",
@@ -406,6 +429,115 @@ class TestDeclaredCapabilities:
         assert _dialect((5, 6, 0)).supports_exchange_partition_without_validation() is True
 
 
+class TestNewlyGatedMasterProbes:
+    """The master probes core now consults are declared from MySQL measurement.
+
+    Core gave four probes call sites: ``supports_materialized_cte`` (the CTE
+    ``MATERIALIZED`` hint), ``supports_truncate`` (the TRUNCATE statement
+    itself), the new ``supports_with_data_clause`` (``WITH [NO] DATA`` on CTAS
+    and materialized-view statements) and the new ``supports_transaction_wait``
+    (``WAIT`` / ``NO WAIT`` on transactions). The MySQL answers were measured
+    directly against servers 5.6.51, 5.7.44, 8.0.46, 8.4.11, 9.2.0, 9.4.0 and
+    26.7.0: TRUNCATE TABLE is real, and the other three spellings are rejected
+    by every server (plain CTE itself only exists from 8.0.1). The verdicts are
+    declared by this backend's own mixins -- inheriting a default would let a
+    core default change flip MySQL silently -- and every declined spelling is
+    refused by name rather than dropped.
+    """
+
+    #: The exact server versions the verdicts were measured on.
+    MEASURED_VERSIONS = (
+        (5, 6, 51),
+        (5, 7, 44),
+        (8, 0, 46),
+        (8, 4, 11),
+        (9, 2, 0),
+        (9, 4, 0),
+        (26, 7, 0),
+    )
+
+    @pytest.mark.parametrize(
+        "version",
+        MEASURED_VERSIONS,
+        ids=[".".join(str(part) for part in v) for v in MEASURED_VERSIONS],
+    )
+    def test_measured_probe_verdicts(self, version):
+        dialect = _dialect(version)
+        assert dialect.supports_truncate() is True
+        assert dialect.supports_materialized_cte() is False
+        assert dialect.supports_with_data_clause() is False
+        assert dialect.supports_transaction_wait() is False
+
+    def test_mysql_mixins_own_the_resolved_probe_declarations(self):
+        """The declaration that wins MRO lookup must be MySQL's own.
+
+        Membership in ``__dict__`` is not enough: a declaration placed after a
+        core mixin that defines the same method is shadowed, and the backend
+        silently answers with core's default again.
+        """
+        from rhosocial.activerecord.backend.impl.mysql.mixins import (
+            MySQLCTEMixin,
+            MySQLTransactionMixin,
+            MySQLTruncateMixin,
+            MySQLViewMixin,
+        )
+
+        dialect = _dialect()
+        expected_owner = {
+            "supports_materialized_cte": MySQLCTEMixin,
+            "supports_with_data_clause": MySQLViewMixin,
+            "supports_transaction_wait": MySQLTransactionMixin,
+            "supports_truncate": MySQLTruncateMixin,
+        }
+        for probe, mixin in expected_owner.items():
+            owner = next(
+                klass for klass in type(dialect).__mro__ if probe in vars(klass)
+            )
+            assert owner is mixin, (
+                f"{probe} resolves to {owner.__module__}.{owner.__qualname__}, "
+                f"not {mixin.__module__}.{mixin.__qualname__}"
+            )
+
+    def test_materialized_cte_is_refused_by_name(self):
+        dialect = _dialect()
+        with pytest.raises(UnsupportedFeatureError, match=r"(?<!NOT )MATERIALIZED"):
+            CTEExpression(dialect, "c", _query(dialect), materialized=True).to_sql()
+        with pytest.raises(UnsupportedFeatureError, match=r"NOT MATERIALIZED"):
+            CTEExpression(dialect, "c", _query(dialect), not_materialized=True).to_sql()
+        sql, _params = CTEExpression(dialect, "c", _query(dialect)).to_sql()
+        assert "MATERIALIZED" not in sql
+
+    def test_ctas_with_data_is_refused_by_name(self):
+        dialect = _dialect()
+        with pytest.raises(UnsupportedFeatureError, match=r"WITH DATA\b"):
+            CreateTableAsExpression(
+                dialect, _table(dialect), _query(dialect), with_data=True
+            ).to_sql()
+        with pytest.raises(UnsupportedFeatureError, match=r"WITH NO DATA\b"):
+            CreateTableAsExpression(
+                dialect, _table(dialect), _query(dialect), no_data=True
+            ).to_sql()
+
+    def test_transaction_wait_is_refused_by_name(self):
+        dialect = _dialect()
+        with pytest.raises(UnsupportedFeatureError, match=r"(?<!NO )WAIT\b"):
+            BeginTransactionExpression(dialect, wait=True).to_sql()
+        with pytest.raises(UnsupportedFeatureError, match=r"NO WAIT\b"):
+            BeginTransactionExpression(dialect, no_wait=True).to_sql()
+        with pytest.raises(UnsupportedFeatureError, match=r"(?<!NO )WAIT\b"):
+            SetTransactionExpression(dialect, wait=True).to_sql()
+        with pytest.raises(UnsupportedFeatureError, match=r"NO WAIT\b"):
+            SetTransactionExpression(dialect, no_wait=True).to_sql()
+
+    def test_truncate_gate_renders_mysqls_own_form(self):
+        """``supports_truncate()`` is True, and the formatter is MySQL's own."""
+        dialect = _dialect()
+        assert dialect.supports_truncate() is True
+        sql, params = TruncateExpression(dialect, _table(dialect)).to_sql()
+        assert sql == "TRUNCATE TABLE `t`"
+        assert params == ()
+
+
 class TestGuardIsNotVacuous:
     """Guards so the checks above cannot pass by accident."""
 
@@ -420,7 +552,9 @@ class TestGuardIsNotVacuous:
             "TruncateExpression.restart_identity",
             "DropViewExpression.cascade",
             "BeginTransactionExpression.deferrable",
+            "BeginTransactionExpression.wait",
             "SetTransactionExpression.deferrable",
+            "SetTransactionExpression.wait",
             "TableConstraint.enforced",
             "TableConstraint.deferrable",
             "TableConstraint.initially_deferred",

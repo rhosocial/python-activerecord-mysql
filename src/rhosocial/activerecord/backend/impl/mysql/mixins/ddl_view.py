@@ -33,6 +33,23 @@ class MySQLViewMixin:
         """Whether WITH CHECK OPTION is supported."""
         return True
 
+    def supports_with_data_clause(self) -> bool:
+        """Whether ``WITH [NO] DATA`` exists on CTAS or materialized views.
+
+        MySQL's CTAS grammar is ``CREATE TABLE ... AS SELECT ...`` with no
+        population clause: ``WITH DATA`` / ``WITH NO DATA`` after the query are
+        syntax errors at every version measured (5.6.51, 5.7.44, 8.0.46,
+        8.4.11, 9.2.0, 9.4.0, 26.7.0), and a failed statement leaves no table
+        behind. The materialized-view consumers of the shared probe are
+        unreachable on MySQL because ``supports_materialized_view()`` answers
+        False. The declaration lives here (rather than in ``MySQLTableMixin``)
+        because this mixin precedes core's ``ViewMixin`` in the MRO; a
+        declaration after it would be shadowed by core's default. Core's CTAS
+        formatter consults the resolved probe, so a requested clause is refused
+        by name.
+        """
+        return False
+
     def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
         """Format CREATE VIEW statement for MySQL.
 
