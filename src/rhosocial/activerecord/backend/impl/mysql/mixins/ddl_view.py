@@ -76,13 +76,36 @@ class MySQLViewMixin:
     def format_drop_view_statement(self, expr: "DropViewExpression") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for MySQL.
 
+        The CASCADE / RESTRICT pair is consumed here: MySQL does not provide
+        either behavior (``supports_cascade_view`` / ``supports_restrict_view``
+        answer False), so a caller who asks for one spelling is refused by name
+        rather than silently dropped.
+
         Raises:
             TypeError: ``expr.view`` is not a View; a Table there would render
                 through its own formatter and be dropped by name.
+            UnsupportedFeatureError: If the dialect does not accept the
+                requested behavior keyword.
         """
         require_kind(expr.view, View, "DropViewExpression.view")
+        if expr.cascade and not self.supports_cascade_view():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(
+                self.name, "DROP VIEW CASCADE",
+                f"{self.name} does not support DROP VIEW CASCADE.",
+            )
+        if expr.restrict and not self.supports_restrict_view():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(
+                self.name, "DROP VIEW RESTRICT",
+                f"{self.name} does not support DROP VIEW RESTRICT.",
+            )
         parts = ["DROP VIEW"]
         if expr.if_exists:
             parts.append("IF EXISTS")
         parts.append(expr.view.to_sql()[0])
+        if expr.cascade:
+            parts.append("CASCADE")
+        elif expr.restrict:
+            parts.append("RESTRICT")
         return " ".join(parts), ()

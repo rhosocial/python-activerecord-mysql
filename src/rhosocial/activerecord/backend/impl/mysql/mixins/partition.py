@@ -128,6 +128,16 @@ class MySQLPartitionMixin:
         """
         return self.version >= (5, 7, 0)
 
+    def supports_exchange_partition_without_validation(self) -> bool:
+        """Whether ``EXCHANGE PARTITION ... WITHOUT VALIDATION`` is accepted.
+
+        ``WITHOUT VALIDATION`` is the default validation mode of
+        ``ALTER TABLE ... EXCHANGE PARTITION`` and is accepted by every MySQL
+        release that has the statement at all (5.6.0 and later), so unlike
+        ``WITH VALIDATION`` it has no later version boundary.
+        """
+        return True
+
     def supports_analyze_partition(self) -> bool:
         return True
 
@@ -693,10 +703,29 @@ class MySQLPartitionMixin:
         )
         table_sql, table_params = expr.table.to_sql()
         exchange_table_sql, exchange_table_params = expr.exchange_table.to_sql()
-        validation = "WITH VALIDATION" if expr.with_validation else "WITHOUT VALIDATION"
+        if expr.with_validation:
+            if not self.supports_exchange_partition_with_validation():
+                raise UnsupportedFeatureError(
+                    self.name,
+                    "EXCHANGE PARTITION WITH VALIDATION",
+                    f"{self.name} does not support EXCHANGE PARTITION WITH VALIDATION.",
+                )
+            validation = " WITH VALIDATION"
+        elif expr.without_validation:
+            if not self.supports_exchange_partition_without_validation():
+                raise UnsupportedFeatureError(
+                    self.name,
+                    "EXCHANGE PARTITION WITHOUT VALIDATION",
+                    f"{self.name} does not support EXCHANGE PARTITION WITHOUT VALIDATION.",
+                )
+            validation = " WITHOUT VALIDATION"
+        else:
+            # The server's default is WITHOUT VALIDATION; an unset pair renders
+            # nothing rather than picking a spelling the caller did not ask for.
+            validation = ""
         sql = (
             f"ALTER TABLE {table_sql} EXCHANGE PARTITION "
-            f"{self.format_identifier(expr.partition)} WITH TABLE {exchange_table_sql} {validation}"
+            f"{self.format_identifier(expr.partition)} WITH TABLE {exchange_table_sql}{validation}"
         )
         return sql, tuple(table_params) + tuple(exchange_table_params)
 

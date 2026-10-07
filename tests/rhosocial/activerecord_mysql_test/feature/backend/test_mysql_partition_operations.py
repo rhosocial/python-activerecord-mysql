@@ -1731,6 +1731,7 @@ class TestMySQLProductionTimePartitionOperations:
                 Table(mysql_backend.dialect, PRODUCTION_PARTITION_TABLE),
                 "p2026",
                 Table(mysql_backend.dialect, PRODUCTION_ARCHIVE_TABLE),
+                with_validation=True,
             ).to_sql()
         )
 
@@ -2072,6 +2073,7 @@ class TestAsyncMySQLProductionTimePartitionOperations:
                 Table(async_mysql_backend.dialect, PRODUCTION_PARTITION_TABLE),
                 "p2026",
                 Table(async_mysql_backend.dialect, PRODUCTION_ARCHIVE_TABLE),
+                with_validation=True,
             ).to_sql()
         )
 

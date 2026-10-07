@@ -263,6 +263,20 @@ class MySQLTableMixin:
                 parts.append(f"UNIQUE ({cols_str})")
         elif t_const.constraint_type == TableConstraintType.CHECK:
             if t_const.check_condition is not None:
+                enforcement = ""
+                if t_const.enforced or t_const.not_enforced:
+                    if not self.supports_constraint_enforced():
+                        feature = (
+                            "CHECK constraint ENFORCED"
+                            if t_const.enforced
+                            else "CHECK constraint NOT ENFORCED"
+                        )
+                        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                        raise UnsupportedFeatureError(
+                            self.name, feature,
+                            f"{self.name} does not support {feature}."
+                        )
+                    enforcement = " ENFORCED" if t_const.enforced else " NOT ENFORCED"
                 if not self.supports_check_constraint():
                     from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
                     raise UnsupportedFeatureError(
@@ -270,9 +284,42 @@ class MySQLTableMixin:
                         f"{self.name} does not support CHECK constraints."
                     )
                 check_sql, check_params = t_const.check_condition.to_sql()
-                parts.append(f"CHECK ({check_sql})")
+                parts.append(f"CHECK ({check_sql}){enforcement}")
                 params.extend(check_params)
         elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
+            if t_const.deferrable or t_const.not_deferrable:
+                feature = (
+                    "FOREIGN KEY DEFERRABLE"
+                    if t_const.deferrable
+                    else "FOREIGN KEY NOT DEFERRABLE"
+                )
+                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                raise UnsupportedFeatureError(
+                    self.name, feature,
+                    f"{self.name} does not support {feature}."
+                )
+            if t_const.initially_deferred or t_const.initially_immediate:
+                feature = (
+                    "FOREIGN KEY INITIALLY DEFERRED"
+                    if t_const.initially_deferred
+                    else "FOREIGN KEY INITIALLY IMMEDIATE"
+                )
+                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                raise UnsupportedFeatureError(
+                    self.name, feature,
+                    f"{self.name} does not support {feature}."
+                )
+            if t_const.enforced or t_const.not_enforced:
+                feature = (
+                    "FOREIGN KEY ENFORCED"
+                    if t_const.enforced
+                    else "FOREIGN KEY NOT ENFORCED"
+                )
+                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                raise UnsupportedFeatureError(
+                    self.name, feature,
+                    f"{self.name} does not support {feature}."
+                )
             if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
                 cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
                 ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)

@@ -60,6 +60,36 @@ class MySQLDDLColumnMixin:
             )
         return super().format_drop_table_constraint_action(action)
 
+    def format_references_clause(self, expr) -> Tuple[str, Tuple]:
+        """Format a REFERENCES clause for MySQL.
+
+        MySQL has no DEFERRABLE / INITIALLY ... constraint attributes, so those
+        spellings are refused by name rather than rendered into SQL the server
+        rejects (and rather than silently dropped, which would make them
+        indistinguishable from "unspecified").
+        """
+        if expr.deferrable or expr.not_deferrable:
+            feature = (
+                "REFERENCES DEFERRABLE"
+                if expr.deferrable
+                else "REFERENCES NOT DEFERRABLE"
+            )
+            raise UnsupportedFeatureError(
+                self.name, feature,
+                f"{self.name} does not support {feature}."
+            )
+        if expr.initially_deferred or expr.initially_immediate:
+            feature = (
+                "REFERENCES INITIALLY DEFERRED"
+                if expr.initially_deferred
+                else "REFERENCES INITIALLY IMMEDIATE"
+            )
+            raise UnsupportedFeatureError(
+                self.name, feature,
+                f"{self.name} does not support {feature}."
+            )
+        return super().format_references_clause(expr)
+
     def format_alter_column_action(self, action) -> Tuple[str, tuple]:
         """Format ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}."""
         operation = getattr(action.operation, "value", None) or str(action.operation)

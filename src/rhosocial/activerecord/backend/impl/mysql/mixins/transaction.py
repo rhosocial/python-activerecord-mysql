@@ -65,6 +65,22 @@ class MySQLTransactionMixin:
         """MySQL does not support DEFERRABLE mode."""
         return False
 
+    def _refuse_deferrable_transaction(self, statement: str, deferrable: bool) -> None:
+        """Refuse a ``[NOT] DEFERRABLE`` transaction request by name.
+
+        MySQL has no DEFERRABLE transaction mode, so an explicit spelling is
+        refused rather than silently dropped (a drop would render the same
+        statement as "unspecified").
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
+        spelling = "DEFERRABLE" if deferrable else "NOT DEFERRABLE"
+        raise UnsupportedFeatureError(
+            self.name,
+            f"{statement} {spelling}",
+            f"MySQL does not support {spelling} transactions.",
+        )
+
     def supports_savepoint(self) -> bool:
         """MySQL supports savepoints."""
         return True
@@ -74,6 +90,10 @@ class MySQLTransactionMixin:
         from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
 
         params = expr.get_params()
+        if params.get("deferrable") or params.get("not_deferrable"):
+            self._refuse_deferrable_transaction(
+                "SET TRANSACTION", bool(params.get("deferrable"))
+            )
         parts = []
 
         isolation_level = params.get("isolation_level")
@@ -105,6 +125,10 @@ class MySQLTransactionMixin:
         from rhosocial.activerecord.backend.transaction import TransactionMode
 
         params = expr.get_params()
+        if params.get("deferrable") or params.get("not_deferrable"):
+            self._refuse_deferrable_transaction(
+                "START TRANSACTION", bool(params.get("deferrable"))
+            )
 
         mode = params.get("mode")
         if mode == TransactionMode.READ_ONLY:

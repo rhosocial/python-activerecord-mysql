@@ -82,14 +82,23 @@ class TestTruncateTable:
         assert dialect.supports_truncate_table_keyword() is True
         assert dialect.supports_truncate_restart_identity() is False
         assert dialect.supports_truncate_cascade() is False
+        assert dialect.supports_truncate_restrict() is False
 
     def test_restart_identity_unsupported(self, dialect):
-        with pytest.raises(UnsupportedFeatureError):
+        with pytest.raises(UnsupportedFeatureError, match="RESTART IDENTITY"):
             TruncateExpression(dialect, table=Table(dialect, "users"), restart_identity=True).to_sql()
 
+    def test_continue_identity_unsupported(self, dialect):
+        with pytest.raises(UnsupportedFeatureError, match="CONTINUE IDENTITY"):
+            TruncateExpression(dialect, table=Table(dialect, "users"), continue_identity=True).to_sql()
+
     def test_cascade_unsupported(self, dialect):
-        with pytest.raises(UnsupportedFeatureError):
+        with pytest.raises(UnsupportedFeatureError, match="CASCADE"):
             TruncateExpression(dialect, table=Table(dialect, "users"), cascade=True).to_sql()
+
+    def test_restrict_unsupported(self, dialect):
+        with pytest.raises(UnsupportedFeatureError, match="RESTRICT"):
+            TruncateExpression(dialect, table=Table(dialect, "users"), restrict=True).to_sql()
 
 
 class TestAlterColumnDefault:

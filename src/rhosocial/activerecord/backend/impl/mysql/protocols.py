@@ -462,6 +462,15 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """
         ...
 
+    def supports_exchange_partition_without_validation(self) -> bool:
+        """Whether ``EXCHANGE PARTITION ... WITHOUT VALIDATION`` is accepted.
+
+        ``WITHOUT VALIDATION`` is the default validation mode and is accepted
+        by every MySQL release that has the statement at all (5.6.0 and
+        later).
+        """
+        ...
+
     def supports_analyze_partition(self) -> bool:
         """Whether ALTER TABLE ... ANALYZE PARTITION is supported."""
         ...

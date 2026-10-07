@@ -484,7 +484,14 @@ class MySQLReorganizePartitionExpression(MySQLPartitionTableExpression):
 
 
 class MySQLExchangePartitionExpression(MySQLPartitionTableExpression):
-    """Expression for ``ALTER TABLE ... EXCHANGE PARTITION``."""
+    """Expression for ``ALTER TABLE ... EXCHANGE PARTITION``.
+
+    The validation clause is a two-spelling alternative, so each spelling has
+    its own parameter: ``with_validation`` spells ``WITH VALIDATION`` and
+    ``without_validation`` spells ``WITHOUT VALIDATION``. Setting neither leaves
+    the clause out, which is the server's default (``WITHOUT VALIDATION``);
+    setting both is API misuse and raises ``ValueError`` at construction.
+    """
 
     def __init__(
         self,
@@ -493,9 +500,14 @@ class MySQLExchangePartitionExpression(MySQLPartitionTableExpression):
         partition: str,
         exchange_table: Table,
         *,
-        with_validation: bool = True,
+        with_validation: bool = False,
+        without_validation: bool = False,
     ):
         super().__init__(dialect, table)
+        if with_validation and without_validation:
+            raise ValueError(
+                "with_validation and without_validation are mutually exclusive options"
+            )
         self.partition = partition
         if not isinstance(exchange_table, Table):
             raise TypeError(
@@ -506,6 +518,7 @@ class MySQLExchangePartitionExpression(MySQLPartitionTableExpression):
             )
         self.exchange_table = exchange_table
         self.with_validation = with_validation
+        self.without_validation = without_validation
 
     @property
     def format_method(self) -> str:

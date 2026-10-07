@@ -195,12 +195,56 @@ def test_exchange_partition_without_validation(dialect):
         Table(dialect, "events"),
         "p2026",
         Table(dialect, "events_archive"),
-        with_validation=False,
+        without_validation=True,
     ).to_sql()
 
     assert "EXCHANGE PARTITION" in sql
     assert "WITHOUT VALIDATION" in sql
     assert params == ()
+
+
+def test_exchange_partition_with_validation():
+    """EXCHANGE PARTITION should support the explicit WITH VALIDATION spelling."""
+    adapted = MySQLDialect(version=(8, 0, 0))
+    sql, params = MySQLExchangePartitionExpression(
+        adapted,
+        Table(adapted, "events"),
+        "p2026",
+        Table(adapted, "events_archive"),
+        with_validation=True,
+    ).to_sql()
+
+    assert "EXCHANGE PARTITION" in sql
+    assert "WITH VALIDATION" in sql
+    assert "WITHOUT VALIDATION" not in sql
+    assert params == ()
+
+
+def test_exchange_partition_unspecified_omits_validation_clause(dialect):
+    """With neither spelling set the clause is left out (server default)."""
+    sql, params = MySQLExchangePartitionExpression(
+        dialect,
+        Table(dialect, "events"),
+        "p2026",
+        Table(dialect, "events_archive"),
+    ).to_sql()
+
+    assert "EXCHANGE PARTITION" in sql
+    assert "WITH VALIDATION" not in sql
+    assert "WITHOUT VALIDATION" not in sql
+    assert params == ()
+
+
+def test_exchange_partition_validation_spellings_are_mutually_exclusive(dialect):
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        MySQLExchangePartitionExpression(
+            dialect,
+            Table(dialect, "events"),
+            "p2026",
+            Table(dialect, "events_archive"),
+            with_validation=True,
+            without_validation=True,
+        )
 
 
 def test_partition_definition_rejects_invalid_value_mode_combinations(dialect):
