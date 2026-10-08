@@ -36,17 +36,17 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_departments = DropTableExpression(dialect=dialect, table_name="departments", if_exists=True)
+drop_departments = DropTableExpression(dialect=dialect, table=Table(dialect, "departments"), if_exists=True)
 sql, params = drop_departments.to_sql()
 backend.execute(sql, params)
 
-drop_employees = DropTableExpression(dialect=dialect, table_name="employees", if_exists=True)
+drop_employees = DropTableExpression(dialect=dialect, table=Table(dialect, "employees"), if_exists=True)
 sql, params = drop_employees.to_sql()
 backend.execute(sql, params)
 
 create_departments = CreateTableExpression(
     dialect=dialect,
-    table_name="departments",
+    table=Table(dialect, "departments"),
     columns=[
         ColumnDefinition(
             "id",
@@ -66,7 +66,7 @@ backend.execute(sql, params)
 
 create_employees = CreateTableExpression(
     dialect=dialect,
-    table_name="employees",
+    table=Table(dialect, "employees"),
     columns=[
         ColumnDefinition(
             "id",
@@ -87,7 +87,7 @@ backend.execute(sql, params)
 
 insert_departments = InsertExpression(
     dialect=dialect,
-    into="departments",
+    into=Table(dialect, "departments"),
     columns=["name", "budget"],
     source=ValuesSource(
         dialect,
@@ -102,7 +102,7 @@ backend.execute(sql, params)
 
 insert_employees = InsertExpression(
     dialect=dialect,
-    into="employees",
+    into=Table(dialect, "employees"),
     columns=["name", "salary", "department_id"],
     source=ValuesSource(
         dialect,
@@ -122,18 +122,18 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
-    TableExpression,
     Column,
     WhereClause,
     Subquery,
 )
 from rhosocial.activerecord.backend.expression.core import FunctionCall  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 subquery_query = QueryExpression(
     dialect=dialect,
     select=[FunctionCall(dialect, "AVG", Column(dialect, "salary"))],
-    from_=TableExpression(dialect, "employees"),
+    from_=Table(dialect, "employees"),
 )
 sql, params = subquery_query.to_sql()
 subquery = Subquery(dialect, sql, params)
@@ -144,7 +144,7 @@ query = QueryExpression(
         Column(dialect, "name"),
         Column(dialect, "salary"),
     ],
-    from_=TableExpression(dialect, "employees"),
+    from_=Table(dialect, "employees"),
     where=WhereClause(
         dialect,
         condition=ComparisonPredicate(

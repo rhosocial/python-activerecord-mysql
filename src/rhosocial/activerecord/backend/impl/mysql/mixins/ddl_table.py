@@ -2,6 +2,10 @@
 from typing import Any, List, TYPE_CHECKING, Tuple
 import re
 
+from rhosocial.activerecord.backend.expression.objects import Table
+
+from .object_kind import require_kind
+
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnDefinition,
@@ -65,9 +69,15 @@ class MySQLTableMixin:
         - Table-level comments
         - AUTO_INCREMENT in column definitions
         - Partition clause
+
+        Raises:
+            TypeError: ``expr.table`` is not a Table. A View or a Sequence there
+                renders through its own formatter and would produce a
+                well-formed CREATE TABLE over the wrong kind of object's name.
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
+        require_kind(expr.table, Table, "CreateTableExpression.table")
         if expr.tablespace:
             raise UnsupportedFeatureError(
                 self.name, "TABLESPACE",
@@ -95,7 +105,9 @@ class MySQLTableMixin:
         parts.append("TABLE")
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
-        parts.append(self.format_identifier(expr.table_name))
+        table_sql, table_params = expr.table.to_sql()
+        parts.append(table_sql)
+        all_params.extend(table_params)
 
         column_parts = []
         for col_def in expr.columns:
@@ -166,6 +178,9 @@ class MySQLTableMixin:
         from rhosocial.activerecord.backend.impl.mysql.expression.column import (
             MySQLColumnDefinition,
         )
+        from rhosocial.activerecord.backend.expression.statements import (
+            AutoIncrementClause,
+        )
 
         type_sql, type_params = col_def.data_type.to_sql()
         parts = [self.format_identifier(col_def.name), type_sql]
@@ -178,7 +193,14 @@ class MySQLTableMixin:
                 parts.append(constraint_text)
             params.extend(list(cp))
             if constraint.is_auto_increment:
-                parts.append("AUTO_INCREMENT")
+                # The marker is rendered by the dialect's
+                # format_auto_increment_clause, not spelled here: the formatter
+                # consults supports_auto_increment_column(), so the capability
+                # probe decides, and a dialect that declines the marker refuses
+                # rather than emitting a token its server rejects.
+                marker_sql, marker_params = AutoIncrementClause(self).to_sql()
+                parts.append(marker_sql.strip())
+                params.extend(marker_params)
 
         attr_sql, attr_params = self.format_column_attributes(col_def)
         if attr_sql:
@@ -207,12 +229,24 @@ class MySQLTableMixin:
         return " ".join(parts), params
 
     def format_table_constraint(self, t_const: "TableConstraint") -> Tuple[str, tuple]:
-        """Format a table-level constraint."""
+        """Format a table-level constraint.
+
+        Raises:
+            TypeError: ``t_const.foreign_key_table`` is set and is not a Table.
+                The rendered statement would reference whatever object's name
+                was in that slot.
+        """
         from rhosocial.activerecord.backend.expression.statements import (
             ForeignKeyConstraint,
             ReferentialAction,
             TableConstraintType,
         )
+        if t_const.foreign_key_table is not None:
+            require_kind(
+                t_const.foreign_key_table,
+                Table,
+                "TableConstraint.foreign_key_table",
+            )
         parts = []
         params: List[Any] = []
 
@@ -229,6 +263,20 @@ class MySQLTableMixin:
                 parts.append(f"UNIQUE ({cols_str})")
         elif t_const.constraint_type == TableConstraintType.CHECK:
             if t_const.check_condition is not None:
+                enforcement = ""
+                if t_const.enforced or t_const.not_enforced:
+                    if not self.supports_constraint_enforced():
+                        feature = (
+                            "CHECK constraint ENFORCED"
+                            if t_const.enforced
+                            else "CHECK constraint NOT ENFORCED"
+                        )
+                        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                        raise UnsupportedFeatureError(
+                            self.name, feature,
+                            f"{self.name} does not support {feature}."
+                        )
+                    enforcement = " ENFORCED" if t_const.enforced else " NOT ENFORCED"
                 if not self.supports_check_constraint():
                     from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
                     raise UnsupportedFeatureError(
@@ -236,13 +284,46 @@ class MySQLTableMixin:
                         f"{self.name} does not support CHECK constraints."
                     )
                 check_sql, check_params = t_const.check_condition.to_sql()
-                parts.append(f"CHECK ({check_sql})")
+                parts.append(f"CHECK ({check_sql}){enforcement}")
                 params.extend(check_params)
         elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
+            if t_const.deferrable or t_const.not_deferrable:
+                feature = (
+                    "FOREIGN KEY DEFERRABLE"
+                    if t_const.deferrable
+                    else "FOREIGN KEY NOT DEFERRABLE"
+                )
+                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                raise UnsupportedFeatureError(
+                    self.name, feature,
+                    f"{self.name} does not support {feature}."
+                )
+            if t_const.initially_deferred or t_const.initially_immediate:
+                feature = (
+                    "FOREIGN KEY INITIALLY DEFERRED"
+                    if t_const.initially_deferred
+                    else "FOREIGN KEY INITIALLY IMMEDIATE"
+                )
+                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                raise UnsupportedFeatureError(
+                    self.name, feature,
+                    f"{self.name} does not support {feature}."
+                )
+            if t_const.enforced or t_const.not_enforced:
+                feature = (
+                    "FOREIGN KEY ENFORCED"
+                    if t_const.enforced
+                    else "FOREIGN KEY NOT ENFORCED"
+                )
+                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+                raise UnsupportedFeatureError(
+                    self.name, feature,
+                    f"{self.name} does not support {feature}."
+                )
             if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
                 cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
                 ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                ref_table = self.format_identifier(t_const.foreign_key_table)
+                ref_table = t_const.foreign_key_table.to_sql()[0]
                 parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
                 if isinstance(t_const, ForeignKeyConstraint):
                     if t_const.on_delete and t_const.on_delete != ReferentialAction.NO_ACTION:

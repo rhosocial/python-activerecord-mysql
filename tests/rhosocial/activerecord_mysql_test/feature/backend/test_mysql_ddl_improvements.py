@@ -8,7 +8,6 @@ from rhosocial.activerecord.backend.expression import (
     Column,
     ColumnDefinition,
     CreateTableExpression,
-    TableExpression,
     QueryExpression,
     CreateViewExpression,
 )
@@ -16,6 +15,7 @@ from rhosocial.activerecord.backend.expression.types import IntegerType
 from rhosocial.activerecord.backend.expression.statements import ViewOptions, ViewCheckOption
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from rhosocial.activerecord.backend.expression.objects import Table, View
 
 
 class TestMySQLViewCapabilityGating:
@@ -45,11 +45,11 @@ class TestMySQLViewCapabilityGating:
         """WITH CHECK OPTION must fail fast when the capability is off."""
         dialect = MySQLDialect()
         query = QueryExpression(
-            dialect, select=[Column(dialect, "id")], from_=TableExpression(dialect, "t")
+            dialect, select=[Column(dialect, "id")], from_=Table(dialect, "t")
         )
         expr = CreateViewExpression(
             dialect,
-            view_name="v",
+            view=View(dialect, "v"),
             query=query,
             options=ViewOptions(check_option=ViewCheckOption.CASCADED),
         )
@@ -149,7 +149,7 @@ class TestMySQLTableDeclarationGating:
         dialect = MySQLDialect()
         expression = CreateTableExpression(
             dialect,
-            Plain.__table_name__,
+            Table(dialect, Plain.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             inherits=Plain.table_inherits(),
             tablespace=Plain.table_tablespace(),
@@ -162,7 +162,7 @@ class TestMySQLTableDeclarationGating:
         assert dialect.supports_table_inheritance() is False
         expression = CreateTableExpression(
             dialect,
-            InheritedTable.__table_name__,
+            Table(dialect, InheritedTable.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             inherits=InheritedTable.table_inherits(),
             tablespace=InheritedTable.table_tablespace(),
@@ -176,7 +176,7 @@ class TestMySQLTableDeclarationGating:
         assert dialect.supports_table_tablespace() is False
         expression = CreateTableExpression(
             dialect,
-            TablespacedTable.__table_name__,
+            Table(dialect, TablespacedTable.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
             inherits=TablespacedTable.table_inherits(),
             tablespace=TablespacedTable.table_tablespace(),

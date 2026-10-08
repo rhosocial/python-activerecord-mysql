@@ -65,6 +65,51 @@ class MySQLTransactionMixin:
         """MySQL does not support DEFERRABLE mode."""
         return False
 
+    def supports_transaction_wait(self) -> bool:
+        """Whether ``WAIT`` / ``NO WAIT`` can be spelled on a transaction.
+
+        MySQL has no lock-wait clause on ``START TRANSACTION`` or ``SET
+        TRANSACTION`` at any version measured (5.6.51, 5.7.44, 8.0.46, 8.4.11,
+        9.2.0, 9.4.0, 26.7.0): ``START TRANSACTION WAIT`` / ``NO WAIT`` are
+        syntax errors everywhere, and ``SET TRANSACTION WAIT`` fails as an
+        unknown system variable on 5.6 and as a syntax error on 5.7+. Both
+        transaction formatters refuse a requested spelling by name rather than
+        dropping it.
+        """
+        return False
+
+    def _refuse_deferrable_transaction(self, statement: str, deferrable: bool) -> None:
+        """Refuse a ``[NOT] DEFERRABLE`` transaction request by name.
+
+        MySQL has no DEFERRABLE transaction mode, so an explicit spelling is
+        refused rather than silently dropped (a drop would render the same
+        statement as "unspecified").
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
+        spelling = "DEFERRABLE" if deferrable else "NOT DEFERRABLE"
+        raise UnsupportedFeatureError(
+            self.name,
+            f"{statement} {spelling}",
+            f"MySQL does not support {spelling} transactions.",
+        )
+
+    def _refuse_wait_transaction(self, statement: str, wait: bool) -> None:
+        """Refuse a ``WAIT`` / ``NO WAIT`` transaction request by name.
+
+        MySQL has no lock-wait clause, so an explicit spelling is refused
+        rather than silently dropped (a drop would render the same statement
+        as "unspecified").
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+
+        spelling = "WAIT" if wait else "NO WAIT"
+        raise UnsupportedFeatureError(
+            self.name,
+            f"{statement} {spelling}",
+            f"MySQL does not support the {spelling} transaction clause.",
+        )
+
     def supports_savepoint(self) -> bool:
         """MySQL supports savepoints."""
         return True
@@ -74,6 +119,14 @@ class MySQLTransactionMixin:
         from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
 
         params = expr.get_params()
+        if params.get("deferrable") or params.get("not_deferrable"):
+            self._refuse_deferrable_transaction(
+                "SET TRANSACTION", bool(params.get("deferrable"))
+            )
+        if params.get("wait") or params.get("no_wait"):
+            self._refuse_wait_transaction(
+                "SET TRANSACTION", bool(params.get("wait"))
+            )
         parts = []
 
         isolation_level = params.get("isolation_level")
@@ -105,6 +158,14 @@ class MySQLTransactionMixin:
         from rhosocial.activerecord.backend.transaction import TransactionMode
 
         params = expr.get_params()
+        if params.get("deferrable") or params.get("not_deferrable"):
+            self._refuse_deferrable_transaction(
+                "START TRANSACTION", bool(params.get("deferrable"))
+            )
+        if params.get("wait") or params.get("no_wait"):
+            self._refuse_wait_transaction(
+                "START TRANSACTION", bool(params.get("wait"))
+            )
 
         mode = params.get("mode")
         if mode == TransactionMode.READ_ONLY:

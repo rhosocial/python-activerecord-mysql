@@ -9,6 +9,7 @@ MySQL Transaction Behavior:
 """
 
 import pytest
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.transaction import (
     BeginTransactionExpression,
     CommitTransactionExpression,
@@ -221,3 +222,44 @@ class TestMySQLTransactionCapabilities:
     def test_supports_savepoint(self, mysql_dialect):
         """Test MySQL supports savepoints."""
         assert mysql_dialect.supports_savepoint()
+
+
+class TestMySQLTransactionWait:
+    """The ``WAIT`` / ``NO WAIT`` pair is refused by name on MySQL.
+
+    MySQL's ``START TRANSACTION`` and ``SET TRANSACTION`` have no lock-wait
+    clause at any version measured (5.6.51, 5.7.44, 8.0.46, 8.4.11, 9.2.0,
+    9.4.0, 26.7.0); a requested spelling is refused rather than silently
+    dropped, which would make it indistinguishable from "unspecified".
+    """
+
+    def test_supports_transaction_wait_is_declined(self, mysql_dialect):
+        assert mysql_dialect.supports_transaction_wait() is False
+
+    @pytest.mark.parametrize("spelling", ["wait", "no_wait"])
+    def test_begin_refuses_wait_by_name(self, mysql_dialect, spelling):
+        expr = BeginTransactionExpression(mysql_dialect, **{spelling: True})
+        with pytest.raises(UnsupportedFeatureError) as exc_info:
+            expr.to_sql()
+        expected = "NO WAIT" if spelling == "no_wait" else "WAIT"
+        message = str(exc_info.value)
+        assert expected in message, message
+        if spelling == "wait":
+            assert "NO WAIT" not in message, message
+
+    @pytest.mark.parametrize("spelling", ["wait", "no_wait"])
+    def test_set_refuses_wait_by_name(self, mysql_dialect, spelling):
+        expr = SetTransactionExpression(mysql_dialect, **{spelling: True})
+        with pytest.raises(UnsupportedFeatureError) as exc_info:
+            expr.to_sql()
+        expected = "NO WAIT" if spelling == "no_wait" else "WAIT"
+        message = str(exc_info.value)
+        assert expected in message, message
+        if spelling == "wait":
+            assert "NO WAIT" not in message, message
+
+    def test_neither_spelling_renders_neither_token(self, mysql_dialect):
+        begin, _ = BeginTransactionExpression(mysql_dialect).to_sql()
+        set_tx, _ = SetTransactionExpression(mysql_dialect).to_sql()
+        assert begin == "START TRANSACTION"
+        assert set_tx == "SET TRANSACTION"

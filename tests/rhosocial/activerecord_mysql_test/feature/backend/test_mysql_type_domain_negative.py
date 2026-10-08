@@ -11,9 +11,16 @@ from rhosocial.activerecord.backend.dialect import (
     DataTypeMixin,
     DataTypeSupport,
     DomainMixin,
-    DomainSupport,
     UserDefinedTypeMixin,
-    UserDefinedTypeSupport,
+)
+from rhosocial.activerecord.backend.dialect.protocols import (
+    AlterDomainSupport,
+    AlterTypeSupport,
+    CreateDomainSupport,
+    CreateTypeSupport,
+    DropDomainSupport,
+    DropTypeSupport,
+    TypeObjectSupport,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression import BaseExpression, Literal
@@ -35,6 +42,7 @@ from rhosocial.activerecord.backend.expression.types import DataType, IntegerTyp
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLEnumType, MySQLSetType
 from rhosocial.activerecord.backend.impl.mysql.mixins import MySQLTypeSupportMixin
+from rhosocial.activerecord.backend.expression.objects import Domain, Type
 
 
 class _TestTypeDefinition(TypeDefinition):
@@ -105,9 +113,9 @@ def _type_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
     definition = _TestTypeDefinition(dialect)
     action = _TestTypeAlterAction(dialect)
     return (
-        CreateTypeExpression(dialect, "status", definition),
-        AlterTypeExpression(dialect, "status", [action]),
-        DropTypeExpression(dialect, "status"),
+        CreateTypeExpression(dialect, Type(dialect, "status"), definition),
+        AlterTypeExpression(dialect, Type(dialect, "status"), [action]),
+        DropTypeExpression(dialect, Type(dialect, "status")),
         definition,
         action,
     )
@@ -117,9 +125,9 @@ def _domain_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
     condition = DomainValueExpression(dialect) > Literal(dialect, 0, inline_literals=True)
     check = DomainCheckConstraint(dialect, condition)
     return (
-        CreateDomainExpression(dialect, "positive", IntegerType(dialect)),
-        AlterDomainExpression(dialect, "positive", [DropDomainDefaultAction(dialect)]),
-        DropDomainExpression(dialect, "positive"),
+        CreateDomainExpression(dialect, Domain(dialect, "positive"), IntegerType(dialect)),
+        AlterDomainExpression(dialect, Domain(dialect, "positive"), [DropDomainDefaultAction(dialect)]),
+        DropDomainExpression(dialect, Domain(dialect, "positive")),
         DomainValueExpression(dialect),
         check,
         DropDomainDefaultAction(dialect),
@@ -127,8 +135,18 @@ def _domain_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
 
 
 def test_type_and_domain_protocols_are_composed(dialect: MySQLDialect) -> None:
-    assert isinstance(dialect, UserDefinedTypeSupport)
-    assert isinstance(dialect, DomainSupport)
+    # The umbrella TYPE and DOMAIN protocols were split into one per statement,
+    # plus the naming side, so each is asked about on its own here.
+    for protocol in (
+        CreateTypeSupport,
+        AlterTypeSupport,
+        DropTypeSupport,
+        CreateDomainSupport,
+        AlterDomainSupport,
+        DropDomainSupport,
+        TypeObjectSupport,
+    ):
+        assert isinstance(dialect, protocol), protocol.__name__
     assert isinstance(dialect, UserDefinedTypeMixin)
     assert isinstance(dialect, DomainMixin)
     assert isinstance(dialect, DataTypeSupport)
@@ -136,8 +154,8 @@ def test_type_and_domain_protocols_are_composed(dialect: MySQLDialect) -> None:
 
 def test_type_and_domain_mixins_precede_protocols() -> None:
     mro = MySQLDialect.__mro__
-    assert mro.index(UserDefinedTypeMixin) < mro.index(UserDefinedTypeSupport)
-    assert mro.index(DomainMixin) < mro.index(DomainSupport)
+    assert mro.index(UserDefinedTypeMixin) < mro.index(CreateTypeSupport)
+    assert mro.index(DomainMixin) < mro.index(CreateDomainSupport)
     assert mro.index(DataTypeMixin) < mro.index(DataTypeSupport)
     assert mro.index(MySQLTypeSupportMixin) < mro.index(DataTypeSupport)
     assert issubclass(MySQLTypeSupportMixin, DataTypeMixin)

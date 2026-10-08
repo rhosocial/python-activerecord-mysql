@@ -12,6 +12,7 @@ or for use in a statement execution pipeline.
 from typing import List, Optional, Sequence, TYPE_CHECKING, Union
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.objects import Table
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
@@ -56,14 +57,15 @@ class MySQLAddPartitionHelper(BaseExpression):
     .. code-block:: python
 
         expr = MySQLAddPartitionHelper(
-            dialect, table="orders",
+            dialect, table=Table(dialect, "orders"),
             partition_values=[2000, 2001, 2002],
             name_template="p{value}",
         )
 
     Args:
         dialect: MySQL dialect instance.
-        table: Target table name.
+        table: Target table, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
         partition_values: Values for ``VALUES LESS THAN`` of each new partition.
         name_template: Format string for partition names (default ``"p{value}"``).
     """
@@ -71,7 +73,7 @@ class MySQLAddPartitionHelper(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partition_values: Sequence[Union[int, str]],
         name_template: str = "p{value}",
     ):
@@ -93,7 +95,8 @@ class MySQLCoalescePartitionHelper(BaseExpression):
 
     Args:
         dialect: MySQL dialect instance.
-        table: Target table name.
+        table: Target table, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
         target_count: Desired number of partitions after coalescing.
         current_count: Current number of partitions (for validation).
     """
@@ -101,7 +104,7 @@ class MySQLCoalescePartitionHelper(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         target_count: int,
         current_count: int,
     ):
@@ -125,14 +128,15 @@ class MySQLDropOldestPartitionHelper(BaseExpression):
 
     Args:
         dialect: MySQL dialect instance.
-        table: Target table name.
+        table: Target table, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
         partition_names: List of existing partition names.
     """
 
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partition_names: Sequence[str],
     ):
         super().__init__(dialect)
@@ -152,7 +156,8 @@ class MySQLReorganizePartitionHelper(BaseExpression):
 
     Args:
         dialect: MySQL dialect instance.
-        table: Target table name.
+        table: Target table, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
         partition: Existing partition name to reorganize.
         into: Definitions for the new partitions.
     """
@@ -160,7 +165,7 @@ class MySQLReorganizePartitionHelper(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partition: str,
         into: List["MySQLPartitionDefinition"],
     ):
@@ -183,7 +188,8 @@ class MySQLAddSubpartitionHelper(BaseExpression):
 
     Args:
         dialect: MySQL dialect instance.
-        table: Target table name.
+        table: Target table, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.Table`.
         partition_name: Name for the new partition.
         less_than: ``VALUES LESS THAN`` bound(s) for the partition.
         subpartition_names: Names for the subpartitions.
@@ -193,7 +199,7 @@ class MySQLAddSubpartitionHelper(BaseExpression):
     def __init__(
         self,
         dialect: "MySQLDialect",
-        table: str,
+        table: Table,
         partition_name: str,
         less_than: Optional[Sequence] = None,
         subpartition_names: Optional[Sequence[str]] = None,

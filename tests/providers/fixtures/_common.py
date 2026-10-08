@@ -30,9 +30,9 @@ from typing import Tuple
 from rhosocial.activerecord.backend.expression import (
     CreateTableExpression,
     DropTableExpression,
-    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.statements import ReferentialAction
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 _STORAGE_OPTION_RE = re.compile(r"([A-Z_ ]+=)'([^']*)'")
@@ -69,7 +69,7 @@ def _append_fk_actions(expr: CreateTableExpression, sql: str) -> str:
             continue
         cols = ", ".join(f"`{c}`" for c in (t_const.columns or []))
         ref_cols = ", ".join(f"`{c}`" for c in (t_const.foreign_key_columns or []))
-        ref_table = f"`{t_const.foreign_key_table}`"
+        ref_table = t_const.foreign_key_table.to_sql()[0]
         clause = f"FOREIGN KEY ({cols}) REFERENCES {ref_table} ({ref_cols})"
         suffix_parts = []
         on_delete = getattr(t_const, "on_delete", None)
@@ -112,6 +112,6 @@ def drop_table(dialect, table_name: str) -> DropTableExpression:
     """Build a canonical ``DROP TABLE IF EXISTS`` expression."""
     return DropTableExpression(
         dialect=dialect,
-        table=TableExpression(dialect, table_name),
+        table=Table(dialect, table_name),
         if_exists=True,
     )

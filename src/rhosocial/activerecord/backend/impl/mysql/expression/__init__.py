@@ -100,6 +100,7 @@ from .partition import (
     MySQLPartitionByHash,
     MySQLPartitionByKey,
     MySQLPartitionOptions,
+    MySQLPartitionTableExpression,
     MySQLAddPartitionExpression,
     MySQLDropPartitionExpression,
     MySQLTruncatePartitionExpression,
@@ -125,7 +126,7 @@ from .partition_lifecycle import (
     MySQLReorganizePartitionHelper,
 )
 from .rename_table import MySQLRenameTableExpression
-from .table_statement import MySQLTableExpression, MySQLValuesExpression
+from .table_statement import MySQLTableStatement, MySQLValuesExpression
 from .maintenance import (
     MySQLAnalyzeTableExpression,
     MySQLCheckTableExpression,
@@ -280,6 +281,7 @@ __all__ = [
     "MySQLPartitionByHash",
     "MySQLPartitionByKey",
     "MySQLPartitionOptions",
+    "MySQLPartitionTableExpression",
     "MySQLAddPartitionExpression",
     "MySQLDropPartitionExpression",
     "MySQLTruncatePartitionExpression",
@@ -296,7 +298,7 @@ __all__ = [
     "MySQLSubpartitionDefinition",
     "MySQLSubpartitionClause",
     "MySQLRenameTableExpression",
-    "MySQLTableExpression",
+    "MySQLTableStatement",
     "MySQLValuesExpression",
     "MySQLAnalyzeTableExpression",
     "MySQLCheckTableExpression",

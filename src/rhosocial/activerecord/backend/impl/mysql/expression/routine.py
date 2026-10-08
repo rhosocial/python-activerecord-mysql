@@ -12,11 +12,17 @@ MySQL supports:
 Note: ``CREATE FUNCTION ... SONAME 'library.so'`` creates a loadable (UDF)
 function and is intentionally NOT represented here because it is an
 installation-time administrative action (see admin expressions instead).
+
+Routine names are schema objects (``Procedure`` / ``Function``), so a routine
+in a named database is expressible: ``CALL `app`.`do_work`()``. The expression
+never renders the name -- the dialect does, through the routine's own
+``format_<kind>_object``.
 """
 
 from typing import Any, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.expression.objects import RoutineObject
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -26,7 +32,11 @@ class MySQLRoutineExpression(BaseExpression):
     """Base class for stored routine DDL / invocation statements.
 
     Attributes:
-        name: Routine name (may be schema-qualified).
+        name: The routine, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.RoutineObject`
+            (``Procedure`` or ``Function``). An object rather than a string
+            because a routine may live in a named database, and a string
+            cannot say which one; the expression never renders the name itself.
         params: Parameter definitions list (strings or ``(mode, name, type)`` tuples).
         body: Routine body SQL text (for CREATE statements).
     """
@@ -34,30 +44,33 @@ class MySQLRoutineExpression(BaseExpression):
     def __init__(
         self,
         dialect: "SQLDialectBase",
-        name: Any,
+        name: "RoutineObject",
         *,
         params: Optional[List[Any]] = None,
         body: Optional[str] = None,
     ):
         super().__init__(dialect)
-        self.name: Any = name
+        self.name: "RoutineObject" = name
         self.params: List[Any] = list(params or [])
         self.body: Optional[str] = body
 
     def validate(self, strict: bool = True) -> None:
+        """Validate the routine name.
+
+        Raises:
+            TypeError: ``name`` is not a routine object. The former
+                ``(schema, name)`` tuple form is refused rather than unpacked:
+                a tuple cannot say which part is the database and which is the
+                name, which is the ambiguity a schema object removes.
+        """
         if not strict:
             return
-        if isinstance(self.name, tuple):
-            if len(self.name) != 2 or not all(isinstance(part, str) for part in self.name):
-                raise ValueError(f"Invalid schema-qualified routine name: {self.name!r}")
-        elif not isinstance(self.name, str):
-            raise TypeError(f"name must be str or (schema, name) tuple, got {type(self.name)}")
-
-    def _format_name(self) -> str:
-        if isinstance(self.name, tuple):
-            schema, name = self.name
-            return f"{self.dialect.format_identifier(schema)}.{self.dialect.format_identifier(name)}"
-        return self.dialect.format_identifier(self.name)
+        if not isinstance(self.name, RoutineObject):
+            raise TypeError(
+                f"routine name must be a Procedure or Function object, got "
+                f"{type(self.name).__name__}; pass "
+                f"Procedure(self.dialect, 'sp', catalog_name='app') to qualify the name"
+            )
 
 
 class MySQLCreateProcedureExpression(MySQLRoutineExpression):
@@ -143,28 +156,36 @@ class MySQLCallExpression(BaseExpression):
     """Represent ``CALL procedure_name([args])``.
 
     Attributes:
-        name: Stored procedure name (may be schema-qualified).
+        name: The procedure, as a
+            :class:`~rhosocial.activerecord.backend.expression.objects.Procedure`.
         args: Positional argument list.
     """
 
     def __init__(
         self,
         dialect: "SQLDialectBase",
-        name: Any,
+        name: "RoutineObject",
         args: Optional[List[Any]] = None,
     ):
         super().__init__(dialect)
-        self.name: Any = name
+        self.name: "RoutineObject" = name
         self.args: List[Any] = list(args or [])
 
     def validate(self, strict: bool = True) -> None:
+        """Validate the procedure name.
+
+        Raises:
+            TypeError: ``name`` is not a routine object. The former
+                ``(schema, name)`` tuple form is refused rather than unpacked.
+        """
         if not strict:
             return
-        if isinstance(self.name, tuple):
-            if len(self.name) != 2 or not all(isinstance(part, str) for part in self.name):
-                raise ValueError(f"Invalid schema-qualified procedure name: {self.name!r}")
-        elif not isinstance(self.name, str):
-            raise TypeError(f"name must be str or (schema, name) tuple, got {type(self.name)}")
+        if not isinstance(self.name, RoutineObject):
+            raise TypeError(
+                f"procedure name must be a Procedure or Function object, got "
+                f"{type(self.name).__name__}; pass "
+                f"Procedure(self.dialect, 'sp', catalog_name='app') to qualify the name"
+            )
 
     @property
     def format_method(self) -> str:

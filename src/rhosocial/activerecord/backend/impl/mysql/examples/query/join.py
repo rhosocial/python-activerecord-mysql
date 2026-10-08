@@ -36,17 +36,17 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_customers = DropTableExpression(dialect=dialect, table_name="customers", if_exists=True)
+drop_customers = DropTableExpression(dialect=dialect, table=Table(dialect, "customers"), if_exists=True)
 sql, params = drop_customers.to_sql()
 backend.execute(sql, params)
 
-drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
 create_customers = CreateTableExpression(
     dialect=dialect,
-    table_name="customers",
+    table=Table(dialect, "customers"),
     columns=[
         ColumnDefinition(
             "id",
@@ -70,7 +70,7 @@ backend.execute(sql, params)
 
 create_orders = CreateTableExpression(
     dialect=dialect,
-    table_name="orders",
+    table=Table(dialect, "orders"),
     columns=[
         ColumnDefinition(
             "id",
@@ -91,7 +91,7 @@ backend.execute(sql, params)
 
 insert_customers = InsertExpression(
     dialect=dialect,
-    into="customers",
+    into=Table(dialect, "customers"),
     columns=["name", "email"],
     source=ValuesSource(
         dialect,
@@ -106,7 +106,7 @@ backend.execute(sql, params)
 
 insert_orders = InsertExpression(
     dialect=dialect,
-    into="orders",
+    into=Table(dialect, "orders"),
     columns=["customer_id", "total", "status"],
     source=ValuesSource(
         dialect,
@@ -125,14 +125,17 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
-    TableExpression,
     Column,
     WhereClause,
 )
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
+from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
 
-customers = TableExpression(dialect, "customers", alias="c")
-orders = TableExpression(dialect, "orders", alias="o")
+# An alias belongs to the row source, not to the catalogue entry: the table is
+# `customers`, and `c` is what this one query calls it.
+customers = NamedRelationRef(dialect, Table(dialect, "customers"), alias="c")
+orders = NamedRelationRef(dialect, Table(dialect, "orders"), alias="o")
 
 query = QueryExpression(
     dialect=dialect,

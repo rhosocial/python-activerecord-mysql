@@ -1,6 +1,10 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/trigger.py
 from typing import TYPE_CHECKING, Tuple
 
+from rhosocial.activerecord.backend.expression.objects import Function, Table, Trigger
+
+from .object_kind import require_kind
+
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
         CreateTriggerExpression,
@@ -44,9 +48,23 @@ class MySQLTriggerMixin:
         return self.version >= (5, 7, 0)
 
     def format_create_trigger_statement(self, expr: "CreateTriggerExpression") -> Tuple[str, tuple]:
-        """Format CREATE TRIGGER statement (MySQL syntax)."""
+        """Format CREATE TRIGGER statement (MySQL syntax).
+
+        Raises:
+            TypeError: One of the three named objects is the wrong kind --
+                ``expr.trigger`` must be a Trigger, ``expr.table`` a Table, and
+                ``expr.function`` a Function when it is set. Each renders itself,
+                so a wrong kind produces a well-formed statement naming the wrong
+                object.
+        """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
+        require_kind(expr.trigger, Trigger, "CreateTriggerExpression.trigger")
+        require_kind(expr.table, Table, "CreateTriggerExpression.table")
+        if expr.function is not None:
+            require_kind(
+                expr.function, Function, "CreateTriggerExpression.function"
+            )
         if not self.supports_trigger():
             raise UnsupportedFeatureError(self.name, "triggers")
 
@@ -75,26 +93,31 @@ class MySQLTriggerMixin:
         if expr.if_not_exists and self.supports_trigger_if_not_exists():
             parts.append("IF NOT EXISTS")
 
-        parts.append(self.format_identifier(expr.trigger_name))
+        parts.append(expr.trigger.to_sql()[0])
         parts.append(expr.timing.value)
 
         if expr.events:
             parts.append(expr.events[0].value)
 
         parts.append("ON")
-        parts.append(self.format_identifier(expr.table_name))
+        parts.append(expr.table.to_sql()[0])
         parts.append("FOR EACH ROW")
 
-        if expr.function_name:
+        if expr.function is not None:
             parts.append("CALL")
-            parts.append(self.format_identifier(expr.function_name))
+            parts.append(expr.function.to_sql()[0])
 
         return " ".join(parts), ()
 
     def format_drop_trigger_statement(self, expr: "DropTriggerExpression") -> Tuple[str, tuple]:
-        """Format DROP TRIGGER statement (MySQL syntax)."""
+        """Format DROP TRIGGER statement (MySQL syntax).
+
+        Raises:
+            TypeError: ``expr.trigger`` is not a Trigger.
+        """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
+        require_kind(expr.trigger, Trigger, "DropTriggerExpression.trigger")
         if not self.supports_trigger():
             raise UnsupportedFeatureError(self.name, "triggers")
 
@@ -103,6 +126,6 @@ class MySQLTriggerMixin:
         if expr.if_exists:
             parts.append("IF EXISTS")
 
-        parts.append(self.format_identifier(expr.trigger_name))
+        parts.append(expr.trigger.to_sql()[0])
 
         return " ".join(parts), ()

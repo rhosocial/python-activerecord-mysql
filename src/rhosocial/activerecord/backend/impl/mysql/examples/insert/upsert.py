@@ -32,7 +32,6 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     InsertExpression,
     ValuesSource,
     QueryExpression,
-    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
@@ -44,21 +43,22 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
 from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
 # Drop dependent tables first for clean setup
-drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="users",
+    table=Table(dialect, "users"),
     columns=[
         ColumnDefinition(
             "id",
@@ -104,7 +104,7 @@ backend.execute(sql, params)
 # Initial insert
 insert_expr = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -125,7 +125,7 @@ query = QueryExpression(
         Column(dialect, "email"),
         Column(dialect, "login_count"),
     ],
-    from_=TableExpression(dialect, "users"),
+    from_=Table(dialect, "users"),
     where=ComparisonPredicate(dialect, "=", Column(dialect, "username"), Literal(dialect, "alice")),
 )
 sql, params = query.to_sql()
@@ -135,7 +135,7 @@ print(f"Initial insert: {result.data}")
 # Insert again with ON DUPLICATE KEY UPDATE - will update
 upsert_expr = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -167,7 +167,7 @@ print(f"After UPSERT: {result.data}")
 
 insert_result = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -182,7 +182,7 @@ print(f"Insert affected_rows: {result.affected_rows}")
 
 upsert_result = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -209,7 +209,7 @@ print(f"Update affected_rows: {result.affected_rows}")
 
 multi_upsert = InsertExpression(
     dialect=dialect,
-    into="users",
+    into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
     source=ValuesSource(
         dialect,
@@ -233,11 +233,11 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_orders = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
+drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table_name="users", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

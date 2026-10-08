@@ -19,7 +19,6 @@ from rhosocial.activerecord.backend.expression import (
     InsertExpression,
     Literal,
     QueryExpression,
-    TableExpression,
     ValuesSource,
     WildcardExpression,
 )
@@ -30,6 +29,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionDefinition,
     MySQLPartitionValue,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 PARTITION_EXPLAIN_TABLE = "ar_mysql_partition_explain_events"
@@ -40,13 +40,13 @@ def _partition_value(dialect, value):
 
 
 def _drop_partition_explain_table_expression(dialect):
-    return DropTableExpression(dialect=dialect, table=PARTITION_EXPLAIN_TABLE, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=Table(dialect, PARTITION_EXPLAIN_TABLE), if_exists=True)
 
 
 def _create_partition_explain_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PARTITION_EXPLAIN_TABLE,
+        table=Table(dialect, PARTITION_EXPLAIN_TABLE),
         columns=[
             ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
@@ -90,7 +90,7 @@ def _seed_partition_explain_rows_expression(dialect):
     ]
     return InsertExpression(
         dialect=dialect,
-        into=PARTITION_EXPLAIN_TABLE,
+        into=Table(dialect, PARTITION_EXPLAIN_TABLE),
         columns=["id", "tenant_id", "created_at", "payload"],
         source=ValuesSource(
             dialect,
@@ -103,7 +103,7 @@ def _partition_range_query_expression(dialect, start, end):
     return QueryExpression(
         dialect,
         select=[WildcardExpression(dialect)],
-        from_=TableExpression(dialect, PARTITION_EXPLAIN_TABLE),
+        from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
         where=(Column(dialect, "created_at") >= Literal(dialect, start))
         & (Column(dialect, "created_at") < Literal(dialect, end)),
     )
@@ -113,7 +113,7 @@ def _full_scan_query_expression(dialect):
     return QueryExpression(
         dialect,
         select=[WildcardExpression(dialect)],
-        from_=TableExpression(dialect, PARTITION_EXPLAIN_TABLE),
+        from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
     )
 
 

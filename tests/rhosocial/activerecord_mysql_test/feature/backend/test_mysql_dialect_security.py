@@ -21,6 +21,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
     MySQLJSONTableExpression,
     JSONTableColumn,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 @pytest.fixture
@@ -441,7 +442,7 @@ class TestMySQLCreateTableCommentEscaping:
 
         expr = CreateTableExpression(
             dialect=dialect,
-            table="test_table",
+            table=Table(dialect, "test_table"),
             columns=[],
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Table's comment with 'quotes'")),
         )
@@ -462,7 +463,7 @@ class TestMySQLCreateTableCommentEscaping:
 
         expr = CreateTableExpression(
             dialect=dialect,
-            table="test_table",
+            table=Table(dialect, "test_table"),
             columns=[],
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Test\\value")),
         )

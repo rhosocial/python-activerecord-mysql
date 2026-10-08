@@ -32,7 +32,6 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     ValuesSource,
     UpdateExpression,
     QueryExpression,
-    TableExpression,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
@@ -43,15 +42,16 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
 from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table_name="accounts", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="accounts",
+    table=Table(dialect, "accounts"),
     columns=[
         ColumnDefinition(
             "id",
@@ -83,7 +83,7 @@ backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    into="accounts",
+    into=Table(dialect, "accounts"),
     columns=["name", "balance"],
     source=ValuesSource(
         dialect,
@@ -108,7 +108,7 @@ dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 with backend.transaction():
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=Table(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 50)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
@@ -119,7 +119,7 @@ with backend.transaction():
 query = QueryExpression(
     dialect=dialect,
     select=[Column(dialect, "balance")],
-    from_=TableExpression(dialect, "accounts"),
+    from_=Table(dialect, "accounts"),
     where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
 )
 sql, params = query.to_sql()
@@ -136,7 +136,7 @@ try:
     with backend.transaction():
         update_expr = UpdateExpression(
             dialect=dialect,
-            table="accounts",
+            table=Table(dialect, "accounts"),
             assignments={"balance": Literal(dialect, -100)},
             where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
         )
@@ -154,7 +154,7 @@ except Exception as e:
 with backend.transaction():
     update_expr = UpdateExpression(
         dialect=dialect,
-        table="accounts",
+        table=Table(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 40)},
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
@@ -165,7 +165,7 @@ with backend.transaction():
     try:
         update_expr2 = UpdateExpression(
             dialect=dialect,
-            table="accounts",
+            table=Table(dialect, "accounts"),
             assignments={"balance": Literal(dialect, 20)},
             where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
         )

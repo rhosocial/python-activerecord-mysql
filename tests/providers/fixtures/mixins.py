@@ -25,6 +25,7 @@ from rhosocial.activerecord.backend.expression.types import (
 )
 
 from . import _common
+from rhosocial.activerecord.backend.expression.objects import Table
 
 _DEFAULT_STORAGE_OPTIONS = {
     "ENGINE": "InnoDB",
@@ -44,7 +45,7 @@ def to_sql(expr: CreateTableExpression):
 def create_combined_articles_table(dialect, table_name: str = "combined_articles") -> CreateTableExpression:
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=Table(dialect, table_name),
         if_not_exists=False,
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect),
@@ -75,7 +76,7 @@ def create_combined_articles_table(dialect, table_name: str = "combined_articles
 def create_tasks_table(dialect, table_name: str = "tasks") -> CreateTableExpression:
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=Table(dialect, table_name),
         if_not_exists=False,
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect),
@@ -99,7 +100,7 @@ def create_tasks_table(dialect, table_name: str = "tasks") -> CreateTableExpress
 def create_timestamped_posts_table(dialect, table_name: str = "timestamped_posts") -> CreateTableExpression:
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=Table(dialect, table_name),
         if_not_exists=False,
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect),
@@ -122,7 +123,7 @@ def create_timestamped_posts_table(dialect, table_name: str = "timestamped_posts
 def create_versioned_products_table(dialect, table_name: str = "versioned_products") -> CreateTableExpression:
     return CreateTableExpression(
         dialect=dialect,
-        table=table_name,
+        table=Table(dialect, table_name),
         if_not_exists=False,
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect),

@@ -17,6 +17,7 @@ from rhosocial.activerecord.backend.expression.statements.fulltext_match import 
     FulltextMatchExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression
+from rhosocial.activerecord.backend.expression.objects import Index, Table
 
 
 class TestFullTextProtocol:
@@ -132,7 +133,7 @@ class TestFullTextProtocol:
         dialect = MySQLDialect(version=(8, 0, 0))
 
         expr = CreateFulltextIndexExpression(
-            dialect=dialect, index_name="idx_content", table_name="articles", columns=["title", "content"]
+            dialect=dialect, index=Index(dialect, "idx_content"), table=Table(dialect, "articles"), columns=["title", "content"]
         )
         sql, params = expr.to_sql()
 
@@ -147,7 +148,7 @@ class TestFullTextProtocol:
         dialect = MySQLDialect(version=(8, 0, 0))
 
         expr = CreateFulltextIndexExpression(
-            dialect=dialect, index_name="idx_content", table_name="articles", columns=["content"], parser="ngram"
+            dialect=dialect, index=Index(dialect, "idx_content"), table=Table(dialect, "articles"), columns=["content"], parser="ngram"
         )
         sql, params = expr.to_sql()
 
@@ -165,7 +166,7 @@ class TestFullTextProtocol:
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
             expr = CreateFulltextIndexExpression(
-                dialect=dialect, index_name="idx_test", table_name="test_table", columns=["content"]
+                dialect=dialect, index=Index(dialect, "idx_test"), table=Table(dialect, "test_table"), columns=["content"]
             )
             expr.to_sql()
 

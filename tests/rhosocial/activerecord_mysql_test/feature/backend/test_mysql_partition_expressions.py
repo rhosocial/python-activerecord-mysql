@@ -38,6 +38,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLSubpartitionDefinition,
     MySQLTruncatePartitionExpression,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 @pytest.fixture
 def dialect():
@@ -52,7 +53,7 @@ def _partition_value(dialect, value):
 def test_partition_capabilities_and_direct_drop_expression(dialect):
     assert dialect.supports_add_partition() is True
     assert dialect.supports_drop_partition() is True
-    expression = MySQLDropPartitionExpression(dialect, "events", ["p0"])
+    expression = MySQLDropPartitionExpression(dialect, Table(dialect, "events"), ["p0"])
     assert isinstance(expression, MySQLDropPartitionExpression)
     assert "DROP PARTITION" in expression.to_sql()[0]
 
@@ -168,11 +169,11 @@ def test_multiple_partition_maintenance_statements(dialect):
         MySQLPartitionDefinition(name="p2026_04", less_than=[_partition_value(dialect, "2026-05-01")]),
     ]
 
-    add_sql, add_params = MySQLAddPartitionExpression(dialect, "events", partitions).to_sql()
-    drop_sql, drop_params = MySQLDropPartitionExpression(dialect, "events", ["p2026_03", "p2026_04"]).to_sql()
+    add_sql, add_params = MySQLAddPartitionExpression(dialect, Table(dialect, "events"), partitions).to_sql()
+    drop_sql, drop_params = MySQLDropPartitionExpression(dialect, Table(dialect, "events"), ["p2026_03", "p2026_04"]).to_sql()
     truncate_sql, truncate_params = MySQLTruncatePartitionExpression(
         dialect,
-        "events",
+        Table(dialect, "events"),
         ["p2026_03", "p2026_04"],
     ).to_sql()
 
@@ -191,15 +192,59 @@ def test_exchange_partition_without_validation(dialect):
     """EXCHANGE PARTITION should support WITHOUT VALIDATION."""
     sql, params = MySQLExchangePartitionExpression(
         dialect,
-        "events",
+        Table(dialect, "events"),
         "p2026",
-        "events_archive",
-        with_validation=False,
+        Table(dialect, "events_archive"),
+        without_validation=True,
     ).to_sql()
 
     assert "EXCHANGE PARTITION" in sql
     assert "WITHOUT VALIDATION" in sql
     assert params == ()
+
+
+def test_exchange_partition_with_validation():
+    """EXCHANGE PARTITION should support the explicit WITH VALIDATION spelling."""
+    adapted = MySQLDialect(version=(8, 0, 0))
+    sql, params = MySQLExchangePartitionExpression(
+        adapted,
+        Table(adapted, "events"),
+        "p2026",
+        Table(adapted, "events_archive"),
+        with_validation=True,
+    ).to_sql()
+
+    assert "EXCHANGE PARTITION" in sql
+    assert "WITH VALIDATION" in sql
+    assert "WITHOUT VALIDATION" not in sql
+    assert params == ()
+
+
+def test_exchange_partition_unspecified_omits_validation_clause(dialect):
+    """With neither spelling set the clause is left out (server default)."""
+    sql, params = MySQLExchangePartitionExpression(
+        dialect,
+        Table(dialect, "events"),
+        "p2026",
+        Table(dialect, "events_archive"),
+    ).to_sql()
+
+    assert "EXCHANGE PARTITION" in sql
+    assert "WITH VALIDATION" not in sql
+    assert "WITHOUT VALIDATION" not in sql
+    assert params == ()
+
+
+def test_exchange_partition_validation_spellings_are_mutually_exclusive(dialect):
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        MySQLExchangePartitionExpression(
+            dialect,
+            Table(dialect, "events"),
+            "p2026",
+            Table(dialect, "events_archive"),
+            with_validation=True,
+            without_validation=True,
+        )
 
 
 def test_partition_definition_rejects_invalid_value_mode_combinations(dialect):
@@ -280,13 +325,13 @@ def test_partition_definition_options_reject_invalid_options(dialect):
 def test_extended_partition_maintenance_expressions(dialect):
     """MySQL maintenance expressions should delegate to public formatters."""
     cases = [
-        (MySQLRemovePartitioningExpression(dialect, "events"), "REMOVE PARTITIONING"),
-        (MySQLCoalescePartitionExpression(dialect, "events", 2), "COALESCE PARTITION 2"),
-        (MySQLAnalyzePartitionExpression(dialect, "events", ["p0", "p1"]), "ANALYZE PARTITION"),
-        (MySQLCheckPartitionExpression(dialect, "events", ["p0", "p1"]), "CHECK PARTITION"),
-        (MySQLOptimizePartitionExpression(dialect, "events", ["p0", "p1"]), "OPTIMIZE PARTITION"),
-        (MySQLRebuildPartitionExpression(dialect, "events", ["p0", "p1"]), "REBUILD PARTITION"),
-        (MySQLRepairPartitionExpression(dialect, "events", ["p0", "p1"]), "REPAIR PARTITION"),
+        (MySQLRemovePartitioningExpression(dialect, Table(dialect, "events")), "REMOVE PARTITIONING"),
+        (MySQLCoalescePartitionExpression(dialect, Table(dialect, "events"), 2), "COALESCE PARTITION 2"),
+        (MySQLAnalyzePartitionExpression(dialect, Table(dialect, "events"), ["p0", "p1"]), "ANALYZE PARTITION"),
+        (MySQLCheckPartitionExpression(dialect, Table(dialect, "events"), ["p0", "p1"]), "CHECK PARTITION"),
+        (MySQLOptimizePartitionExpression(dialect, Table(dialect, "events"), ["p0", "p1"]), "OPTIMIZE PARTITION"),
+        (MySQLRebuildPartitionExpression(dialect, Table(dialect, "events"), ["p0", "p1"]), "REBUILD PARTITION"),
+        (MySQLRepairPartitionExpression(dialect, Table(dialect, "events"), ["p0", "p1"]), "REPAIR PARTITION"),
     ]
 
     for expr, expected in cases:
@@ -337,10 +382,10 @@ def test_partition_by_list_columns_multi_column_row_tuples(dialect):
 def test_extended_partition_maintenance_rejects_invalid_arguments(dialect):
     """Maintenance expressions should reject invalid counts and empty lists."""
     with pytest.raises(ValueError, match="positive integer"):
-        MySQLCoalescePartitionExpression(dialect, "events", 0)
+        MySQLCoalescePartitionExpression(dialect, Table(dialect, "events"), 0)
 
     with pytest.raises(ValueError, match="partitions must not be empty"):
-        MySQLAnalyzePartitionExpression(dialect, "events", []).to_sql()
+        MySQLAnalyzePartitionExpression(dialect, Table(dialect, "events"), []).to_sql()
 
 
 # --- Subpartition expression tests ---
@@ -509,7 +554,7 @@ def test_get_partitions_expression_rejects_empty_table_name(dialect):
 
 def test_add_partition_helper_generates_sql(dialect):
     """AddPartitionHelper should generate ADD PARTITION SQL."""
-    expr = MySQLAddPartitionHelper(dialect, "orders", partition_values=[2020, 2021])
+    expr = MySQLAddPartitionHelper(dialect, Table(dialect, "orders"), partition_values=[2020, 2021])
 
     sql, params = expr.to_sql()
 
@@ -524,12 +569,12 @@ def test_add_partition_helper_generates_sql(dialect):
 def test_add_partition_helper_rejects_empty_values(dialect):
     """AddPartitionHelper should reject empty partition_values."""
     with pytest.raises(ValueError, match="must not be empty"):
-        MySQLAddPartitionHelper(dialect, "orders", partition_values=[])
+        MySQLAddPartitionHelper(dialect, Table(dialect, "orders"), partition_values=[])
 
 
 def test_coalesce_partition_helper_generates_sql(dialect):
     """CoalescePartitionHelper should generate COALESCE PARTITION SQL."""
-    expr = MySQLCoalescePartitionHelper(dialect, "orders", target_count=4, current_count=6)
+    expr = MySQLCoalescePartitionHelper(dialect, Table(dialect, "orders"), target_count=4, current_count=6)
 
     sql, params = expr.to_sql()
 
@@ -542,22 +587,22 @@ def test_coalesce_partition_helper_generates_sql(dialect):
 def test_coalesce_partition_helper_rejects_invalid_target(dialect):
     """CoalescePartitionHelper should reject target_count >= current_count."""
     with pytest.raises(ValueError, match="must be less than"):
-        MySQLCoalescePartitionHelper(dialect, "orders", target_count=6, current_count=6).to_sql()
+        MySQLCoalescePartitionHelper(dialect, Table(dialect, "orders"), target_count=6, current_count=6).to_sql()
 
     with pytest.raises(ValueError, match="must be less than"):
-        MySQLCoalescePartitionHelper(dialect, "orders", target_count=7, current_count=6).to_sql()
+        MySQLCoalescePartitionHelper(dialect, Table(dialect, "orders"), target_count=7, current_count=6).to_sql()
 
 
 def test_coalesce_partition_helper_rejects_non_positive_target(dialect):
     """CoalescePartitionHelper should reject non-positive target_count."""
     with pytest.raises(ValueError, match="must be positive"):
-        MySQLCoalescePartitionHelper(dialect, "orders", target_count=0, current_count=6)
+        MySQLCoalescePartitionHelper(dialect, Table(dialect, "orders"), target_count=0, current_count=6)
 
 
 def test_drop_oldest_partition_helper_generates_sql(dialect):
     """DropOldestPartitionHelper should drop the lexicographically first partition."""
     expr = MySQLDropOldestPartitionHelper(
-        dialect, "orders", partition_names=["p2020", "p2019", "p2021"]
+        dialect, Table(dialect, "orders"), partition_names=["p2020", "p2019", "p2021"]
     )
 
     sql, params = expr.to_sql()
@@ -571,7 +616,7 @@ def test_drop_oldest_partition_helper_generates_sql(dialect):
 def test_drop_oldest_partition_helper_rejects_empty_names(dialect):
     """DropOldestPartitionHelper should reject empty partition_names."""
     with pytest.raises(ValueError, match="must not be empty"):
-        MySQLDropOldestPartitionHelper(dialect, "orders", partition_names=[])
+        MySQLDropOldestPartitionHelper(dialect, Table(dialect, "orders"), partition_names=[])
 
 
 def test_reorganize_partition_helper_generates_sql(dialect):
@@ -580,7 +625,7 @@ def test_reorganize_partition_helper_generates_sql(dialect):
         MySQLPartitionDefinition(name="p2020a", less_than=[MySQLPartitionValue(dialect, 2021)]),
         MySQLPartitionDefinition(name="p2020b", less_than=[MySQLPartitionValue(dialect, 2022)]),
     ]
-    expr = MySQLReorganizePartitionHelper(dialect, "orders", "p2020", into=new_partitions)
+    expr = MySQLReorganizePartitionHelper(dialect, Table(dialect, "orders"), "p2020", into=new_partitions)
 
     sql, params = expr.to_sql()
 
@@ -593,7 +638,7 @@ def test_reorganize_partition_helper_generates_sql(dialect):
 def test_add_subpartition_helper_generates_sql(dialect):
     """AddSubpartitionHelper should generate ADD PARTITION with subpartition definitions."""
     expr = MySQLAddSubpartitionHelper(
-        dialect, "orders", "p2025",
+        dialect, Table(dialect, "orders"), "p2025",
         less_than=[2026],
         subpartition_names=["sp0", "sp1"],
     )
@@ -690,7 +735,7 @@ def test_partition_by_list_columns_rejects_invalid_subpartition_by(dialect):
 def test_add_subpartition_helper_without_subpartitions(dialect):
     """AddSubpartitionHelper should work without subpartition_names."""
     expr = MySQLAddSubpartitionHelper(
-        dialect, "orders", "p2025",
+        dialect, Table(dialect, "orders"), "p2025",
         less_than=[2026],
     )
     sql, params = expr.to_sql()
@@ -702,7 +747,7 @@ def test_add_subpartition_helper_without_subpartitions(dialect):
 def test_add_subpartition_helper_with_in_values(dialect):
     """AddSubpartitionHelper should accept in_values for LIST-based partitioning."""
     expr = MySQLAddSubpartitionHelper(
-        dialect, "orders", "p_ny",
+        dialect, Table(dialect, "orders"), "p_ny",
         subpartition_names=["sp_active", "sp_archived"],
         in_values=["NY"],
     )

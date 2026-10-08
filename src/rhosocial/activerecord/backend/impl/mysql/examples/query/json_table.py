@@ -37,13 +37,13 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name="orders", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="orders",
+    table=Table(dialect, "orders"),
     columns=[
         ColumnDefinition(
             "id",
@@ -62,7 +62,7 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into="orders",
+    into=Table(dialect, "orders"),
     columns=["order_data"],
     source=ValuesSource(
         dialect,
@@ -87,13 +87,14 @@ backend.execute(sql, params)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     QueryExpression,
-    TableExpression,
     Column,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (  # noqa: E402
     MySQLJSONTableExpression,
     JSONTableColumn,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
+from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
 
 json_table = MySQLJSONTableExpression(
     dialect=dialect,
@@ -123,7 +124,7 @@ query = QueryExpression(
         Column(dialect, "price", table="items"),
     ],
     from_=[
-        TableExpression(dialect, "orders", alias="o"),
+        NamedRelationRef(dialect, Table(dialect, "orders"), alias="o"),
         json_table,
     ],
 )

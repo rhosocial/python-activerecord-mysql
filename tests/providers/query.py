@@ -16,7 +16,8 @@ import sys
 import logging
 from typing import Type, List, Tuple
 
-from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
+from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table  # noqa: E402
 
 # Setup logging for fixture selection debugging
 logger = logging.getLogger(__name__)
@@ -159,7 +160,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
     def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.query import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -174,7 +175,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, table_name),
+                    table=Table(backend_instance.dialect, table_name),
                     if_exists=True,
                 )
                 backend_instance.execute(*drop_expr.to_sql(), options=options)
@@ -220,7 +221,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
     def _reset_schema(self, backend_instance, table_name: str) -> None:
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.query import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -232,7 +233,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, table_name),
+                    table=Table(backend_instance.dialect, table_name),
                     if_exists=True,
                 )
                 backend_instance.execute(*drop_expr.to_sql(), options=options)
@@ -318,7 +319,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
         """Set up the composite-PK OrderItem model for the query feature tests."""
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.basic import TABLE_EXPRESSIONS as BASIC_EXPRS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -333,7 +334,7 @@ class QuerySyncProvider(QueryProviderBase, IQuerySyncProvider, WorkerTestProtoco
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, "order_items"),
+                    table=Table(backend_instance.dialect, "order_items"),
                     if_exists=True,
                 )
                 backend_instance.execute(*drop_expr.to_sql(), options=options)
@@ -460,7 +461,7 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
         from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.query import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -480,7 +481,7 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, table_name),
+                    table=Table(backend_instance.dialect, table_name),
                     if_exists=True,
                 )
                 await backend_instance.execute(*drop_expr.to_sql(), options=options)
@@ -629,7 +630,7 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
         """Set up the composite-PK AsyncOrderItem model for the query feature tests."""
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
         from providers.fixtures.basic import TABLE_EXPRESSIONS as BASIC_EXPRS
         from providers.fixtures._common import to_mysql_ddl_sql
@@ -645,7 +646,7 @@ class QueryAsyncProvider(QueryProviderBase, IQueryAsyncProvider):
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend_instance.dialect,
-                    table=TableExpression(backend_instance.dialect, "order_items"),
+                    table=Table(backend_instance.dialect, "order_items"),
                     if_exists=True,
                 )
                 await backend_instance.execute(*drop_expr.to_sql(), options=options)

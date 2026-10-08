@@ -10,6 +10,7 @@ TableMixin implementation).
 
 from rhosocial.activerecord.backend.expression import CreateTableLikeExpression
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 class TestMySQLCreateTableLike:
@@ -18,7 +19,7 @@ class TestMySQLCreateTableLike:
     def test_basic_like_syntax(self):
         """Test basic CREATE TABLE ... LIKE syntax."""
         dialect = MySQLDialect()
-        expr = CreateTableLikeExpression(dialect, table="users_copy", like_table="users")
+        expr = CreateTableLikeExpression(dialect, table=Table(dialect, "users_copy"), like_table=Table(dialect, "users"))
         sql, params = expr.to_sql()
 
         assert sql == "CREATE TABLE `users_copy` LIKE `users`"
@@ -28,7 +29,7 @@ class TestMySQLCreateTableLike:
         """Test CREATE TABLE ... LIKE with IF NOT EXISTS."""
         dialect = MySQLDialect()
         expr = CreateTableLikeExpression(
-            dialect, table="users_copy", like_table="users", if_not_exists=True
+            dialect, table=Table(dialect, "users_copy"), like_table=Table(dialect, "users"), if_not_exists=True
         )
         sql, params = expr.to_sql()
 
@@ -39,7 +40,7 @@ class TestMySQLCreateTableLike:
         """Test CREATE TEMPORARY TABLE ... LIKE."""
         dialect = MySQLDialect()
         expr = CreateTableLikeExpression(
-            dialect, table="temp_users", like_table="users", temporary=True
+            dialect, table=Table(dialect, "temp_users"), like_table=Table(dialect, "users"), temporary=True
         )
         sql, params = expr.to_sql()
 
@@ -47,10 +48,12 @@ class TestMySQLCreateTableLike:
         assert params == ()
 
     def test_like_with_schema_qualified_table(self):
-        """Test CREATE TABLE ... LIKE with schema-qualified source table."""
+        """Test CREATE TABLE ... LIKE with a source table in another database."""
         dialect = MySQLDialect()
         expr = CreateTableLikeExpression(
-            dialect, table="users_copy", like_table=("production", "users")
+            dialect,
+            table=Table(dialect, "users_copy"),
+            like_table=Table(dialect, "users", catalog_name="production"),
         )
         sql, params = expr.to_sql()
 
@@ -62,8 +65,8 @@ class TestMySQLCreateTableLike:
         dialect = MySQLDialect()
         expr = CreateTableLikeExpression(
             dialect,
-            table="temp_users_copy",
-            like_table=("test_db", "users"),
+            table=Table(dialect, "temp_users_copy"),
+            like_table=Table(dialect, "users", catalog_name="test_db"),
             temporary=True,
             if_not_exists=True,
         )

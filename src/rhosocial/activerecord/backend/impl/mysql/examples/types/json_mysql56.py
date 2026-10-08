@@ -39,15 +39,16 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name="documents", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 from rhosocial.activerecord.backend.expression import CreateTableExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="documents",
+    table=Table(dialect, "documents"),
     columns=[
         ColumnDefinition(
             "id",
@@ -71,7 +72,7 @@ backend.execute(sql, params)
 
 insert_expr = InsertExpression(
     dialect=dialect,
-    into="documents",
+    into=Table(dialect, "documents"),
     columns=["data"],
     source=ValuesSource(
         dialect,

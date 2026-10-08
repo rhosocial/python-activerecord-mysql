@@ -1,6 +1,10 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/load_xml.py
 from typing import TYPE_CHECKING, Tuple
 
+from rhosocial.activerecord.backend.expression.objects import Table
+
+from .object_kind import require_kind
+
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
         MySQLLoadXMLEXpression,
@@ -14,7 +18,14 @@ class MySQLLoadXMLLMixin:
         return True
 
     def format_load_xml_statement(self, expr: "MySQLLoadXMLEXpression") -> Tuple[str, tuple]:
-        """Format ``LOAD XML ... INFILE ... INTO TABLE ...``."""
+        """Format ``LOAD XML ... INFILE ... INTO TABLE ...``.
+
+        Raises:
+            TypeError: ``expr.table`` is not a Table. LOAD XML writes rows, so a
+                wrong kind there would render a statement loading into whatever
+                object's name was supplied.
+        """
+        require_kind(expr.table, Table, "MySQLLoadXMLEXpression.table")
         expr.validate(strict=self.strict_validation)
 
         parts = ["LOAD XML"]
@@ -32,7 +43,7 @@ class MySQLLoadXMLLMixin:
             parts.append(expr.conflict_mode.value)
 
         parts.append("INTO TABLE")
-        parts.append(self.format_identifier(expr.table))
+        parts.append(expr.table.to_sql()[0])
 
         if expr.character_set:
             parts.append(f"CHARACTER SET {expr.character_set}")

@@ -34,13 +34,13 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table_name="articles", if_exists=True)
+drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "articles"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="articles",
+    table=Table(dialect, "articles"),
     columns=[
         ColumnDefinition(
             "id",
@@ -60,7 +60,7 @@ backend.execute(sql, params)
 
 insert = InsertExpression(
     dialect=dialect,
-    into="articles",
+    into=Table(dialect, "articles"),
     columns=["title", "content"],
     source=ValuesSource(
         dialect,
@@ -89,8 +89,9 @@ backend.execute(sql)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import QueryExpression, Column, TableExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression import QueryExpression, Column  # noqa: E402
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table
 
 # Use MySQLMatchAgainstExpression for full-text search
 match_expr = MySQLMatchAgainstExpression(
@@ -124,7 +125,7 @@ query = QueryExpression(
         Column(dialect, "title"),
         match_with_alias,
     ],
-    from_=TableExpression(dialect, "articles"),
+    from_=Table(dialect, "articles"),
     where=(match_for_where > 0),
 )
 

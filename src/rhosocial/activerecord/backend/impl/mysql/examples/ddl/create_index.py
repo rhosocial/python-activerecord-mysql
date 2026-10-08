@@ -28,13 +28,13 @@ backend.connect()
 dialect = backend.dialect
 
 # Drop table first for clean setup
-drop = DropTableExpression(dialect=dialect, table_name="products", if_exists=True)
+drop = DropTableExpression(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
 
 create_table = CreateTableExpression(
     dialect=dialect,
-    table_name="products",
+    table=Table(dialect, "products"),
     columns=[
         ColumnDefinition(
             "id",
@@ -57,10 +57,11 @@ backend.execute(sql, params)
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
 from rhosocial.activerecord.backend.expression import CreateIndexExpression, DropIndexExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Index, Table
 
 # Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
 try:
-    drop_idx = DropIndexExpression(dialect=dialect, index_name="idx_category_price")
+    drop_idx = DropIndexExpression(dialect=dialect, index=Index(dialect, "idx_category_price"))
     sql, params = drop_idx.to_sql()
     backend.execute(sql, params)
 except Exception:
@@ -68,8 +69,8 @@ except Exception:
 
 create_idx = CreateIndexExpression(
     dialect=dialect,
-    index_name="idx_category_price",
-    table_name="products",
+    index=Index(dialect, "idx_category_price"),
+    table=Table(dialect, "products"),
     columns=["category", "price"],
 )
 

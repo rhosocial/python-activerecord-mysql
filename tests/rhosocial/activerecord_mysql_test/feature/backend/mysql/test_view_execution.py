@@ -10,7 +10,6 @@ import pytest
 from rhosocial.activerecord.backend.expression import (
     Column,
     Literal,
-    TableExpression,
     QueryExpression,
     CreateViewExpression,
     DropViewExpression,
@@ -22,6 +21,7 @@ from rhosocial.activerecord.backend.expression.query_parts import WhereClause
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
+from rhosocial.activerecord.backend.expression.objects import MaterializedView, Table, View
 
 
 @pytest.fixture
@@ -116,10 +116,10 @@ class TestMySQLViewExecution:
         query = QueryExpression(
             dialect,
             select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "email")],
-            from_=TableExpression(dialect, "users"),
+            from_=Table(dialect, "users"),
         )
 
-        create_view = CreateViewExpression(dialect, view_name="user_view", query=query)
+        create_view = CreateViewExpression(dialect, view=View(dialect, "user_view"), query=query)
 
         sql, params = create_view.to_sql()
 
@@ -142,11 +142,11 @@ class TestMySQLViewExecution:
         query = QueryExpression(
             dialect,
             select=[Column(dialect, "id"), Column(dialect, "name")],
-            from_=TableExpression(dialect, "users"),
+            from_=Table(dialect, "users"),
             where=WhereClause(dialect, condition=Column(dialect, "status") == Literal(dialect, "active")),
         )
 
-        create_view = CreateViewExpression(dialect, view_name="active_users", query=query)
+        create_view = CreateViewExpression(dialect, view=View(dialect, "active_users"), query=query)
 
         sql, params = create_view.to_sql()
 
@@ -165,19 +165,19 @@ class TestMySQLViewExecution:
         """Test CREATE OR REPLACE VIEW."""
         dialect = mysql_view_backend.dialect
 
-        query = QueryExpression(dialect, select=[Column(dialect, "id")], from_=TableExpression(dialect, "users"))
+        query = QueryExpression(dialect, select=[Column(dialect, "id")], from_=Table(dialect, "users"))
 
-        create_view = CreateViewExpression(dialect, view_name="user_view", query=query)
+        create_view = CreateViewExpression(dialect, view=View(dialect, "user_view"), query=query)
 
         sql, params = create_view.to_sql()
         mysql_view_backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
 
         # Create again with OR REPLACE
         query2 = QueryExpression(
-            dialect, select=[Column(dialect, "id"), Column(dialect, "name")], from_=TableExpression(dialect, "users")
+            dialect, select=[Column(dialect, "id"), Column(dialect, "name")], from_=Table(dialect, "users")
         )
 
-        create_view2 = CreateViewExpression(dialect, view_name="user_view", query=query2, replace=True)
+        create_view2 = CreateViewExpression(dialect, view=View(dialect, "user_view"), query=query2, replace=True)
 
         sql, params = create_view2.to_sql()
         result = mysql_view_backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
@@ -187,14 +187,14 @@ class TestMySQLViewExecution:
         """Test DROP VIEW."""
         dialect = mysql_view_backend.dialect
 
-        query = QueryExpression(dialect, select=[Column(dialect, "id")], from_=TableExpression(dialect, "users"))
+        query = QueryExpression(dialect, select=[Column(dialect, "id")], from_=Table(dialect, "users"))
 
-        create_view = CreateViewExpression(dialect, view_name="user_view", query=query)
+        create_view = CreateViewExpression(dialect, view=View(dialect, "user_view"), query=query)
 
         sql, params = create_view.to_sql()
         mysql_view_backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
 
-        drop_view = DropViewExpression(dialect, view_name="user_view")
+        drop_view = DropViewExpression(dialect, view=View(dialect, "user_view"))
 
         sql, params = drop_view.to_sql()
         result = mysql_view_backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
@@ -204,7 +204,7 @@ class TestMySQLViewExecution:
         """Test DROP VIEW IF EXISTS."""
         dialect = mysql_view_backend.dialect
 
-        drop_view = DropViewExpression(dialect, view_name="nonexistent_view", if_exists=True)
+        drop_view = DropViewExpression(dialect, view=View(dialect, "nonexistent_view"), if_exists=True)
 
         sql, params = drop_view.to_sql()
         result = mysql_view_backend.execute(sql, params, options=ExecutionOptions(stmt_type=StatementType.DDL))
@@ -218,9 +218,9 @@ class TestMySQLMaterializedViewExecution:
         """Test that CREATE MATERIALIZED VIEW raises UnsupportedFeatureError."""
         dialect = mysql_view_backend.dialect
 
-        query = QueryExpression(dialect, select=[Column(dialect, "id")], from_=TableExpression(dialect, "users"))
+        query = QueryExpression(dialect, select=[Column(dialect, "id")], from_=Table(dialect, "users"))
 
-        create_mv = CreateMaterializedViewExpression(dialect, view_name="test_mv", query=query)
+        create_mv = CreateMaterializedViewExpression(dialect, view=MaterializedView(dialect, "test_mv"), query=query)
 
         with pytest.raises(UnsupportedFeatureError) as exc_info:
             create_mv.to_sql()
@@ -232,7 +232,7 @@ class TestMySQLMaterializedViewExecution:
         """Test that DROP MATERIALIZED VIEW raises UnsupportedFeatureError."""
         dialect = mysql_view_backend.dialect
 
-        drop_mv = DropMaterializedViewExpression(dialect, view_name="test_mv")
+        drop_mv = DropMaterializedViewExpression(dialect, view=MaterializedView(dialect, "test_mv"))
 
         with pytest.raises(UnsupportedFeatureError) as exc_info:
             drop_mv.to_sql()
@@ -243,7 +243,7 @@ class TestMySQLMaterializedViewExecution:
         """Test that REFRESH MATERIALIZED VIEW raises UnsupportedFeatureError."""
         dialect = mysql_view_backend.dialect
 
-        refresh_mv = RefreshMaterializedViewExpression(dialect, view_name="test_mv")
+        refresh_mv = RefreshMaterializedViewExpression(dialect, view=MaterializedView(dialect, "test_mv"))
 
         with pytest.raises(UnsupportedFeatureError) as exc_info:
             refresh_mv.to_sql()

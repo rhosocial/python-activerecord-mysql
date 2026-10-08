@@ -22,7 +22,6 @@ from rhosocial.activerecord.backend.expression import (
     QueryExpression,
     TableConstraint,
     TableConstraintType,
-    TableExpression,
     ValuesSource,
     WildcardExpression,
 )
@@ -46,13 +45,14 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLSubpartitionStrategy,
     MySQLTruncatePartitionExpression,
 )
+from rhosocial.activerecord.backend.expression.objects import Table
 
 
 PARTITION_TABLE = "ar_mysql_partition_events"
 
 
 def _drop_table_expression(dialect):
-    return DropTableExpression(dialect=dialect, table=PARTITION_TABLE, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=Table(dialect, PARTITION_TABLE), if_exists=True)
 
 
 def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDefinition]:
@@ -71,7 +71,7 @@ def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDef
 def _create_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PARTITION_TABLE,
+        table=Table(dialect, PARTITION_TABLE),
         columns=[
             ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
             ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
@@ -92,7 +92,7 @@ def _create_partitioned_table_expression(dialect):
 def _insert_events_expression(dialect, rows):
     return InsertExpression(
         dialect=dialect,
-        into=PARTITION_TABLE,
+        into=Table(dialect, PARTITION_TABLE),
         columns=["id", "created_at", "payload"],
         source=ValuesSource(
             dialect,
@@ -105,7 +105,7 @@ def _select_payloads_expression(dialect):
     return QueryExpression(
         dialect,
         select=[Column(dialect, "payload")],
-        from_=TableExpression(dialect, PARTITION_TABLE),
+        from_=Table(dialect, PARTITION_TABLE),
         order_by=OrderByClause(dialect, [(Column(dialect, "id"), "ASC")]),
     )
 
@@ -114,14 +114,14 @@ def _select_payload_by_id_expression(dialect, row_id):
     return QueryExpression(
         dialect,
         select=[Column(dialect, "payload")],
-        from_=TableExpression(dialect, PARTITION_TABLE),
+        from_=Table(dialect, PARTITION_TABLE),
         where=Column(dialect, "id") == Literal(dialect, row_id),
     )
 
 
 def _partition_names_expression(dialect, table_name=None):
     table_name = table_name or PARTITION_TABLE
-    partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
+    partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
     return QueryExpression(
         dialect,
         select=[Column(dialect, "PARTITION_NAME", alias="name")],
@@ -138,7 +138,7 @@ def _partition_names_expression(dialect, table_name=None):
 
 
 def _partition_metadata_expression(dialect):
-    partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
+    partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
     return QueryExpression(
         dialect,
         select=[
@@ -165,7 +165,7 @@ def _partition_metadata_expression(dialect):
 def _add_future_partition_expression(dialect):
     return MySQLAddPartitionExpression(
         dialect=dialect,
-        table=PARTITION_TABLE,
+        table=Table(dialect, PARTITION_TABLE),
         partitions=[
             MySQLPartitionDefinition(
                 name="p2026_03",
@@ -176,17 +176,17 @@ def _add_future_partition_expression(dialect):
 
 
 def _drop_partition_expression(dialect, partition):
-    return MySQLDropPartitionExpression(dialect, PARTITION_TABLE, [partition])
+    return MySQLDropPartitionExpression(dialect, Table(dialect, PARTITION_TABLE), [partition])
 
 
 def _truncate_partition_expression(dialect, partition):
-    return MySQLTruncatePartitionExpression(dialect, PARTITION_TABLE, [partition])
+    return MySQLTruncatePartitionExpression(dialect, Table(dialect, PARTITION_TABLE), [partition])
 
 
 def _reorganize_partition_expression(dialect):
     return MySQLReorganizePartitionExpression(
         dialect=dialect,
-        table=PARTITION_TABLE,
+        table=Table(dialect, PARTITION_TABLE),
         partition="p2026_02",
         into=[
             MySQLPartitionDefinition(
@@ -294,7 +294,7 @@ def _base_columns_without_pk(dialect):
 def _create_nonpartitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=NEGATIVE_TABLE,
+        table=Table(dialect, NEGATIVE_TABLE),
         columns=_base_columns_without_pk(dialect),
     )
 
@@ -302,7 +302,7 @@ def _create_nonpartitioned_table_expression(dialect):
 def _create_negative_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=NEGATIVE_PARTITIONED_TABLE,
+        table=Table(dialect, NEGATIVE_PARTITIONED_TABLE),
         columns=_base_columns_without_pk(dialect),
         partition=MySQLPartitionByRange(
             dialect=dialect,
@@ -318,7 +318,7 @@ def _create_negative_partitioned_table_expression(dialect):
 def _create_negative_hash_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=NEGATIVE_HASH_TABLE,
+        table=Table(dialect, NEGATIVE_HASH_TABLE),
         columns=_base_columns_without_pk(dialect),
         partition=MySQLPartitionByHash(
             dialect=dialect,
@@ -367,7 +367,7 @@ PRODUCTION_PARTITIONS = (
 
 
 def _drop_named_table_expression(dialect, table_name: str):
-    return DropTableExpression(dialect=dialect, table=table_name, if_exists=True)
+    return DropTableExpression(dialect=dialect, table=Table(dialect, table_name), if_exists=True)
 
 
 def _production_columns(dialect):
@@ -406,7 +406,7 @@ def _partition_definition(dialect, name: str, upper_bound: str):
 def _create_production_partitioned_table_expression(dialect, partitions):
     return CreateTableExpression(
         dialect=dialect,
-        table=PRODUCTION_PARTITION_TABLE,
+        table=Table(dialect, PRODUCTION_PARTITION_TABLE),
         columns=_production_columns(dialect),
         indexes=_production_indexes(dialect),
         table_constraints=_production_table_constraints(dialect),
@@ -424,7 +424,7 @@ def _create_production_partitioned_table_expression(dialect, partitions):
 def _create_production_archive_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PRODUCTION_ARCHIVE_TABLE,
+        table=Table(dialect, PRODUCTION_ARCHIVE_TABLE),
         columns=_production_columns(dialect),
         indexes=_production_indexes(dialect),
         table_constraints=_production_table_constraints(dialect),
@@ -434,7 +434,7 @@ def _create_production_archive_table_expression(dialect):
 def _create_production_maxvalue_partitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=PRODUCTION_MAXVALUE_TABLE,
+        table=Table(dialect, PRODUCTION_MAXVALUE_TABLE),
         columns=_production_columns(dialect),
         indexes=_production_indexes(dialect),
         table_constraints=_production_table_constraints(dialect),
@@ -455,7 +455,7 @@ def _create_production_maxvalue_partitioned_table_expression(dialect):
 def _insert_production_events_into_expression(dialect, table_name: str, rows):
     return InsertExpression(
         dialect=dialect,
-        into=table_name,
+        into=Table(dialect, table_name),
         columns=["id", "created_at", "tenant_id", "payload"],
         source=ValuesSource(
             dialect,
@@ -489,7 +489,7 @@ def _select_production_payloads_from_expression(
     return QueryExpression(
         dialect,
         select=[Column(dialect, "payload")],
-        from_=TableExpression(dialect, table_name),
+        from_=Table(dialect, table_name),
         where=predicate,
         order_by=OrderByClause(dialect, [(Column(dialect, "id"), "ASC")]),
     )
@@ -509,7 +509,7 @@ def _select_production_count_expression(dialect):
     return QueryExpression(
         dialect,
         select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
-        from_=TableExpression(dialect, PRODUCTION_PARTITION_TABLE),
+        from_=Table(dialect, PRODUCTION_PARTITION_TABLE),
     )
 
 
@@ -517,12 +517,12 @@ def _select_archive_count_expression(dialect):
     return QueryExpression(
         dialect,
         select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
-        from_=TableExpression(dialect, PRODUCTION_ARCHIVE_TABLE),
+        from_=Table(dialect, PRODUCTION_ARCHIVE_TABLE),
     )
 
 
 def _partition_metadata_expression_for_table(dialect, table_name: str):
-    partitions = TableExpression(dialect, "PARTITIONS", schema_name="information_schema")
+    partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
     return QueryExpression(
         dialect,
         select=[
@@ -559,7 +559,7 @@ async def _async_production_partition_metadata(backend):
 def _add_production_partition_expression(dialect, name: str, upper_bound: str):
     return MySQLAddPartitionExpression(
         dialect=dialect,
-        table=PRODUCTION_PARTITION_TABLE,
+        table=Table(dialect, PRODUCTION_PARTITION_TABLE),
         partitions=[_partition_definition(dialect, name, upper_bound)],
     )
 
@@ -567,7 +567,7 @@ def _add_production_partition_expression(dialect, name: str, upper_bound: str):
 def _reorganize_maxvalue_partition_expression(dialect):
     return MySQLReorganizePartitionExpression(
         dialect=dialect,
-        table=PRODUCTION_MAXVALUE_TABLE,
+        table=Table(dialect, PRODUCTION_MAXVALUE_TABLE),
         partition="pmax",
         into=[
             _partition_definition(dialect, "p2027", "2028-01-01 00:00:00.000000"),
@@ -583,7 +583,7 @@ def _production_range_query_for_table_expression(dialect, table_name: str, start
     return QueryExpression(
         dialect,
         select=[WildcardExpression(dialect)],
-        from_=TableExpression(dialect, table_name),
+        from_=Table(dialect, table_name),
         where=LogicalPredicate(
             dialect,
             "AND",
@@ -838,7 +838,7 @@ class TestMySQLPartitionOperationsNegative:
                 mysql_backend.execute(
                     *MySQLAddPartitionExpression(
                         mysql_backend.dialect,
-                        NEGATIVE_TABLE,
+                        Table(mysql_backend.dialect, NEGATIVE_TABLE),
                         [
                             MySQLPartitionDefinition(
                                 "p_extra", less_than=[MySQLPartitionValue(mysql_backend.dialect, 300)]
@@ -860,7 +860,7 @@ class TestMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 mysql_backend.execute(
                     *MySQLDropPartitionExpression(
-                        mysql_backend.dialect, NEGATIVE_TABLE, ["p_low"]
+                        mysql_backend.dialect, Table(mysql_backend.dialect, NEGATIVE_TABLE), ["p_low"]
                     ).to_sql()
                 )
         finally:
@@ -877,7 +877,7 @@ class TestMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 mysql_backend.execute(
                     *MySQLDropPartitionExpression(
-                        mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_nonexistent"]
+                        mysql_backend.dialect, Table(mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE), ["p_nonexistent"]
                     ).to_sql()
                 )
         finally:
@@ -898,7 +898,7 @@ class TestMySQLPartitionOperationsNegative:
                 mysql_backend.execute(
                     *MySQLAddPartitionExpression(
                         mysql_backend.dialect,
-                        NEGATIVE_PARTITIONED_TABLE,
+                        Table(mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                         [
                             MySQLPartitionDefinition(
                                 "p_overlap",
@@ -921,7 +921,7 @@ class TestMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 mysql_backend.execute(
                     *MySQLTruncatePartitionExpression(
-                        mysql_backend.dialect, NEGATIVE_TABLE, ["p_low"]
+                        mysql_backend.dialect, Table(mysql_backend.dialect, NEGATIVE_TABLE), ["p_low"]
                     ).to_sql()
                 )
         finally:
@@ -938,7 +938,7 @@ class TestMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 mysql_backend.execute(
                     *MySQLCoalescePartitionExpression(
-                        mysql_backend.dialect, NEGATIVE_TABLE, 2
+                        mysql_backend.dialect, Table(mysql_backend.dialect, NEGATIVE_TABLE), 2
                     ).to_sql()
                 )
         finally:
@@ -955,7 +955,7 @@ class TestMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 mysql_backend.execute(
                     *MySQLCoalescePartitionExpression(
-                        mysql_backend.dialect, NEGATIVE_HASH_TABLE, 10
+                        mysql_backend.dialect, Table(mysql_backend.dialect, NEGATIVE_HASH_TABLE), 10
                     ).to_sql()
                 )
         finally:
@@ -973,7 +973,7 @@ class TestMySQLPartitionOperationsNegative:
                 mysql_backend.execute(
                     *MySQLReorganizePartitionExpression(
                         mysql_backend.dialect,
-                        NEGATIVE_PARTITIONED_TABLE,
+                        Table(mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                         partition="p_nonexistent",
                         into=[
                             MySQLPartitionDefinition(
@@ -997,7 +997,7 @@ class TestMySQLPartitionOperationsNegative:
                 mysql_backend.execute(
                     *MySQLReorganizePartitionExpression(
                         mysql_backend.dialect,
-                        NEGATIVE_TABLE,
+                        Table(mysql_backend.dialect, NEGATIVE_TABLE),
                         partition="p_low",
                         into=[
                             MySQLPartitionDefinition(
@@ -1076,7 +1076,7 @@ class TestMySQLPartitionOperationsConcurrency:
             mysql_control_backend.execute(
                 *MySQLAddPartitionExpression(
                     mysql_control_backend.dialect,
-                    NEGATIVE_PARTITIONED_TABLE,
+                    Table(mysql_control_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                     [
                         MySQLPartitionDefinition(
                             "p_high",
@@ -1087,7 +1087,7 @@ class TestMySQLPartitionOperationsConcurrency:
             )
             mysql_backend.execute(
                 *MySQLDropPartitionExpression(
-                    mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_low"]
+                    mysql_backend.dialect, Table(mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE), ["p_low"]
                 ).to_sql()
             )
             names = _partition_names(mysql_backend, NEGATIVE_PARTITIONED_TABLE)
@@ -1110,7 +1110,7 @@ class TestAsyncMySQLPartitionOperationsNegative:
                 await async_mysql_backend.execute(
                     *MySQLAddPartitionExpression(
                         async_mysql_backend.dialect,
-                        NEGATIVE_TABLE,
+                        Table(async_mysql_backend.dialect, NEGATIVE_TABLE),
                         [
                             MySQLPartitionDefinition(
                                 "p_extra",
@@ -1130,7 +1130,7 @@ class TestAsyncMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 await async_mysql_backend.execute(
                     *MySQLDropPartitionExpression(
-                        async_mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE, ["p_nonexistent"]
+                        async_mysql_backend.dialect, Table(async_mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE), ["p_nonexistent"]
                     ).to_sql()
                 )
         finally:
@@ -1145,7 +1145,7 @@ class TestAsyncMySQLPartitionOperationsNegative:
                 await async_mysql_backend.execute(
                     *MySQLAddPartitionExpression(
                         async_mysql_backend.dialect,
-                        NEGATIVE_PARTITIONED_TABLE,
+                        Table(async_mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                         [
                             MySQLPartitionDefinition(
                                 "p_overlap",
@@ -1165,7 +1165,7 @@ class TestAsyncMySQLPartitionOperationsNegative:
             with pytest.raises(Exception):
                 await async_mysql_backend.execute(
                     *MySQLCoalescePartitionExpression(
-                        async_mysql_backend.dialect, NEGATIVE_HASH_TABLE, 10
+                        async_mysql_backend.dialect, Table(async_mysql_backend.dialect, NEGATIVE_HASH_TABLE), 10
                     ).to_sql()
                 )
         finally:
@@ -1213,7 +1213,7 @@ def _subpartition_columns(dialect):
 def _create_subpartitioned_table_expression(dialect):
     return CreateTableExpression(
         dialect=dialect,
-        table=SUBPARTITION_TABLE,
+        table=Table(dialect, SUBPARTITION_TABLE),
         columns=_subpartition_columns(dialect),
         partition=MySQLPartitionByRangeColumns(
             dialect=dialect,
@@ -1251,7 +1251,7 @@ async def _async_create_subpartitioned_table(backend):
 
 
 def _subpartition_metadata(backend):
-    partitions = TableExpression(dialect=backend.dialect, name="PARTITIONS", schema_name="information_schema")
+    partitions = Table(dialect=backend.dialect, name="PARTITIONS", catalog_name="information_schema")
     return backend.fetch_all(
         *QueryExpression(
             dialect=backend.dialect,
@@ -1281,7 +1281,7 @@ def _subpartition_metadata(backend):
 
 
 async def _async_subpartition_metadata(backend):
-    partitions = TableExpression(dialect=backend.dialect, name="PARTITIONS", schema_name="information_schema")
+    partitions = Table(dialect=backend.dialect, name="PARTITIONS", catalog_name="information_schema")
     return await backend.fetch_all(
         *QueryExpression(
             dialect=backend.dialect,
@@ -1337,7 +1337,7 @@ class TestMySQLSubpartitionOperations:
         try:
             insert = InsertExpression(
                 dialect=mysql_backend.dialect,
-                into=SUBPARTITION_TABLE,
+                into=Table(mysql_backend.dialect, SUBPARTITION_TABLE),
                 columns=["id", "created_at", "region", "payload"],
                 source=ValuesSource(
                     mysql_backend.dialect,
@@ -1356,7 +1356,7 @@ class TestMySQLSubpartitionOperations:
             query = QueryExpression(
                 dialect=mysql_backend.dialect,
                 select=[Column(mysql_backend.dialect, "payload")],
-                from_=TableExpression(mysql_backend.dialect, SUBPARTITION_TABLE),
+                from_=Table(mysql_backend.dialect, SUBPARTITION_TABLE),
                 order_by=OrderByClause(mysql_backend.dialect, [(Column(mysql_backend.dialect, "id"), "ASC")]),
             )
             rows = mysql_backend.fetch_all(*query.to_sql())
@@ -1389,7 +1389,7 @@ class TestAsyncMySQLSubpartitionOperations:
         try:
             insert = InsertExpression(
                 dialect=async_mysql_backend.dialect,
-                into=SUBPARTITION_TABLE,
+                into=Table(async_mysql_backend.dialect, SUBPARTITION_TABLE),
                 columns=["id", "created_at", "region", "payload"],
                 source=ValuesSource(
                     async_mysql_backend.dialect,
@@ -1405,7 +1405,7 @@ class TestAsyncMySQLSubpartitionOperations:
             query = QueryExpression(
                 dialect=async_mysql_backend.dialect,
                 select=[Column(async_mysql_backend.dialect, "payload")],
-                from_=TableExpression(async_mysql_backend.dialect, SUBPARTITION_TABLE),
+                from_=Table(async_mysql_backend.dialect, SUBPARTITION_TABLE),
             )
             rows = await async_mysql_backend.fetch_all(*query.to_sql())
             assert [row["payload"] for row in rows] == ["alpha"]
@@ -1728,9 +1728,10 @@ class TestMySQLProductionTimePartitionOperations:
         mysql_backend.execute(
             *MySQLExchangePartitionExpression(
                 mysql_backend.dialect,
-                PRODUCTION_PARTITION_TABLE,
+                Table(mysql_backend.dialect, PRODUCTION_PARTITION_TABLE),
                 "p2026",
-                PRODUCTION_ARCHIVE_TABLE,
+                Table(mysql_backend.dialect, PRODUCTION_ARCHIVE_TABLE),
+                with_validation=True,
             ).to_sql()
         )
 
@@ -2069,9 +2070,10 @@ class TestAsyncMySQLProductionTimePartitionOperations:
         await async_mysql_backend.execute(
             *MySQLExchangePartitionExpression(
                 async_mysql_backend.dialect,
-                PRODUCTION_PARTITION_TABLE,
+                Table(async_mysql_backend.dialect, PRODUCTION_PARTITION_TABLE),
                 "p2026",
-                PRODUCTION_ARCHIVE_TABLE,
+                Table(async_mysql_backend.dialect, PRODUCTION_ARCHIVE_TABLE),
+                with_validation=True,
             ).to_sql()
         )
 

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 from rhosocial.activerecord.backend.type_adapter import BaseSQLTypeAdapter  # noqa: E402
 from rhosocial.activerecord.model import ActiveRecord  # noqa: E402
+from rhosocial.activerecord.backend.expression.objects import Table  # noqa: E402
 
 # Import the fixture selector utility
 from rhosocial.activerecord.testsuite.utils import select_fixture  # noqa: E402
@@ -384,7 +385,7 @@ class BasicSyncProvider(BasicProviderBase, IBasicSyncProvider, WorkerTestProtoco
     def _reset_table_sync(self, model_class: Type[ActiveRecord], table_name: str) -> None:
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.basic import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -398,7 +399,7 @@ class BasicSyncProvider(BasicProviderBase, IBasicSyncProvider, WorkerTestProtoco
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend.dialect,
-                    table=TableExpression(backend.dialect, table_name),
+                    table=Table(backend.dialect, table_name),
                     if_exists=True,
                 )
                 backend.execute(*drop_expr.to_sql(), options=options)
@@ -602,7 +603,7 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
     async def _reset_table_async(self, model_class: Type[ActiveRecord], table_name: str) -> None:
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression, TableExpression
+        from rhosocial.activerecord.backend.expression import DropTableExpression
         from providers.fixtures.basic import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -613,7 +614,7 @@ class BasicAsyncProvider(BasicProviderBase, IBasicAsyncProvider):
             try:
                 drop_expr = DropTableExpression(
                     dialect=backend.dialect,
-                    table=TableExpression(backend.dialect, table_name),
+                    table=Table(backend.dialect, table_name),
                     if_exists=True,
                 )
                 await backend.execute(*drop_expr.to_sql(), options=options)

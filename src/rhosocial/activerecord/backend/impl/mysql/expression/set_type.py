@@ -101,7 +101,7 @@ class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
 
 
 __all__ = [
-    "SetLiteralExpression",
-    "FindInSetExpression",
-    "SetContainsExpression",
+    "MySQLSetLiteralExpression",
+    "MySQLFindInSetExpression",
+    "MySQLSetContainsExpression",
 ]

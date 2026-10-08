@@ -1,6 +1,10 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_view.py
 from typing import Tuple
 
+from rhosocial.activerecord.backend.expression.objects import View
+
+from .object_kind import require_kind
+
 
 class MySQLViewMixin:
     """MySQL view support."""
@@ -29,8 +33,33 @@ class MySQLViewMixin:
         """Whether WITH CHECK OPTION is supported."""
         return True
 
+    def supports_with_data_clause(self) -> bool:
+        """Whether ``WITH [NO] DATA`` exists on CTAS or materialized views.
+
+        MySQL's CTAS grammar is ``CREATE TABLE ... AS SELECT ...`` with no
+        population clause: ``WITH DATA`` / ``WITH NO DATA`` after the query are
+        syntax errors at every version measured (5.6.51, 5.7.44, 8.0.46,
+        8.4.11, 9.2.0, 9.4.0, 26.7.0), and a failed statement leaves no table
+        behind. The materialized-view consumers of the shared probe are
+        unreachable on MySQL because ``supports_materialized_view()`` answers
+        False. The declaration lives here (rather than in ``MySQLTableMixin``)
+        because this mixin precedes core's ``ViewMixin`` in the MRO; a
+        declaration after it would be shadowed by core's default. Core's CTAS
+        formatter consults the resolved probe, so a requested clause is refused
+        by name.
+        """
+        return False
+
     def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
-        """Format CREATE VIEW statement for MySQL."""
+        """Format CREATE VIEW statement for MySQL.
+
+        Raises:
+            TypeError: ``expr.view`` is not a View. A Table there would render
+                through its own formatter and produce ``CREATE VIEW `users```,
+                which is a well-formed statement creating a view over something
+                the caller never named.
+        """
+        require_kind(expr.view, View, "CreateViewExpression.view")
         parts = ["CREATE"]
 
         if expr.temporary:
@@ -40,7 +69,7 @@ class MySQLViewMixin:
             parts.append("OR REPLACE")
 
         parts.append("VIEW")
-        parts.append(self.format_identifier(expr.view_name))
+        parts.append(expr.view.to_sql()[0])
 
         if expr.column_aliases:
             cols = ", ".join(self.format_identifier(c) for c in expr.column_aliases)
@@ -62,9 +91,38 @@ class MySQLViewMixin:
         return " ".join(parts), query_params
 
     def format_drop_view_statement(self, expr: "DropViewExpression") -> Tuple[str, tuple]:
-        """Format DROP VIEW statement for MySQL."""
+        """Format DROP VIEW statement for MySQL.
+
+        The CASCADE / RESTRICT pair is consumed here: MySQL does not provide
+        either behavior (``supports_cascade_view`` / ``supports_restrict_view``
+        answer False), so a caller who asks for one spelling is refused by name
+        rather than silently dropped.
+
+        Raises:
+            TypeError: ``expr.view`` is not a View; a Table there would render
+                through its own formatter and be dropped by name.
+            UnsupportedFeatureError: If the dialect does not accept the
+                requested behavior keyword.
+        """
+        require_kind(expr.view, View, "DropViewExpression.view")
+        if expr.cascade and not self.supports_cascade_view():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(
+                self.name, "DROP VIEW CASCADE",
+                f"{self.name} does not support DROP VIEW CASCADE.",
+            )
+        if expr.restrict and not self.supports_restrict_view():
+            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+            raise UnsupportedFeatureError(
+                self.name, "DROP VIEW RESTRICT",
+                f"{self.name} does not support DROP VIEW RESTRICT.",
+            )
         parts = ["DROP VIEW"]
         if expr.if_exists:
             parts.append("IF EXISTS")
-        parts.append(self.format_identifier(expr.view_name))
+        parts.append(expr.view.to_sql()[0])
+        if expr.cascade:
+            parts.append("CASCADE")
+        elif expr.restrict:
+            parts.append("RESTRICT")
         return " ".join(parts), ()

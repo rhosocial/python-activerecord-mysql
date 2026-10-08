@@ -100,16 +100,16 @@ if TYPE_CHECKING:
         MySQLDropProcedureExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
-        MySQLTableExpression,
+        MySQLTableStatement,
         MySQLValuesExpression,
     )
 
 from rhosocial.activerecord.backend.dialect.protocols import (
-    IndexSupport,
+    IndexObjectSupport,
     JSONSupport,
     LockingSupport,
     PartitionSupport,
-    TableSupport,
+    TableObjectSupport,
 )
 
 
@@ -140,7 +140,7 @@ class MySQLDMLOperationSupport(Protocol):
         ```python
         MySQLInsertExpression(
             dialect,
-            into='users',
+            into=Table(dialect, 'users'),
             source=ValuesSource(...),
             ignore=True,  # Generates INSERT IGNORE
         )
@@ -288,7 +288,7 @@ class MySQLTriggerSupport(Protocol):
 
 
 @runtime_checkable
-class MySQLTableSupport(TableSupport, Protocol):
+class MySQLTableSupport(TableObjectSupport, Protocol):
     """MySQL table DDL protocol.
 
     Feature Source: Native support (no extension required)
@@ -316,6 +316,22 @@ class MySQLTableSupport(TableSupport, Protocol):
 
         MySQL supports copying table structure with LIKE syntax.
         """
+        ...
+
+    def supports_if_not_exists_table(self) -> bool:
+        """Whether CREATE TABLE IF NOT EXISTS is supported."""
+        ...
+
+    def supports_if_exists_table(self) -> bool:
+        """Whether DROP TABLE IF EXISTS is supported."""
+        ...
+
+    def supports_inline_index(self) -> bool:
+        """Whether index definitions may be inlined in CREATE TABLE."""
+        ...
+
+    def supports_table_comment(self) -> bool:
+        """Whether an inline table-level ``COMMENT 'text'`` is supported."""
         ...
 
     def supports_storage_engine_option(self) -> bool:
@@ -443,6 +459,15 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         MySQL 5.7.0 and later accept the ``WITH VALIDATION`` clause on
         ``ALTER TABLE ... EXCHANGE PARTITION``; earlier releases (notably
         5.6) reject it as a syntax error.
+        """
+        ...
+
+    def supports_exchange_partition_without_validation(self) -> bool:
+        """Whether ``EXCHANGE PARTITION ... WITHOUT VALIDATION`` is accepted.
+
+        ``WITHOUT VALIDATION`` is the default validation mode and is accepted
+        by every MySQL release that has the statement at all (5.6.0 and
+        later).
         """
         ...
 
@@ -1127,10 +1152,10 @@ class MySQLVectorSupport(Protocol):
 
 
 @runtime_checkable
-class MySQLFullTextSearchSupport(IndexSupport, Protocol):
+class MySQLFullTextSearchSupport(IndexObjectSupport, Protocol):
     """MySQL full-text search protocol.
 
-    Note: Most interfaces are defined in generic IndexSupport protocol.
+    Note: Most interfaces are defined in generic IndexObjectSupport protocol.
     This protocol only defines MySQL-specific interfaces.
 
     Feature Source: MySQL 5.6+
@@ -1392,6 +1417,9 @@ class MySQLRenameTableSupport(Protocol):
 
         RENAME TABLE t1 TO t2 [, t3 TO t4, ...]
 
+    Both ends of each pair are schema objects, so the two may name different
+    databases on the same server.
+
     Official Documentation:
     - RENAME TABLE: https://dev.mysql.com/doc/refman/8.0/en/rename-table.html
     """
@@ -1402,6 +1430,14 @@ class MySQLRenameTableSupport(Protocol):
 
     def supports_multi_table_rename(self) -> bool:
         """Whether multiple rename pairs in one statement are supported."""
+        ...
+
+    def supports_cross_database_rename(self) -> bool:
+        """Whether one RENAME TABLE may move a table between two databases.
+
+        MySQL accepts ``RENAME TABLE `a`.`t` TO `b`.`t`` and applies it
+        atomically, provided both databases live on the same server.
+        """
         ...
 
     def format_rename_table_statement(self, expr: "MySQLRenameTableExpression") -> Tuple[str, tuple]:
@@ -1428,7 +1464,7 @@ class MySQLTableStatementSupport(Protocol):
         """Whether VALUES as a table value constructor is supported."""
         ...
 
-    def format_table_statement(self, expr: "MySQLTableExpression") -> Tuple[str, tuple]:
+    def format_table_statement(self, expr: "MySQLTableStatement") -> Tuple[str, tuple]:
         """Format a TABLE statement."""
         ...
 

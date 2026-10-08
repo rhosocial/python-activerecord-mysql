@@ -252,8 +252,8 @@ __all__ = [
     "MySQLDistanceEuclideanExpression",
     "MySQLDistanceCosineExpression",
     "MySQLDistanceDotExpression",
-    "StringToVectorExpression",
-    "VectorToStringExpression",
-    "VectorDimExpression",
-    "CreateVectorIndexExpression",
+    "MySQLStringToVectorExpression",
+    "MySQLVectorToStringExpression",
+    "MySQLVectorDimExpression",
+    "MySQLCreateVectorIndexExpression",
 ]
