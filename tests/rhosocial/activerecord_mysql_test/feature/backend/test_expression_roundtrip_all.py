@@ -367,6 +367,20 @@ _UNBUILDABLE = {
         "constructor supplies a string.",
     "types.enum_.EnumType":
         "values defaults to None and EnumType requires a non-empty list.",
+    "types.custom.CustomType":
+        "raw defaults to '' and CustomType requires a SQL type name; dialect "
+        "comes first, so a required raw behind that default is not expressible.",
+    "types.MySQLVarBinaryType":
+        "length defaults to None and the class requires a length, so no "
+        "signature makes it required at the filler's call site.",
+    "uuid.UUIDConstantExpression":
+        "which must name 'nil' or 'max' and __init__ rejects anything else, so "
+        "the filler's guess is refused at construction.",
+    "uuid.UUIDCastExpression":
+        "expression is annotated Any, so the filler supplies a string where the "
+        "node requires an expression to cast.",
+    "uuid.UUIDGenerationExpression":
+        "declares no parameter the filler can supply a usable value for.",
 }
 
 # Classes that build, whose ``to_sql()`` refuses because MySQL's base list names
@@ -664,6 +678,24 @@ _NOT_RENDERED = {
         "TypeError",
         "MySQL 8.0 stores a UUID as CHAR(36) or BINARY(16); no "
         "format_data_type_uuid.",
+    ),
+    "types.numeric.RealType": (
+        "TypeError",
+        "MySQL's REAL is a synonym for DOUBLE in this server's grammar (only "
+        "under REAL_AS_FLOAT does it mean FLOAT), so every wired server reports "
+        "a REAL column as double and the single-precision concept cannot "
+        "round-trip; the dialect suggests DoubleType, which is what it uses.",
+    ),
+    "types.string.VarCharType": (
+        "ValueError",
+        "MySQL's grammar is VARCHAR(M) with M mandatory, and the generic "
+        "constructor builds the type with no length, so the type refuses to "
+        "declare itself.",
+    ),
+    "types.xml_.XmlType": (
+        "TypeError",
+        "MySQL has no XML type; the dialect suggests TextType, which is what "
+        "this backend uses.",
     ),
     # --- The instance the generic constructor builds is not a valid one. ---
     "advanced_functions.CaseExpression": (

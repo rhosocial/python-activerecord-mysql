@@ -23,6 +23,17 @@ Or import directly from submodules:
     from rhosocial.activerecord.backend.impl.mysql.functions.fulltext import match_against
     from rhosocial.activerecord.backend.impl.mysql.functions.math_enhanced import round_
 
+Value arguments:
+    Every value argument is an expression, so the caller states what it has:
+    a ``Column`` (or the typed column that matches the parameter, such as
+    ``NumericColumn``) to read a column and a ``Literal`` to write a value.
+    Data that is not a number or a string -- a geometry given as WKT or WKB --
+    is turned into an expression by a named constructor here
+    (``st_geom_from_text``, ``st_geom_from_wkb``), not by the function that
+    consumes it.  ``find_in_set``'s searched value and ``elt``'s index and
+    values are the exception: they are plain Python values and are always sent
+    as bound parameters.
+
 Version Requirements:
 - JSON functions: MySQL 5.7.8+
 - Spatial functions: MySQL 5.7+

@@ -202,6 +202,12 @@ class TestMySQLDialectProtocolConformance:
 # comment says so: the missing probes are named, because "MySQL has no CREATE
 # DATABASE" would be false and would make this list a place where drift hides.
 MYSQL_NOT_IMPLEMENTED = [
+    # UUID value expressions (generation / nil-max constants / cast) are not
+    # implemented yet on this dialect. Listed here so the omission is a
+    # recorded decision rather than a gap; move it to the implemented list
+    # when the mixin lands.
+    dialect_protocols.UUIDSupport,
+    # --- Intentional non-support ---
     # MySQL has no standalone COMMENT ON statement; inline table/column
     # comments are rendered by CREATE TABLE instead.
     dialect_protocols.CommentSupport,

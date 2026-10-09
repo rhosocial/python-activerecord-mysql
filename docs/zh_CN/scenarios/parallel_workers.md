@@ -161,7 +161,7 @@ if __name__ == "__main__":
 
 `rhosocial-activerecord` 的异步 MySQL 后端（`AsyncMySQLBackend`）基于 `mysql-connector-python` 的异步接口，**每个 ActiveRecord 类绑定一条连接**。这与连接池方案（如直接使用第三方连接池）不同：
 
-> **`mysql-connector-python` 版本说明**：Python 3.8 锁定使用 `==9.0.0`（该 Python 版本支持的最高版本）；Python 3.9 及以上使用更高版本（如 Python 3.14 对应 9.6.0）。
+> **`mysql-connector-python` 版本说明**：驱动每个系列都会抬高最低版本要求，因此版本锁定随解释器而定。Python 3.8 锁定 `==9.0.0`、Python 3.9 锁定 `==9.4.0`（各自是该 Python 上仍可安装的最高版本）；Python 3.10 及以上使用 `>=26.7.0`。
 
 | 特性 | 单连接 ORM（本项目） | 连接池方案 |
 | --- | --- | --- |

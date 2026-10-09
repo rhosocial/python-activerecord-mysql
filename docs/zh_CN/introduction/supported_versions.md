@@ -10,6 +10,8 @@
 | 8.4.x | ✅ 支持 | 最新 LTS 版本 |
 | 9.0.x | ✅ 支持 | 最新稳定版 |
 | 9.6.x | ✅ 支持 | 最新次要版本 |
+| 9.7.x | ✅ 推荐 | LTS 版本 |
+| 26.7.x | ✅ 支持 | 当前版本，在 Python 3.15 上测试 |
 
 ⚠️ **注意**：
 
@@ -41,7 +43,7 @@
 | 依赖包 | 版本要求 | 说明 |
 |-------|---------|------|
 | rhosocial-activerecord | >=1.0.0 | 核心库 |
-| mysql-connector-python | >=8.0.0 | MySQL 驱动（唯一支持）|
+| mysql-connector-python | `==9.0.0`（Python 3.8）、`==9.4.0`（Python 3.9）、`>=26.7.0`（Python 3.10+）| MySQL 驱动（唯一支持）|
 
 ⚠️ **重要**：本后端仅支持 mysql-connector-python 驱动，不支持 mysqlclient、PyMySQL 等其他驱动。
 

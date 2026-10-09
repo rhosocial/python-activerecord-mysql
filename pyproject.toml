@@ -37,7 +37,13 @@ classifiers = [
 ]
 dependencies = [
     "rhosocial-activerecord>=1.0.0.dev0,<2.0.0",
-    "mysql-connector-python>=9.0.0"
+    # The driver raises its floor with every series, so the pin has to follow
+    # the interpreter: 9.0.0 is the last release installable on 3.8 and 9.4.0
+    # the last on 3.9. Those two are exact because no later release can ever
+    # resolve there; 3.10+ tracks the current series.
+    "mysql-connector-python==9.0.0; python_version < '3.9'",
+    "mysql-connector-python==9.4.0; python_version >= '3.9' and python_version < '3.10'",
+    "mysql-connector-python>=26.7.0; python_version >= '3.10'",
 ]
 
 [project.optional-dependencies]

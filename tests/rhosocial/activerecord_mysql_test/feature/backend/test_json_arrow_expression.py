@@ -5,16 +5,26 @@ These are pure SQL-rendering tests (no live MySQL server) exercising the
 ``MySQLJSONFunctionMixin.format_json_arrow_expression`` and
 ``format_json_function_expression`` branches added in the connection
 serialization PR.
+
+Core used to have a single ``JSONExpression`` covering both access operators
+and has since split it in two, one per operator: ``->`` yields a document and
+is a ``JSONDocumentExpression``, ``->>`` yields text and is a
+``JSONTextExpression``. Both render through the same ``format_json_expression``
+dispatch and both formatters here still branch on ``expr.operation``, so the
+class names below record which operator each test means and nothing about the
+SQL changed.
 """
 
 import pytest
 
 from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.expression.advanced_functions import (
-    JSONExpression,
+    JSONDocumentExpression,
     JSONPathMode,
+    JSONTextExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLSignedType, MySQLUnsignedType
 
 
 @pytest.fixture
@@ -24,52 +34,65 @@ def dialect():
 
 class TestArrowExpression:
     def test_arrow_column_identifier(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->")
+        """``->`` yields a document, so it is a JSONDocumentExpression."""
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "->")
         sql, params = expr.to_sql()
         assert sql == "`data`->'$.name'"
         assert params == ()
 
     def test_arrow_operator_identifier(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->>")
+        """``->>`` yields text, so it is a JSONTextExpression."""
+        expr = JSONTextExpression(dialect, "data", "$.name", "->>")
         sql, params = expr.to_sql()
         assert sql == "`data`->>'$.name'"
         assert params == ()
 
     def test_arrow_with_nested_column_expression(self, dialect):
         col = Column(dialect, "payload")
-        expr = JSONExpression(dialect, col, "$.a.b", "->")
+        expr = JSONDocumentExpression(dialect, col, "$.a.b", "->")
         sql, params = expr.to_sql()
         assert sql == "`payload`->'$.a.b'"
         assert params == ()
 
     def test_arrow_with_cast_types(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.age", "->>", mode=JSONPathMode.ARROW).cast("UNSIGNED")
+        expr = JSONTextExpression(
+            dialect, "data", "$.age", "->>", mode=JSONPathMode.ARROW
+        ).cast(MySQLUnsignedType(dialect))
         sql, params = expr.to_sql()
         assert sql == "CAST(`data`->>'$.age' AS UNSIGNED)"
         assert params == ()
 
     def test_arrow_with_alias(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->", alias="nm")
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "->", alias="nm")
         sql, params = expr.to_sql()
         assert sql == "`data`->'$.name' AS `nm`"
         assert params == ()
 
     def test_arrow_forced_mode_renders_arrow(self):
         old = MySQLDialect(version=(5, 7, 0))
-        expr = JSONExpression(old, "data", "$.name", "->", mode=JSONPathMode.ARROW)
+        expr = JSONDocumentExpression(old, "data", "$.name", "->", mode=JSONPathMode.ARROW)
         sql, params = expr.to_sql()
         assert sql == "`data`->'$.name'"
         assert params == ()
 
     def test_arrow_other_operator_uses_placeholder(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "=")
+        """An operator that is neither ``->`` nor ``->>``.
+
+        ``=`` is not one of the two operators core split, and it says nothing
+        about the result type -- it is a comparison, so it yields a boolean and
+        neither JSONDocumentExpression nor JSONTextExpression means it. The
+        base class is used as a plain carrier for the node; the branch is
+        chosen by ``operation`` alone, so either class renders this identically.
+        """
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "=")
         sql, params = expr.to_sql()
         assert sql == "(`data` = %s)"
         assert params == ("$.name",)
 
     def test_arrow_other_operator_with_column_expression(self, dialect):
+        """As above: ``@>`` is not an arrow, so no JSON path class denotes it."""
         col = Column(dialect, "payload")
-        expr = JSONExpression(dialect, col, "someval", "@>")
+        expr = JSONDocumentExpression(dialect, col, "someval", "@>")
         sql, params = expr.to_sql()
         assert sql == "(`payload` @> %s)"
         assert params == ("someval",)
@@ -77,38 +100,47 @@ class TestArrowExpression:
 
 class TestFunctionExpression:
     def test_function_extract(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->", mode=JSONPathMode.FUNCTION)
+        """``->`` is JSON_EXTRACT and yields a document."""
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "->", mode=JSONPathMode.FUNCTION)
         sql, params = expr.to_sql()
         assert sql == "JSON_EXTRACT(`data`, '$.name')"
         assert params == ()
 
     def test_function_unquote(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->>", mode=JSONPathMode.FUNCTION)
+        """``->>`` unquotes and yields text."""
+        expr = JSONTextExpression(dialect, "data", "$.name", "->>", mode=JSONPathMode.FUNCTION)
         sql, params = expr.to_sql()
         assert sql == "JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.name'))"
         assert params == ()
 
     def test_function_other_operator(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "@>", mode=JSONPathMode.FUNCTION)
+        """``@>`` is not an arrow, so no JSON path class denotes it.
+
+        Same as the arrow-mode case: the base class is a carrier and
+        ``operation`` alone picks the branch.
+        """
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "@>", mode=JSONPathMode.FUNCTION)
         sql, params = expr.to_sql()
         assert sql == "`data` @> '$.name'"
         assert params == ()
 
     def test_function_with_column_expression(self, dialect):
         col = Column(dialect, "payload")
-        expr = JSONExpression(dialect, col, "$.a", "->", mode=JSONPathMode.FUNCTION)
+        expr = JSONDocumentExpression(dialect, col, "$.a", "->", mode=JSONPathMode.FUNCTION)
         sql, params = expr.to_sql()
         assert sql == "JSON_EXTRACT(`payload`, '$.a')"
         assert params == ()
 
     def test_function_with_cast_types(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.age", "->>", mode=JSONPathMode.FUNCTION).cast("SIGNED")
+        expr = JSONTextExpression(
+            dialect, "data", "$.age", "->>", mode=JSONPathMode.FUNCTION
+        ).cast(MySQLSignedType(dialect))
         sql, params = expr.to_sql()
         assert sql == "CAST(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.age')) AS SIGNED)"
         assert params == ()
 
     def test_function_with_alias(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->", mode=JSONPathMode.FUNCTION, alias="nm")
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "->", mode=JSONPathMode.FUNCTION, alias="nm")
         sql, params = expr.to_sql()
         assert sql == "JSON_EXTRACT(`data`, '$.name') AS `nm`"
         assert params == ()
@@ -116,30 +148,30 @@ class TestFunctionExpression:
 
 class TestModeDispatch:
     def test_auto_uses_arrow_when_supported(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->")
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "->")
         sql, _ = expr.to_sql()
         assert "JSON_EXTRACT" not in sql
         assert "->" in sql
 
     def test_auto_falls_back_to_function_when_unsupported(self):
         old = MySQLDialect(version=(5, 7, 0))
-        expr = JSONExpression(old, "data", "$.name", "->")
+        expr = JSONDocumentExpression(old, "data", "$.name", "->")
         sql, params = expr.to_sql()
         assert sql == "JSON_EXTRACT(`data`, '$.name')"
         assert params == ()
 
     def test_string_mode_coercion(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.name", "->", mode="function")
+        expr = JSONDocumentExpression(dialect, "data", "$.name", "->", mode="function")
         sql, _ = expr.to_sql()
         assert sql == "JSON_EXTRACT(`data`, '$.name')"
 
     def test_escaped_path_backslash(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.a\\b", "->")
+        expr = JSONDocumentExpression(dialect, "data", "$.a\\b", "->")
         sql, _ = expr.to_sql()
         assert sql == r"`data`->'$.a\\b'"
 
     def test_escaped_path_single_quote(self, dialect):
-        expr = JSONExpression(dialect, "data", "$.a'b", "->")
+        expr = JSONDocumentExpression(dialect, "data", "$.a'b", "->")
         sql, _ = expr.to_sql()
         assert sql == "`data`->'$.a''b'"
 

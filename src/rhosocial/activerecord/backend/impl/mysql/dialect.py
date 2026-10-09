@@ -99,11 +99,15 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DomainMixin,
     TransactionControlMixin,
     SetOperationMixin,
+    # Column-type suggestions: the generic half, which
+    # MySQLColumnSuggestionMixin below overrides.
+    ColumnSuggestionMixin,
 )
 from .protocols import (
     MySQLTriggerSupport,
     MySQLTableSupport,
     MySQLSetTypeSupport,
+    MySQLTypeSupport,
     MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,
@@ -162,6 +166,7 @@ from .mixins import (
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
+    MySQLColumnSuggestionMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -227,6 +232,14 @@ class MySQLDialect(
     MySQLDatabaseMixin,
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
+    # Column-type suggestions. The MySQL half first: it overrides both the
+    # eighteen-entry table and supports_column_operation, and C3 gives the
+    # earlier name priority. Nothing else in this list can answer either, so
+    # the pair may move as a unit without disturbing the order around it --
+    # which is the reason for not standing it next to MySQLTypeSupportMixin
+    # further down, where a mistake would reorder the DDL formatters too.
+    MySQLColumnSuggestionMixin,
+    ColumnSuggestionMixin,
     # The two auto-increment mechanisms are separate mixins, and their order
     # here is load-bearing. MySQLGeneratedColumnMixin declares the
     # parameterless AUTO_INCREMENT marker True; AutoIncrementMixin supplies
@@ -337,6 +350,7 @@ class MySQLDialect(
     TransactionControlSupport,
     MySQLTriggerSupport,
     MySQLSetTypeSupport,
+    MySQLTypeSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,
     MySQLFullTextSearchSupport,

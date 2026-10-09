@@ -57,8 +57,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
-          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/expression-schema-object-refactor"
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/typed-columns"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@test/typed-column-contracts"
 
       - name: Create and test database
         run: |
@@ -211,8 +211,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Both server lines are kept on 3.15, for different reasons: 9.7 is the
+          # LTS and stays the reference target for the newest interpreter, while
+          # 26.7 is the current release and is only exercised here. Each gets a
+          # GIL and a free-threaded leg.
           - { python-version: '3.15.0-rc.2', mysql-version: '9.7', port: 3320, freethreaded: false }
           - { python-version: '3.15.0-rc.2', mysql-version: '9.7', port: 3321, freethreaded: true }
+          - { python-version: '3.15.0-rc.2', mysql-version: '26.7', port: 3322, freethreaded: false }
+          - { python-version: '3.15.0-rc.2', mysql-version: '26.7', port: 3323, freethreaded: true }
 
     services:
       mysql:
@@ -248,8 +254,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
-          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/expression-schema-object-refactor"
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/typed-columns"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@test/typed-column-contracts"
 
       - name: Create and test database
         run: |
@@ -355,8 +361,8 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"
-          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@feature/expression-schema-object-refactor"
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/typed-columns"
+          pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@test/typed-column-contracts"
 
       - name: Create and test database
         run: |

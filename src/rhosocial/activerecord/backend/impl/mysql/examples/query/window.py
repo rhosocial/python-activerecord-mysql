@@ -88,7 +88,7 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     WindowSpecification,
     OrderByClause,
 )
-from rhosocial.activerecord.backend.expression.advanced_functions import WindowFunctionCall  # noqa: E402
+from rhosocial.activerecord.backend.expression.core import FunctionCall  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
 query = QueryExpression(
@@ -97,7 +97,7 @@ query = QueryExpression(
         Column(dialect, "salesperson"),
         Column(dialect, "region"),
         Column(dialect, "amount"),
-        WindowFunctionCall(
+        FunctionCall(
             dialect,
             "ROW_NUMBER",
             window_spec=WindowSpecification(
@@ -107,10 +107,10 @@ query = QueryExpression(
             ),
             alias="row_num",
         ),
-        WindowFunctionCall(
+        FunctionCall(
             dialect,
             "SUM",
-            args=[Column(dialect, "amount")],
+            Column(dialect, "amount"),
             window_spec=WindowSpecification(
                 dialect,
                 partition_by=[Column(dialect, "region")],

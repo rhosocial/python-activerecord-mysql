@@ -8,35 +8,10 @@ st_distance, st_within, st_contains, st_intersects
 
 from typing import Union, Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core
+from rhosocial.activerecord.backend.expression import bases, core, BinaryColumn
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.dialect import SQLDialectBase
     from ..dialect import MySQLDialect
-
-
-def _convert_to_expression(
-    dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
-    handle_numeric_literals: bool = True,
-) -> "bases.BaseExpression":
-    """
-    Helper function to convert an input value to an appropriate BaseExpression.
-
-    Args:
-        dialect: The SQL dialect instance
-        expr: The expression to convert
-        handle_numeric_literals: Whether to treat numeric values as literals
-
-    Returns:
-        A BaseExpression instance
-    """
-    if isinstance(expr, bases.BaseExpression):
-        return expr
-    elif handle_numeric_literals and isinstance(expr, (int, float)):
-        return core.Literal(dialect, expr)
-    else:
-        return core.Column(dialect, expr)
 
 
 def st_geom_from_text(
@@ -111,7 +86,11 @@ def st_as_text(
 
     Version: MySQL 5.7+
     """
-    geom_expr = _convert_to_expression(dialect, geom)
+    geom_expr = (
+        geom if isinstance(geom, bases.BaseExpression)
+        else core.Literal(dialect, geom) if isinstance(geom, (int, float))
+        else BinaryColumn(dialect, geom)
+    )
     return core.FunctionCall(dialect, "ST_AsText", geom_expr)
 
 
@@ -133,7 +112,11 @@ def st_as_geojson(
 
     Version: MySQL 5.7.5+
     """
-    geom_expr = _convert_to_expression(dialect, geom)
+    geom_expr = (
+        geom if isinstance(geom, bases.BaseExpression)
+        else core.Literal(dialect, geom) if isinstance(geom, (int, float))
+        else BinaryColumn(dialect, geom)
+    )
     return core.FunctionCall(dialect, "ST_AsGeoJSON", geom_expr)
 
 
@@ -157,8 +140,16 @@ def st_distance(
 
     Version: MySQL 5.7+
     """
-    geom1_expr = _convert_to_expression(dialect, geom1)
-    geom2_expr = _convert_to_expression(dialect, geom2)
+    geom1_expr = (
+        geom1 if isinstance(geom1, bases.BaseExpression)
+        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else BinaryColumn(dialect, geom1)
+    )
+    geom2_expr = (
+        geom2 if isinstance(geom2, bases.BaseExpression)
+        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else BinaryColumn(dialect, geom2)
+    )
     return core.FunctionCall(dialect, "ST_Distance", geom1_expr, geom2_expr)
 
 
@@ -182,8 +173,16 @@ def st_within(
 
     Version: MySQL 5.7+
     """
-    geom1_expr = _convert_to_expression(dialect, geom1)
-    geom2_expr = _convert_to_expression(dialect, geom2)
+    geom1_expr = (
+        geom1 if isinstance(geom1, bases.BaseExpression)
+        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else BinaryColumn(dialect, geom1)
+    )
+    geom2_expr = (
+        geom2 if isinstance(geom2, bases.BaseExpression)
+        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else BinaryColumn(dialect, geom2)
+    )
     return core.FunctionCall(dialect, "ST_Within", geom1_expr, geom2_expr)
 
 
@@ -207,8 +206,16 @@ def st_contains(
 
     Version: MySQL 5.7+
     """
-    geom1_expr = _convert_to_expression(dialect, geom1)
-    geom2_expr = _convert_to_expression(dialect, geom2)
+    geom1_expr = (
+        geom1 if isinstance(geom1, bases.BaseExpression)
+        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else BinaryColumn(dialect, geom1)
+    )
+    geom2_expr = (
+        geom2 if isinstance(geom2, bases.BaseExpression)
+        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else BinaryColumn(dialect, geom2)
+    )
     return core.FunctionCall(dialect, "ST_Contains", geom1_expr, geom2_expr)
 
 
@@ -232,8 +239,16 @@ def st_intersects(
 
     Version: MySQL 5.7+
     """
-    geom1_expr = _convert_to_expression(dialect, geom1)
-    geom2_expr = _convert_to_expression(dialect, geom2)
+    geom1_expr = (
+        geom1 if isinstance(geom1, bases.BaseExpression)
+        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else BinaryColumn(dialect, geom1)
+    )
+    geom2_expr = (
+        geom2 if isinstance(geom2, bases.BaseExpression)
+        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else BinaryColumn(dialect, geom2)
+    )
     return core.FunctionCall(dialect, "ST_Intersects", geom1_expr, geom2_expr)
 
 
