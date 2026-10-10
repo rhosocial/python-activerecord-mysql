@@ -87,6 +87,10 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TableMixin,
     ConstraintMixin,
     TruncateMixin,
+    LpadMixin,
+    RepeatMixin,
+    RpadMixin,
+    TrimMixin,
     IntrospectionMixin,
     PartitionMixin,
     PredicateMixin,
@@ -255,6 +259,14 @@ class MySQLDialect(
     AutoIncrementMixin,
     IdentityColumnMixin,
     MySQLFunctionMixin,
+    # ``TRIM``/``LPAD``/``RPAD``/``REPEAT`` are nodes with default formatters,
+    # and MySQL spells all four natively (``TRIM([BOTH|LEADING|TRAILING] [chars]
+    # FROM str)``, ``LPAD(str,len,padstr)``, ``RPAD``, ``REPEAT``), so the shared
+    # defaults are the answer here and no override is needed.
+    LpadMixin,
+    RepeatMixin,
+    RpadMixin,
+    TrimMixin,
     # Generic mixins
     CollationMixin,
     CTEMixin,
