@@ -27,7 +27,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
     BinaryColumn,
     BooleanColumn,
     ColumnBase,
-    DateTimeColumn,
+    TimestampColumn,
     IntegerColumn,
     JSONColumn,
     NumericColumn,
@@ -150,9 +150,9 @@ class TestBaselineCells:
             (str, StringColumn),
             (bytes, BinaryColumn),
             (bytearray, BinaryColumn),
-            (datetime.date, DateTimeColumn),
-            (datetime.time, DateTimeColumn),
-            (datetime.datetime, DateTimeColumn),
+            (datetime.date, TimestampColumn),
+            (datetime.time, TimestampColumn),
+            (datetime.datetime, TimestampColumn),
             (datetime.timedelta, NumericColumn),
             (uuid.UUID, UUIDColumn),
             (enum.Enum, StringColumn),
@@ -173,7 +173,7 @@ class TestBaselineCells:
         """
         from datetime import timezone
 
-        assert _select(dialect, datetime.datetime) is DateTimeColumn
+        assert _select(dialect, datetime.datetime) is TimestampColumn
         assert datetime.datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc).tzinfo is not None
 
     def test_uuid_is_not_gated_on_a_storage_fact(self, dialect):
@@ -420,9 +420,9 @@ def test_the_summary_table_reads_the_way_the_spec_writes_it():
         "str": "StringColumn",
         "bytes": "BinaryColumn",
         "bytearray": "BinaryColumn",
-        "date": "DateTimeColumn",
-        "time": "DateTimeColumn",
-        "datetime": "DateTimeColumn",
+        "date": "TimestampColumn",
+        "time": "TimestampColumn",
+        "datetime": "TimestampColumn",
         "timedelta": "NumericColumn",
         "UUID": "UUIDColumn",
         "dict": "JSONColumn",
