@@ -80,6 +80,10 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.DqlOrderSupport,
     dialect_protocols.CollationSupport,
     dialect_protocols.DataTypeSupport,
+    # Column classes: which operations a value carries, where
+    # DataTypeSupport above answers how it is stored.
+    # MySQLColumnTypeMixin supplies the table.
+    dialect_protocols.ColumnTypeSupport,
     # --- DML / locking / transactions ---
     dialect_protocols.ReturningSupport,
     dialect_protocols.UpsertSupport,
