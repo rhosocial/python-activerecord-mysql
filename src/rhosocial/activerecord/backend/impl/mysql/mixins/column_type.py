@@ -55,7 +55,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
     BinaryColumn,
     BooleanColumn,
     ColumnBase,
-    DateTimeColumn,
+    TimestampColumn,
     IntegerColumn,
     JSONColumn,
     NumericColumn,
@@ -112,16 +112,16 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
     bytearray: BinaryColumn,
     # --- date / time ---------------------------------------------------
     # `DATE`, `TIME` and `DATETIME(6)` are three real storage types and
-    # DateTimeColumn is the one class core has for all three; core has no
+    # TimestampColumn is the one class core has for all three; core has no
     # DateColumn / TimeColumn yet, so this is the shared baseline rather
     # than a statement that the three are one type. A tz-aware `datetime`
     # normalises to the same entry (core has no separate tz entry), and
     # MySQL's offset-form `CONVERT_TZ` needs no tz tables -- measured
     # working with zero configuration (`suggested-mappings.md` §8.1), so
     # nothing about tz is narrowed either.
-    datetime.date: DateTimeColumn,
-    datetime.time: DateTimeColumn,
-    datetime.datetime: DateTimeColumn,
+    datetime.date: TimestampColumn,
+    datetime.time: TimestampColumn,
+    datetime.datetime: TimestampColumn,
     # A timedelta is a number of seconds here. MySQL's `INTERVAL` is an
     # *expression* keyword (`DATE_ADD(d, INTERVAL 30 DAY)`) and never a
     # column type -- `CREATE TABLE t (c INTERVAL)` is a syntax error -- so
