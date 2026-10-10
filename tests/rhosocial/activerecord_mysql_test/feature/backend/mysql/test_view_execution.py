@@ -9,6 +9,7 @@ against an actual MySQL database.
 import pytest
 from rhosocial.activerecord.backend.expression import (
     Column,
+    ComparisonPredicate,
     Literal,
     QueryExpression,
     CreateViewExpression,
@@ -143,7 +144,12 @@ class TestMySQLViewExecution:
             dialect,
             select=[Column(dialect, "id"), Column(dialect, "name")],
             from_=Table(dialect, "users"),
-            where=WhereClause(dialect, condition=Column(dialect, "status") == Literal(dialect, "active")),
+            where=WhereClause(
+                dialect,
+                condition=ComparisonPredicate(
+                    dialect, "=", Column(dialect, "status"), Literal(dialect, "active")
+                ),
+            ),
         )
 
         create_view = CreateViewExpression(dialect, view=View(dialect, "active_users"), query=query)

@@ -9,6 +9,7 @@ from rhosocial.activerecord.backend.expression import (
     ColumnConstraint,
     ColumnConstraintType,
     ColumnDefinition,
+    ComparisonPredicate,
     CreateTableExpression,
     DropTableExpression,
     FunctionCall,
@@ -264,8 +265,12 @@ def _partition_metadata_expression(dialect, table_name: str):
         where=LogicalPredicate(
             dialect,
             "AND",
-            Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
+            ),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, table_name)
+            ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),

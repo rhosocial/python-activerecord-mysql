@@ -449,6 +449,7 @@ class MySQLPartitionMixin:
         """
         from rhosocial.activerecord.backend.expression import (
             Column,
+            ComparisonPredicate,
             FunctionCall,
             Literal,
             LogicalPredicate,
@@ -475,8 +476,18 @@ class MySQLPartitionMixin:
             where=LogicalPredicate(
                 expr.dialect,
                 "AND",
-                Column(expr.dialect, "TABLE_SCHEMA") == FunctionCall(expr.dialect, "DATABASE"),
-                Column(expr.dialect, "TABLE_NAME") == Literal(expr.dialect, expr.table_name),
+                ComparisonPredicate(
+                    expr.dialect,
+                    "=",
+                    Column(expr.dialect, "TABLE_SCHEMA"),
+                    FunctionCall(expr.dialect, "DATABASE"),
+                ),
+                ComparisonPredicate(
+                    expr.dialect,
+                    "=",
+                    Column(expr.dialect, "TABLE_NAME"),
+                    Literal(expr.dialect, expr.table_name),
+                ),
                 Column(expr.dialect, "PARTITION_NAME").is_not_null(),
             ),
             order_by=OrderByClause(expr.dialect, [(Column(expr.dialect, "PARTITION_NAME"), "ASC")]),
