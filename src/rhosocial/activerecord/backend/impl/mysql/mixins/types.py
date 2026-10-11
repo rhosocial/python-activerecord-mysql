@@ -106,6 +106,36 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         """
         return "UNSIGNED", ()
 
+    def _check_unsigned(self, data_type: DataType) -> None:
+        """Raise ``TypeError`` unless ``unsigned`` is a real ``bool``.
+
+        ``unsigned`` is a *field* on every numeric concept here and every reader
+        below turns it into the ``UNSIGNED`` word of the rendered DDL. The
+        expressions collect it without judging it — a value is not a wrong value
+        until a backend has to honour it, and this is that backend — so the
+        judgement belongs at this end, which is why each reader calls this before
+        it reads.
+
+        Without it a truthy non-bool renders silently: ``unsigned="yes"`` writes
+        ``INT UNSIGNED`` and reports success for a column nobody declared. That is
+        the same silent loss the dummy dialect's ``_refuse_unsigned`` names when
+        it refuses the flag outright, arriving from the opposite direction.
+
+        The attribute is read directly rather than through ``getattr(..., False)``:
+        the field is part of every concept routed to a reader here, and probing
+        for it would turn "caller passed the wrong class" into the same silent
+        render this guard exists to prevent.
+
+        Raises:
+            TypeError: naming the type actually supplied.
+        """
+        unsigned = data_type.unsigned
+        if not isinstance(unsigned, bool):
+            raise TypeError(
+                f"unsigned must be a bool, got {type(unsigned).__name__}; it "
+                f"becomes a type modifier in the rendered DDL."
+            )
+
     def _format_mysql_integer(self, sql: str, data_type: DataType) -> Tuple[str, tuple]:
         """Append the ``UNSIGNED`` / ``ZEROFILL`` attributes in MySQL's order.
 
@@ -132,6 +162,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         one the caller declared. Emitting both is what makes
         ``parse_type(t.to_sql()[0]) == t`` hold for every combination.
         """
+        self._check_unsigned(data_type)
         if data_type.unsigned:
             sql = f"{sql} UNSIGNED"
         if data_type.zerofill:
@@ -405,6 +436,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
         self._check_spelling(data_type, IntegerType)
+        self._check_unsigned(data_type)
         return (f"INT UNSIGNED" if data_type.unsigned else "INT"), ()
 
     def format_data_type_bigint(self, data_type: BigIntType) -> Tuple[str, tuple]:
@@ -421,6 +453,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
         self._check_spelling(data_type, BigIntType)
+        self._check_unsigned(data_type)
         return ("BIGINT UNSIGNED" if data_type.unsigned else "BIGINT"), ()
 
     def format_data_type_smallint(self, data_type: SmallIntType) -> Tuple[str, tuple]:
@@ -437,6 +470,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
         self._check_spelling(data_type, SmallIntType)
+        self._check_unsigned(data_type)
         return ("SMALLINT UNSIGNED" if data_type.unsigned else "SMALLINT"), ()
 
     def format_data_type_tinyint(self, data_type: TinyIntType) -> Tuple[str, tuple]:
@@ -453,6 +487,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
         self._check_spelling(data_type, TinyIntType)
+        self._check_unsigned(data_type)
         return ("TINYINT UNSIGNED" if data_type.unsigned else "TINYINT"), ()
 
     def format_data_type_varchar(self, data_type: VarCharType) -> Tuple[str, tuple]:
@@ -592,6 +627,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
                 f"storage — declare DoubleType(dialect). "
                 f"Got precision={data_type.precision}."
             )
+        self._check_unsigned(data_type)
         return ("FLOAT UNSIGNED" if data_type.unsigned else "FLOAT"), ()
 
     def format_data_type_double(self, data_type: DoubleType) -> Tuple[str, tuple]:
@@ -630,6 +666,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
         """
         self._check_spelling(data_type, DoubleType)
+        self._check_unsigned(data_type)
         return ("DOUBLE UNSIGNED" if data_type.unsigned else "DOUBLE"), ()
 
     def format_data_type_decimal(self, data_type: DecimalType) -> Tuple[str, tuple]:
@@ -689,6 +726,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             base = f"DECIMAL({data_type.precision})"
         else:
             base = "DECIMAL"
+        self._check_unsigned(data_type)
         return (f"{base} UNSIGNED" if data_type.unsigned else base), ()
 
     def format_data_type_json(self, data_type: JsonType) -> Tuple[str, tuple]:
