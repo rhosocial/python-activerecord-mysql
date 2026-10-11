@@ -76,10 +76,14 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.ArraySupport,
     dialect_protocols.GraphSupport,
     dialect_protocols.ExplainSupport,
-    dialect_protocols.DateTimeSupport,
+    dialect_protocols.TimestampSupport,
     dialect_protocols.DqlOrderSupport,
     dialect_protocols.CollationSupport,
     dialect_protocols.DataTypeSupport,
+    # Column classes: which operations a value carries, where
+    # DataTypeSupport above answers how it is stored.
+    # MySQLColumnTypeMixin supplies the table.
+    dialect_protocols.ColumnTypeSupport,
     # --- DML / locking / transactions ---
     dialect_protocols.ReturningSupport,
     dialect_protocols.UpsertSupport,
@@ -202,6 +206,12 @@ class TestMySQLDialectProtocolConformance:
 # comment says so: the missing probes are named, because "MySQL has no CREATE
 # DATABASE" would be false and would make this list a place where drift hides.
 MYSQL_NOT_IMPLEMENTED = [
+    # UUID value expressions (generation / nil-max constants / cast) are not
+    # implemented yet on this dialect. Listed here so the omission is a
+    # recorded decision rather than a gap; move it to the implemented list
+    # when the mixin lands.
+    dialect_protocols.UUIDSupport,
+    # --- Intentional non-support ---
     # MySQL has no standalone COMMENT ON statement; inline table/column
     # comments are rendered by CREATE TABLE instead.
     dialect_protocols.CommentSupport,

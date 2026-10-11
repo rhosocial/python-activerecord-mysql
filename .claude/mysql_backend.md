@@ -51,7 +51,8 @@ The MySQL backend is implemented in several key files:
 2. **MySQL-Specific Tests**: Validates MySQL-specific functionality
 
 ### Test Configuration
-- Tests require a MySQL server. CI covers 5.6 through 9.7, with a narrowed schema on 5.6/5.7
+- Tests require a MySQL server. CI covers 5.6 through 9.7 plus 26.7, with a narrowed schema on 5.6/5.7
+- Python 3.15 (RC) runs against both 9.7 (the LTS) and 26.7, GIL and free-threaded
 - Configuration via `tests/config/mysql_scenarios.yaml` or environment variables
 - Schema conversion from shared SQLite schemas to MySQL syntax
 

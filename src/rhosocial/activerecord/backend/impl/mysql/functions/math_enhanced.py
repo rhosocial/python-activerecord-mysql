@@ -6,9 +6,19 @@ Additional mathematical functions beyond the basic math module.
 Includes: round, pow, power, sqrt, mod, ceil, floor, truncate, max, min, avg
 
 Functions: round_, pow, power, sqrt, mod, ceil, floor, trunc, max_, min_, avg
+
+Every value argument is an expression: a ``Column`` -- or the ``NumericColumn``
+that says the argument is a number -- to read a column, and a ``Literal`` to
+write a value.  Those arguments used to be accepted as bare strings and numbers,
+and the factory decided at run time which was which -- including parsing a
+numeric-looking string into the number it spelled, so ``sqrt(dialect, "16")``
+computed sqrt(16)=4.0 instead of reading a column called ``16``.  A string is a
+column name here, as it is everywhere else in this backend; a value is a
+``Literal``, which also reaches the server as a bound parameter rather than as
+quoted SQL text.
 """
 
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression import bases, core
 
@@ -16,38 +26,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-def _convert_to_expression(
-    dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
-) -> "bases.BaseExpression":
-    """
-    Helper function to convert an input value to an appropriate BaseExpression.
-
-    Args:
-        dialect: The SQL dialect instance
-        expr: The expression to convert
-
-    Returns:
-        A BaseExpression instance
-    """
-    if isinstance(expr, bases.BaseExpression):
-        return expr
-    elif isinstance(expr, (int, float)):
-        return core.Literal(dialect, expr)
-    elif isinstance(expr, str):
-        # Try to parse as number first
-        try:
-            return core.Literal(dialect, float(expr) if "." in expr else int(expr))
-        except ValueError:
-            # Not a number, treat as column name
-            return core.Column(dialect, expr)
-    else:
-        return core.Column(dialect, expr)
-
-
 def round_(
     dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
+    expr: "bases.BaseExpression",
     precision: int = 0,
 ) -> "core.FunctionCall":
     """
@@ -56,8 +37,8 @@ def round_(
     Rounds a numeric value to the specified number of decimal places.
 
     Usage:
-        - round_(dialect, Column("price")) -> ROUND("price")
-        - round_(dialect, Column("price"), 2) -> ROUND("price", 2)
+        - round_(dialect, NumericColumn(dialect, "price")) -> ROUND(`price`, 0)
+        - round_(dialect, NumericColumn(dialect, "price"), 2) -> ROUND(`price`, 2)
 
     Args:
         dialect: The SQL dialect instance
@@ -69,15 +50,14 @@ def round_(
 
     Version: All MySQL versions
     """
-    target_expr = _convert_to_expression(dialect, expr)
     precision_expr = core.Literal(dialect, precision)
-    return core.FunctionCall(dialect, "ROUND", target_expr, precision_expr)
+    return core.FunctionCall(dialect, "ROUND", expr, precision_expr)
 
 
 def pow(
     dialect: "SQLDialectBase",
-    base: Union[str, "bases.BaseExpression"],
-    exponent: Union[str, "bases.BaseExpression"],
+    base: "bases.BaseExpression",
+    exponent: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a POW function call.
@@ -85,28 +65,26 @@ def pow(
     Returns the value of base raised to the power of exponent.
 
     Usage:
-        - pow(dialect, 2, 3) -> POW(2, 3)
-        - pow(dialect, Column("x"), 2) -> POW("x", 2)
+        - pow(dialect, Literal(dialect, 2), Literal(dialect, 3)) -> POW(2, 3)
+        - pow(dialect, NumericColumn(dialect, "x"), Literal(dialect, 2)) -> POW(`x`, 2)
 
     Args:
         dialect: The SQL dialect instance
-        base: The base value
-        exponent: The exponent value
+        base: The base expression
+        exponent: The exponent expression
 
     Returns:
         A FunctionCall instance representing the POW function
 
     Version: All MySQL versions
     """
-    base_expr = _convert_to_expression(dialect, base)
-    exp_expr = _convert_to_expression(dialect, exponent)
-    return core.FunctionCall(dialect, "POW", base_expr, exp_expr)
+    return core.FunctionCall(dialect, "POW", base, exponent)
 
 
 def power(
     dialect: "SQLDialectBase",
-    base: Union[str, "bases.BaseExpression"],
-    exponent: Union[str, "bases.BaseExpression"],
+    base: "bases.BaseExpression",
+    exponent: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a POWER function call (alias for POW).
@@ -114,27 +92,26 @@ def power(
     Returns the value of base raised to the power of exponent.
 
     Usage:
-        - power(dialect, 2, 3) -> POWER(2, 3)
-        - power(dialect, Column("x"), 2) -> POWER("x", 2)
+        - power(dialect, Literal(dialect, 2), Literal(dialect, 3)) -> POWER(2, 3)
+        - power(dialect, NumericColumn(dialect, "x"), NumericColumn(dialect, "y"))
+          -> POWER(`x`, `y`)
 
     Args:
         dialect: The SQL dialect instance
-        base: The base value
-        exponent: The exponent value
+        base: The base expression
+        exponent: The exponent expression
 
     Returns:
         A FunctionCall instance representing the POWER function
 
     Version: All MySQL versions
     """
-    base_expr = _convert_to_expression(dialect, base)
-    exp_expr = _convert_to_expression(dialect, exponent)
-    return core.FunctionCall(dialect, "POWER", base_expr, exp_expr)
+    return core.FunctionCall(dialect, "POWER", base, exponent)
 
 
 def sqrt(
     dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
+    expr: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a SQRT function call.
@@ -142,8 +119,8 @@ def sqrt(
     Returns the square root of the argument.
 
     Usage:
-        - sqrt(dialect, 16) -> SQRT(16)
-        - sqrt(dialect, Column("value")) -> SQRT("value")
+        - sqrt(dialect, Literal(dialect, 16)) -> SQRT(16)
+        - sqrt(dialect, NumericColumn(dialect, "value")) -> SQRT(`value`)
 
     Args:
         dialect: The SQL dialect instance
@@ -154,14 +131,13 @@ def sqrt(
 
     Version: All MySQL versions
     """
-    target_expr = _convert_to_expression(dialect, expr)
-    return core.FunctionCall(dialect, "SQRT", target_expr)
+    return core.FunctionCall(dialect, "SQRT", expr)
 
 
 def mod(
     dialect: "SQLDialectBase",
-    dividend: Union[str, "bases.BaseExpression"],
-    divisor: Union[str, "bases.BaseExpression"],
+    dividend: "bases.BaseExpression",
+    divisor: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a MOD function call.
@@ -169,27 +145,26 @@ def mod(
     Returns the remainder of dividend divided by divisor.
 
     Usage:
-        - mod(dialect, 10, 3) -> MOD(10, 3)
-        - mod(dialect, Column("total"), 10) -> MOD("total", 10)
+        - mod(dialect, Literal(dialect, 10), Literal(dialect, 3)) -> MOD(10, 3)
+        - mod(dialect, NumericColumn(dialect, "total"), Literal(dialect, 10))
+          -> MOD(`total`, 10)
 
     Args:
         dialect: The SQL dialect instance
-        dividend: The dividend value
-        divisor: The divisor value
+        dividend: The dividend expression
+        divisor: The divisor expression
 
     Returns:
         A FunctionCall instance representing the MOD function
 
     Version: All MySQL versions
     """
-    dividend_expr = _convert_to_expression(dialect, dividend)
-    divisor_expr = _convert_to_expression(dialect, divisor)
-    return core.FunctionCall(dialect, "MOD", dividend_expr, divisor_expr)
+    return core.FunctionCall(dialect, "MOD", dividend, divisor)
 
 
 def ceil(
     dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
+    expr: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a CEIL function call.
@@ -197,8 +172,8 @@ def ceil(
     Returns the smallest integer value not less than the argument.
 
     Usage:
-        - ceil(dialect, 3.14) -> CEIL(3.14)
-        - ceil(dialect, Column("price")) -> CEIL("price")
+        - ceil(dialect, Literal(dialect, 3.14)) -> CEIL(3.14)
+        - ceil(dialect, NumericColumn(dialect, "price")) -> CEIL(`price`)
 
     Args:
         dialect: The SQL dialect instance
@@ -209,13 +184,12 @@ def ceil(
 
     Version: All MySQL versions (CEILING is also available as alias)
     """
-    target_expr = _convert_to_expression(dialect, expr)
-    return core.FunctionCall(dialect, "CEIL", target_expr)
+    return core.FunctionCall(dialect, "CEIL", expr)
 
 
 def floor(
     dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
+    expr: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a FLOOR function call.
@@ -223,8 +197,8 @@ def floor(
     Returns the largest integer value not greater than the argument.
 
     Usage:
-        - floor(dialect, 3.14) -> FLOOR(3.14)
-        - floor(dialect, Column("price")) -> FLOOR("price")
+        - floor(dialect, Literal(dialect, 3.14)) -> FLOOR(3.14)
+        - floor(dialect, NumericColumn(dialect, "price")) -> FLOOR(`price`)
 
     Args:
         dialect: The SQL dialect instance
@@ -235,13 +209,12 @@ def floor(
 
     Version: All MySQL versions
     """
-    target_expr = _convert_to_expression(dialect, expr)
-    return core.FunctionCall(dialect, "FLOOR", target_expr)
+    return core.FunctionCall(dialect, "FLOOR", expr)
 
 
 def trunc(
     dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
+    expr: "bases.BaseExpression",
     precision: int = 0,
 ) -> "core.FunctionCall":
     """
@@ -250,9 +223,9 @@ def trunc(
     Returns the value truncated to the specified number of decimal places.
 
     Usage:
-        - trunc(dialect, 3.14) -> TRUNCATE(3.14, 0)
-        - trunc(dialect, 3.14, 2) -> TRUNCATE(3.14, 2)
-        - trunc(dialect, Column("price"), 2) -> TRUNCATE("price", 2)
+        - trunc(dialect, Literal(dialect, 3.14)) -> TRUNCATE(3.14, 0)
+        - trunc(dialect, Literal(dialect, 3.14), 2) -> TRUNCATE(3.14, 2)
+        - trunc(dialect, NumericColumn(dialect, "price"), 2) -> TRUNCATE(`price`, 2)
 
     Note:
         MySQL uses TRUNCATE, not TRUNC (which is used by some other databases).
@@ -267,14 +240,13 @@ def trunc(
 
     Version: All MySQL versions
     """
-    target_expr = _convert_to_expression(dialect, expr)
     precision_expr = core.Literal(dialect, precision)
-    return core.FunctionCall(dialect, "TRUNCATE", target_expr, precision_expr)
+    return core.FunctionCall(dialect, "TRUNCATE", expr, precision_expr)
 
 
 def max_(
     dialect: "SQLDialectBase",
-    *args: Union[str, "bases.BaseExpression"],
+    *args: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a GREATEST or MAX function call.
@@ -282,16 +254,17 @@ def max_(
     Returns the maximum value from the arguments.
 
     Usage:
-        - max_(dialect, 1, 5, 3, 9, 2) -> GREATEST(1, 5, 3, 9, 2)
-        - max_(dialect, Column("a"), Column("b")) -> GREATEST("a", "b")
+        - max_(dialect, Literal(dialect, 1), Literal(dialect, 5)) -> GREATEST(1, 5)
+        - max_(dialect, NumericColumn(dialect, "a"), NumericColumn(dialect, "b"))
+          -> GREATEST(`a`, `b`)
 
     Note:
-        When called with a single column argument, uses MAX (aggregate).
+        When called with a single argument, uses MAX (aggregate).
         When called with multiple arguments, uses GREATEST (scalar).
 
     Args:
         dialect: The SQL dialect instance
-        *args: The values to compare
+        *args: The expressions to compare
 
     Returns:
         A FunctionCall instance representing GREATEST or MAX
@@ -299,15 +272,13 @@ def max_(
     Version: All MySQL versions
     """
     if len(args) == 1:
-        arg_expr = _convert_to_expression(dialect, args[0])
-        return core.FunctionCall(dialect, "MAX", arg_expr)
-    arg_exprs = [_convert_to_expression(dialect, arg) for arg in args]
-    return core.FunctionCall(dialect, "GREATEST", *arg_exprs)
+        return core.FunctionCall(dialect, "MAX", args[0])
+    return core.FunctionCall(dialect, "GREATEST", *args)
 
 
 def min_(
     dialect: "SQLDialectBase",
-    *args: Union[str, "bases.BaseExpression"],
+    *args: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a LEAST or MIN function call.
@@ -315,16 +286,17 @@ def min_(
     Returns the minimum value from the arguments.
 
     Usage:
-        - min_(dialect, 1, 5, 3, 9, 2) -> LEAST(1, 5, 3, 9, 2)
-        - min_(dialect, Column("a"), Column("b")) -> LEAST("a", "b")
+        - min_(dialect, Literal(dialect, 1), Literal(dialect, 5)) -> LEAST(1, 5)
+        - min_(dialect, NumericColumn(dialect, "a"), NumericColumn(dialect, "b"))
+          -> LEAST(`a`, `b`)
 
     Note:
-        When called with a single column argument, uses MIN (aggregate).
+        When called with a single argument, uses MIN (aggregate).
         When called with multiple arguments, uses LEAST (scalar).
 
     Args:
         dialect: The SQL dialect instance
-        *args: The values to compare
+        *args: The expressions to compare
 
     Returns:
         A FunctionCall instance representing LEAST or MIN
@@ -332,15 +304,13 @@ def min_(
     Version: All MySQL versions
     """
     if len(args) == 1:
-        arg_expr = _convert_to_expression(dialect, args[0])
-        return core.FunctionCall(dialect, "MIN", arg_expr)
-    arg_exprs = [_convert_to_expression(dialect, arg) for arg in args]
-    return core.FunctionCall(dialect, "LEAST", *arg_exprs)
+        return core.FunctionCall(dialect, "MIN", args[0])
+    return core.FunctionCall(dialect, "LEAST", *args)
 
 
 def avg(
     dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
+    expr: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates an AVG function call.
@@ -348,7 +318,7 @@ def avg(
     Returns the average value of the argument.
 
     Usage:
-        - avg(dialect, Column("price")) -> AVG("price")
+        - avg(dialect, NumericColumn(dialect, "price")) -> AVG(`price`)
 
     Args:
         dialect: The SQL dialect instance
@@ -359,8 +329,7 @@ def avg(
 
     Version: All MySQL versions
     """
-    target_expr = _convert_to_expression(dialect, expr)
-    return core.FunctionCall(dialect, "AVG", target_expr)
+    return core.FunctionCall(dialect, "AVG", expr)
 
 
 __all__ = [

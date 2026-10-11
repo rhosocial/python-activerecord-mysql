@@ -11,36 +11,11 @@ as functions. These are implemented using native bitwise operators.
 
 from typing import Union, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core
+from rhosocial.activerecord.backend.expression import bases, core, NumericColumn
 from rhosocial.activerecord.backend.expression.operators import BinaryArithmeticExpression
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.dialect import SQLDialectBase
     from ..dialect import MySQLDialect
-
-
-def _convert_to_expression(
-    dialect: "SQLDialectBase",
-    expr: Union[str, int, float, "bases.BaseExpression"],
-    handle_numeric_literals: bool = True,
-) -> "bases.BaseExpression":
-    """
-    Helper function to convert an input value to an appropriate BaseExpression.
-
-    Args:
-        dialect: The SQL dialect instance
-        expr: The expression to convert
-        handle_numeric_literals: Whether to treat numeric values as literals
-
-    Returns:
-        A BaseExpression instance
-    """
-    if isinstance(expr, bases.BaseExpression):
-        return expr
-    elif handle_numeric_literals and isinstance(expr, (int, float)):
-        return core.Literal(dialect, expr)
-    else:
-        return core.Column(dialect, expr)
 
 
 def bit_and(
@@ -64,9 +39,17 @@ def bit_and(
 
     Version: MySQL 5.0.12+ (aggregate), native operators available in all versions
     """
-    result = _convert_to_expression(dialect, value)
+    result = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
     for v in values:
-        v_expr = _convert_to_expression(dialect, v)
+        v_expr = (
+            v if isinstance(v, bases.BaseExpression)
+            else core.Literal(dialect, v) if isinstance(v, (int, float))
+            else NumericColumn(dialect, v)
+        )
         result = BinaryArithmeticExpression(dialect, "&", result, v_expr)
     return result
 
@@ -92,9 +75,17 @@ def bit_or(
 
     Version: MySQL 5.0.12+ (aggregate), native operators available in all versions
     """
-    result = _convert_to_expression(dialect, value)
+    result = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
     for v in values:
-        v_expr = _convert_to_expression(dialect, v)
+        v_expr = (
+            v if isinstance(v, bases.BaseExpression)
+            else core.Literal(dialect, v) if isinstance(v, (int, float))
+            else NumericColumn(dialect, v)
+        )
         result = BinaryArithmeticExpression(dialect, "|", result, v_expr)
     return result
 
@@ -120,9 +111,17 @@ def bit_xor(
 
     Version: MySQL 5.0.12+ (aggregate), native operators available in all versions
     """
-    result = _convert_to_expression(dialect, value)
+    result = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
     for v in values:
-        v_expr = _convert_to_expression(dialect, v)
+        v_expr = (
+            v if isinstance(v, bases.BaseExpression)
+            else core.Literal(dialect, v) if isinstance(v, (int, float))
+            else NumericColumn(dialect, v)
+        )
         result = BinaryArithmeticExpression(dialect, "^", result, v_expr)
     return result
 
@@ -143,7 +142,11 @@ def bit_count(
 
     Version: MySQL 5.0.12+
     """
-    value_expr = _convert_to_expression(dialect, value)
+    value_expr = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
     return core.FunctionCall(dialect, "BIT_COUNT", value_expr)
 
 
@@ -168,8 +171,16 @@ def bit_get_bit(
 
     Version: Native operators available in all MySQL versions
     """
-    value_expr = _convert_to_expression(dialect, value)
-    bit_expr = _convert_to_expression(dialect, bit)
+    value_expr = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
+    bit_expr = (
+        bit if isinstance(bit, bases.BaseExpression)
+        else core.Literal(dialect, bit) if isinstance(bit, (int, float))
+        else NumericColumn(dialect, bit)
+    )
     # (value >> bit) & 1
     shifted = BinaryArithmeticExpression(dialect, ">>", value_expr, bit_expr)
     return BinaryArithmeticExpression(dialect, "&", shifted, core.Literal(dialect, 1))
@@ -196,8 +207,16 @@ def bit_shift_left(
 
     Version: Native operators available in all MySQL versions
     """
-    value_expr = _convert_to_expression(dialect, value)
-    count_expr = _convert_to_expression(dialect, count)
+    value_expr = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
+    count_expr = (
+        count if isinstance(count, bases.BaseExpression)
+        else core.Literal(dialect, count) if isinstance(count, (int, float))
+        else NumericColumn(dialect, count)
+    )
     return BinaryArithmeticExpression(dialect, "<<", value_expr, count_expr)
 
 
@@ -222,8 +241,16 @@ def bit_shift_right(
 
     Version: Native operators available in all MySQL versions
     """
-    value_expr = _convert_to_expression(dialect, value)
-    count_expr = _convert_to_expression(dialect, count)
+    value_expr = (
+        value if isinstance(value, bases.BaseExpression)
+        else core.Literal(dialect, value) if isinstance(value, (int, float))
+        else NumericColumn(dialect, value)
+    )
+    count_expr = (
+        count if isinstance(count, bases.BaseExpression)
+        else core.Literal(dialect, count) if isinstance(count, (int, float))
+        else NumericColumn(dialect, count)
+    )
     return BinaryArithmeticExpression(dialect, ">>", value_expr, count_expr)
 
 

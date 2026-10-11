@@ -3,45 +3,28 @@
 MySQL SET and Enum type function factories.
 
 Functions: find_in_set, elt, field
+
+Every argument except :func:`find_in_set`'s searched value and :func:`elt`'s
+index and values is an expression: pass a ``Column`` to read a column and a
+``Literal`` to write a value.  Those arguments used to be accepted as bare
+strings and numbers, and a bare string became a column reference -- so
+``FIELD("b", "a", "b")`` did not report that "b" is the second value but read
+columns ``a`` and ``b`` and reported where their *contents* sat, and it did so
+without raising when such columns happened to exist.
 """
 
-from typing import Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression import bases, core
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.dialect import SQLDialectBase
     from ..dialect import MySQLDialect
-
-
-def _convert_to_expression(
-    dialect: "SQLDialectBase",
-    expr: Union[str, "bases.BaseExpression"],
-    handle_numeric_literals: bool = True,
-) -> "bases.BaseExpression":
-    """
-    Helper function to convert an input value to an appropriate BaseExpression.
-
-    Args:
-        dialect: The SQL dialect instance
-        expr: The expression to convert
-        handle_numeric_literals: Whether to treat numeric values as literals
-
-    Returns:
-        A BaseExpression instance
-    """
-    if isinstance(expr, bases.BaseExpression):
-        return expr
-    elif handle_numeric_literals and isinstance(expr, (int, float)):
-        return core.Literal(dialect, expr)
-    else:
-        return core.Column(dialect, expr)
 
 
 def find_in_set(
     dialect: "MySQLDialect",
     value: str,
-    set_column: Union[str, "bases.BaseExpression"],
+    set_column: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a FIND_IN_SET function call.
@@ -50,8 +33,8 @@ def find_in_set(
 
     Args:
         dialect: The MySQL dialect instance
-        value: Value to find
-        set_column: SET column name or expression
+        value: The value to find; always a string value, never a column
+        set_column: Expression for the SET column to search
 
     Returns:
         A FunctionCall instance representing FIND_IN_SET
@@ -59,8 +42,7 @@ def find_in_set(
     Version: All MySQL versions
     """
     value_expr = core.Literal(dialect, value)
-    col_expr = _convert_to_expression(dialect, set_column)
-    return core.FunctionCall(dialect, "FIND_IN_SET", value_expr, col_expr)
+    return core.FunctionCall(dialect, "FIND_IN_SET", value_expr, set_column)
 
 
 def elt(
@@ -92,8 +74,8 @@ def elt(
 
 def field(
     dialect: "MySQLDialect",
-    value: Any,
-    *values: Any,
+    value: "bases.BaseExpression",
+    *values: "bases.BaseExpression",
 ) -> "core.FunctionCall":
     """
     Creates a FIELD function call.
@@ -103,19 +85,15 @@ def field(
 
     Args:
         dialect: The MySQL dialect instance
-        value: Value to search for
-        *values: List of values to search in
+        value: Expression for the value to search for
+        *values: Expressions for the values to search within
 
     Returns:
         A FunctionCall instance representing FIELD
 
     Version: All MySQL versions
     """
-    value_expr = _convert_to_expression(dialect, value)
-    args = [value_expr]
-    for v in values:
-        args.append(_convert_to_expression(dialect, v))
-    return core.FunctionCall(dialect, "FIELD", *args)
+    return core.FunctionCall(dialect, "FIELD", value, *values)
 
 
 __all__ = [

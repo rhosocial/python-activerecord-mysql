@@ -37,6 +37,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TransactionControlSupport,
     SQLFunctionSupport,
     DataTypeSupport,
+    # Column Class Support Protocol
+    ColumnTypeSupport,
     TypeObjectSupport,
     CreateTypeSupport,
     AlterTypeSupport,
@@ -85,6 +87,10 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     TableMixin,
     ConstraintMixin,
     TruncateMixin,
+    LpadMixin,
+    RepeatMixin,
+    RpadMixin,
+    TrimMixin,
     IntrospectionMixin,
     PartitionMixin,
     PredicateMixin,
@@ -104,6 +110,7 @@ from .protocols import (
     MySQLTriggerSupport,
     MySQLTableSupport,
     MySQLSetTypeSupport,
+    MySQLTypeSupport,
     MySQLJSONFunctionSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,
@@ -162,6 +169,7 @@ from .mixins import (
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
+    MySQLColumnTypeMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -227,6 +235,16 @@ class MySQLDialect(
     MySQLDatabaseMixin,
     MySQLConstraintMixin,
     MySQLGeneratedColumnMixin,
+    # Column types. The MySQL half states its own eighteen-entry table; there
+    # is no generic table in core to compose, so it stands alone in C3. Nothing
+    # else in this list can answer the column-type protocol, so it may move as
+    # a unit without disturbing the order around it -- which is the reason for
+    # not standing it next to MySQLTypeSupportMixin further down, where a
+    # mistake would reorder the DDL formatters too. (The class attribute is
+    # the version-independent answer; the one version-gated refusal lives in
+    # MySQLColumnTypeMixin.suggested_column_types, so a dialect built at one
+    # version cannot leak its answer into one built at another.)
+    MySQLColumnTypeMixin,
     # The two auto-increment mechanisms are separate mixins, and their order
     # here is load-bearing. MySQLGeneratedColumnMixin declares the
     # parameterless AUTO_INCREMENT marker True; AutoIncrementMixin supplies
@@ -241,6 +259,14 @@ class MySQLDialect(
     AutoIncrementMixin,
     IdentityColumnMixin,
     MySQLFunctionMixin,
+    # ``TRIM``/``LPAD``/``RPAD``/``REPEAT`` are nodes with default formatters,
+    # and MySQL spells all four natively (``TRIM([BOTH|LEADING|TRAILING] [chars]
+    # FROM str)``, ``LPAD(str,len,padstr)``, ``RPAD``, ``REPEAT``), so the shared
+    # defaults are the answer here and no override is needed.
+    LpadMixin,
+    RepeatMixin,
+    RpadMixin,
+    TrimMixin,
     # Generic mixins
     CollationMixin,
     CTEMixin,
@@ -337,6 +363,7 @@ class MySQLDialect(
     TransactionControlSupport,
     MySQLTriggerSupport,
     MySQLSetTypeSupport,
+    MySQLTypeSupport,
     MySQLSpatialSupport,
     MySQLVectorSupport,
     MySQLFullTextSearchSupport,

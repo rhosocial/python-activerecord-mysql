@@ -15,7 +15,9 @@
 ```toml
 dependencies = [
     "rhosocial-activerecord>=1.0.0.dev0,<2.0.0",
-    "mysql-connector-python>=9.0.0"
+    "mysql-connector-python==9.0.0; python_version < '3.9'",
+    "mysql-connector-python==9.4.0; python_version >= '3.9' and python_version < '3.10'",
+    "mysql-connector-python>=26.7.0; python_version >= '3.10'",
 ]
 ```
 

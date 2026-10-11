@@ -10,6 +10,8 @@
 | 8.4.x | ✅ Supported | Latest LTS version |
 | 9.0.x | ✅ Supported | Latest stable version |
 | 9.6.x | ✅ Supported | Latest minor version |
+| 9.7.x | ✅ Recommended | LTS release |
+| 26.7.x | ✅ Supported | Current release, tested on Python 3.15 |
 
 ⚠️ **Note**:
 
@@ -41,7 +43,7 @@
 | Dependency | Version | Notes |
 |-----------|---------|-------|
 | rhosocial-activerecord | >=1.0.0 | Core library |
-| mysql-connector-python | >=8.0.0 | MySQL driver (only supported) |
+| mysql-connector-python | `==9.0.0` (Python 3.8), `==9.4.0` (Python 3.9), `>=26.7.0` (Python 3.10+) | MySQL driver (only supported) |
 
 ⚠️ **Important**: This backend only supports mysql-connector-python driver. Other drivers like mysqlclient, PyMySQL are not supported.
 

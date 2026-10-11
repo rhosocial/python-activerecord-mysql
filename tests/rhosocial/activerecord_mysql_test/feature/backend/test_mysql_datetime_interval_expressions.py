@@ -15,6 +15,7 @@ from rhosocial.activerecord.backend.expression.functions import (
     interval,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLSignedType
 
 
 class TestMySQLDateTimeIntervalExpressions:
@@ -129,7 +130,7 @@ class TestMySQLDateTimeIntervalExpressions:
                 Column(mysql_dialect, "started_at"),
                 Column(mysql_dialect, "ended_at"),
             )
-            .cast("SIGNED")
+            .cast(MySQLSignedType(mysql_dialect))
             .as_("elapsed_days")
         )
 

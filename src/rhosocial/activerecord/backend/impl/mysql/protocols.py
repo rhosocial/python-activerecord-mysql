@@ -10,7 +10,7 @@ When a MySQL protocol extends a generic protocol, dialects only need to implemen
 the MySQL-specific protocol - isinstance checks for the generic protocol will still work.
 """
 
-from typing import Protocol, runtime_checkable, Tuple, Any, Sequence, FrozenSet, Optional, TYPE_CHECKING
+from typing import Protocol, runtime_checkable, Tuple, Any, Dict, Sequence, FrozenSet, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
@@ -732,6 +732,268 @@ class MySQLSetTypeSupport(Protocol):
 
 
 @runtime_checkable
+class MySQLTypeSupport(Protocol):
+    """MySQL's own ``DataType`` families, stated as a contract.
+
+    Feature Source: MySQL native (not SQL standard)
+
+    A ``DataType`` declares its concept in a ``name`` and the dialect renders it
+    through ``format_data_type_<name>`` — a naming convention, so the shape of a
+    type family is *implied* rather than declared. This protocol is where the
+    families MySQL owns say so out loud: for each of its exclusive types there
+    is both a support switch and a formatting entry point here, so a family has
+    one stated shape instead of existing only as a naming pattern, and drift
+    between the declaration and the mixin is catchable by a test.
+
+    The families it covers are the ones no other MySQL protocol does:
+
+    * **integer widths with ``UNSIGNED`` / ``ZEROFILL``** — ``mysql_tinyint``,
+      ``mysql_smallint``, ``mysql_mediumint``, ``mysql_int``, ``mysql_bigint``.
+      ``UNSIGNED`` is a *field* on the core integer classes (it changes the
+      representable range), and ``ZEROFILL`` is a MySQL-only display attribute;
+      both ride on the ``mysql_``-namespaced type so a schema diff can see them.
+      Five widths, not four: ``MEDIUMINT`` is 3 bytes and has no core concept of
+      that width, so it is a class of its own rather than a spelling.
+    * **integer cast targets** — ``mysql_signed`` and ``mysql_unsigned``. These
+      are the two names ``CAST(x AS ...)`` accepts and the server rejects each
+      for the other. They are *not* unsigned column types; unsigned columns are
+      the five types above carrying ``unsigned=True``.
+    * **BLOB size variants** — ``TINYBLOB`` / ``BLOB`` / ``MEDIUMBLOB`` /
+      ``LONGBLOB``, which differ only in maximum length.
+    * **TEXT size variants** — ``TINYTEXT`` / ``TEXT`` / ``MEDIUMTEXT`` /
+      ``LONGTEXT``, likewise.
+    * **the remaining MySQL-only types** — ``mysql_bit`` (``BIT(n)``, a bit
+      string), ``mysql_year`` (``YEAR``, a one-byte year), ``mysql_binary`` /
+      ``mysql_varbinary`` (the byte-string types the framework reaches MySQL
+      through), ``mysql_uuid`` (MySQL has no UUID type, so a UUID is the 16 raw
+      bytes of a ``BINARY(16)`` column — a class of its own because the width
+      is fixed by the concept and cannot be left to the caller), and
+      ``mysql_enum`` (``ENUM`` plus the charset/collation attributes).
+
+    Three families are declared elsewhere and deliberately not repeated here:
+    ``SET`` in :class:`MySQLSetTypeSupport`, the spatial types in
+    :class:`MySQLSpatialSupport`, and ``VECTOR`` in :class:`MySQLVectorSupport`.
+
+    Official Documentation:
+    - Integer types: https://dev.mysql.com/doc/refman/8.0/en/integer-types.html
+    - String types: https://dev.mysql.com/doc/refman/8.0/en/string-types.html
+    - Bit and Year: https://dev.mysql.com/doc/refman/8.0/en/bit.html
+    - ENUM/SET: https://dev.mysql.com/doc/refman/8.0/en/enum.html
+
+    Version Requirements:
+    - All of the above: every MySQL version, except ``VECTOR`` (see
+      :class:`MySQLVectorSupport`) and ``JSON`` (see
+      :class:`MySQLJSONFunctionSupport`).
+    """
+
+    def parse_type(self, raw: str):
+        """Parse a MySQL type string into the ``DataType`` it came from.
+
+        Canonical: one concept in, one class out, with the word that was used
+        recorded on the instance where the concept has more than one spelling.
+        A word the framework does not model yields ``CustomType`` rather than a
+        guess.
+        """
+        ...
+
+    def suggested_data_types(self) -> Dict[str, type]:
+        """The core concepts this dialect cannot spell, and what it stores."""
+        ...
+
+    # --- integer widths with UNSIGNED / ZEROFILL ---
+
+    def supports_data_type_mysql_tinyint(self) -> bool:
+        """Whether the ``mysql_tinyint`` type is supported."""
+        ...
+
+    def format_data_type_mysql_tinyint(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``TINYINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
+        ...
+
+    def supports_data_type_mysql_smallint(self) -> bool:
+        """Whether the ``mysql_smallint`` type is supported."""
+        ...
+
+    def format_data_type_mysql_smallint(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``SMALLINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
+        ...
+
+    def supports_data_type_mysql_mediumint(self) -> bool:
+        """Whether the ``mysql_mediumint`` type is supported."""
+        ...
+
+    def format_data_type_mysql_mediumint(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``MEDIUMINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
+        ...
+
+    def supports_data_type_mysql_int(self) -> bool:
+        """Whether the ``mysql_int`` type is supported."""
+        ...
+
+    def format_data_type_mysql_int(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``INT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
+        ...
+
+    def supports_data_type_mysql_bigint(self) -> bool:
+        """Whether the ``mysql_bigint`` type is supported."""
+        ...
+
+    def format_data_type_mysql_bigint(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``BIGINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
+        ...
+
+    # --- integer cast targets (SIGNED / UNSIGNED) ---
+
+    def supports_data_type_mysql_signed(self) -> bool:
+        """Whether ``CAST(x AS SIGNED)`` is supported."""
+        ...
+
+    def format_data_type_mysql_signed(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render the ``SIGNED`` cast target."""
+        ...
+
+    def supports_data_type_mysql_unsigned(self) -> bool:
+        """Whether ``CAST(x AS UNSIGNED)`` is supported."""
+        ...
+
+    def format_data_type_mysql_unsigned(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render the ``UNSIGNED`` cast target."""
+        ...
+
+    # --- BLOB size variants ---
+
+    def supports_data_type_mysql_tinyblob(self) -> bool:
+        """Whether ``TINYBLOB`` is supported."""
+        ...
+
+    def format_data_type_mysql_tinyblob(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``TINYBLOB`` (max 255 bytes)."""
+        ...
+
+    def supports_data_type_mysql_blob(self) -> bool:
+        """Whether the bare ``BLOB`` variant is supported."""
+        ...
+
+    def format_data_type_mysql_blob(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``BLOB`` (max 65,535 bytes)."""
+        ...
+
+    def supports_data_type_mysql_mediumblob(self) -> bool:
+        """Whether ``MEDIUMBLOB`` is supported."""
+        ...
+
+    def format_data_type_mysql_mediumblob(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``MEDIUMBLOB`` (max 16,777,215 bytes)."""
+        ...
+
+    def supports_data_type_mysql_longblob(self) -> bool:
+        """Whether ``LONGBLOB`` is supported."""
+        ...
+
+    def format_data_type_mysql_longblob(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``LONGBLOB`` (max 4,294,967,295 bytes)."""
+        ...
+
+    # --- TEXT size variants ---
+
+    def supports_data_type_mysql_tinytext(self) -> bool:
+        """Whether ``TINYTEXT`` is supported."""
+        ...
+
+    def format_data_type_mysql_tinytext(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``TINYTEXT`` (max 255 bytes)."""
+        ...
+
+    def supports_data_type_mysql_text(self) -> bool:
+        """Whether the bare ``TEXT`` variant is supported."""
+        ...
+
+    def format_data_type_mysql_text(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``TEXT`` (max 65,535 bytes)."""
+        ...
+
+    def supports_data_type_mysql_mediumtext(self) -> bool:
+        """Whether ``MEDIUMTEXT`` is supported."""
+        ...
+
+    def format_data_type_mysql_mediumtext(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``MEDIUMTEXT`` (max 16,777,215 bytes)."""
+        ...
+
+    def supports_data_type_mysql_longtext(self) -> bool:
+        """Whether ``LONGTEXT`` is supported."""
+        ...
+
+    def format_data_type_mysql_longtext(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``LONGTEXT`` (max 4,294,967,295 bytes)."""
+        ...
+
+    # --- remaining MySQL-only types ---
+
+    def supports_data_type_mysql_bit(self) -> bool:
+        """Whether ``BIT(n)`` is supported."""
+        ...
+
+    def format_data_type_mysql_bit(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``BIT`` / ``BIT(n)`` — a bit string, not a boolean."""
+        ...
+
+    def supports_data_type_mysql_year(self) -> bool:
+        """Whether ``YEAR`` is supported."""
+        ...
+
+    def format_data_type_mysql_year(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``YEAR`` / ``YEAR(n)``."""
+        ...
+
+    def supports_data_type_mysql_binary(self) -> bool:
+        """Whether the fixed-length byte-string type is supported."""
+        ...
+
+    def format_data_type_mysql_binary(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``BINARY`` / ``BINARY(n)``.
+
+        The lengthless ``BINARY`` is a real column and really is one byte
+        wide: MySQL's manual defines the omitted *M* as 1. A concept whose own
+        width is fixed therefore does not come through here.
+        """
+        ...
+
+    def supports_data_type_mysql_varbinary(self) -> bool:
+        """Whether the variable-length byte-string type is supported."""
+        ...
+
+    def format_data_type_mysql_varbinary(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``VARBINARY(n)``.
+
+        Always with the length: ``VARBINARY``'s grammar is ``VARBINARY(M)`` with
+        *M* mandatory, so the lengthless form is a syntax error.
+        """
+        ...
+
+    def supports_data_type_mysql_uuid(self) -> bool:
+        """Whether the UUID substitute — a 16-byte column — is supported."""
+        ...
+
+    def format_data_type_mysql_uuid(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``BINARY(16)`` — MySQL's storage for a UUID.
+
+        MySQL has no UUID type; a UUID is 128 bits and is kept as those 16 raw
+        bytes in a fixed-length column.
+        """
+        ...
+
+    def supports_data_type_mysql_enum(self) -> bool:
+        """Whether ``ENUM('a','b')`` with charset/collation is supported."""
+        ...
+
+    def format_data_type_mysql_enum(self, data_type: Any) -> Tuple[str, tuple]:
+        """Render ``ENUM(...)`` with its optional ``CHARACTER SET`` /
+        ``COLLATE``."""
+        ...
+
+
+@runtime_checkable
 class MySQLJSONFunctionSupport(JSONSupport, Protocol):
     """MySQL JSON function protocol.
 
@@ -752,6 +1014,27 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
 
     def supports_json_type(self) -> bool:
         """Whether JSON data type is supported (MySQL 5.7+)."""
+        ...
+
+    def supports_json_path(self) -> bool:
+        """Whether a JSON path can be read on this server (MySQL 5.7.0+).
+
+        Declared separately from supports_json_type because the two versions
+        differ: JSON_EXTRACT arrived in 5.7.0 and the JSON type in 5.7.8, so a
+        server can read a path with nothing to store the document in.
+        """
+        ...
+
+    def format_json_function_expression(self, expr) -> Tuple[str, tuple]:
+        """Render a JSON path with JSON_EXTRACT / JSON_UNQUOTE."""
+        ...
+
+    def format_json_arrow_expression(self, expr) -> Tuple[str, tuple]:
+        """Render a JSON path with the -> and ->> operators."""
+        ...
+
+    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Render a JSON_TABLE query."""
         ...
 
     def supports_json_merge_patch(self) -> bool:

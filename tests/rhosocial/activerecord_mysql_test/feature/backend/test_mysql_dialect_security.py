@@ -144,19 +144,28 @@ def test_mysql_json_table_alias_quoted(dialect):
 
 
 def test_mysql_format_cast_expression_valid(dialect):
-    """Test that CAST expression validates target_type."""
+    """A CAST target is a DataType, and the dialect renders what it says."""
     from rhosocial.activerecord.backend.expression.core import CastExpression, Column
-    expr = CastExpression(dialect, Column(dialect, "column"), "INTEGER")
+    from rhosocial.activerecord.backend.expression.types import CustomType
+
+    expr = CastExpression(dialect, Column(dialect, "column"),
+                          CustomType(dialect, raw="INTEGER"))
     sql, params = dialect.format_cast_expression(expr)
     assert "INTEGER" in sql
 
 
 def test_mysql_format_cast_expression_rejects_injection(dialect):
-    """Test that malicious target_type is rejected."""
+    """A string in the type position is refused at construction.
+
+    The type position cannot be bound as a parameter, so whatever lands there is
+    rendered into the statement text. That is why a string is not accepted at
+    all rather than being escaped: there is nothing to escape it into, since it
+    is code and not data."""
     from rhosocial.activerecord.backend.expression.core import CastExpression, Column
-    expr = CastExpression(dialect, Column(dialect, "column"), "INTEGER; DROP TABLE users--")
-    with pytest.raises(ValueError, match="Invalid target type"):
-        dialect.format_cast_expression(expr)
+
+    with pytest.raises(TypeError, match="takes a DataType instance"):
+        CastExpression(dialect, Column(dialect, "column"),
+                       "INTEGER; DROP TABLE users--")
 
 
 class TestMySQLEscapeSqlStringBackslash:

@@ -161,7 +161,7 @@ See [exp1_basic_multiprocess.py](../../examples/chapter_12_scenarios/parallel_wo
 
 `rhosocial-activerecord`'s async MySQL backend (`AsyncMySQLBackend`) is built on `mysql-connector-python`'s async interface. Each ActiveRecord class is bound to **one connection** — this differs from a connection-pool approach (e.g., using third-party async pools):
 
-> **`mysql-connector-python` version note**: Python 3.8 is locked to `==9.0.0` (the highest version supported by Python 3.8); Python 3.9 and later use higher versions (e.g., Python 3.14 uses 9.6.0).
+> **`mysql-connector-python` version note**: the pin follows the interpreter, because the driver raises its floor with every series. Python 3.8 is locked to `==9.0.0` and Python 3.9 to `==9.4.0` (each the highest release that still installs there); Python 3.10 and later take `>=26.7.0`.
 
 | Feature | Single-connection ORM (this project) | Connection pool approach |
 | --- | --- | --- |

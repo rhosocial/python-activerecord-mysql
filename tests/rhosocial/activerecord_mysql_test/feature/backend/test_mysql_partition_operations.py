@@ -11,6 +11,7 @@ from rhosocial.activerecord.backend.expression import (
     ColumnConstraint,
     ColumnConstraintType,
     ColumnDefinition,
+    ComparisonPredicate,
     CreateTableExpression,
     DropTableExpression,
     FunctionCall,
@@ -115,7 +116,7 @@ def _select_payload_by_id_expression(dialect, row_id):
         dialect,
         select=[Column(dialect, "payload")],
         from_=Table(dialect, PARTITION_TABLE),
-        where=Column(dialect, "id") == Literal(dialect, row_id),
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "id"), Literal(dialect, row_id)),
     )
 
 
@@ -129,8 +130,12 @@ def _partition_names_expression(dialect, table_name=None):
         where=LogicalPredicate(
             dialect,
             "AND",
-            Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
+            ),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, table_name)
+            ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
@@ -154,8 +159,12 @@ def _partition_metadata_expression(dialect):
         where=LogicalPredicate(
             dialect,
             "AND",
-            Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, PARTITION_TABLE),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
+            ),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, PARTITION_TABLE)
+            ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
@@ -476,14 +485,18 @@ def _select_production_payloads_from_expression(
     *,
     tenant_id: Optional[int] = None,
 ):
-    predicate = (Column(dialect, "created_at") >= Literal(dialect, start)) & (
-        Column(dialect, "created_at") < Literal(dialect, end)
+    predicate = ComparisonPredicate(
+        dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
+    ) & ComparisonPredicate(
+        dialect, "<", Column(dialect, "created_at"), Literal(dialect, end)
     )
     if tenant_id is not None:
         predicate = LogicalPredicate(
             dialect,
             "AND",
-            Column(dialect, "tenant_id") == Literal(dialect, tenant_id),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "tenant_id"), Literal(dialect, tenant_id)
+            ),
             predicate,
         )
     return QueryExpression(
@@ -538,8 +551,12 @@ def _partition_metadata_expression_for_table(dialect, table_name: str):
         where=LogicalPredicate(
             dialect,
             "AND",
-            Column(dialect, "TABLE_SCHEMA") == FunctionCall(dialect, "DATABASE"),
-            Column(dialect, "TABLE_NAME") == Literal(dialect, table_name),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
+            ),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, table_name)
+            ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
         order_by=OrderByClause(dialect, [(Column(dialect, "PARTITION_NAME"), "ASC")]),
@@ -587,9 +604,15 @@ def _production_range_query_for_table_expression(dialect, table_name: str, start
         where=LogicalPredicate(
             dialect,
             "AND",
-            Column(dialect, "tenant_id") == Literal(dialect, tenant_id),
-            (Column(dialect, "created_at") >= Literal(dialect, start))
-            & (Column(dialect, "created_at") < Literal(dialect, end)),
+            ComparisonPredicate(
+                dialect, "=", Column(dialect, "tenant_id"), Literal(dialect, tenant_id)
+            ),
+            ComparisonPredicate(
+                dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
+            )
+            & ComparisonPredicate(
+                dialect, "<", Column(dialect, "created_at"), Literal(dialect, end)
+            ),
         ),
     )
 
@@ -1266,8 +1289,18 @@ def _subpartition_metadata(backend):
             where=LogicalPredicate(
                 backend.dialect,
                 "AND",
-                Column(backend.dialect, "TABLE_SCHEMA") == FunctionCall(backend.dialect, "DATABASE"),
-                Column(backend.dialect, "TABLE_NAME") == Literal(backend.dialect, SUBPARTITION_TABLE),
+                ComparisonPredicate(
+                    backend.dialect,
+                    "=",
+                    Column(backend.dialect, "TABLE_SCHEMA"),
+                    FunctionCall(backend.dialect, "DATABASE"),
+                ),
+                ComparisonPredicate(
+                    backend.dialect,
+                    "=",
+                    Column(backend.dialect, "TABLE_NAME"),
+                    Literal(backend.dialect, SUBPARTITION_TABLE),
+                ),
             ),
             order_by=OrderByClause(
                 backend.dialect,
@@ -1296,8 +1329,18 @@ async def _async_subpartition_metadata(backend):
             where=LogicalPredicate(
                 backend.dialect,
                 "AND",
-                Column(backend.dialect, "TABLE_SCHEMA") == FunctionCall(backend.dialect, "DATABASE"),
-                Column(backend.dialect, "TABLE_NAME") == Literal(backend.dialect, SUBPARTITION_TABLE),
+                ComparisonPredicate(
+                    backend.dialect,
+                    "=",
+                    Column(backend.dialect, "TABLE_SCHEMA"),
+                    FunctionCall(backend.dialect, "DATABASE"),
+                ),
+                ComparisonPredicate(
+                    backend.dialect,
+                    "=",
+                    Column(backend.dialect, "TABLE_NAME"),
+                    Literal(backend.dialect, SUBPARTITION_TABLE),
+                ),
             ),
             order_by=OrderByClause(
                 backend.dialect,

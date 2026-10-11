@@ -10,6 +10,7 @@ import pytest
 
 from rhosocial.activerecord.backend.expression import (
     Column,
+    ComparisonPredicate,
     ColumnDefinition,
     ColumnConstraint,
     ColumnConstraintType,
@@ -104,8 +105,12 @@ def _partition_range_query_expression(dialect, start, end):
         dialect,
         select=[WildcardExpression(dialect)],
         from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
-        where=(Column(dialect, "created_at") >= Literal(dialect, start))
-        & (Column(dialect, "created_at") < Literal(dialect, end)),
+        where=ComparisonPredicate(
+            dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
+        )
+        & ComparisonPredicate(
+            dialect, "<", Column(dialect, "created_at"), Literal(dialect, end)
+        ),
     )
 
 

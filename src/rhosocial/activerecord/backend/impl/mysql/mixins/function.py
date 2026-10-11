@@ -58,6 +58,11 @@ class MySQLFunctionMixin:
 
     _MYSQL_FUNCTION_VERSIONS = MYSQL_FUNCTION_VERSIONS
 
+    #: MySQL reads ``||`` as logical OR unless the server runs with
+    #: ``PIPES_AS_CONCAT``, so ``CONCAT`` is the only unconditional spelling.
+    STRING_CONCATENATION = "CONCAT"
+
+
     def supports_functions(self) -> Dict[str, bool]:
         """Return supported SQL functions as function_name -> bool mapping."""
         from rhosocial.activerecord.backend.expression.functions import (

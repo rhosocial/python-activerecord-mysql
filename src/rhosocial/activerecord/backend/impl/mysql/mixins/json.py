@@ -1,10 +1,32 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/json.py
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression import bases
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.advanced_functions import JSONExpression
+    from rhosocial.activerecord.backend.expression.advanced_functions import (
+        JSONDocumentExpression,
+        JSONTextExpression,
+    )
+
+    #: What the two formatters below accept. Core used to have one class for
+    #: both JSON access operators; it now has one per operator, and MySQL renders
+    #: ``->`` and ``->>`` from these same two methods, so the parameter is a
+    #: union rather than either class alone.
+    #:
+    #: The union is spelled out even though ``JSONTextExpression`` subclasses
+    #: ``JSONDocumentExpression`` and a checker would collapse it. That
+    #: inheritance exists so a text access keeps the accessors that let a path
+    #: chain continue; it is not a claim that ``->>`` yields a document.
+    #:
+    #: It covers the two operators core actually split. It does not cover an
+    #: arbitrary infix operator -- ``=``, ``@>`` and the like -- which both
+    #: formatters below still emit, because core has no class for one: the old
+    #: single class was "JSON access by whatever operator you named", and only
+    #: ``->`` and ``->>`` had a result type worth naming a class after. A
+    #: non-arrow operation says nothing about what comes back, so no class
+    #: asserts anything for it and the ``operation`` field alone decides.
+    JSONPathNode = Union["JSONDocumentExpression", "JSONTextExpression"]
 
 
 class MySQLJSONFunctionMixin:
@@ -19,6 +41,16 @@ class MySQLJSONFunctionMixin:
 
     def supports_json_type(self) -> bool:
         return self.version >= (5, 7, 8)
+
+    def supports_json_path(self) -> bool:
+        """Whether a JSON path can be read on this server.
+
+        Gate is 5.7.0, where JSON_EXTRACT appeared, not 5.7.8 where the native
+        JSON type did. Between those two versions the server reads a path
+        perfectly well and has no JSON column type, so gating on the type
+        would refuse queries it answers.
+        """
+        return self.version >= (5, 7, 0)
 
     def supports_json_merge_patch(self) -> bool:
         return self.version >= (8, 0, 3)
@@ -206,12 +238,19 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, params
 
-    def format_json_arrow_expression(self, expr: "JSONExpression") -> Tuple[str, Tuple]:
+    def format_json_arrow_expression(self, expr: "JSONPathNode") -> Tuple[str, Tuple]:
         """Format JSON expression using arrow operators for MySQL.
 
         MySQL's -> and ->> operators require:
         1. The JSON path as a string literal, not a parameter placeholder
         2. No parentheses around the expression
+
+        Takes either JSON path node -- :class:`JSONDocumentExpression` for
+        ``->``, :class:`JSONTextExpression` for ``->>`` -- and tells them apart
+        by ``expr.operation``, not by class, so which one the caller built does
+        not change the SQL. Any other operation is emitted as an infix
+        comparison with the path bound; see :class:`JSONPathNode` for why that
+        branch has no class of its own.
         """
         if isinstance(expr.column, bases.BaseExpression):
             col_sql, col_params = expr.column.to_sql()
@@ -231,12 +270,17 @@ class MySQLJSONFunctionMixin:
 
         return sql, params
 
-    def format_json_function_expression(self, expr: "JSONExpression") -> Tuple[str, Tuple]:
+    def format_json_function_expression(self, expr: "JSONPathNode") -> Tuple[str, Tuple]:
         """Format JSON expression using function-based equivalents for MySQL.
 
         MySQL supports JSON_EXTRACT and JSON_UNQUOTE, and also supports
         the native arrow operators.  Both paths are available.
         This is the function-based path, usable via JSONPathMode.FUNCTION.
+
+        Takes either JSON path node and tells them apart by ``expr.operation``:
+        ``->`` is JSON_EXTRACT (a document), ``->>`` is
+        JSON_UNQUOTE(JSON_EXTRACT(...)) (text), anything else is an infix
+        operator with the path inlined.
         """
         if isinstance(expr.column, bases.BaseExpression):
             col_sql, col_params = expr.column.to_sql()

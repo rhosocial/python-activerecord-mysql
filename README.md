@@ -19,8 +19,8 @@ It cannot be used standalone.
 
 - **Python**: `>=3.8`
 - **Core**: `rhosocial-activerecord>=1.0.0.dev0,<2.0.0`
-- **Driver**: `mysql-connector-python>=9.0.0`
-- **CI-tested server versions**: 5.6, 5.7, 8.0, 8.4, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7
+- **Driver**: `mysql-connector-python` — `==9.0.0` on Python 3.8, `==9.4.0` on 3.9, `>=26.7.0` on 3.10+
+- **CI-tested server versions**: 5.6, 5.7, 8.0, 8.4, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 26.7
 
 > MySQL 5.6 and 5.7 are exercised with a narrowed test schema, because their
 > default `innodb_large_prefix` rejects `VARCHAR(255)` UNIQUE/INDEX columns
