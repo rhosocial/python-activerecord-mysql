@@ -76,7 +76,7 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.ArraySupport,
     dialect_protocols.GraphSupport,
     dialect_protocols.ExplainSupport,
-    dialect_protocols.DateTimeSupport,
+    dialect_protocols.TimestampSupport,
     dialect_protocols.DqlOrderSupport,
     dialect_protocols.CollationSupport,
     dialect_protocols.DataTypeSupport,
