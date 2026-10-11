@@ -201,24 +201,22 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  test-experimental-python-315:
-    name: Python ${{ matrix.python-version }}${{ matrix.freethreaded && 't' || '' }} / MySQL ${{ matrix.mysql-version }} (experimental)
+  test-python-315:
+    name: Python ${{ matrix.python-version }}${{ matrix.freethreaded && 't' || '' }} / MySQL ${{ matrix.mysql-version }}
     runs-on: ubuntu-26.04
     permissions:
       contents: read
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Both server lines are kept on 3.15, for different reasons: 9.7 is the
           # LTS and stays the reference target for the newest interpreter, while
           # 26.7 is the current release and is only exercised here. Each gets a
           # GIL and a free-threaded leg.
-          - { python-version: '3.15.0-rc.2', mysql-version: '9.7', port: 3320, freethreaded: false }
-          - { python-version: '3.15.0-rc.2', mysql-version: '9.7', port: 3321, freethreaded: true }
-          - { python-version: '3.15.0-rc.2', mysql-version: '26.7', port: 3322, freethreaded: false }
-          - { python-version: '3.15.0-rc.2', mysql-version: '26.7', port: 3323, freethreaded: true }
+          - { python-version: '3.15', mysql-version: '9.7', port: 3320, freethreaded: false }
+          - { python-version: '3.15', mysql-version: '9.7', port: 3321, freethreaded: true }
+          - { python-version: '3.15', mysql-version: '26.7', port: 3322, freethreaded: false }
+          - { python-version: '3.15', mysql-version: '26.7', port: 3323, freethreaded: true }
 
     services:
       mysql:
