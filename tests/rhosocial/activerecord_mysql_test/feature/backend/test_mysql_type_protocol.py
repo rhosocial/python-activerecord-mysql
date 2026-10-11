@@ -956,12 +956,15 @@ class TestIntegerVariantParams:
     def test_unsigned_is_type_checked(self, dialect):
         """``unsigned`` becomes a type modifier in the rendered DDL.
 
-        The core integer class accepts only a real ``bool``, so
-        ``unsigned="yes"`` is an error rather than a truthy string reaching
-        ``BIGINT yes UNSIGNED``.
+        The refusal is the **formatter's**, because only the backend that has
+        to render the flag knows whether it can honour it. The expression
+        collects ``unsigned`` verbatim -- a truthy string must never reach
+        ``BIGINT yes UNSIGNED``, and saying so is not optional.
         """
+        declared = MySQLBigIntType(dialect, unsigned="yes")
+        assert declared.unsigned == "yes"
         with pytest.raises(TypeError, match="unsigned must be a bool"):
-            MySQLBigIntType(dialect, unsigned="yes")
+            dialect.format_data_type(declared)
 
     @pytest.mark.parametrize(
         "cls,base",
@@ -1075,11 +1078,17 @@ class TestNumericSignednessIsHonoured:
     def test_unsigned_is_type_checked(self, dialect, klass, kwargs, signed_sql,
                                      unsigned_sql):
         """It becomes a type modifier in the rendered DDL, so ``1`` is not a
-        truthy ``True`` and ``"yes"`` is not a spelling of one."""
-        with pytest.raises(TypeError, match="unsigned must be a bool"):
-            klass(dialect, unsigned=1, **kwargs)
-        with pytest.raises(TypeError, match="unsigned must be a bool"):
-            klass(dialect, unsigned="yes", **kwargs)
+        truthy ``True`` and ``"yes"`` is not a spelling of one.
+
+        Construction collects and rendering judges, so each case is asserted
+        twice: the declaration keeps the value it was handed, and the dialect
+        names it rather than rendering a signed column for it.
+        """
+        for wrong in (1, "yes"):
+            declared = klass(dialect, unsigned=wrong, **kwargs)
+            assert declared.unsigned == wrong
+            with pytest.raises(TypeError, match="unsigned must be a bool"):
+                dialect.format_data_type(declared)
 
     @pytest.mark.parametrize("klass,kwargs,signed_sql,unsigned_sql", CASES,
                              ids=IDS)
