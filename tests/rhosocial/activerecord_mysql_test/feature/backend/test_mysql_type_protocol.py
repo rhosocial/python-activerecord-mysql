@@ -1268,11 +1268,18 @@ class TestMediumIntWidth:
         assert MySQLMediumIntType(dialect=None).spelling == "mediumint"
 
     def test_unsigned_is_handled_like_its_siblings(self, dialect):
-        """Same field, same type check, same place in identity."""
+        """Same field, same place in identity, same refusal.
+
+        The shape check belongs to the formatter that has to honour the flag,
+        so it fires on ``format_data_type`` rather than on construction -- which
+        is what the other widths in this file are already asserting.
+        """
         assert MySQLMediumIntType.PARAMETERS == ("unsigned", "zerofill")
         assert MySQLMediumIntType(dialect).identity() == (False, False)
+        declared = MySQLMediumIntType(dialect, unsigned="yes")
+        assert declared.unsigned == "yes"
         with pytest.raises(TypeError, match="unsigned must be a bool"):
-            MySQLMediumIntType(dialect, unsigned="yes")
+            dialect.format_data_type(declared)
 
 
 class TestCastTargets:
