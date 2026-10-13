@@ -153,7 +153,7 @@ class MySQLTransactionMixin:
 
         return f"SET TRANSACTION {' '.join(parts)}", ()
 
-    def format_begin_transaction(self, expr: "BeginTransactionExpression") -> Tuple[str, tuple]:
+    def format_begin_transaction_statement(self, expr: "BeginTransactionStatement") -> Tuple[str, tuple]:
         """Format START TRANSACTION statement for MySQL."""
         from rhosocial.activerecord.backend.transaction import TransactionMode
 

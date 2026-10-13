@@ -50,7 +50,7 @@ class MySQLViewMixin:
         """
         return False
 
-    def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
+    def format_create_view_statement(self, expr: "CreateViewStatement") -> Tuple[str, tuple]:
         """Format CREATE VIEW statement for MySQL.
 
         Raises:
@@ -59,7 +59,7 @@ class MySQLViewMixin:
                 which is a well-formed statement creating a view over something
                 the caller never named.
         """
-        require_kind(expr.view, View, "CreateViewExpression.view")
+        require_kind(expr.view, View, "CreateViewStatement.view")
         parts = ["CREATE"]
 
         if expr.temporary:
@@ -90,7 +90,7 @@ class MySQLViewMixin:
 
         return " ".join(parts), query_params
 
-    def format_drop_view_statement(self, expr: "DropViewExpression") -> Tuple[str, tuple]:
+    def format_drop_view_statement(self, expr: "DropViewStatement") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for MySQL.
 
         The CASCADE / RESTRICT pair is consumed here: MySQL does not provide
@@ -104,7 +104,7 @@ class MySQLViewMixin:
             UnsupportedFeatureError: If the dialect does not accept the
                 requested behavior keyword.
         """
-        require_kind(expr.view, View, "DropViewExpression.view")
+        require_kind(expr.view, View, "DropViewStatement.view")
         if expr.cascade and not self.supports_cascade_view():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(

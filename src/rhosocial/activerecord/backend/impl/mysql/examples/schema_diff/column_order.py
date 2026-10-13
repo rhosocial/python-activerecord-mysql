@@ -33,17 +33,17 @@ backend.introspect_and_adapt()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableExpression, CreateTableExpression, ColumnDefinition,
+    DropTableStatement, CreateTableStatement, ColumnDefinition,
     ColumnConstraint, ColumnConstraintType,
 )
 from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
     IntegerType, VarCharType,
 )
 
-expr = DropTableExpression(dialect, Table(dialect, "users"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = CreateTableExpression(
+expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "users"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
@@ -67,7 +67,7 @@ from rhosocial.activerecord.backend.impl.mysql.schema.differ import (  # noqa: E
     MySQLSchemaDiffer,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (  # noqa: E402
-    AlterTableExpression,
+    AlterTableStatement,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression import (  # noqa: E402
     MySQLAddColumn,
@@ -80,7 +80,7 @@ snapshot_before = builder.build()
 # Add `age` column between `name` and `email` — shifts email to position 4
 add_col = MySQLAddColumn(dialect, ColumnDefinition(dialect, "age", IntegerType(dialect)),
                          after="name")
-alter_expr = AlterTableExpression(dialect, Table(dialect, "users"), [add_col])
+alter_expr = AlterTableStatement(dialect, Table(dialect, "users"), [add_col])
 sql, params = alter_expr.to_sql()
 backend.execute(sql, params)
 
@@ -105,7 +105,7 @@ if "users" in diff.table_diffs:
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-expr = DropTableExpression(dialect, Table(dialect, "users"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

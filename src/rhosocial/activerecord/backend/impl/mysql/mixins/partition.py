@@ -454,14 +454,14 @@ class MySQLPartitionMixin:
             Literal,
             LogicalPredicate,
             OrderByClause,
-            QueryExpression,
+            QueryStatement,
         )
 
         # MySQL's database is the catalog and there is no inner schema, so
         # ``information_schema`` is the outer slot. Putting it in ``schema_name``
         # would be refused rather than silently dropped.
         partitions = Table(expr.dialect, "PARTITIONS", catalog_name="information_schema")
-        query = QueryExpression(
+        query = QueryStatement(
             expr.dialect,
             select=[
                 Column(expr.dialect, "PARTITION_NAME", alias="name"),

@@ -5,8 +5,8 @@ from rhosocial.activerecord.backend.expression import bases
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.advanced_functions import (
-        JSONDocumentExpression,
-        JSONTextExpression,
+        JSONDocumentValue,
+        JSONTextValue,
     )
 
     #: What the two formatters below accept. Core used to have one class for
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
     #: ``->`` and ``->>`` from these same two methods, so the parameter is a
     #: union rather than either class alone.
     #:
-    #: The union is spelled out even though ``JSONTextExpression`` subclasses
-    #: ``JSONDocumentExpression`` and a checker would collapse it. That
+    #: The union is spelled out even though ``JSONTextValue`` subclasses
+    #: ``JSONDocumentValue`` and a checker would collapse it. That
     #: inheritance exists so a text access keeps the accessors that let a path
     #: chain continue; it is not a claim that ``->>`` yields a document.
     #:
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     #: ``->`` and ``->>`` had a result type worth naming a class after. A
     #: non-arrow operation says nothing about what comes back, so no class
     #: asserts anything for it and the ``operation`` field alone decides.
-    JSONPathNode = Union["JSONDocumentExpression", "JSONTextExpression"]
+    JSONPathNode = Union["JSONDocumentValue", "JSONTextValue"]
 
 
 class MySQLJSONFunctionMixin:
@@ -245,8 +245,8 @@ class MySQLJSONFunctionMixin:
         1. The JSON path as a string literal, not a parameter placeholder
         2. No parentheses around the expression
 
-        Takes either JSON path node -- :class:`JSONDocumentExpression` for
-        ``->``, :class:`JSONTextExpression` for ``->>`` -- and tells them apart
+        Takes either JSON path node -- :class:`JSONDocumentValue` for
+        ``->``, :class:`JSONTextValue` for ``->>`` -- and tells them apart
         by ``expr.operation``, not by class, so which one the caller built does
         not change the SQL. Any other operation is emitted as an infix
         comparison with the path bound; see :class:`JSONPathNode` for why that

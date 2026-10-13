@@ -34,23 +34,23 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from rhosocial.activerecord.backend.expression.core import Column
 from rhosocial.activerecord.backend.expression.objects import Table, View
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
-from rhosocial.activerecord.backend.expression.query_sources import CTEExpression
+from rhosocial.activerecord.backend.expression.query_sources import CTEClause
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     ColumnConstraint,
     ColumnConstraintType,
-    CreateTableAsExpression,
+    CreateTableAsStatement,
     TableConstraint,
     TableConstraintType,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_truncate import (
-    TruncateExpression,
+    TruncateStatement,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_view import (
-    DropViewExpression,
+    DropViewStatement,
 )
-from rhosocial.activerecord.backend.expression.statements.dql import QueryExpression
+from rhosocial.activerecord.backend.expression.statements.dql import QueryStatement
 from rhosocial.activerecord.backend.expression.transaction import (
-    BeginTransactionExpression,
+    BeginTransactionStatement,
     SetTransactionExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -71,7 +71,7 @@ def _table(d, name="t"):
 
 
 def _query(d):
-    return QueryExpression(d, select=[Column(d, "id")], from_=_table(d))
+    return QueryStatement(d, select=[Column(d, "id")], from_=_table(d))
 
 
 def _fk(d, **kw):
@@ -172,32 +172,32 @@ PAIR_CASES = (
         b_render=r"WITHOUT VALIDATION\b",
     ),
     PairCase(
-        "TruncateExpression.cascade",
-        lambda d, **kw: TruncateExpression(d, _table(d), **kw),
+        "TruncateStatement.cascade",
+        lambda d, **kw: TruncateStatement(d, _table(d), **kw),
         "cascade",
         "restrict",
         a_error=r"CASCADE\b",
         b_error=r"RESTRICT\b",
     ),
     PairCase(
-        "TruncateExpression.restart_identity",
-        lambda d, **kw: TruncateExpression(d, _table(d), **kw),
+        "TruncateStatement.restart_identity",
+        lambda d, **kw: TruncateStatement(d, _table(d), **kw),
         "restart_identity",
         "continue_identity",
         a_error=r"RESTART IDENTITY\b",
         b_error=r"CONTINUE IDENTITY\b",
     ),
     PairCase(
-        "DropViewExpression.cascade",
-        lambda d, **kw: DropViewExpression(d, View(d, "v"), **kw),
+        "DropViewStatement.cascade",
+        lambda d, **kw: DropViewStatement(d, View(d, "v"), **kw),
         "cascade",
         "restrict",
         a_error=r"CASCADE\b",
         b_error=r"RESTRICT\b",
     ),
     PairCase(
-        "BeginTransactionExpression.deferrable",
-        lambda d, **kw: BeginTransactionExpression(d, **kw),
+        "BeginTransactionStatement.deferrable",
+        lambda d, **kw: BeginTransactionStatement(d, **kw),
         "deferrable",
         "not_deferrable",
         a_error=r"(?<!NOT )DEFERRABLE\b",
@@ -212,8 +212,8 @@ PAIR_CASES = (
         b_error=r"NOT DEFERRABLE\b",
     ),
     PairCase(
-        "BeginTransactionExpression.wait",
-        lambda d, **kw: BeginTransactionExpression(d, **kw),
+        "BeginTransactionStatement.wait",
+        lambda d, **kw: BeginTransactionStatement(d, **kw),
         "wait",
         "no_wait",
         a_error=r"(?<!NO )WAIT\b",
@@ -501,29 +501,29 @@ class TestNewlyGatedMasterProbes:
     def test_materialized_cte_is_refused_by_name(self):
         dialect = _dialect()
         with pytest.raises(UnsupportedFeatureError, match=r"(?<!NOT )MATERIALIZED"):
-            CTEExpression(dialect, "c", _query(dialect), materialized=True).to_sql()
+            CTEClause(dialect, "c", _query(dialect), materialized=True).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"NOT MATERIALIZED"):
-            CTEExpression(dialect, "c", _query(dialect), not_materialized=True).to_sql()
-        sql, _params = CTEExpression(dialect, "c", _query(dialect)).to_sql()
+            CTEClause(dialect, "c", _query(dialect), not_materialized=True).to_sql()
+        sql, _params = CTEClause(dialect, "c", _query(dialect)).to_sql()
         assert "MATERIALIZED" not in sql
 
     def test_ctas_with_data_is_refused_by_name(self):
         dialect = _dialect()
         with pytest.raises(UnsupportedFeatureError, match=r"WITH DATA\b"):
-            CreateTableAsExpression(
+            CreateTableAsStatement(
                 dialect, _table(dialect), _query(dialect), with_data=True
             ).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"WITH NO DATA\b"):
-            CreateTableAsExpression(
+            CreateTableAsStatement(
                 dialect, _table(dialect), _query(dialect), no_data=True
             ).to_sql()
 
     def test_transaction_wait_is_refused_by_name(self):
         dialect = _dialect()
         with pytest.raises(UnsupportedFeatureError, match=r"(?<!NO )WAIT\b"):
-            BeginTransactionExpression(dialect, wait=True).to_sql()
+            BeginTransactionStatement(dialect, wait=True).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"NO WAIT\b"):
-            BeginTransactionExpression(dialect, no_wait=True).to_sql()
+            BeginTransactionStatement(dialect, no_wait=True).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"(?<!NO )WAIT\b"):
             SetTransactionExpression(dialect, wait=True).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"NO WAIT\b"):
@@ -533,7 +533,7 @@ class TestNewlyGatedMasterProbes:
         """``supports_truncate()`` is True, and the formatter is MySQL's own."""
         dialect = _dialect()
         assert dialect.supports_truncate() is True
-        sql, params = TruncateExpression(dialect, _table(dialect)).to_sql()
+        sql, params = TruncateStatement(dialect, _table(dialect)).to_sql()
         assert sql == "TRUNCATE TABLE `t`"
         assert params == ()
 
@@ -548,11 +548,11 @@ class TestGuardIsNotVacuous:
     def test_every_consumed_pair_is_covered(self):
         expected = {
             "MySQLExchangePartitionExpression.with_validation",
-            "TruncateExpression.cascade",
-            "TruncateExpression.restart_identity",
-            "DropViewExpression.cascade",
-            "BeginTransactionExpression.deferrable",
-            "BeginTransactionExpression.wait",
+            "TruncateStatement.cascade",
+            "TruncateStatement.restart_identity",
+            "DropViewStatement.cascade",
+            "BeginTransactionStatement.deferrable",
+            "BeginTransactionStatement.wait",
             "SetTransactionExpression.deferrable",
             "SetTransactionExpression.wait",
             "TableConstraint.enforced",

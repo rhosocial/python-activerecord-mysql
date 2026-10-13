@@ -27,11 +27,11 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    DropTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    DropTableStatement,
+    InsertStatement,
     ValuesSource,
-    QueryExpression,
+    QueryStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
@@ -48,15 +48,15 @@ from rhosocial.activerecord.backend.expression.objects import Table
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 
 # Drop dependent tables first for clean setup
-drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
+drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "users"),
     columns=[
@@ -102,7 +102,7 @@ backend.execute(sql, params)
 # MySQL uses ON DUPLICATE KEY UPDATE, which is handled via OnConflictClause
 
 # Initial insert
-insert_expr = InsertExpression(
+insert_expr = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
@@ -117,7 +117,7 @@ sql, params = insert_expr.to_sql()
 backend.execute(sql, params)
 
 # Verify initial insert
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),
@@ -133,7 +133,7 @@ result = backend.execute(sql, params, options=dql_options)
 print(f"Initial insert: {result.data}")
 
 # Insert again with ON DUPLICATE KEY UPDATE - will update
-upsert_expr = InsertExpression(
+upsert_expr = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
@@ -165,7 +165,7 @@ print(f"After UPSERT: {result.data}")
 # ============================================================
 # affected_rows: 1 = inserted, 2 = updated
 
-insert_result = InsertExpression(
+insert_result = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
@@ -180,7 +180,7 @@ sql, params = insert_result.to_sql()
 result = backend.execute(sql, params)
 print(f"Insert affected_rows: {result.affected_rows}")
 
-upsert_result = InsertExpression(
+upsert_result = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
@@ -207,7 +207,7 @@ print(f"Update affected_rows: {result.affected_rows}")
 # ============================================================
 # MySQL supports multiple row VALUES()
 
-multi_upsert = InsertExpression(
+multi_upsert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["username", "email", "login_count"],
@@ -233,11 +233,11 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
+drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

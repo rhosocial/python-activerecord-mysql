@@ -9,7 +9,7 @@ for retrieving column metadata.
 import pytest
 
 from rhosocial.activerecord.backend.introspection.types import (
-    ColumnInfo,
+    IntrospectionColumnInfo,
     ColumnNullable,
 )
 
@@ -18,14 +18,14 @@ class TestListColumns:
     """Tests for list_columns method."""
 
     def test_list_columns_returns_column_info(self, backend_with_tables):
-        """Test that list_columns returns ColumnInfo objects."""
+        """Test that list_columns returns IntrospectionColumnInfo objects."""
         columns = backend_with_tables.introspector.list_columns("users")
 
         assert isinstance(columns, list)
         assert len(columns) > 0
 
         for col in columns:
-            assert isinstance(col, ColumnInfo)
+            assert isinstance(col, IntrospectionColumnInfo)
 
     def test_list_columns_users_table(self, backend_with_tables):
         """Test columns for users table."""
@@ -63,7 +63,7 @@ class TestGetColumnInfo:
         col = backend_with_tables.introspector.get_column_info("users", "email")
 
         assert col is not None
-        assert isinstance(col, ColumnInfo)
+        assert isinstance(col, IntrospectionColumnInfo)
         assert col.name == "email"
 
     def test_get_column_info_nonexistent_column(self, backend_with_tables):
@@ -235,14 +235,14 @@ class TestAsyncColumnIntrospection:
 
     @pytest.mark.asyncio
     async def test_async_list_columns(self, async_backend_with_tables):
-        """Test async list_columns returns ColumnInfo objects."""
+        """Test async list_columns returns IntrospectionColumnInfo objects."""
         columns = await async_backend_with_tables.introspector.list_columns("users")
 
         assert isinstance(columns, list)
         assert len(columns) > 0
 
         for col in columns:
-            assert isinstance(col, ColumnInfo)
+            assert isinstance(col, IntrospectionColumnInfo)
 
     @pytest.mark.asyncio
     async def test_async_get_column_info(self, async_backend_with_tables):
@@ -250,7 +250,7 @@ class TestAsyncColumnIntrospection:
         col = await async_backend_with_tables.introspector.get_column_info("users", "email")
 
         assert col is not None
-        assert isinstance(col, ColumnInfo)
+        assert isinstance(col, IntrospectionColumnInfo)
         assert col.name == "email"
 
     @pytest.mark.asyncio

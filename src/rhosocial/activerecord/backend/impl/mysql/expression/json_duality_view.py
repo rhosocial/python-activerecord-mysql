@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -127,7 +127,7 @@ class DropJsonDualityViewExpression(BaseExpression):
         return "format_drop_json_duality_view_statement"
 
 
-class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Duality Object SELECT expression.
 
     Wraps a DualityObjectSpec for SELECT JSON_DUALITY_OBJECT(...) FROM table.
@@ -155,7 +155,7 @@ class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLVal
         return "format_duality_object_select"
 
 
-class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Duality Object body expression.
 
     Wraps a DualityObjectSpec for JSON_DUALITY_OBJECT( ... ).
@@ -183,7 +183,7 @@ class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValue
         return "format_duality_object_body"
 
 
-class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL nested duality expression.
 
     Wraps a DualityNestedMapping for nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)).

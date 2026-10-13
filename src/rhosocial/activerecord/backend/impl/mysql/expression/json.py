@@ -17,7 +17,7 @@ This module provides expression classes for MySQL JSON functions:
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_EXTRACT expression.
 
     Extracts a value from a JSON document using a path.
@@ -55,7 +55,7 @@ class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         return "format_json_extract"
 
 
-class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
+class MySQLJSONObjectExpression(AliasableMixin, SQLValue):
     """MySQL JSON_OBJECT expression.
 
     Creates a JSON object from key-value pairs.
@@ -100,7 +100,7 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
         return "format_json_object"
 
 
-class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
+class MySQLJSONArrayExpression(AliasableMixin, SQLValue):
     """MySQL JSON_ARRAY expression.
 
     Creates a JSON array from values.
@@ -146,7 +146,7 @@ class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
         return "format_json_array"
 
 
-class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_CONTAINS expression.
 
     Checks if a JSON document contains a specific value.
@@ -176,7 +176,7 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
         return "format_json_contains"
 
 
-class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_UNQUOTE expression.
 
     Removes quotes from a JSON-quoted string.
@@ -204,7 +204,7 @@ class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         return "format_json_unquote"
 
 
-class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_SET expression.
 
     Inserts or updates values in a JSON document.
@@ -241,7 +241,7 @@ class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression
         return "format_json_set"
 
 
-class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_REMOVE expression.
 
     Removes data from a JSON document.
@@ -275,7 +275,7 @@ class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
         return "format_json_remove"
 
 
-class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_TYPE expression.
 
     Returns the type of a JSON value.
@@ -303,7 +303,7 @@ class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
         return "format_json_type"
 
 
-class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_VALID expression.
 
     Checks whether a value is valid JSON.
@@ -331,7 +331,7 @@ class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return "format_json_valid"
 
 
-class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_SEARCH expression.
 
     Searches a JSON document for a string and returns the path.

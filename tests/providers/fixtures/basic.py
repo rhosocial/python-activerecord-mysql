@@ -1,7 +1,7 @@
 # tests/providers/fixtures/basic.py
 """DDL expressions for the ``feature/basic`` table group (MySQL).
 
-Each factory builds a :class:`CreateTableExpression` whose generated MySQL
+Each factory builds a :class:`CreateTableStatement` whose generated MySQL
 DDL is semantically equivalent to the reference ``.sql`` schema files under
 ``tests/rhosocial/activerecord_mysql_test/feature/basic/schema/``.  Those
 ``.sql`` files are kept as the authoritative reference and are no longer
@@ -16,7 +16,7 @@ emitted by routing through :func:`providers.fixtures._common.to_mysql_ddl_sql`.
 from typing import Callable, Dict
 
 from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
+    CreateTableStatement,
 )
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
@@ -59,8 +59,8 @@ _DEFAULT_STORAGE_OPTIONS = {
 _CASCADE = ReferentialAction.CASCADE
 
 
-def to_sql(expr: CreateTableExpression):
-    """Route a CreateTableExpression through the canonical MySQL DDL post-processor."""
+def to_sql(expr: CreateTableStatement):
+    """Route a CreateTableStatement through the canonical MySQL DDL post-processor."""
     return _common.to_mysql_ddl_sql(expr)
 
 
@@ -68,8 +68,8 @@ def to_sql(expr: CreateTableExpression):
 # basic/users.sql
 # ---------------------------------------------------------------------------
 
-def create_users_table(dialect, table_name: str = "users") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_users_table(dialect, table_name: str = "users") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -100,8 +100,8 @@ def create_users_table(dialect, table_name: str = "users") -> CreateTableExpress
 # basic/type_cases.sql
 # ---------------------------------------------------------------------------
 
-def create_type_cases_table(dialect, table_name: str = "type_cases") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_type_cases_table(dialect, table_name: str = "type_cases") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -138,8 +138,8 @@ def create_type_cases_table(dialect, table_name: str = "type_cases") -> CreateTa
 # basic/type_tests.sql
 # ---------------------------------------------------------------------------
 
-def create_type_tests_table(dialect, table_name: str = "type_tests") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_type_tests_table(dialect, table_name: str = "type_tests") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -175,10 +175,10 @@ def create_type_tests_table(dialect, table_name: str = "type_tests") -> CreateTa
 # basic/validated_field_users.sql
 # ---------------------------------------------------------------------------
 
-def create_validated_field_users_table(dialect, table_name: str = "validated_field_users") -> CreateTableExpression:
+def create_validated_field_users_table(dialect, table_name: str = "validated_field_users") -> CreateTableStatement:
     # MySQL ENUM column for status.
     status_enum = MySQLEnumType(dialect, ['active', 'inactive', 'banned', 'pending', 'suspended'])
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -208,8 +208,8 @@ def create_validated_field_users_table(dialect, table_name: str = "validated_fie
 # basic/validated_users.sql
 # ---------------------------------------------------------------------------
 
-def create_validated_users_table(dialect, table_name: str = "validated_users") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_validated_users_table(dialect, table_name: str = "validated_users") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -230,8 +230,8 @@ def create_validated_users_table(dialect, table_name: str = "validated_users") -
 # basic/pydantic_validated_models.sql
 # ---------------------------------------------------------------------------
 
-def create_pydantic_validated_models_table(dialect, table_name: str = "pydantic_validated_models") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_pydantic_validated_models_table(dialect, table_name: str = "pydantic_validated_models") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -256,8 +256,8 @@ def create_pydantic_validated_models_table(dialect, table_name: str = "pydantic_
 # basic/bulk_users.sql
 # ---------------------------------------------------------------------------
 
-def create_bulk_users_table(dialect, table_name: str = "bulk_users") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_bulk_users_table(dialect, table_name: str = "bulk_users") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -279,8 +279,8 @@ def create_bulk_users_table(dialect, table_name: str = "bulk_users") -> CreateTa
 # basic/posts.sql
 # ---------------------------------------------------------------------------
 
-def create_posts_table(dialect, table_name: str = "posts") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_posts_table(dialect, table_name: str = "posts") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -311,8 +311,8 @@ def create_posts_table(dialect, table_name: str = "posts") -> CreateTableExpress
 # basic/comments.sql
 # ---------------------------------------------------------------------------
 
-def create_comments_table(dialect, table_name: str = "comments") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_comments_table(dialect, table_name: str = "comments") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -349,8 +349,8 @@ def create_comments_table(dialect, table_name: str = "comments") -> CreateTableE
 # basic/column_mapping_items.sql
 # ---------------------------------------------------------------------------
 
-def create_column_mapping_items_table(dialect, table_name: str = "column_mapping_items") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_column_mapping_items_table(dialect, table_name: str = "column_mapping_items") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -371,8 +371,8 @@ def create_column_mapping_items_table(dialect, table_name: str = "column_mapping
 # basic/mixed_annotation_items.sql
 # ---------------------------------------------------------------------------
 
-def create_mixed_annotation_items_table(dialect, table_name: str = "mixed_annotation_items") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_mixed_annotation_items_table(dialect, table_name: str = "mixed_annotation_items") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -394,8 +394,8 @@ def create_mixed_annotation_items_table(dialect, table_name: str = "mixed_annota
 # basic/type_adapter_tests.sql  (no ENGINE/CHARSET in reference file)
 # ---------------------------------------------------------------------------
 
-def create_type_adapter_tests_table(dialect, table_name: str = "type_adapter_tests") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_type_adapter_tests_table(dialect, table_name: str = "type_adapter_tests") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=True,
@@ -419,8 +419,8 @@ def create_type_adapter_tests_table(dialect, table_name: str = "type_adapter_tes
 # basic/order_items.sql (composite PK, FK -> orders)
 # ---------------------------------------------------------------------------
 
-def create_composite_pk_order_items_table(dialect, table_name: str = "order_items") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_composite_pk_order_items_table(dialect, table_name: str = "order_items") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -447,8 +447,8 @@ def create_composite_pk_order_items_table(dialect, table_name: str = "order_item
 # basic/store_inventory.sql (composite PK, no FK)
 # ---------------------------------------------------------------------------
 
-def create_store_inventory_table(dialect, table_name: str = "store_inventory") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_store_inventory_table(dialect, table_name: str = "store_inventory") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -475,8 +475,8 @@ def create_store_inventory_table(dialect, table_name: str = "store_inventory") -
 # basic/orders.sql (single PK, no FK in composite-PK scenario)
 # ---------------------------------------------------------------------------
 
-def create_orders_table(dialect, table_name: str = "orders") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_orders_table(dialect, table_name: str = "orders") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -496,8 +496,8 @@ def create_orders_table(dialect, table_name: str = "orders") -> CreateTableExpre
 # basic/product.sql (single PK)
 # ---------------------------------------------------------------------------
 
-def create_product_table(dialect, table_name: str = "product") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_product_table(dialect, table_name: str = "product") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=True,

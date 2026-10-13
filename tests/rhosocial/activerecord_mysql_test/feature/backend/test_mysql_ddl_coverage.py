@@ -18,10 +18,10 @@ import pytest
 
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
     AlterColumn,
-    AlterTableExpression,
+    AlterTableStatement,
     ColumnAlterOperation,
 )
-from rhosocial.activerecord.backend.expression.statements.ddl_truncate import TruncateExpression
+from rhosocial.activerecord.backend.expression.statements.ddl_truncate import TruncateStatement
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.objects import Function, Procedure, Table
 from rhosocial.activerecord.backend.impl.mysql import expression as mysql_expr
@@ -73,7 +73,7 @@ class TestTruncateTable:
     """Test MySQL TRUNCATE TABLE statement."""
 
     def test_basic(self, dialect):
-        sql, params = TruncateExpression(dialect, table=Table(dialect, "users")).to_sql()
+        sql, params = TruncateStatement(dialect, table=Table(dialect, "users")).to_sql()
         assert sql == "TRUNCATE TABLE `users`"
         assert params == ()
 
@@ -86,19 +86,19 @@ class TestTruncateTable:
 
     def test_restart_identity_unsupported(self, dialect):
         with pytest.raises(UnsupportedFeatureError, match="RESTART IDENTITY"):
-            TruncateExpression(dialect, table=Table(dialect, "users"), restart_identity=True).to_sql()
+            TruncateStatement(dialect, table=Table(dialect, "users"), restart_identity=True).to_sql()
 
     def test_continue_identity_unsupported(self, dialect):
         with pytest.raises(UnsupportedFeatureError, match="CONTINUE IDENTITY"):
-            TruncateExpression(dialect, table=Table(dialect, "users"), continue_identity=True).to_sql()
+            TruncateStatement(dialect, table=Table(dialect, "users"), continue_identity=True).to_sql()
 
     def test_cascade_unsupported(self, dialect):
         with pytest.raises(UnsupportedFeatureError, match="CASCADE"):
-            TruncateExpression(dialect, table=Table(dialect, "users"), cascade=True).to_sql()
+            TruncateStatement(dialect, table=Table(dialect, "users"), cascade=True).to_sql()
 
     def test_restrict_unsupported(self, dialect):
         with pytest.raises(UnsupportedFeatureError, match="RESTRICT"):
-            TruncateExpression(dialect, table=Table(dialect, "users"), restrict=True).to_sql()
+            TruncateStatement(dialect, table=Table(dialect, "users"), restrict=True).to_sql()
 
 
 class TestAlterColumnDefault:
@@ -106,18 +106,18 @@ class TestAlterColumnDefault:
 
     def test_set_default_string(self, dialect):
         action = AlterColumn(dialect, "col", ColumnAlterOperation.SET_DEFAULT, new_value="ABC")
-        sql, params = AlterTableExpression(dialect, Table(dialect, "t"), [action]).to_sql()
+        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
         assert "ALTER COLUMN `col` SET DEFAULT 'ABC'" in sql
         assert params == ()
 
     def test_set_default_integer(self, dialect):
         action = AlterColumn(dialect, "num", ColumnAlterOperation.SET_DEFAULT, new_value=5)
-        sql, _ = AlterTableExpression(dialect, Table(dialect, "t"), [action]).to_sql()
+        sql, _ = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
         assert "ALTER COLUMN `num` SET DEFAULT 5" in sql
 
     def test_drop_default(self, dialect):
         action = AlterColumn(dialect, "col", ColumnAlterOperation.DROP_DEFAULT)
-        sql, params = AlterTableExpression(dialect, Table(dialect, "t"), [action]).to_sql()
+        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
         assert "ALTER COLUMN `col` DROP DEFAULT" in sql
         assert params == ()
 

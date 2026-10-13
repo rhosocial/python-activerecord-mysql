@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL FULLTEXT index options expression for CREATE TABLE / ALTER TABLE.
 
     Args:

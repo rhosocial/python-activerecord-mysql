@@ -22,10 +22,10 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
@@ -34,11 +34,11 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "articles"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "articles"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "articles"),
     columns=[
@@ -58,7 +58,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert = InsertExpression(
+insert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "articles"),
     columns=["title", "content"],
@@ -89,7 +89,7 @@ backend.execute(sql)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import QueryExpression, Column  # noqa: E402
+from rhosocial.activerecord.backend.expression import QueryStatement, Column  # noqa: E402
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression, MatchAgainstMode  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -118,7 +118,7 @@ match_for_where = MySQLMatchAgainstExpression(
 )
 
 # Build query using expression (supports alias via as_)
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),

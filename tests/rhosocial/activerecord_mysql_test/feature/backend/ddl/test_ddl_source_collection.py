@@ -8,7 +8,7 @@ except ImportError:
 from rhosocial.activerecord.backend.expression.core import Column, Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
-    CreateTableExpression,
+    CreateTableStatement,
     GeneratedColumnExpression,
     GeneratedColumnType,
     IndexDefinition,
@@ -385,7 +385,7 @@ def test_table_declarations_preserve_identity_order_and_composite_primary_key():
 
 def test_collected_table_options_render_with_mysql_dialect():
     table_options = SyncDDLSource.table_options()
-    expression = CreateTableExpression(
+    expression = CreateTableStatement(
         DIALECT,
         Table(DIALECT, "ddl_source_orders"),
         [ColumnDefinition(DIALECT, "id", IntegerType(DIALECT))],

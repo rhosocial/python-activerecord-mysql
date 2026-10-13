@@ -21,7 +21,7 @@ class MySQLExplainMixin:
         else:
             return False
 
-    def format_explain_statement(self, explain_expr: "ExplainExpression") -> tuple:
+    def format_explain_statement(self, explain_expr: "ExplainStatement") -> tuple:
         """Build the MySQL EXPLAIN SQL string and return (sql, params)."""
         from rhosocial.activerecord.backend.expression.statements import ExplainType
 

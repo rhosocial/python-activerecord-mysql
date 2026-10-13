@@ -17,7 +17,7 @@ Note: Vector support requires MySQL 9.0+
 
 from typing import TYPE_CHECKING, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
+class MySQLVectorExpression(AliasableMixin, SQLValue):
     """MySQL vector literal expression.
 
     Creates a vector value from array string.
@@ -53,7 +53,7 @@ class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
         return "format_vector_literal"
 
 
-class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Euclidean distance expression.
 
     Example:
@@ -79,7 +79,7 @@ class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue
         return "format_distance_euclidean"
 
 
-class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Cosine distance expression.
 
     Example:
@@ -105,7 +105,7 @@ class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExp
         return "format_distance_cosine"
 
 
-class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Dot product distance expression.
 
     Example:
@@ -131,7 +131,7 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
         return "format_distance_dot"
 
 
-class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL STRING_TO_VECTOR expression.
 
     Converts a string representation to a VECTOR value.
@@ -159,7 +159,7 @@ class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExp
         return "format_string_to_vector"
 
 
-class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL VECTOR_TO_STRING expression.
 
     Converts a VECTOR value to its string representation.
@@ -187,7 +187,7 @@ class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExp
         return "format_vector_to_string"
 
 
-class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL VECTOR_DIM expression.
 
     Returns the dimension of a VECTOR value.
@@ -215,7 +215,7 @@ class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return "format_vector_dim"
 
 
-class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL CREATE VECTOR INDEX expression.
 
     Args:

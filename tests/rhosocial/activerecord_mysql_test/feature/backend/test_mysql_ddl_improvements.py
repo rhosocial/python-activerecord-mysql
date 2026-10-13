@@ -7,9 +7,9 @@ from rhosocial.activerecord.model import ActiveRecord
 from rhosocial.activerecord.backend.expression import (
     Column,
     ColumnDefinition,
-    CreateTableExpression,
-    QueryExpression,
-    CreateViewExpression,
+    CreateTableStatement,
+    QueryStatement,
+    CreateViewStatement,
 )
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
@@ -57,10 +57,10 @@ class TestMySQLViewCapabilityGating:
     def test_create_view_check_option_gated(self):
         """WITH CHECK OPTION must fail fast when the capability is off."""
         dialect = MySQLDialect()
-        query = QueryExpression(
+        query = QueryStatement(
             dialect, select=[Column(dialect, "id")], from_=Table(dialect, "t")
         )
-        expr = CreateViewExpression(
+        expr = CreateViewStatement(
             dialect,
             view=View(dialect, "v"),
             query=query,
@@ -160,7 +160,7 @@ class TestMySQLTableDeclarationGating:
             id: int
 
         dialect = MySQLDialect()
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect,
             Table(dialect, Plain.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
@@ -173,7 +173,7 @@ class TestMySQLTableDeclarationGating:
     def test_table_inherits_is_propagated_and_rejected(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         assert dialect.supports_table_inheritance() is False
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect,
             Table(dialect, InheritedTable.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],
@@ -187,7 +187,7 @@ class TestMySQLTableDeclarationGating:
     def test_table_tablespace_is_propagated_and_rejected(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         assert dialect.supports_table_tablespace() is False
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect,
             Table(dialect, TablespacedTable.__table_name__),
             columns=[ColumnDefinition(dialect, "id", IntegerType(dialect))],

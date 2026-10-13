@@ -3,13 +3,13 @@
 
 from typing import TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.statements import InsertExpression
+from rhosocial.activerecord.backend.expression.statements import InsertStatement
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLInsertExpression(InsertExpression):
+class MySQLInsertExpression(InsertStatement):
     """A MySQL INSERT statement extending the generic one.
 
     MySQL supports ``REPLACE INTO`` and ``INSERT IGNORE`` which have no direct

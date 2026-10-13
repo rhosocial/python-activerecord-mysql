@@ -28,8 +28,8 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableExpression,
-    InsertExpression,
+    DropTableStatement,
+    InsertStatement,
     ValuesSource,
 )
 from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
@@ -39,14 +39,14 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-from rhosocial.activerecord.backend.expression import CreateTableExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression import CreateTableStatement  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "documents"),
     columns=[
@@ -70,7 +70,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert_expr = InsertExpression(
+insert_expr = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "documents"),
     columns=["data"],

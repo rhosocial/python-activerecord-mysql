@@ -26,12 +26,12 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    DropTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    DropTableStatement,
+    InsertStatement,
     ValuesSource,
-    UpdateExpression,
-    QueryExpression,
+    UpdateStatement,
+    QueryStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
@@ -45,11 +45,11 @@ from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "accounts"),
     columns=[
@@ -81,7 +81,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert_expr = InsertExpression(
+insert_expr = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "accounts"),
     columns=["name", "balance"],
@@ -106,7 +106,7 @@ dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 
 # Simple transaction - auto commits on success
 with backend.transaction():
-    update_expr = UpdateExpression(
+    update_expr = UpdateStatement(
         dialect=dialect,
         table=Table(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 50)},
@@ -116,7 +116,7 @@ with backend.transaction():
     backend.execute(sql, params, options=dml_options)
 
 # Verify
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[Column(dialect, "balance")],
     from_=Table(dialect, "accounts"),
@@ -134,7 +134,7 @@ if result.data:
 
 try:
     with backend.transaction():
-        update_expr = UpdateExpression(
+        update_expr = UpdateStatement(
             dialect=dialect,
             table=Table(dialect, "accounts"),
             assignments={"balance": Literal(dialect, -100)},
@@ -152,7 +152,7 @@ except Exception as e:
 # MySQL supports savepoints for nested transactions
 
 with backend.transaction():
-    update_expr = UpdateExpression(
+    update_expr = UpdateStatement(
         dialect=dialect,
         table=Table(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 40)},
@@ -163,7 +163,7 @@ with backend.transaction():
     backend.transaction_manager.savepoint("sp1")
 
     try:
-        update_expr2 = UpdateExpression(
+        update_expr2 = UpdateStatement(
             dialect=dialect,
             table=Table(dialect, "accounts"),
             assignments={"balance": Literal(dialect, 20)},

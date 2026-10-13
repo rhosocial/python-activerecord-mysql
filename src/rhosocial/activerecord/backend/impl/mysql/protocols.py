@@ -19,11 +19,11 @@ if TYPE_CHECKING:
         ChangeColumn,
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
-        CreateTableLikeExpression,
+        CreateTableLikeStatement,
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
-        CreateTriggerExpression,
-        DropTriggerExpression,
+        CreateTriggerStatement,
+        DropTriggerStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
         MySQLCacheIndexExpression,
@@ -189,7 +189,7 @@ class MySQLDMLOperationSupport(Protocol):
         ON CONFLICT clause for upsert operations.
 
         Args:
-            expr: OnConflictExpression or equivalent instance
+            expr: OnConflictClause or equivalent instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -264,22 +264,22 @@ class MySQLTriggerSupport(Protocol):
         """
         ...
 
-    def format_create_trigger_statement(self, expr: "CreateTriggerExpression") -> Tuple[str, tuple]:
+    def format_create_trigger_statement(self, expr: "CreateTriggerStatement") -> Tuple[str, tuple]:
         """Format CREATE TRIGGER statement.
 
         Args:
-            expr: CreateTriggerExpression instance
+            expr: CreateTriggerStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_drop_trigger_statement(self, expr: "DropTriggerExpression") -> Tuple[str, tuple]:
+    def format_drop_trigger_statement(self, expr: "DropTriggerStatement") -> Tuple[str, tuple]:
         """Format DROP TRIGGER statement.
 
         Args:
-            expr: DropTriggerExpression instance
+            expr: DropTriggerStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -353,7 +353,7 @@ class MySQLTableSupport(TableObjectSupport, Protocol):
         ...
 
     def format_create_table_like_statement(
-        self, expr: "CreateTableLikeExpression"
+        self, expr: "CreateTableLikeStatement"
     ) -> Tuple[str, tuple]:
         """Format CREATE TABLE ... LIKE statement."""
         ...

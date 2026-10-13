@@ -177,7 +177,7 @@ from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
-        InsertExpression,
+        InsertStatement,
     )
 
 
@@ -527,7 +527,7 @@ class MySQLDialect(
         """MySQL's ON DUPLICATE KEY UPDATE allows only a single clause."""
         return False
 
-    def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
+    def format_insert_statement(self, expr: "InsertStatement") -> Tuple[str, tuple]:
         """Format INSERT statement with MySQL-specific options.
 
         Extends the base implementation to support the typed flags on
@@ -536,7 +536,7 @@ class MySQLDialect(
         - ``replace=True`` → ``REPLACE INTO``
 
         Args:
-            expr: InsertExpression instance
+            expr: InsertStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -555,7 +555,7 @@ class MySQLDialect(
         if self.strict_validation:
             expr.validate(strict=True)
 
-        require_kind(expr.into, Table, "InsertExpression.into")
+        require_kind(expr.into, Table, "InsertStatement.into")
 
         # Check for conflicting options
         is_replace = getattr(expr, "replace", False)

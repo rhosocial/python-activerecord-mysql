@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL SET literal value expression.
 
     Args:
@@ -42,7 +42,7 @@ class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
         return "format_set_literal"
 
 
-class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL FIND_IN_SET expression.
 
     Args:
@@ -71,7 +71,7 @@ class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
         return "format_find_in_set"
 
 
-class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL SET contains check expression.
 
     Args:

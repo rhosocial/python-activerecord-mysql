@@ -1,7 +1,7 @@
 """
 MySQL JSON_TABLE - Convert JSON data to relational format (MySQL 8.0+).
 
-Demonstrates using MySQLJSONTableExpression with QueryExpression to build
+Demonstrates using MySQLJSONTableExpression with QueryStatement to build
 a SELECT query that flattens JSON array data into relational rows.
 """
 
@@ -25,10 +25,10 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
@@ -37,11 +37,11 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
     ColumnConstraintType,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "orders"),
     columns=[
@@ -60,7 +60,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert = InsertExpression(
+insert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "orders"),
     columns=["order_data"],
@@ -86,7 +86,7 @@ backend.execute(sql, params)
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    QueryExpression,
+    QueryStatement,
     Column,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (  # noqa: E402
@@ -111,11 +111,11 @@ json_table = MySQLJSONTableExpression(
 json_table_sql, json_table_params = json_table.to_sql()
 print(f"JSON_TABLE SQL: {json_table_sql}")
 
-# Build the query using QueryExpression with a comma-separated FROM clause
+# Build the query using QueryStatement with a comma-separated FROM clause
 # (equivalent to an implicit CROSS JOIN).
 # Note: MySQLJSONTableExpression is not yet in the FromSourceType validation whitelist,
 # so we temporarily disable strict validation when generating SQL.
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id", table="o"),

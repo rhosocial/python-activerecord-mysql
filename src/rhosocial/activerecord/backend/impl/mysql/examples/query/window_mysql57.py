@@ -34,10 +34,10 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
@@ -47,11 +47,11 @@ from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "sales_data"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "sales_data"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "sales_data"),
     columns=[
@@ -72,7 +72,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert = InsertExpression(
+insert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "sales_data"),
     columns=["salesperson", "region", "amount"],

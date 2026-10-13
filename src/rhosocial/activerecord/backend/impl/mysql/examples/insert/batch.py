@@ -9,8 +9,8 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    DropTableExpression,
+    CreateTableStatement,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
 from rhosocial.activerecord.backend.expression.statements import (
@@ -34,11 +34,11 @@ backend.connect()
 dialect = backend.dialect
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "logs"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "logs"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "logs"),
     columns=[
@@ -72,15 +72,15 @@ backend.execute(sql, params)
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    InsertExpression,
+    InsertStatement,
     ValuesSource,
-    QueryExpression,
+    QueryStatement,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, WildcardExpression, Column  # noqa: E402
+from rhosocial.activerecord.backend.expression.core import Literal, Wildcard, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
-insert_expr = InsertExpression(
+insert_expr = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "logs"),
     source=ValuesSource(
@@ -105,9 +105,9 @@ print(f"Params: {params}")
 result = backend.execute(sql, params)
 print(f"Affected rows: {result.affected_rows}")
 
-verify_query = QueryExpression(
+verify_query = QueryStatement(
     dialect=dialect,
-    select=[WildcardExpression(dialect)],
+    select=[Wildcard(dialect)],
     from_=Table(dialect, "logs"),
     order_by=OrderByClause(dialect, [Column(dialect, "id")]),
 )

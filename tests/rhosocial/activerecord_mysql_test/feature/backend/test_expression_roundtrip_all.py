@@ -376,7 +376,7 @@ _UNBUILDABLE = {
     "uuid.UUIDConstantExpression":
         "which must name 'nil' or 'max' and __init__ rejects anything else, so "
         "the filler's guess is refused at construction.",
-    "uuid.UUIDCastExpression":
+    "uuid.UUIDCastFunction":
         "expression is annotated Any, so the filler supplies a string where the "
         "node requires an expression to cast.",
     "uuid.UUIDGenerationExpression":
@@ -409,16 +409,16 @@ _DECLARED_GAP = {
     # Each of these has a ``supports_*`` method answering True while the
     # formatter the expression dispatches to does not exist, so a caller that
     # asks whether the feature is available is told yes and is then refused.
-    "statements.ddl_schema.CreateSchemaExpression": (
+    "statements.ddl_schema.CreateSchemaStatement": (
         "format_create_schema_statement",
         "DECLARED BUT NOT RENDERED. MySQLSchemaMixin.supports_create_schema() "
         "answers True -- MySQL takes SCHEMA as a synonym for DATABASE -- yet "
         "MySQLDialect defines no format_create_schema_statement. The dialect "
         "claims the capability and refuses the statement.",
     ),
-    "statements.ddl_schema.DropSchemaExpression": (
+    "statements.ddl_schema.DropSchemaStatement": (
         "format_drop_schema_statement",
-        "DECLARED BUT NOT RENDERED. Same shape as CreateSchemaExpression: "
+        "DECLARED BUT NOT RENDERED. Same shape as CreateSchemaStatement: "
         "MySQLSchemaMixin.supports_drop_schema() answers True and "
         "format_drop_schema_statement is absent.",
     ),
@@ -432,7 +432,7 @@ _DECLARED_GAP = {
         "nothing in src or tests constructs it.",
     ),
     # --- SQL/PGQ: property graphs are not a MySQL feature. ----------------
-    "graph.AlterPropertyGraphExpression": (
+    "graph.AlterPropertyGraphStatement": (
         "format_alter_property_graph_statement",
         "SQL/PGQ: MySQL has no property graphs, so no "
         "format_alter_property_graph_statement exists.",
@@ -441,11 +441,11 @@ _DECLARED_GAP = {
         "format_graph_columns_clause",
         "SQL/PGQ graph column list; no format_graph_columns_clause.",
     ),
-    "graph.CreatePropertyGraphExpression": (
+    "graph.CreatePropertyGraphStatement": (
         "format_create_property_graph_statement",
         "SQL/PGQ: no format_create_property_graph_statement.",
     ),
-    "graph.DropPropertyGraphExpression": (
+    "graph.DropPropertyGraphStatement": (
         "format_drop_property_graph_statement",
         "SQL/PGQ: no format_drop_property_graph_statement.",
     ),
@@ -476,8 +476,8 @@ _DECLARED_GAP = {
         "UNPIVOT is T-SQL/Oracle; MySQL declares no formatter.",
     ),
     # --- Case-insensitive matching is written LOWER() = LOWER() here. -----
-    "predicates.ILIKEExpression": (
-        "format_ilike_expression",
+    "predicates.ILikePredicate": (
+        "format_ilike_predicate",
         "MySQL has no ILIKE operator; case-insensitive matching is written "
         "LOWER(a) = LOWER(b), and no formatter exists.",
     ),
@@ -489,7 +489,7 @@ _DECLARED_GAP = {
         "base that implements it.",
     ),
     # --- COMMENT ON is SQL-standard/PostgreSQL. ---------------------------
-    "statements.ddl_comment.CommentOnExpression": (
+    "statements.ddl_comment.CommentOnStatement": (
         "format_comment_statement",
         "COMMENT ON is SQL-standard/PostgreSQL. MySQL spells a table comment "
         "as a CREATE TABLE option and a column comment inline, which "
@@ -506,16 +506,16 @@ _DECLARED_GAP = {
     # the dispatch, which is the same declared gap as the property-graph rows
     # above and stated for the same reason. Naming a sequence is untouched:
     # SequenceNameMixin stays, so Sequence(dialect, "s").to_sql() renders.
-    "statements.ddl_sequence.CreateSequenceExpression": (
+    "statements.ddl_sequence.CreateSequenceStatement": (
         "format_create_sequence_statement",
         "MySQL has no sequence object; AUTO_INCREMENT columns are how rows are "
         "numbered. MySQLDialect mixes in no base providing this formatter.",
     ),
-    "statements.ddl_sequence.DropSequenceExpression": (
+    "statements.ddl_sequence.DropSequenceStatement": (
         "format_drop_sequence_statement",
         "MySQL has no sequence object; no format_drop_sequence_statement.",
     ),
-    "statements.ddl_sequence.AlterSequenceExpression": (
+    "statements.ddl_sequence.AlterSequenceStatement": (
         "format_alter_sequence_statement",
         "MySQL has no sequence object; no format_alter_sequence_statement.",
     ),
@@ -562,9 +562,9 @@ _DECLARED_GAP = {
         "format_xmlelement_expression",
         "XML functions are not in MySQL; no format_xmlelement_expression.",
     ),
-    "xml.XMLExistsExpression": (
-        "format_xmlexists_expression",
-        "XML functions are not in MySQL; no format_xmlexists_expression.",
+    "xml.XMLExistsPredicate": (
+        "format_xmlexists_predicate",
+        "XML functions are not in MySQL; no format_xmlexists_predicate.",
     ),
     "xml.XMLPIExpression": (
         "format_xmlpi_expression",
@@ -601,16 +601,16 @@ _DECLARED_GAP = {
 # a wrong value.
 _NOT_RENDERED = {
     # --- A MySQL formatter shadows the core one and reads other slots. ----
-    "statements.ddl_function.CreateFunctionExpression": (
+    "statements.ddl_function.CreateFunctionStatement": (
         "AttributeError",
         "MySQLRoutineMixin.format_create_function_statement reads expr.name; "
-        "core's CreateFunctionExpression carries expr.function, so the MySQL "
+        "core's CreateFunctionStatement carries expr.function, so the MySQL "
         "routine formatter shadows the core one for an expression it cannot "
         "render.",
     ),
-    "statements.ddl_function.DropFunctionExpression": (
+    "statements.ddl_function.DropFunctionStatement": (
         "AttributeError",
-        "Same shadowing as CreateFunctionExpression.",
+        "Same shadowing as CreateFunctionStatement.",
     ),
     "query_sources.JSONTableExpression": (
         "AttributeError",
@@ -619,7 +619,7 @@ _NOT_RENDERED = {
         "shape, so the MySQL formatter cannot read it.",
     ),
     # --- The dialect correctly refuses what the harness invented. ---------
-    "collation.CollateExpression": (
+    "collation.CollateFunction": (
         "ValueError",
         "The generic constructor supplies \"x\" for collation_name and MySQL's "
         "validate_collation_name refuses a collation it does not know. The "
@@ -698,7 +698,7 @@ _NOT_RENDERED = {
         "this backend uses.",
     ),
     # --- The instance the generic constructor builds is not a valid one. ---
-    "advanced_functions.CaseExpression": (
+    "advanced_functions.CaseFunction": (
         "ValueError",
         "CASE needs at least one WHEN/THEN pair; the generic constructor "
         "supplies an empty list.",
@@ -851,7 +851,7 @@ _NOT_RENDERED = {
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_trigger.CreateTriggerExpression": (
+    "statements.ddl_trigger.CreateTriggerStatement": (
         "AttributeError",
         "timing must be a TriggerTiming member; the generic constructor "
         "supplies a string.",
@@ -873,7 +873,7 @@ _NOT_RENDERED = {
         "MERGE at all -- upsert is ON DUPLICATE KEY UPDATE -- so this row is "
         "core's shape rather than MySQL's.",
     ),
-    "statements.dml.MergeExpression": (
+    "statements.dml.MergeStatement": (
         "AttributeError",
         "source must be a row source; the generic constructor supplies a "
         "string. MySQL has no MERGE.",

@@ -1,7 +1,7 @@
 # tests/providers/fixtures/query.py
 """DDL expressions for the ``feature/query`` table group (MySQL).
 
-Each factory builds a :class:`CreateTableExpression` whose generated MySQL DDL
+Each factory builds a :class:`CreateTableStatement` whose generated MySQL DDL
 is semantically equivalent to the reference ``.sql`` schema files under
 ``tests/rhosocial/activerecord_mysql_test/feature/query/schema/``.  Those
 ``.sql`` files are kept as the authoritative reference and are no longer
@@ -11,7 +11,7 @@ loaded at runtime.
 from typing import Callable, Dict
 
 from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
+    CreateTableStatement,
 )
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
@@ -44,7 +44,7 @@ _DEFAULT_STORAGE_OPTIONS = {
 _CASCADE = ReferentialAction.CASCADE
 
 
-def to_sql(expr: CreateTableExpression):
+def to_sql(expr: CreateTableStatement):
     return _common.to_mysql_ddl_sql(expr)
 
 
@@ -52,8 +52,8 @@ def to_sql(expr: CreateTableExpression):
 # query/users.sql
 # ---------------------------------------------------------------------------
 
-def create_users_table(dialect, table_name: str = "users") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_users_table(dialect, table_name: str = "users") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -84,8 +84,8 @@ def create_users_table(dialect, table_name: str = "users") -> CreateTableExpress
 # query/posts.sql
 # ---------------------------------------------------------------------------
 
-def create_posts_table(dialect, table_name: str = "posts") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_posts_table(dialect, table_name: str = "posts") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -119,8 +119,8 @@ def create_posts_table(dialect, table_name: str = "posts") -> CreateTableExpress
 # query/comments.sql
 # ---------------------------------------------------------------------------
 
-def create_comments_table(dialect, table_name: str = "comments") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_comments_table(dialect, table_name: str = "comments") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -155,8 +155,8 @@ def create_comments_table(dialect, table_name: str = "comments") -> CreateTableE
 # query/orders.sql
 # ---------------------------------------------------------------------------
 
-def create_orders_table(dialect, table_name: str = "orders") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_orders_table(dialect, table_name: str = "orders") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -188,8 +188,8 @@ def create_orders_table(dialect, table_name: str = "orders") -> CreateTableExpre
 # query/order_items.sql
 # ---------------------------------------------------------------------------
 
-def create_order_items_table(dialect, table_name: str = "order_items") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_order_items_table(dialect, table_name: str = "order_items") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -224,8 +224,8 @@ def create_order_items_table(dialect, table_name: str = "order_items") -> Create
 # query/profiles.sql
 # ---------------------------------------------------------------------------
 
-def create_profiles_table(dialect, table_name: str = "profiles") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_profiles_table(dialect, table_name: str = "profiles") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -250,8 +250,8 @@ def create_profiles_table(dialect, table_name: str = "profiles") -> CreateTableE
 # query/json_users.sql
 # ---------------------------------------------------------------------------
 
-def create_json_users_table(dialect, table_name: str = "json_users") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_json_users_table(dialect, table_name: str = "json_users") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -281,8 +281,8 @@ def create_json_users_table(dialect, table_name: str = "json_users") -> CreateTa
 # query/nodes.sql (self-referential FK)
 # ---------------------------------------------------------------------------
 
-def create_nodes_table(dialect, table_name: str = "nodes") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_nodes_table(dialect, table_name: str = "nodes") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -312,8 +312,8 @@ def create_nodes_table(dialect, table_name: str = "nodes") -> CreateTableExpress
 # query/searchable_items.sql (no CHARSET/COLLATE in reference file)
 # ---------------------------------------------------------------------------
 
-def create_searchable_items_table(dialect, table_name: str = "searchable_items") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_searchable_items_table(dialect, table_name: str = "searchable_items") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -333,8 +333,8 @@ def create_searchable_items_table(dialect, table_name: str = "searchable_items")
 # query/extended_orders.sql
 # ---------------------------------------------------------------------------
 
-def create_extended_orders_table(dialect, table_name: str = "extended_orders") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_extended_orders_table(dialect, table_name: str = "extended_orders") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,
@@ -383,8 +383,8 @@ def create_extended_orders_table(dialect, table_name: str = "extended_orders") -
 # query/extended_order_items.sql
 # ---------------------------------------------------------------------------
 
-def create_extended_order_items_table(dialect, table_name: str = "extended_order_items") -> CreateTableExpression:
-    return CreateTableExpression(
+def create_extended_order_items_table(dialect, table_name: str = "extended_order_items") -> CreateTableStatement:
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_not_exists=False,

@@ -9,7 +9,7 @@ from .object_kind import require_kind
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnDefinition,
-        CreateTableLikeExpression,
+        CreateTableLikeStatement,
         IndexDefinition,
         StorageOptionsExpression,
         TableConstraint,
@@ -77,7 +77,7 @@ class MySQLTableMixin:
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        require_kind(expr.table, Table, "CreateTableExpression.table")
+        require_kind(expr.table, Table, "CreateTableStatement.table")
         if expr.tablespace:
             raise UnsupportedFeatureError(
                 self.name, "TABLESPACE",
@@ -167,7 +167,7 @@ class MySQLTableMixin:
 
         return " ".join(parts), tuple(all_params)
 
-    def format_create_table_like_statement(self, expr: "CreateTableLikeExpression") -> Tuple[str, tuple]:
+    def format_create_table_like_statement(self, expr: "CreateTableLikeStatement") -> Tuple[str, tuple]:
         """Render ``CREATE TABLE ... LIKE`` via the generic TableMixin formatter."""
         return super().format_create_table_like_statement(expr)
 
