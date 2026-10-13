@@ -129,7 +129,11 @@ class MySQLTableMixin:
 
         if expr.storage_options:
             from rhosocial.activerecord.backend.expression.statements.ddl_table import StorageOptionsExpression
-            storage_expr = StorageOptionsExpression(self, expr.storage_options) if isinstance(expr.storage_options, dict) else expr.storage_options
+            storage_expr = (
+                StorageOptionsExpression(self, expr.storage_options)
+                if isinstance(expr.storage_options, dict)
+                else expr.storage_options
+            )
             storage_sql, storage_params = self.format_storage_options(storage_expr)
             if storage_sql:
                 parts.append(storage_sql)
@@ -247,6 +251,25 @@ class MySQLTableMixin:
                 Table,
                 "TableConstraint.foreign_key_table",
             )
+        # [NOT] ENFORCED is a CHECK-only clause on this server (measured on
+        # Community Server 26.7.0: UNIQUE and FOREIGN KEY answer 1064). The
+        # request used to fall through the other branches silently; it is
+        # refused by name instead, matching the column path's narrowing.
+        if t_const.enforced or t_const.not_enforced:
+            if t_const.constraint_type is not TableConstraintType.CHECK:
+                from rhosocial.activerecord.backend.dialect.exceptions import (
+                    UnsupportedFeatureError,
+                )
+                feature = (
+                    f"{t_const.constraint_type.value} ENFORCED"
+                    if t_const.enforced
+                    else f"{t_const.constraint_type.value} NOT ENFORCED"
+                )
+                raise UnsupportedFeatureError(
+                    self.name,
+                    feature,
+                    f"{self.name} does not support {feature}.",
+                )
         parts = []
         params: List[Any] = []
 
