@@ -195,6 +195,16 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "types.MySQLEnumType": "values must be a non-empty list of labels.",
     "types.MySQLSetType": "values must be a non-empty list of labels.",
     "types.MySQLVectorType": "dim must be a positive integer.",
+    # Core predicates whose operand slots the generic guess fills with plain
+    # strings (the core's wildcard-split commit calls this out: value nodes in
+    # operand positions, supplied as strings). The factories hand them real
+    # value nodes, exactly as the core's own dummy2 matrix registers them.
+    "predicates.LikePredicate": "op is annotated str and the two operands "
+    "are string forward references, so the generic constructor supplies "
+    "plain strings where value nodes belong and the instance cannot render.",
+    "predicates.ILikePredicate": "column is annotated Any, so the generic "
+    "constructor supplies a plain string where a value node belongs and the "
+    "instance cannot render.",
 }
 
 #: Every class with a dedicated constructor, in one mapping, so
@@ -255,7 +265,16 @@ def _register_mysql_specials():
 
         return getattr(mod, cls_name)(d, table=Table(d, "t"), partitions=["p0"])
 
+    from rhosocial.activerecord.backend.expression.predicates import (
+        ILikePredicate,
+        LikePredicate,
+    )
+
     factories = {
+        "predicates.LikePredicate":
+            lambda d: LikePredicate(d, "LIKE", Column(d, "a"), Literal(d, "%x%")),
+        "predicates.ILikePredicate":
+            lambda d: ILikePredicate(d, Column(d, "a"), "%x%"),
         "match_against.MySQLMatchAgainstExpression":
             lambda d: MySQLMatchAgainstExpression(d, columns=["title"], search_string="x"),
         "json.MySQLJSONObjectExpression":
@@ -520,6 +539,13 @@ _DECLARED_GAP = {
         "MySQL has no sequence object; no format_alter_sequence_statement.",
     ),
     # --- XML functions are not in MySQL. -----------------------------------
+    # The S1-c PASSING clause rides the XML querying expressions; MySQL has
+    # none of that family, so the clause's own formatter is absent too and the
+    # dispatch refuses it -- the same declared gap as the rows below it.
+    "xml.PassingClause": (
+        "format_passing_clause",
+        "XML functions are not in MySQL; no format_passing_clause.",
+    ),
     "xml.XMLAggExpression": (
         "format_xmlagg_expression",
         "XML functions are not in MySQL; no format_xmlagg_expression.",
