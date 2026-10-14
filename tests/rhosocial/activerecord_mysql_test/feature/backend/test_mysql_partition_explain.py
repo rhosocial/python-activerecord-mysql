@@ -10,10 +10,10 @@ import pytest
 
 from rhosocial.activerecord.backend.expression import (
     Column,
-    ComparisonPredicate,
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ComparisonPredicate,
     CreateTableStatement,
     DropTableStatement,
     IndexDefinition,
@@ -49,9 +49,9 @@ def _create_partition_explain_table_expression(dialect):
         dialect=dialect,
         table=Table(dialect, PARTITION_EXPLAIN_TABLE),
         columns=[
-            ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+            ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ],
         indexes=[

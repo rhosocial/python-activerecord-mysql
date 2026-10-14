@@ -59,7 +59,7 @@ from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now,
 )
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition, ColumnConstraint, ColumnConstraintType,
+    ColumnDefinition, ColumnConstraint, ColumnDefaultConstraint,
 )
 
 # Correct: Use factory functions for SQL:2003 niladic functions
@@ -67,8 +67,8 @@ ColumnDefinition(
     name='created_at',
     data_type='TIMESTAMP',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=current_timestamp(dialect)),
+        ColumnConstraint(dialect,
+                         branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect))),
         # Generates: `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         # (no parentheses — SQL:2003 niladic form)
     ],
@@ -79,8 +79,8 @@ ColumnDefinition(
     name='updated_at',
     data_type='DATETIME',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=now(dialect)),
+        ColumnConstraint(dialect,
+                         branch=ColumnDefaultConstraint(dialect, now(dialect))),
         # Generates: `updated_at` DATETIME DEFAULT NOW()
     ],
 )
@@ -90,7 +90,7 @@ ColumnDefinition(
     name='is_active',
     data_type='TINYINT(1)',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
+        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 1)),
         # Generates: `is_active` TINYINT(1) DEFAULT 1
     ],
 )
@@ -100,7 +100,7 @@ ColumnDefinition(
     name='status',
     data_type='VARCHAR(20)',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='active'),
+        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 'active')),
         # Generates: `status` VARCHAR(20) DEFAULT 'active'
     ],
 )
@@ -111,7 +111,7 @@ ColumnDefinition(
 ```python
 # WRONG: Passing SQL keywords as Python strings
 # This would generate DEFAULT 'CURRENT_TIMESTAMP' (quoted, treated as string literal)
-ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP')
+ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 'CURRENT_TIMESTAMP'))
 ```
 
 **Common statement-level constants reference:**

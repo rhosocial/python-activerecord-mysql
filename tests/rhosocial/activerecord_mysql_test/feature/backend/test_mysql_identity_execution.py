@@ -36,8 +36,8 @@ from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.expression.statements import (
     AutoIncrementClause,
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
+    ColumnPrimaryKeyConstraint,
     CreateTableStatement,
     DropTableStatement,
     IdentityClause,
@@ -56,7 +56,8 @@ def _auto_increment_column(dialect, name="id"):
         IntegerType(dialect),
         constraints=[
             ColumnConstraint(
-                dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True
+                dialect,
+                branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)
             )
         ],
     )

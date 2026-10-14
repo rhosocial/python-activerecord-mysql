@@ -21,7 +21,8 @@ from rhosocial.activerecord.backend.expression import (
 )
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
 
@@ -68,17 +69,17 @@ def main():
         ColumnDefinition(
             "id",
             "INTEGER",
-            constraints=[ColumnConstraint(ColumnConstraintType.PRIMARY_KEY)]
+            constraints=[ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None))]
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
-            constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]
+            constraints=[ColumnConstraint(None, branch=ColumnNotNullConstraint(None))]
         ),
         ColumnDefinition(
             "email",
             "VARCHAR(255)",
-            constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)]
+            constraints=[ColumnConstraint(None, branch=ColumnNotNullConstraint(None))]
         ),
     ]
 

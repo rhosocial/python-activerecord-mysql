@@ -35,9 +35,10 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
 # Drop dependent tables first for clean setup
@@ -57,15 +58,15 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
     ],

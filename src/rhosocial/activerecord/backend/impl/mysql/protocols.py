@@ -20,6 +20,8 @@ if TYPE_CHECKING:
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         CreateTableLikeStatement,
+        TableCheckConstraint,
+        TableForeignKeyConstraint,
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
         CreateTriggerStatement,
@@ -366,8 +368,16 @@ class MySQLTableSupport(TableObjectSupport, Protocol):
         """Whether an inline column COMMENT is supported (MySQL: yes)."""
         ...
 
-    def format_table_constraint(self, t_const: Any) -> Tuple[str, tuple]:
-        """Format a table-level constraint."""
+    def format_table_check_constraint(
+        self, constraint: "TableCheckConstraint"
+    ) -> Tuple[str, tuple]:
+        """Format the table-level ``CHECK`` body, refusing it below 8.0.16."""
+        ...
+
+    def format_table_foreign_key_constraint(
+        self, constraint: "TableForeignKeyConstraint"
+    ) -> Tuple[str, tuple]:
+        """Format the table-level ``FOREIGN KEY`` with MySQL's spaced column list."""
         ...
 
     def format_index_definition(self, idx_def: Any) -> Tuple[str, tuple]:

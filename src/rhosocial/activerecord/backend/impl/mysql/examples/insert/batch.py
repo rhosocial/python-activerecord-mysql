@@ -14,9 +14,11 @@ from rhosocial.activerecord.backend.expression import (
 )
 from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
@@ -46,8 +48,8 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition("level", "VARCHAR(20)"),
@@ -57,14 +59,14 @@ create_table = CreateTableStatement(
             "TIMESTAMP",
             constraints=[
                 ColumnConstraint(
-                    ColumnConstraintType.DEFAULT,
-                    default_value=current_timestamp(dialect),
-                ),
-            ],
-        ),
-    ],
-    if_not_exists=True,
-)
+                    None,
+                    branch=ColumnDefaultConstraint(None, current_timestamp(dialect))
+                    ),
+                    ],
+                    ),
+                    ],
+                    if_not_exists=True,
+                )
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 

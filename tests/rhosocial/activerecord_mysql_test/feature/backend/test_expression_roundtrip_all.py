@@ -856,11 +856,6 @@ _NOT_RENDERED = {
         "timing must be a TriggerTiming member; the generic constructor "
         "supplies a string.",
     ),
-    "statements.ddl_table.ColumnConstraint": (
-        "ValueError",
-        "constraint_type must be a ColumnConstraintType member or its string "
-        "value; the generic constructor supplies \"x\".",
-    ),
     "statements.ddl_table.ReferencesClause": (
         "ValueError",
         "REFERENCES needs at least one referenced column; the generic "

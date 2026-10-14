@@ -44,8 +44,8 @@ from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConf
 from rhosocial.activerecord.backend.expression import CreateTableExpression
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.types import IntegerType, VarCharType
 from rhosocial.activerecord.model import ActiveRecord
@@ -86,8 +86,7 @@ create_users = CreateTableExpression(
             constraints=[
                 ColumnConstraint(
                     dialect,
-                    ColumnConstraintType.PRIMARY_KEY,
-                    is_auto_increment=True,
+                    branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True),
                 )
             ],
         ),

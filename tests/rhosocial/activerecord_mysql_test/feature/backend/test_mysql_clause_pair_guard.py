@@ -37,10 +37,11 @@ from rhosocial.activerecord.backend.expression.predicates import ComparisonPredi
 from rhosocial.activerecord.backend.expression.query_sources import CTEClause
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnForeignKeyConstraint,
     CreateTableAsStatement,
+    TableCheckConstraint,
     TableConstraint,
-    TableConstraintType,
+    TableForeignKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_truncate import (
     TruncateStatement,
@@ -77,11 +78,8 @@ def _query(d):
 def _fk(d, **kw):
     return TableConstraint(
         d,
-        TableConstraintType.FOREIGN_KEY,
+        branch=TableForeignKeyConstraint(d, ["a"], (_table(d, "t2"), ["b"])),
         name="fk",
-        columns=["a"],
-        foreign_key_table=_table(d, "t2"),
-        foreign_key_columns=["b"],
         **kw,
     )
 
@@ -89,9 +87,10 @@ def _fk(d, **kw):
 def _check(d, **kw):
     return TableConstraint(
         d,
-        TableConstraintType.CHECK,
+        branch=TableCheckConstraint(
+            d, ComparisonPredicate(d, "=", Column(d, "a"), Column(d, "b"))
+        ),
         name="ck",
-        check_condition=ComparisonPredicate(d, "=", Column(d, "a"), Column(d, "b")),
         **kw,
     )
 
@@ -99,9 +98,8 @@ def _check(d, **kw):
 def _column_fk(d, **kw):
     return ColumnConstraint(
         d,
-        ColumnConstraintType.FOREIGN_KEY,
+        branch=ColumnForeignKeyConstraint(d, (_table(d, "t2"), ["b"])),
         name="fk",
-        foreign_key_reference=(_table(d, "t2"), ["b"]),
         **kw,
     )
 

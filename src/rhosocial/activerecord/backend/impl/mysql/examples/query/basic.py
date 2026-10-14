@@ -31,9 +31,10 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
 )
 from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
 drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
@@ -52,14 +53,14 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
-            constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
+            constraints=[ColumnConstraint(None, branch=ColumnNotNullConstraint(None))],
         ),
         ColumnDefinition("age", "INT"),
         ColumnDefinition("status", "VARCHAR(20)"),

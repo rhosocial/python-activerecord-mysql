@@ -7,7 +7,46 @@ if TYPE_CHECKING:  # pragma: no cover
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnConstraint,
+        TableConstraint,
     )
+
+
+def _constraint_kind_sql(branch) -> str:
+    """The SQL spelling of a constraint branch's kind.
+
+    A refusal names the constraint the way the caller spelled it, so the
+    message reads ``FOREIGN KEY NOT ENFORCED`` rather than naming an enum
+    member or a Python class. The kind used to be a tag on an enum and is a
+    branch class now, so the mapping is derived rather than carried on the
+    node; a branch outside the table falls back to its own name rather than
+    being silently reported as some other kind.
+
+    The branches are imported here rather than at module scope because the
+    expression layer is behind the lazy-import boundary this package uses.
+    """
+    from rhosocial.activerecord.backend.expression.statements import (
+        ColumnCheckConstraint,
+        ColumnForeignKeyConstraint,
+        ColumnPrimaryKeyConstraint,
+        ColumnUniqueConstraint,
+        TableCheckConstraint,
+        TableExcludeConstraint,
+        TableForeignKeyConstraint,
+        TablePrimaryKeyConstraint,
+        TableUniqueConstraint,
+    )
+
+    return {
+        ColumnPrimaryKeyConstraint: "PRIMARY KEY",
+        TablePrimaryKeyConstraint: "PRIMARY KEY",
+        ColumnUniqueConstraint: "UNIQUE",
+        TableUniqueConstraint: "UNIQUE",
+        ColumnForeignKeyConstraint: "FOREIGN KEY",
+        TableForeignKeyConstraint: "FOREIGN KEY",
+        ColumnCheckConstraint: "CHECK",
+        TableCheckConstraint: "CHECK",
+        TableExcludeConstraint: "EXCLUDE",
+    }.get(type(branch), type(branch).__name__)
 
 
 class MySQLConstraintMixin:
@@ -368,30 +407,30 @@ class MySQLConstraintMixin:
         ``3941`` names PRIMARY, UNIQUE and FOREIGN KEY -- measured, see
         :meth:`supports_alter_constraint_enforced`), so the dialect refuses
         them by name instead of sending a statement the server rejects.
+        The action names its kind by the branch class it carries; the
+        constructor has already refused every branch but CHECK and
+        FOREIGN KEY, so the narrowing left here is the FOREIGN KEY half.
 
         Raises:
-            TypeError: ``constraint_type`` is not a ``TableConstraintType``.
-            UnsupportedFeatureError: The kind is anything but CHECK.
+            UnsupportedFeatureError: The branch is anything but a table
+                CHECK.
         """
         from rhosocial.activerecord.backend.dialect.exceptions import (
             UnsupportedFeatureError,
         )
         from rhosocial.activerecord.backend.expression.statements import (
-            TableConstraintType,
+            TableCheckConstraint,
         )
 
-        constraint_type = action.constraint_type
-        if not isinstance(constraint_type, TableConstraintType):
-            raise TypeError(
-                "constraint_type must be a TableConstraintType, got "
-                f"{type(constraint_type).__name__}"
-            )
-        if constraint_type is not TableConstraintType.CHECK:
+        branch = action.constraint_branch
+        if branch is not TableCheckConstraint:
+            feature = f"ALTER CONSTRAINT {_constraint_kind_sql(branch)} ENFORCED/NOT ENFORCED"
             raise UnsupportedFeatureError(
                 self.name,
-                f"ALTER CONSTRAINT {constraint_type.name} ENFORCED/NOT ENFORCED",
-                "MySQL alters the enforcement state of CHECK constraints only; the "
-                "server answers errno 3941 on PRIMARY KEY, UNIQUE and FOREIGN KEY.",
+                feature,
+                f"{self.name} does not support {feature}. MySQL alters the "
+                "enforcement state of CHECK constraints only; the server answers "
+                "errno 3941 on PRIMARY KEY, UNIQUE and FOREIGN KEY.",
             )
         return super().format_alter_constraint_action(action)
 
@@ -454,40 +493,140 @@ class MySQLConstraintMixin:
         """
         return self.version >= (8, 0, 16)
 
-    def _format_constraint_enforcement(self, constraint: "ColumnConstraint") -> str:
+    def _require_constraint_enforcement(self, constraint) -> None:
         """Narrow the ENFORCABLE kinds to CHECK for this server.
 
-        The shared helper renders whatever the standard-derived whitelist
+        The shared renderer accepts whatever the standard-derived whitelist
         allows; MySQL's parser accepts the trait on CHECK only (measured on
         Community Server 26.7.0: UNIQUE and FOREIGN KEY answer ``1064`` --
-        see :meth:`supports_constraint_enforced`), so the kind is narrowed
-        here and everything else is refused by name. The table-level path
-        renders through this backend's own ``format_table_constraint``,
-        which makes the same refusal inline.
+        see :meth:`supports_constraint_enforced`), so the branch is narrowed
+        here and everything else is refused by name. Both levels render the
+        trait through this gate -- the column path from
+        ``format_constraint_traits`` and the table path from the core's
+        ``format_table_constraint`` -- so one narrowing refuses alike for
+        the column clause and the table clause, and each refusal names the
+        kind and the spelling it refuses so the two halves of the trait
+        stay distinguishable.
+
+        Raises:
+            UnsupportedFeatureError: The branch is not a CHECK, or the
+                version predates the clause.
         """
-        if constraint.enforced or constraint.not_enforced:
+        if not (constraint.enforced or constraint.not_enforced):
+            return
+        from rhosocial.activerecord.backend.dialect.exceptions import (
+            UnsupportedFeatureError,
+        )
+
+        spelling = "ENFORCED" if constraint.enforced else "NOT ENFORCED"
+        kind = _constraint_kind_sql(constraint.branch)
+        if kind != "CHECK":
+            raise UnsupportedFeatureError(
+                self.name,
+                f"{kind} {spelling}",
+                f"{self.name} does not support {kind} {spelling}. MySQL carries "
+                "[NOT] ENFORCED on CHECK constraints only; the server answers "
+                "1064 on every other kind (measured on 26.7.0).",
+            )
+        if not self.supports_constraint_enforced():
+            feature = f"CHECK {spelling}"
+            raise UnsupportedFeatureError(
+                self.name,
+                feature,
+                f"{self.name} does not support {feature}. MySQL accepts "
+                f"{spelling} on CHECK constraints from 8.0.16 on; below that the "
+                "clause parses and is discarded (measured on 26.7.0: 1064).",
+            )
+
+    def _format_constraint_enforcement(self, constraint: "ColumnConstraint") -> str:
+        """Render the enforcement trait behind this backend's narrowing.
+
+        The shared private hook takes the production, so it is shared by the
+        column-level trait renderer and the table-level one: the kind
+        narrowing must therefore live in a helper both can reach, not in the
+        kind test itself. That is what :meth:`_require_constraint_enforcement`
+        is -- the table path calls it ahead of the branch body (see
+        :meth:`format_table_constraint`) so the refusal still names the
+        spelling when the branch has its own, earlier refusal to make.
+        """
+        self._require_constraint_enforcement(constraint)
+        return super()._format_constraint_enforcement(constraint)
+
+    # Constraint deferral (the rendering half; the probe is above)
+
+    def _require_no_constraint_deferral(self, constraint) -> None:
+        """Refuse a deferral trait by the exact spelling that was asked for.
+
+        The probe (:meth:`supports_deferrable_constraint`) is a whole-family
+        ``False`` and the renderer must refuse *by name* -- one generic
+        message for ``DEFERRABLE`` and ``NOT DEFERRABLE`` would leave the two
+        halves of the trait indistinguishable, which is exactly what the
+        clause-pair guard refuses to accept. The refusal names the branch's
+        SQL kind and the spelling that was asked for, so a
+        ``FOREIGN KEY NOT DEFERRABLE`` and a ``FOREIGN KEY INITIALLY DEFERRED``
+        do not collapse into one message. The spellings are the SQL ones
+        (measured on 26.7.0: every one answers ``1064`` -- see the probe).
+
+        Raises:
+            UnsupportedFeatureError: Any deferral trait was requested.
+        """
+        wants = []
+        if constraint.deferrable:
+            wants.append("DEFERRABLE")
+        if constraint.not_deferrable:
+            wants.append("NOT DEFERRABLE")
+        if constraint.initially_deferred:
+            wants.append("INITIALLY DEFERRED")
+        if constraint.initially_immediate:
+            wants.append("INITIALLY IMMEDIATE")
+        if wants and not self.supports_deferrable_constraint():
             from rhosocial.activerecord.backend.dialect.exceptions import (
                 UnsupportedFeatureError,
             )
-            from rhosocial.activerecord.backend.expression.statements import (
-                ColumnConstraintType,
-                TableConstraintType,
+
+            feature = f"{_constraint_kind_sql(constraint.branch)} " + " ".join(wants)
+            raise UnsupportedFeatureError(
+                self.name,
+                feature,
+                f"{self.name} does not support {feature}. No spelling of "
+                "constraint deferral exists in MySQL (measured on 26.7.0: "
+                "1064).",
             )
 
-            kind = constraint.constraint_type
-            if not isinstance(kind, (ColumnConstraintType, TableConstraintType)):
-                raise TypeError(
-                    "constraint_type must be a ColumnConstraintType or "
-                    f"TableConstraintType, got {type(kind).__name__}"
-                )
-            if kind.name != "CHECK" or not self.supports_constraint_enforced():
-                raise UnsupportedFeatureError(
-                    self.name,
-                    "ENFORCED/NOT ENFORCED constraint",
-                    "MySQL carries [NOT] ENFORCED on CHECK constraints only; the "
-                    "server answers 1064 on every other kind (measured on 26.7.0).",
-                )
-        return super()._format_constraint_enforcement(constraint)
+    def format_constraint_traits(self, constraint: "ColumnConstraint") -> Tuple[str, str]:
+        """Render the column-clause traits after this backend's deferral gate.
+
+        Core's own renderer refuses the deferral family with one generic
+        message; this backend narrows through
+        :meth:`_require_no_constraint_deferral` first so the refusal names
+        the exact spelling, then defers everything else to core.
+        """
+        self._require_no_constraint_deferral(constraint)
+        return super().format_constraint_traits(constraint)
+
+    def format_table_constraint(self, expr: "TableConstraint") -> Tuple[str, Tuple]:
+        """Render a table-level constraint clause after this backend's gates.
+
+        The production-level rendering is core's; what this override adds is
+        the two narrowings the column path runs, both ahead of the
+        delegation:
+
+        * the deferral gate, so a ``DEFERRABLE`` request on a table clause is
+          refused by its exact spelling rather than by the generic family
+          message core's renderer would produce;
+        * the enforcement gate, **before** the branch body. Core renders the
+          branch first and the traits after it, but this server's own CHECK
+          body carries its own version refusal
+          (``format_table_check_constraint``, below 8.0.16) that says nothing
+          about the enforcement spelling. Running the gate first keeps a
+          ``CHECK ... NOT ENFORCED`` at 8.0.0 refused by the spelling it
+          asked for, which is what keeps the two refusals distinguishable --
+          the ordering this mixin had before the branch nodes split the
+          production apart.
+        """
+        self._require_no_constraint_deferral(expr)
+        self._require_constraint_enforcement(expr)
+        return super().format_table_constraint(expr)
 
     # FK match modes (SQL:1999)
 

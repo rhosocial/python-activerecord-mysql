@@ -24,9 +24,11 @@ from rhosocial.activerecord.backend.expression.core import Literal, Column
 from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
@@ -59,22 +61,22 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "balance",
             "DECIMAL(10,2)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
+                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
             ],
         ),
     ],

@@ -29,9 +29,9 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -51,7 +51,7 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
             ],
         ),
     ],

@@ -34,7 +34,8 @@ dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
     DropTableStatement, CreateTableStatement, ColumnDefinition,
-    ColumnConstraint, ColumnConstraintType,
+ ColumnConstraint,
+    ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
     IntegerType, VarCharType,
@@ -47,8 +48,8 @@ expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "users"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
-                ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
-                ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
             ]),
         ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
         ColumnDefinition(dialect, "email", VarCharType(dialect, 200)),

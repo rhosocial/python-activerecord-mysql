@@ -15,8 +15,9 @@ from rhosocial.activerecord.backend.expression.predicates import ComparisonPredi
 from rhosocial.activerecord.backend.expression.statements import (
     ConstraintValidation,
     ForeignKeyConstraint,
+    TableCheckConstraint,
     TableConstraint,
-    TableConstraintType,
+    TableForeignKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
     AddTableConstraint,
@@ -220,14 +221,11 @@ class TestMeasuredConstraintLifecycleCapabilities:
 
     def _check(self, dialect, **kw):
         return TableConstraint(
-            dialect,
-            TableConstraintType.CHECK,
-            name="ck",
-            check_condition=ComparisonPredicate(
-                dialect, "=", Column(dialect, "a"), Column(dialect, "b")
-            ),
-            **kw,
-        )
+    dialect,
+    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, "=", Column(dialect, "a"), Column(dialect, "b") )),
+    name="ck",
+    **kw
+)
 
     def _fk(self, dialect, **kw):
         return ForeignKeyConstraint(
@@ -298,14 +296,14 @@ class TestMeasuredConstraintLifecycleCapabilities:
         """The rendering follows the probe: CHECK renders, FOREIGN KEY refuses."""
         dialect = self._dialect()
         sql, params = AlterConstraint(
-            dialect, "ck", not_enforced=True, constraint_type=TableConstraintType.CHECK
+            dialect, "ck", not_enforced=True, constraint_kind=TableCheckConstraint
         ).to_sql()
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
         assert params == ()
 
         with pytest.raises(UnsupportedFeatureError, match="ENFORCED"):
             AlterConstraint(
-                dialect, "fk", enforced=True, constraint_type=TableConstraintType.FOREIGN_KEY
+                dialect, "fk", enforced=True, constraint_kind=TableForeignKeyConstraint
             ).to_sql()
 
     def test_alter_constraint_defers_to_the_deferrable_probe(self):
@@ -337,7 +335,10 @@ class TestMeasuredConstraintLifecycleCapabilities:
         dialect = self._dialect()
         sql, params = self._check(dialect, not_enforced=True).to_sql()
         assert sql.endswith("NOT ENFORCED")
-        assert params == []
+        # The params are a tuple: core's branch-level formatters hand back
+        # tuples, and the production-level renderer normalises to one. The old
+        # fat-tag collector returned a list here.
+        assert params == ()
 
         with pytest.raises(UnsupportedFeatureError, match="FOREIGN KEY NOT ENFORCED"):
             self._fk(dialect, not_enforced=True).to_sql()

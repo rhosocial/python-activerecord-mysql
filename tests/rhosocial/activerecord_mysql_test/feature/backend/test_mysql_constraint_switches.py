@@ -26,7 +26,10 @@ from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.mixins.constraint import (
     MySQLConstraintMixin,
 )
-from rhosocial.activerecord.backend.expression.statements import TableConstraintType
+from rhosocial.activerecord.backend.expression.statements import (
+    TableCheckConstraint,
+    TableForeignKeyConstraint,
+)
 
 #: The server the verdicts below were measured on. Every value here is a
 #: statement about *this* version, not about MySQL in general.
@@ -133,7 +136,7 @@ class TestConstraintSwitchValues:
             dialect,
             constraint_name="ck",
             not_enforced=True,
-            constraint_type=TableConstraintType.CHECK,
+            constraint_kind=TableCheckConstraint,
         ).to_sql()
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
 
@@ -142,17 +145,29 @@ class TestConstraintSwitchValues:
                 dialect,
                 constraint_name="fk",
                 not_enforced=True,
-                constraint_type=TableConstraintType.FOREIGN_KEY,
+                constraint_kind=TableForeignKeyConstraint,
             ).to_sql()
 
-    def test_alter_constraint_accepts_a_string_kind_at_construction(self):
+    def test_alter_constraint_normalises_a_string_kind_at_construction(self):
         """A string kind is the constructor's to normalise, not the probe's.
 
-        ``AlterConstraint`` declares ``str`` in its ``constraint_type``
-        union and normalises at construction, so a caller's ``'CHECK'``
-        reaches the formatter as the enum. The dialect no longer sniffs
-        signatures to guess which layer should answer: the probe is
-        ``(self)`` and the kind narrowing is the formatter's.
+        ``AlterConstraint`` declares ``str`` in its ``constraint_kind``
+        union and normalises at construction, so a spelling that matches a
+        branch reaches the formatter as the branch *class* -- and the
+        formatter, not the probe, is what narrows it to CHECK on this
+        server. The dialect no longer sniffs signatures to guess which layer
+        should answer: the probe is ``(self)`` and the kind narrowing is the
+        formatter's.
+
+        The spelling the constructor matches is the branch's own name minus
+        the ``Table`` prefix, upper-cased -- ``CHECKCONSTRAINT`` -- not the
+        SQL keyword ``CHECK``. That is what makes the read side round-trip
+        (core's ``constraint_kind`` view, and PostgreSQL's, both derive the
+        string by that same rule), so the test asserts the spelling that
+        actually round-trips instead of the one the constructor's docstring
+        advertises. ``"CHECK"`` is refused by the constructor with a
+        ``ValueError``; the expression layer owns that mapping and this
+        backend has no say in it.
         """
         from rhosocial.activerecord.backend.expression import AlterConstraint
 
@@ -160,9 +175,17 @@ class TestConstraintSwitchValues:
             _dialect(),
             constraint_name="ck",
             not_enforced=True,
-            constraint_type="CHECK",
+            constraint_kind="CheckConstraint",
         ).to_sql()
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
+
+        with pytest.raises(ValueError):
+            AlterConstraint(
+                _dialect(),
+                constraint_name="ck",
+                not_enforced=True,
+                constraint_kind="CHECK",
+            )
 
 
 class TestConstraintSwitchesAreDeclaredLocally:

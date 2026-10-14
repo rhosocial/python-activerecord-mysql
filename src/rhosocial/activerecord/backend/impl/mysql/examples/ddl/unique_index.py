@@ -26,9 +26,9 @@ dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import CreateTableStatement, DropTableStatement  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnPrimaryKeyConstraint,
 )
 
 # Drop dependent tables first for clean setup
@@ -48,7 +48,7 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
             ],
         ),
         ColumnDefinition("email", "VARCHAR(100)"),

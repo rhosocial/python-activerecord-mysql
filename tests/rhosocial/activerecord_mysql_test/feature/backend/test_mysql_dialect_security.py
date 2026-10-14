@@ -11,9 +11,9 @@ import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
 )
 from rhosocial.activerecord.backend.expression import ColumnCommentClause, TableCommentClause
 from rhosocial.activerecord.backend.expression.types import VarCharType
@@ -33,10 +33,9 @@ def dialect():
 def test_mysql_format_column_definition_default_string_escaping(dialect):
     """Test DEFAULT constraint string is escaped in MySQL."""
     constraint = ColumnConstraint(
-        dialect,
-        constraint_type=ColumnConstraintType.DEFAULT,
-        default_value="test's value",
-    )
+    dialect,
+    branch=ColumnDefaultConstraint(dialect, "test's value")
+)
 
     col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), constraints=[constraint])
 

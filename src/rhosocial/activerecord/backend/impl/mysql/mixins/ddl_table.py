@@ -12,7 +12,8 @@ if TYPE_CHECKING:
         CreateTableLikeStatement,
         IndexDefinition,
         StorageOptionsExpression,
-        TableConstraint,
+        TableCheckConstraint,
+        TableForeignKeyConstraint,
     )
 
 
@@ -196,7 +197,14 @@ class MySQLTableMixin:
             if constraint_text:
                 parts.append(constraint_text)
             params.extend(list(cp))
-            if constraint.is_auto_increment:
+            from rhosocial.activerecord.backend.expression.statements import (
+                ColumnPrimaryKeyConstraint,
+            )
+
+            if (
+                isinstance(constraint.branch, ColumnPrimaryKeyConstraint)
+                and constraint.branch.is_auto_increment
+            ):
                 # The marker is rendered by the dialect's
                 # format_auto_increment_clause, not spelled here: the formatter
                 # consults supports_auto_increment_column(), so the capability
@@ -232,137 +240,76 @@ class MySQLTableMixin:
 
         return " ".join(parts), params
 
-    def format_table_constraint(self, t_const: "TableConstraint") -> Tuple[str, tuple]:
-        """Format a table-level constraint.
+    def format_table_check_constraint(
+        self, constraint: "TableCheckConstraint"
+    ) -> Tuple[str, tuple]:
+        """Format a table-level ``CHECK`` body behind this server's version gate.
+
+        The core's table-level CHECK body renders without consulting a
+        probe; MySQL's server accepted and *enforced* CHECK only from
+        8.0.16 on (below that the clause parses and is discarded -- see
+        ``supports_check_constraint``), so the version gate stays on the
+        branch this backend overrides.
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import (
+            UnsupportedFeatureError,
+        )
+
+        if not self.supports_check_constraint():
+            raise UnsupportedFeatureError(
+                self.name,
+                "CHECK constraint",
+                f"{self.name} does not support CHECK constraints.",
+            )
+        return super().format_table_check_constraint(constraint)
+
+    def format_table_foreign_key_constraint(
+        self, constraint: "TableForeignKeyConstraint"
+    ) -> Tuple[str, tuple]:
+        """Format a table-level ``FOREIGN KEY`` with MySQL's spaced column list.
+
+        MySQL's own DDL (``SHOW CREATE TABLE``) sets the referenced column
+        list off with a space -- ``FOREIGN KEY (`d`) REFERENCES `p` (`id`)``
+        -- and this backend's tests and DDL fixtures pin that spelling, so
+        the reference body is re-spaced here rather than through the
+        core's ``REFERENCES t(c)``. The referential actions and ``MATCH``
+        still ride the shared ``ReferencesClause`` machinery, so the
+        capability probes stay consulted (``supports_fk_match`` refuses
+        MATCH on this server).
 
         Raises:
-            TypeError: ``t_const.foreign_key_table`` is set and is not a Table.
-                The rendered statement would reference whatever object's name
-                was in that slot.
+            ValueError: The local columns, the referenced columns or the
+                referenced table are missing.
         """
-        from rhosocial.activerecord.backend.expression.statements import (
-            ForeignKeyConstraint,
-            ReferentialAction,
-            TableConstraintType,
+        from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+            ReferencesClause,
         )
-        if t_const.foreign_key_table is not None:
-            require_kind(
-                t_const.foreign_key_table,
-                Table,
-                "TableConstraint.foreign_key_table",
+
+        if not constraint.columns:
+            raise ValueError(
+                "FOREIGN KEY constraint must have at least one local column specified."
             )
-        # [NOT] ENFORCED is a CHECK-only clause on this server (measured on
-        # Community Server 26.7.0: UNIQUE and FOREIGN KEY answer 1064). The
-        # request used to fall through the other branches silently; it is
-        # refused by name instead, matching the column path's narrowing.
-        if t_const.enforced or t_const.not_enforced:
-            if t_const.constraint_type is not TableConstraintType.CHECK:
-                from rhosocial.activerecord.backend.dialect.exceptions import (
-                    UnsupportedFeatureError,
-                )
-                feature = (
-                    f"{t_const.constraint_type.value} ENFORCED"
-                    if t_const.enforced
-                    else f"{t_const.constraint_type.value} NOT ENFORCED"
-                )
-                raise UnsupportedFeatureError(
-                    self.name,
-                    feature,
-                    f"{self.name} does not support {feature}.",
-                )
-        parts = []
-        params: List[Any] = []
-
-        if t_const.name:
-            parts.append(f"CONSTRAINT {self.format_identifier(t_const.name)}")
-
-        if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
-            if t_const.columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"PRIMARY KEY ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.UNIQUE:
-            if t_const.columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"UNIQUE ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.CHECK:
-            if t_const.check_condition is not None:
-                enforcement = ""
-                if t_const.enforced or t_const.not_enforced:
-                    if not self.supports_constraint_enforced():
-                        feature = (
-                            "CHECK constraint ENFORCED"
-                            if t_const.enforced
-                            else "CHECK constraint NOT ENFORCED"
-                        )
-                        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                        raise UnsupportedFeatureError(
-                            self.name, feature,
-                            f"{self.name} does not support {feature}."
-                        )
-                    enforcement = " ENFORCED" if t_const.enforced else " NOT ENFORCED"
-                if not self.supports_check_constraint():
-                    from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                    raise UnsupportedFeatureError(
-                        self.name, "CHECK constraint",
-                        f"{self.name} does not support CHECK constraints."
-                    )
-                check_sql, check_params = t_const.check_condition.to_sql()
-                parts.append(f"CHECK ({check_sql}){enforcement}")
-                params.extend(check_params)
-        elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
-            if t_const.deferrable or t_const.not_deferrable:
-                feature = (
-                    "FOREIGN KEY DEFERRABLE"
-                    if t_const.deferrable
-                    else "FOREIGN KEY NOT DEFERRABLE"
-                )
-                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                raise UnsupportedFeatureError(
-                    self.name, feature,
-                    f"{self.name} does not support {feature}."
-                )
-            if t_const.initially_deferred or t_const.initially_immediate:
-                feature = (
-                    "FOREIGN KEY INITIALLY DEFERRED"
-                    if t_const.initially_deferred
-                    else "FOREIGN KEY INITIALLY IMMEDIATE"
-                )
-                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                raise UnsupportedFeatureError(
-                    self.name, feature,
-                    f"{self.name} does not support {feature}."
-                )
-            if t_const.enforced or t_const.not_enforced:
-                feature = (
-                    "FOREIGN KEY ENFORCED"
-                    if t_const.enforced
-                    else "FOREIGN KEY NOT ENFORCED"
-                )
-                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                raise UnsupportedFeatureError(
-                    self.name, feature,
-                    f"{self.name} does not support {feature}."
-                )
-            if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                ref_table = t_const.foreign_key_table.to_sql()[0]
-                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
-                if isinstance(t_const, ForeignKeyConstraint):
-                    if t_const.on_delete and t_const.on_delete != ReferentialAction.NO_ACTION:
-                        parts.append(f"ON DELETE {t_const.on_delete.value}")
-                    if t_const.on_update and t_const.on_update != ReferentialAction.NO_ACTION:
-                        parts.append(f"ON UPDATE {t_const.on_update.value}")
-                    if t_const.match_type is not None:
-                        if not self.supports_fk_match():
-                            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                            raise UnsupportedFeatureError(
-                                self.name, "FOREIGN KEY MATCH",
-                                f"{self.name} does not support MATCH for foreign keys."
-                            )
-                        parts.append(f"MATCH {t_const.match_type}")
-
-        return " ".join(parts), params
+        referenced_table, referenced_columns = constraint.references
+        if not referenced_columns:
+            raise ValueError(
+                "FOREIGN KEY constraint must have at least one foreign key column specified."
+            )
+        if not referenced_table:
+            raise ValueError("FOREIGN KEY constraint must have a foreign key table specified.")
+        cols_str = ", ".join(self.format_identifier(c) for c in constraint.columns)
+        references = ReferencesClause(
+            self,
+            referenced_table,
+            list(referenced_columns),
+            on_delete=constraint.on_delete,
+            on_update=constraint.on_update,
+            match_type=constraint.match_type,
+        )
+        ref_sql, ref_params = self.format_references_clause(references)
+        # The shared clause renders "REFERENCES <table>(<cols>)..."; MySQL
+        # spells the column list with a space: "REFERENCES <table> (<cols>)...".
+        head, rest = ref_sql.split("(", 1)
+        return f"FOREIGN KEY ({cols_str}) {head} ({rest}", tuple(ref_params)
 
     def format_index_definition(self, idx_def: "IndexDefinition") -> Tuple[str, tuple]:
         """Format an inline INDEX definition within CREATE TABLE (MySQL-specific)."""

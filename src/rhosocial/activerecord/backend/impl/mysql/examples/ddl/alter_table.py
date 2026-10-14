@@ -23,9 +23,11 @@ from rhosocial.activerecord.backend.expression import (
 )
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
 config = MySQLConnectionConfig(
@@ -56,8 +58,8 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition("name", "VARCHAR(100)"),
@@ -126,12 +128,12 @@ add_age_action = AddColumn(
         "INT",
         constraints=[
             ColumnConstraint(
-                ColumnConstraintType.DEFAULT,
-                default_value=Literal(dialect, 0),
-            ),
-        ],
-    ),
-)
+                None,
+                branch=ColumnDefaultConstraint(None, Literal(dialect, 0))
+                ),
+                ],
+                ),
+            )
 
 add_age_expr = AlterTableStatement(
     dialect=dialect,

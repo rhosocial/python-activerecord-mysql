@@ -7,10 +7,10 @@ These are the building blocks used by NamedMigration up()/down() methods.
 """
 
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
-    CreateTableStatement,
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnPrimaryKeyConstraint,
+    CreateTableStatement,
     DropTableStatement,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression.types import (
@@ -32,9 +32,9 @@ def create_users_table(dialect):
                 MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
-                        ColumnConstraintType.PRIMARY_KEY,
-                        is_auto_increment=True,
-                    ),
+    None,
+    branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)
+),
                 ],
             ),
             ColumnDefinition(dialect, "name", MySQLTextType(dialect)),
@@ -60,9 +60,9 @@ def create_posts_table(dialect):
                 MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
-                        ColumnConstraintType.PRIMARY_KEY,
-                        is_auto_increment=True,
-                    ),
+    None,
+    branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)
+),
                 ],
             ),
             ColumnDefinition(dialect, "title", MySQLTextType(dialect)),
@@ -92,9 +92,9 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
                 MySQLIntType(dialect),
                 constraints=[
                     ColumnConstraint(
-                        ColumnConstraintType.PRIMARY_KEY,
-                        is_auto_increment=True,
-                    ),
+    None,
+    branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)
+),
                 ],
             ),
             ColumnDefinition(dialect, "value", MySQLTextType(dialect)),

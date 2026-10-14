@@ -5,13 +5,17 @@ import pytest
 
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
     ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnNullableConstraint,
+    ColumnUniqueConstraint,
     ForeignKeyConstraint,
     IndexDefinition,
     ReferentialAction,
     TableConstraint,
-    TableConstraintType,
+    TableForeignKeyConstraint,
+    TablePrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
@@ -533,8 +537,7 @@ class TestMySQLTableDDLExpressions:
                 constraints=[
                     ColumnConstraint(
                         dialect,
-                        ColumnConstraintType.DEFAULT,
-                        default_value=Literal(dialect, "NOW()"),
+                        branch=ColumnDefaultConstraint(dialect, Literal(dialect, "NOW()"))
                     )
                 ],
             ),
@@ -552,7 +555,7 @@ class TestMySQLTableDDLExpressions:
                 "status",
                 VarCharType(dialect, 20),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value="active")
+                    ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, "active"))
                 ],
             ),
         ]
@@ -568,7 +571,7 @@ class TestMySQLTableDDLExpressions:
                 "count",
                 IntegerType(dialect),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value=0)
+                    ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 0))
                 ],
             ),
         ]
@@ -583,7 +586,7 @@ class TestMySQLTableDDLExpressions:
             ColumnDefinition(dialect, 
                 "optional",
                 VarCharType(dialect, 100),
-                constraints=[ColumnConstraint(dialect, ColumnConstraintType.NULL)],
+                constraints=[ColumnConstraint(dialect, branch=ColumnNullableConstraint(dialect))],
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableStatement
@@ -597,7 +600,7 @@ class TestMySQLTableDDLExpressions:
             ColumnDefinition(dialect, 
                 "email",
                 VarCharType(dialect, 255),
-                constraints=[ColumnConstraint(dialect, ColumnConstraintType.UNIQUE)],
+                constraints=[ColumnConstraint(dialect, branch=ColumnUniqueConstraint(dialect))],
             ),
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableStatement
@@ -609,10 +612,10 @@ class TestMySQLTableDDLExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect))]
         table_constraints = [
-            TableConstraint(dialect, 
-                constraint_type=TableConstraintType.PRIMARY_KEY,
-                name="pk_users",
-                columns=["id"],
+            TableConstraint(
+                dialect,
+                branch=TablePrimaryKeyConstraint(dialect, ["id"]),
+                name="pk_users"
             )
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableStatement
@@ -628,12 +631,10 @@ class TestMySQLTableDDLExpressions:
         dialect = MySQLDialect(version=(8, 0, 0))
         columns = [ColumnDefinition(dialect, "user_id", IntegerType(dialect))]
         table_constraints = [
-            TableConstraint(dialect, 
-                constraint_type=TableConstraintType.FOREIGN_KEY,
-                name="fk_orders_user",
-                columns=["user_id"],
-                foreign_key_table=Table(dialect, "users"),
-                foreign_key_columns=["id"],
+            TableConstraint(
+                dialect,
+                branch=TableForeignKeyConstraint(dialect, ["user_id"], (Table(dialect, "users"), ["id"])),
+                name="fk_orders_user"
             )
         ]
         from rhosocial.activerecord.backend.expression.statements import CreateTableStatement
@@ -823,7 +824,7 @@ class TestMySQLColumnModificationExpressions:
                 "email",
                 VarCharType(dialect, 255),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
+                    ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                 ],
             ),
         )

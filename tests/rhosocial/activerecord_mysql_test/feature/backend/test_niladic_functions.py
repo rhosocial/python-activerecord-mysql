@@ -28,9 +28,11 @@ from rhosocial.activerecord.backend.expression.functions.datetime import (
     now,
 )
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.types import IntegerType, TimestampType
 from rhosocial.activerecord.backend.options import ExecutionOptions
@@ -125,8 +127,8 @@ class TestMySQLNiladicDDLContext:
                     "id",
                     IntegerType(dialect),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY),
-                        ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
                 ),
                 ColumnDefinition(
@@ -134,7 +136,7 @@ class TestMySQLNiladicDDLContext:
                     "ts",
                     TimestampType(dialect=dialect),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect)),
+                        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect))),
                     ],
                 ),
             ],
@@ -169,8 +171,8 @@ class TestMySQLNiladicDDLContext:
                     "id",
                     IntegerType(dialect),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY),
-                        ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
                 ),
                 ColumnDefinition(
@@ -179,9 +181,9 @@ class TestMySQLNiladicDDLContext:
                     TimestampType(dialect=dialect),
                     constraints=[
                         ColumnConstraint(
-                            dialect,
-                            ColumnConstraintType.DEFAULT, default_value=FunctionCall(dialect, "CURRENT_TIMESTAMP")
-                        ),
+    dialect,
+    branch=ColumnDefaultConstraint(dialect, FunctionCall(dialect, "CURRENT_TIMESTAMP"))
+),
                     ],
                 ),
             ],
@@ -215,8 +217,8 @@ class TestMySQLNiladicDDLContext:
                     "id",
                     IntegerType(dialect),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY),
-                        ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
                 ),
                 ColumnDefinition(
@@ -224,7 +226,7 @@ class TestMySQLNiladicDDLContext:
                     "ts",
                     TimestampType(dialect, 6),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect, 6)),
+                        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect, 6))),
                     ],
                 ),
             ],
@@ -282,8 +284,8 @@ class TestAsyncMySQLNiladicDDLContext:
                     "id",
                     IntegerType(dialect),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY),
-                        ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
                 ),
                 ColumnDefinition(
@@ -291,7 +293,7 @@ class TestAsyncMySQLNiladicDDLContext:
                     "ts",
                     TimestampType(dialect=dialect),
                     constraints=[
-                        ColumnConstraint(dialect, ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect)),
+                        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect))),
                     ],
                 ),
             ],

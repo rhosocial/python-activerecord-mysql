@@ -7,8 +7,8 @@ import pytest
 from rhosocial.activerecord.backend.expression import (
     Column,
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
+    ColumnNotNullConstraint,
     ComparisonPredicate,
     CreateTableStatement,
     DropTableStatement,
@@ -19,7 +19,7 @@ from rhosocial.activerecord.backend.expression import (
     OrderByClause,
     QueryStatement,
     TableConstraint,
-    TableConstraintType,
+    TablePrimaryKeyConstraint,
     ValuesSource,
     Wildcard,
 )
@@ -69,10 +69,10 @@ def _drop_named_table_expression(dialect, table_name: str):
 
 def _base_columns(dialect):
     return [
-        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "category", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "category", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
     ]
 
 
@@ -568,7 +568,7 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_range"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),  # nullable
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
@@ -613,7 +613,7 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_list"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
@@ -664,7 +664,7 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_hash"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
@@ -706,7 +706,7 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_key"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
@@ -760,12 +760,12 @@ class TestMySQLPartitionStrategies:
                 dialect=dialect,
                 table=Table(dialect, table),
                 columns=[
-                    ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-                    ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+                    ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+                    ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
                     ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
                 ],
                 table_constraints=[
-                    TableConstraint(dialect, TableConstraintType.PRIMARY_KEY, columns=["id", "created_at"]),
+                    TableConstraint(dialect, branch=TablePrimaryKeyConstraint(dialect, ["id", "created_at"])),
                 ],
                 partition=MySQLPartitionByKey(
                     mysql_backend.dialect,

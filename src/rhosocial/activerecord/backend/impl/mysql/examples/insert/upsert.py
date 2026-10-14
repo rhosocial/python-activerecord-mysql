@@ -36,9 +36,12 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
+    ColumnUniqueConstraint,
     OnConflictClause,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
@@ -64,30 +67,30 @@ create_table = CreateTableStatement(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "username",
             "VARCHAR(100)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL),
-                ColumnConstraint(ColumnConstraintType.UNIQUE),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ColumnConstraint(None, branch=ColumnUniqueConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "email",
             "VARCHAR(100)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "login_count",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
+                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
             ],
         ),
     ],

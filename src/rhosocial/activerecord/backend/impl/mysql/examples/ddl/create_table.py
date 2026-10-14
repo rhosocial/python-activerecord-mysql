@@ -22,9 +22,11 @@ from rhosocial.activerecord.backend.expression import (
 )
 from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     IndexDefinition,
@@ -56,22 +58,22 @@ columns = [
         name="id",
         data_type="INT",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
     ),
     ColumnDefinition(
         name="name",
         data_type="VARCHAR(200)",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
     ),
     ColumnDefinition(
         name="price",
         data_type="DECIMAL(10,2)",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
     ),
     ColumnDefinition(
@@ -82,14 +84,14 @@ columns = [
         name="is_active",
         data_type="TINYINT(1)",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
+            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 1)),
         ],
     ),
     ColumnDefinition(
         name="created_at",
         data_type="TIMESTAMP",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect)),
+            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, current_timestamp(dialect))),
         ],
     ),
 ]

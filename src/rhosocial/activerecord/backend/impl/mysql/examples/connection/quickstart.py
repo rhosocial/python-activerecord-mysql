@@ -25,8 +25,9 @@ from rhosocial.activerecord.backend.expression.core import Column, Literal
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
@@ -68,14 +69,14 @@ def create_demo_tables():
                 "id",
                 "INT",
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
                 ],
             ),
             ColumnDefinition(
                 "name",
                 "VARCHAR(100)",
-                constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
+                constraints=[ColumnConstraint(None, branch=ColumnNotNullConstraint(None))],
             ),
             ColumnDefinition("status", "VARCHAR(20)"),
         ],
@@ -91,14 +92,14 @@ def create_demo_tables():
                 "id",
                 "INT",
                 constraints=[
-                    ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                    ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
                 ],
             ),
             ColumnDefinition(
                 "message",
                 "VARCHAR(255)",
-                constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
+                constraints=[ColumnConstraint(None, branch=ColumnNotNullConstraint(None))],
             ),
         ],
         if_not_exists=True,

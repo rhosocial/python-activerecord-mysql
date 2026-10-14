@@ -59,7 +59,7 @@ from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now,
 )
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition, ColumnConstraint, ColumnConstraintType,
+    ColumnDefinition, ColumnConstraint, ColumnDefaultConstraint,
 )
 
 # 正确：使用工厂函数传递 SQL:2003 零元函数
@@ -67,8 +67,8 @@ ColumnDefinition(
     name='created_at',
     data_type='TIMESTAMP',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=current_timestamp(dialect)),
+        ColumnConstraint(dialect,
+                         branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect))),
         # 生成: `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         # （无括号 — SQL:2003 零元形式）
     ],
@@ -79,8 +79,8 @@ ColumnDefinition(
     name='updated_at',
     data_type='DATETIME',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=now(dialect)),
+        ColumnConstraint(dialect,
+                         branch=ColumnDefaultConstraint(dialect, now(dialect))),
         # 生成: `updated_at` DATETIME DEFAULT NOW()
     ],
 )
@@ -90,7 +90,7 @@ ColumnDefinition(
     name='is_active',
     data_type='TINYINT(1)',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
+        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 1)),
         # 生成: `is_active` TINYINT(1) DEFAULT 1
     ],
 )
@@ -100,7 +100,7 @@ ColumnDefinition(
     name='status',
     data_type='VARCHAR(20)',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='active'),
+        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 'active')),
         # 生成: `status` VARCHAR(20) DEFAULT 'active'
     ],
 )
@@ -111,7 +111,7 @@ ColumnDefinition(
 ```python
 # 错误：将 SQL 关键字作为 Python 字符串传入
 # 这会导致生成 DEFAULT 'CURRENT_TIMESTAMP'（被引号包裹，变成字符串字面量）
-ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP')
+ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 'CURRENT_TIMESTAMP'))
 ```
 
 **常见语句级常量对照表：**
