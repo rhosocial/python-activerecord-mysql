@@ -11,11 +11,11 @@ MySQL 有一些特定的 SQL 语法和函数，本节介绍常用的 MySQL 特�
 MySQL 支持使用 `LIKE` 子句复制表结构。这对于创建具有相同结构的表备份或测试表非常有用。
 
 ```python
-from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression import CreateTableStatement
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 # 基本用法 - 复制表结构
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=MySQLDialect(),
     table_name="users_copy",
     columns=[],
@@ -24,7 +24,7 @@ create_expr = CreateTableExpression(
 # 生成: CREATE TABLE `users_copy` LIKE `users`
 
 # 带模式限定的源表
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=MySQLDialect(),
     table_name="users_copy",
     columns=[],
@@ -33,7 +33,7 @@ create_expr = CreateTableExpression(
 # 生成: CREATE TABLE `users_copy` LIKE `production`.`users`
 
 # 带临时表和 IF NOT EXISTS
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=MySQLDialect(),
     table_name="temp_users",
     columns=[],
@@ -291,17 +291,17 @@ if dialect.supports_json_duality_view():
 
 ## 查询运行时函数与常量
 
-MySQL 支持不涉及数据源的纯函数查询，如 `SELECT CURRENT_TIMESTAMP`、`SELECT NOW()`、`SELECT VERSION()` 等。使用 `QueryExpression` 不指定 `from_` 子句即可实现。
+MySQL 支持不涉及数据源的纯函数查询，如 `SELECT CURRENT_TIMESTAMP`、`SELECT NOW()`、`SELECT VERSION()` 等。使用 `QueryStatement` 不指定 `from_` 子句即可实现。
 
 ```python
-from rhosocial.activerecord.backend.expression import QueryExpression
+from rhosocial.activerecord.backend.expression import QueryStatement
 from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now, current_date, current_time,
 )
 
 # SELECT CURRENT_TIMESTAMP（零元函数 — 无括号）
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[current_timestamp(dialect)],
 )
@@ -309,14 +309,14 @@ sql, params = query.to_sql()
 # 生成: SELECT CURRENT_TIMESTAMP
 
 # SELECT NOW()
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[now(dialect)],
 )
 # 生成: SELECT NOW()
 
 # SELECT CURRENT_DATE, CURRENT_TIME（零元函数 — 无括号）
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         current_date(dialect),
@@ -326,7 +326,7 @@ query = QueryExpression(
 # 生成: SELECT CURRENT_DATE, CURRENT_TIME
 
 # 带别名的多函数查询
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         now(dialect).as_('current_time'),
@@ -337,7 +337,7 @@ query = QueryExpression(
 # 生成: SELECT NOW() AS `current_time`, DATABASE() AS `db_name`, VERSION() AS `db_version`
 
 # 带参数的函数调用
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         FunctionCall(dialect, 'DATE_FORMAT',

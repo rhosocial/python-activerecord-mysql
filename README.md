@@ -41,7 +41,7 @@ from typing import ClassVar, Optional
 from rhosocial.activerecord.base import FieldProxy
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression import CreateTableStatement
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnDefinition,
@@ -77,7 +77,7 @@ User.configure(
 # DDL is expressed, not stringified. Note that every node takes the dialect as
 # its first argument, and column types are DataType instances, not strings.
 dialect = User.__backend__.dialect
-create_users = CreateTableExpression(
+create_users = CreateTableStatement(
     dialect,
     "users",
     columns=[

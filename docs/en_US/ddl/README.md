@@ -6,14 +6,14 @@ The MySQL backend supports the same type-safe DDL expressions as the core librar
 
 | Operation | MySQL Support | Notes |
 |----------|--------------|-------|
-| `CreateTableExpression` | ✅ Full | PRIMARY KEY, NOT NULL, UNIQUE, etc. |
-| `DropTableExpression` | ✅ Full | IF EXISTS support |
-| `AlterTableExpression` | ✅ Full | ADD/DROP COLUMN |
-| `CreateIndexExpression` | ✅ Full | Index types (BTREE, HASH) |
-| `DropIndexExpression` | ✅ Full | |
-| `CreateViewExpression` | ✅ Full | MySQL ALGORITHM options |
-| `DropViewExpression` | ✅ Full | |
-| `CreateTableExpression` | ✅ Full | Partition support (RANGE, LIST, HASH, KEY) |
+| `CreateTableStatement` | ✅ Full | PRIMARY KEY, NOT NULL, UNIQUE, etc. |
+| `DropTableStatement` | ✅ Full | IF EXISTS support |
+| `AlterTableStatement` | ✅ Full | ADD/DROP COLUMN |
+| `CreateIndexStatement` | ✅ Full | Index types (BTREE, HASH) |
+| `DropIndexStatement` | ✅ Full | |
+| `CreateViewStatement` | ✅ Full | MySQL ALGORITHM options |
+| `DropViewStatement` | ✅ Full | |
+| `CreateTableStatement` | ✅ Full | Partition support (RANGE, LIST, HASH, KEY) |
 | `PartitionByRange` | ✅ Full | RANGE and RANGE COLUMNS partitioning |
 | `PartitionByList` | ✅ Full | LIST and LIST COLUMNS partitioning |
 | `PartitionByHash` | ✅ Full | HASH and LINEAR HASH partitioning |
@@ -39,7 +39,7 @@ partition = MySQLPartitionByRange(
     ],
 )
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect,
     table_name="orders",
     columns=[...],
@@ -54,7 +54,7 @@ MySQL views support ALGORITHM to control execution:
 ```python
 from rhosocial.activerecord.backend.expression import ViewOptions, ViewAlgorithm
 
-create_view = CreateViewExpression(
+create_view = CreateViewStatement(
     dialect,
     view_name="optimized_view",
     query=query,
@@ -67,7 +67,7 @@ create_view = CreateViewExpression(
 MySQL supports specifying storage engine:
 
 ```python
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect,
     table_name="users",
     columns=columns,
