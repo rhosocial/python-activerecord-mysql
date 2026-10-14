@@ -18,10 +18,10 @@ from rhosocial.activerecord.backend.expression import (
     LogicalPredicate,
     OrderByClause,
     QueryStatement,
+    RowCountWildcard,
     TableConstraint,
     TablePrimaryKeyConstraint,
     ValuesSource,
-    Wildcard,
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.expression import (
@@ -246,7 +246,7 @@ def _select_payloads_expression(dialect, table_name: str):
 def _select_count_expression(dialect, table_name: str):
     return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", Wildcard(dialect)).as_("count")],
+        select=[FunctionCall(dialect, "COUNT", RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, table_name),
     )
 

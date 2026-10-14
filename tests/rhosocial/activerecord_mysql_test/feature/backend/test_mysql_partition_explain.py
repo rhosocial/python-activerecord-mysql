@@ -9,6 +9,7 @@ from typing import Optional
 import pytest
 
 from rhosocial.activerecord.backend.expression import (
+    AllColumnsWildcard,
     Column,
     ColumnConstraint,
     ColumnDefinition,
@@ -21,7 +22,6 @@ from rhosocial.activerecord.backend.expression import (
     Literal,
     QueryStatement,
     ValuesSource,
-    Wildcard,
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult, MySQLExplainRow
@@ -103,7 +103,7 @@ def _seed_partition_explain_rows_expression(dialect):
 def _partition_range_query_expression(dialect, start, end):
     return QueryStatement(
         dialect,
-        select=[Wildcard(dialect)],
+        select=[AllColumnsWildcard(dialect)],
         from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
         where=ComparisonPredicate(
             dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
@@ -117,7 +117,7 @@ def _partition_range_query_expression(dialect, start, end):
 def _full_scan_query_expression(dialect):
     return QueryStatement(
         dialect,
-        select=[Wildcard(dialect)],
+        select=[AllColumnsWildcard(dialect)],
         from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
     )
 

@@ -20,7 +20,7 @@ from rhosocial.activerecord.backend.expression import (
     InsertStatement,
     ValuesSource,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, Wildcard, Column
+from rhosocial.activerecord.backend.expression.core import Literal, AllColumnsWildcard, Column
 from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
@@ -110,7 +110,7 @@ print(f"Affected rows: {result.affected_rows}")
 # Verify the inserted row
 verify_query = QueryStatement(
     dialect=dialect,
-    select=[Wildcard(dialect)],
+    select=[AllColumnsWildcard(dialect)],
     from_=Table(dialect, "users"),
     where=ComparisonPredicate(
         dialect,
