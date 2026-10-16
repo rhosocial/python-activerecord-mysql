@@ -13,7 +13,7 @@ from rhosocial.activerecord.backend.explain import (
     SyncExplainBackendProtocol,
     AsyncExplainBackendProtocol,
 )
-from rhosocial.activerecord.backend.expression import RawSQLExpression
+from rhosocial.activerecord.backend.expression import RawSQL
 from rhosocial.activerecord.backend.expression.statements import ExplainOptions
 from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult, MySQLExplainRow
 
@@ -105,39 +105,39 @@ class TestExplainProtocol:
 class TestSyncExplainBasic:
     def test_explain_returns_mysql_explain_result(self, indexed_backend):
         dialect = indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr)
         assert isinstance(result, MySQLExplainResult)
 
     def test_result_has_rows(self, indexed_backend):
         dialect = indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr)
         assert len(result.rows) > 0
 
     def test_result_row_type(self, indexed_backend):
         dialect = indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr)
         for row in result.rows:
             assert isinstance(row, MySQLExplainRow)
 
     def test_result_has_sql(self, indexed_backend):
         dialect = indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr)
         assert "explain_orders" in result.sql.lower()
         assert result.sql.upper().startswith("EXPLAIN")
 
     def test_result_has_duration(self, indexed_backend):
         dialect = indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr)
         assert result.duration >= 0.0
 
     def test_result_has_raw_rows(self, indexed_backend):
         dialect = indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr)
         assert isinstance(result.raw_rows, list)
         assert len(result.raw_rows) == len(result.rows)
@@ -152,7 +152,7 @@ class TestSyncExplainIndexAnalysis:
     def test_full_scan_detection(self, indexed_backend):
         """SELECT * FROM table without WHERE → full scan (type='ALL')."""
         dialect = indexed_backend.dialect
-        result = indexed_backend.explain(RawSQLExpression(dialect, "SELECT * FROM explain_orders"))
+        result = indexed_backend.explain(RawSQL(dialect, "SELECT * FROM explain_orders"))
         assert result.analyze_index_usage() == "full_scan"
         assert result.is_full_scan is True
         assert result.is_index_used is False
@@ -162,7 +162,7 @@ class TestSyncExplainIndexAnalysis:
         """SELECT * … WHERE indexed_col = ? → index lookup + table read."""
         dialect = indexed_backend.dialect
         result = indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT * FROM explain_orders WHERE status = 'pending'")
+            RawSQL(dialect, "SELECT * FROM explain_orders WHERE status = 'pending'")
         )
         usage = result.analyze_index_usage()
         # Could be index_with_lookup or covering_index depending on optimizer
@@ -174,7 +174,7 @@ class TestSyncExplainIndexAnalysis:
         """SELECT indexed_col FROM table WHERE indexed_col = ? → covering index."""
         dialect = indexed_backend.dialect
         result = indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1")
+            RawSQL(dialect, "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1")
         )
         usage = result.analyze_index_usage()
         # Both columns are in the covering index (order_id, sku)
@@ -185,7 +185,7 @@ class TestSyncExplainIndexAnalysis:
     def test_row_fields_present(self, indexed_backend):
         """Verify MySQLExplainRow has expected attribute names."""
         dialect = indexed_backend.dialect
-        result = indexed_backend.explain(RawSQLExpression(dialect, "SELECT * FROM explain_orders"))
+        result = indexed_backend.explain(RawSQL(dialect, "SELECT * FROM explain_orders"))
         row = result.rows[0]
         # All expected fields must exist (may be None for some)
         assert hasattr(row, "id")
@@ -206,21 +206,21 @@ class TestAsyncExplainBasic:
     @pytest.mark.asyncio
     async def test_explain_returns_mysql_explain_result(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = await async_indexed_backend.explain(expr)
         assert isinstance(result, MySQLExplainResult)
 
     @pytest.mark.asyncio
     async def test_result_has_rows(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = await async_indexed_backend.explain(expr)
         assert len(result.rows) > 0
 
     @pytest.mark.asyncio
     async def test_result_has_sql_and_duration(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = await async_indexed_backend.explain(expr)
         assert result.sql.upper().startswith("EXPLAIN")
         assert result.duration >= 0.0
@@ -228,14 +228,14 @@ class TestAsyncExplainBasic:
     @pytest.mark.asyncio
     async def test_full_scan_detection(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
-        result = await async_indexed_backend.explain(RawSQLExpression(dialect, "SELECT * FROM explain_orders"))
+        result = await async_indexed_backend.explain(RawSQL(dialect, "SELECT * FROM explain_orders"))
         assert result.is_full_scan is True
 
     @pytest.mark.asyncio
     async def test_index_used_detection(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
         result = await async_indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT * FROM explain_orders WHERE status = 'pending'")
+            RawSQL(dialect, "SELECT * FROM explain_orders WHERE status = 'pending'")
         )
         assert result.is_index_used is True
 
@@ -243,7 +243,7 @@ class TestAsyncExplainBasic:
     async def test_covering_index_detection(self, async_indexed_backend):
         dialect = async_indexed_backend.dialect
         result = await async_indexed_backend.explain(
-            RawSQLExpression(dialect, "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1")
+            RawSQL(dialect, "SELECT order_id, sku FROM explain_order_items WHERE order_id = 1")
         )
         assert result.is_covering_index is True
 
@@ -262,7 +262,7 @@ class TestExplainFormat:
         from rhosocial.activerecord.backend.expression.statements import ExplainFormat
 
         opts = ExplainOptions(format=ExplainFormat.JSON)
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr, opts)
         # We get back a MySQLExplainResult; raw_rows should be non-empty
         assert isinstance(result, MySQLExplainResult)
@@ -276,7 +276,7 @@ class TestExplainFormat:
         from rhosocial.activerecord.backend.expression.statements import ExplainFormat
 
         opts = ExplainOptions(format=ExplainFormat.TREE)
-        expr = RawSQLExpression(dialect, "SELECT * FROM explain_orders")
+        expr = RawSQL(dialect, "SELECT * FROM explain_orders")
         result = indexed_backend.explain(expr, opts)
         assert isinstance(result, MySQLExplainResult)
         assert len(result.raw_rows) > 0

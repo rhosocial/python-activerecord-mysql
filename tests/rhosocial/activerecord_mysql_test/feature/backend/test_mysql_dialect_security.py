@@ -144,10 +144,10 @@ def test_mysql_json_table_alias_quoted(dialect):
 
 def test_mysql_format_cast_expression_valid(dialect):
     """A CAST target is a DataType, and the dialect renders what it says."""
-    from rhosocial.activerecord.backend.expression.core import CastFunction, Column
+    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
     from rhosocial.activerecord.backend.expression.types import CustomType
 
-    expr = CastFunction(dialect, Column(dialect, "column"),
+    expr = CastExpression(dialect, Column(dialect, "column"),
                           CustomType(dialect, raw="INTEGER"))
     sql, params = dialect.format_cast_expression(expr)
     assert "INTEGER" in sql
@@ -160,10 +160,10 @@ def test_mysql_format_cast_expression_rejects_injection(dialect):
     rendered into the statement text. That is why a string is not accepted at
     all rather than being escaped: there is nothing to escape it into, since it
     is code and not data."""
-    from rhosocial.activerecord.backend.expression.core import CastFunction, Column
+    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
 
     with pytest.raises(TypeError, match="takes a DataType instance"):
-        CastFunction(dialect, Column(dialect, "column"),
+        CastExpression(dialect, Column(dialect, "column"),
                        "INTEGER; DROP TABLE users--")
 
 

@@ -205,6 +205,15 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "predicates.ILikePredicate": "column is annotated Any, so the generic "
     "constructor supplies a plain string where a value node belongs and the "
     "instance cannot render.",
+    # The two nodes whose operation is a closed set of *words*, validated at
+    # construction. The generic constructor guesses a string for an unannotated
+    # ``op`` and the node refuses it, so the factories hand a real word form.
+    "operators.ArithmeticOperation": "op is validated against the wire word "
+    "forms (add / sub / mul / div / mod); the generic constructor supplies "
+    "\"x\", which is not one of them.",
+    "query_sources.SetOperation": "op is validated against the wire word "
+    "forms (union / union_all / intersect / except); the generic constructor "
+    "supplies \"x\", which is not one of them.",
 }
 
 #: Every class with a dedicated constructor, in one mapping, so
@@ -265,9 +274,14 @@ def _register_mysql_specials():
 
         return getattr(mod, cls_name)(d, table=Table(d, "t"), partitions=["p0"])
 
+    from rhosocial.activerecord.backend.expression.operators import ArithmeticOperation
     from rhosocial.activerecord.backend.expression.predicates import (
         ILikePredicate,
         LikePredicate,
+    )
+    from rhosocial.activerecord.backend.expression.query_sources import SetOperation
+    from rhosocial.activerecord.backend.expression.statements.dql import (
+        QueryStatement,
     )
 
     factories = {
@@ -275,6 +289,21 @@ def _register_mysql_specials():
             lambda d: LikePredicate(d, "LIKE", Column(d, "a"), Literal(d, "%x%")),
         "predicates.ILikePredicate":
             lambda d: ILikePredicate(d, Column(d, "a"), "%x%"),
+        "operators.ArithmeticOperation":
+            lambda d: ArithmeticOperation(
+                d, "add", Column(d, "a"), Column(d, "b")
+            ),
+        "query_sources.SetOperation":
+            lambda d: SetOperation(
+                d,
+                op="union",
+                left=QueryStatement(
+                    d, select=[Column(d, "id")], from_=Table(d, "t")
+                ),
+                right=QueryStatement(
+                    d, select=[Column(d, "id")], from_=Table(d, "other")
+                ),
+            ),
         "match_against.MySQLMatchAgainstExpression":
             lambda d: MySQLMatchAgainstExpression(d, columns=["title"], search_string="x"),
         "json.MySQLJSONObjectExpression":
@@ -485,13 +514,13 @@ _DECLARED_GAP = {
         "SQL/PGQ vertex table; no format_vertex_table.",
     ),
     # --- PIVOT / UNPIVOT are T-SQL and Oracle, not MySQL. -----------------
-    "pivot.PivotExpression": (
-        "format_pivot_expression",
+    "pivot.Pivot": (
+        "format_pivot",
         "PIVOT is T-SQL/Oracle; MySQL spells it as GROUP BY with conditional "
         "aggregates and declares no formatter.",
     ),
-    "pivot.UnpivotExpression": (
-        "format_unpivot_expression",
+    "pivot.Unpivot": (
+        "format_unpivot",
         "UNPIVOT is T-SQL/Oracle; MySQL declares no formatter.",
     ),
     # --- Case-insensitive matching is written LOWER() = LOWER() here. -----
@@ -724,7 +753,7 @@ _NOT_RENDERED = {
         "this backend uses.",
     ),
     # --- The instance the generic constructor builds is not a valid one. ---
-    "advanced_functions.CaseFunction": (
+    "advanced_functions.CaseExpression": (
         "ValueError",
         "CASE needs at least one WHEN/THEN pair; the generic constructor "
         "supplies an empty list.",
