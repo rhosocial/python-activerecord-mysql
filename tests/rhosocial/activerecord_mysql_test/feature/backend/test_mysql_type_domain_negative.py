@@ -23,7 +23,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TypeObjectSupport,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.expression import BaseExpression, Literal
+from rhosocial.activerecord.backend.expression import BaseExpression, DdlLiteral
 from rhosocial.activerecord.backend.expression.statements import (
     AlterDomainStatement,
     AlterTypeStatement,
@@ -122,7 +122,9 @@ def _type_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
 
 
 def _domain_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
-    condition = DomainValueExpression(dialect) > Literal(dialect, 0, inline_literals=True)
+    # A CHECK expression accepts no bind parameter either, so the bound value
+    # is a DdlLiteral rather than a data-position Literal.
+    condition = DomainValueExpression(dialect) > DdlLiteral(dialect, 0)
     check = DomainCheckConstraint(dialect, condition)
     return (
         CreateDomainStatement(dialect, Domain(dialect, "positive"), IntegerType(dialect)),

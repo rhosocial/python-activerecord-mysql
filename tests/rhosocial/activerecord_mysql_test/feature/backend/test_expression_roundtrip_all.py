@@ -41,10 +41,12 @@ and all three tables are asserted exactly, in both directions: a new class
 nobody listed is a failure, and so is a row left behind after the class started
 working.
 
-Discovery is ``collect_expression_classes``, never
-``ExpressionRegistry._registry``. The registry is process-global and grows as
+Discovery is ``collect_expression_classes``, never the render registry in
+``backend.expression.registry``. That registry is process-global and grows as
 sibling modules import other backends, so three runs of this file measured
-three different denominators.
+three different denominators. The two are different mechanisms anyway: the
+registry indexes ``(dialect class, kind)`` to a formatter, while the
+serialization side indexes a kind to its expression class.
 
 Coverage spans two packages. ``backend.expression`` is core's own class
 library, collected here as well as this backend's, because outside the single

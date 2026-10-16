@@ -5,7 +5,7 @@ try:
 except ImportError:
     from typing_extensions import Annotated, Optional
 
-from rhosocial.activerecord.backend.expression.core import Column, Literal
+from rhosocial.activerecord.backend.expression.core import Column, DdlLiteral
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
     ColumnGeneratedConstraint,
@@ -58,7 +58,9 @@ DIALECT = MySQLDialect((8, 0, 36))
 SQL_TYPE = MySQLIntType(unsigned=True)
 FALLBACK_SQL_TYPE = MySQLLongTextType()
 SQL_TYPE_MARKER = UseSqlType(SQL_TYPE, FALLBACK_SQL_TYPE)
-DEFAULT_VALUE = Literal(DIALECT, "new", inline_literals=True)
+# A DEFAULT takes no bind parameter, so the value is a DdlLiteral: whether a
+# literal inlines is decided by its class, never per instance.
+DEFAULT_VALUE = DdlLiteral(DIALECT, "new")
 DEFAULT_CONSTRAINT = UseConstraint(
     ColumnDefaultConstraint,
     name="df_status_default",
