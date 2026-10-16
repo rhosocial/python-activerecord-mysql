@@ -521,7 +521,7 @@ def _select_production_payloads_expression(dialect, start, end, *, tenant_id: Op
 def _select_production_count_expression(dialect):
     return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", RowCountWildcard(dialect)).as_("count")],
+        select=[CountFunction(dialect, RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, PRODUCTION_PARTITION_TABLE),
     )
 
@@ -529,7 +529,7 @@ def _select_production_count_expression(dialect):
 def _select_archive_count_expression(dialect):
     return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", RowCountWildcard(dialect)).as_("count")],
+        select=[CountFunction(dialect, RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, PRODUCTION_ARCHIVE_TABLE),
     )
 

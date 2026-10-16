@@ -246,7 +246,7 @@ def _select_payloads_expression(dialect, table_name: str):
 def _select_count_expression(dialect, table_name: str):
     return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", RowCountWildcard(dialect)).as_("count")],
+        select=[CountFunction(dialect, RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, table_name),
     )
 
