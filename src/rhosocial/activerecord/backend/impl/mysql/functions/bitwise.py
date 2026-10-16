@@ -7,12 +7,18 @@ Functions: bit_and, bit_or, bit_xor, bit_count, bit_get_bit,
 
 Note: MySQL 9.6 does not support BIT_GET_BIT, BIT_SHIFT_LEFT, BIT_SHIFT_RIGHT
 as functions. These are implemented using native bitwise operators.
+
+The bitwise symbols are **not** arithmetic: ``ArithmeticOperation`` admits a
+closed set of operation words (``add`` / ``sub`` / ``mul`` / ``div`` / ``mod``)
+and ``&`` / ``|`` / ``^`` / ``<<`` / ``>>`` are none of them. These are plain
+binary operators, so they are written as :class:`BinaryExpression`, which takes
+the character the backend spells.
 """
 
 from typing import Union, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression import bases, core, NumericColumn
-from rhosocial.activerecord.backend.expression.operators import BinaryArithmeticExpression
+from rhosocial.activerecord.backend.expression.operators import BinaryExpression
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..dialect import MySQLDialect
@@ -50,7 +56,7 @@ def bit_and(
             else core.Literal(dialect, v) if isinstance(v, (int, float))
             else NumericColumn(dialect, v)
         )
-        result = BinaryArithmeticExpression(dialect, "&", result, v_expr)
+        result = BinaryExpression(dialect, "&", result, v_expr)
     return result
 
 
@@ -86,7 +92,7 @@ def bit_or(
             else core.Literal(dialect, v) if isinstance(v, (int, float))
             else NumericColumn(dialect, v)
         )
-        result = BinaryArithmeticExpression(dialect, "|", result, v_expr)
+        result = BinaryExpression(dialect, "|", result, v_expr)
     return result
 
 
@@ -122,7 +128,7 @@ def bit_xor(
             else core.Literal(dialect, v) if isinstance(v, (int, float))
             else NumericColumn(dialect, v)
         )
-        result = BinaryArithmeticExpression(dialect, "^", result, v_expr)
+        result = BinaryExpression(dialect, "^", result, v_expr)
     return result
 
 
@@ -182,8 +188,8 @@ def bit_get_bit(
         else NumericColumn(dialect, bit)
     )
     # (value >> bit) & 1
-    shifted = BinaryArithmeticExpression(dialect, ">>", value_expr, bit_expr)
-    return BinaryArithmeticExpression(dialect, "&", shifted, core.Literal(dialect, 1))
+    shifted = BinaryExpression(dialect, ">>", value_expr, bit_expr)
+    return BinaryExpression(dialect, "&", shifted, core.Literal(dialect, 1))
 
 
 def bit_shift_left(
@@ -217,7 +223,7 @@ def bit_shift_left(
         else core.Literal(dialect, count) if isinstance(count, (int, float))
         else NumericColumn(dialect, count)
     )
-    return BinaryArithmeticExpression(dialect, "<<", value_expr, count_expr)
+    return BinaryExpression(dialect, "<<", value_expr, count_expr)
 
 
 def bit_shift_right(
@@ -251,7 +257,7 @@ def bit_shift_right(
         else core.Literal(dialect, count) if isinstance(count, (int, float))
         else NumericColumn(dialect, count)
     )
-    return BinaryArithmeticExpression(dialect, ">>", value_expr, count_expr)
+    return BinaryExpression(dialect, ">>", value_expr, count_expr)
 
 
 __all__ = [

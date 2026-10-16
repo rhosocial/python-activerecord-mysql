@@ -21,6 +21,7 @@ quoted SQL text.
 from typing import TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression import bases, core
+from rhosocial.activerecord.backend.expression.functions import aggregate
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -247,7 +248,7 @@ def trunc(
 def max_(
     dialect: "SQLDialectBase",
     *args: "bases.BaseExpression",
-) -> "core.FunctionCall":
+) -> "bases.BaseExpression":
     """
     Creates a GREATEST or MAX function call.
 
@@ -262,24 +263,28 @@ def max_(
         When called with a single argument, uses MAX (aggregate).
         When called with multiple arguments, uses GREATEST (scalar).
 
+    Only the aggregate half is a classed node: MAX is a standard function, so it
+    is a ``MaxFunction``. GREATEST is a MySQL scalar with no standard node of
+    its own and stays on the generic call -- the escape hatch.
+
     Args:
         dialect: The SQL dialect instance
         *args: The expressions to compare
 
     Returns:
-        A FunctionCall instance representing GREATEST or MAX
+        A MaxFunction for one argument, a FunctionCall for several
 
     Version: All MySQL versions
     """
     if len(args) == 1:
-        return core.FunctionCall(dialect, "MAX", args[0])
+        return aggregate.MaxFunction(dialect, args[0])
     return core.FunctionCall(dialect, "GREATEST", *args)
 
 
 def min_(
     dialect: "SQLDialectBase",
     *args: "bases.BaseExpression",
-) -> "core.FunctionCall":
+) -> "bases.BaseExpression":
     """
     Creates a LEAST or MIN function call.
 
@@ -294,24 +299,27 @@ def min_(
         When called with a single argument, uses MIN (aggregate).
         When called with multiple arguments, uses LEAST (scalar).
 
+    The aggregate half is a ``MinFunction`` and the scalar half stays on the
+    generic call, for the reason given on :func:`max_`.
+
     Args:
         dialect: The SQL dialect instance
         *args: The expressions to compare
 
     Returns:
-        A FunctionCall instance representing LEAST or MIN
+        A MinFunction for one argument, a FunctionCall for several
 
     Version: All MySQL versions
     """
     if len(args) == 1:
-        return core.FunctionCall(dialect, "MIN", args[0])
+        return aggregate.MinFunction(dialect, args[0])
     return core.FunctionCall(dialect, "LEAST", *args)
 
 
 def avg(
     dialect: "SQLDialectBase",
     expr: "bases.BaseExpression",
-) -> "core.FunctionCall":
+) -> "aggregate.AvgFunction":
     """
     Creates an AVG function call.
 
@@ -325,11 +333,11 @@ def avg(
         expr: The numeric expression
 
     Returns:
-        A FunctionCall instance representing the AVG function
+        An AvgFunction node
 
     Version: All MySQL versions
     """
-    return core.FunctionCall(dialect, "AVG", expr)
+    return aggregate.AvgFunction(dialect, expr)
 
 
 __all__ = [

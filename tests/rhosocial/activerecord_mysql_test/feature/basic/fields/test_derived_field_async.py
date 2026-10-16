@@ -5,7 +5,7 @@ from typing_extensions import Annotated
 
 from rhosocial.activerecord.base import DerivedField, UseColumn
 from rhosocial.activerecord.model import ActiveRecord
-from rhosocial.activerecord.backend.expression import BinaryArithmeticExpression, Column, Literal
+from rhosocial.activerecord.backend.expression import ArithmeticOperation, Column, Literal
 
 
 class TestAsyncDerivedFieldDeclaration:
@@ -20,9 +20,7 @@ class TestAsyncDerivedFieldDeclaration:
     async def test_derived_field_with_static_expression(self, async_product_class):
         """Test DerivedField constructed with a pre-built expression object (non-callable path)."""
         dialect = async_product_class.backend().dialect
-        static_expr = BinaryArithmeticExpression(
-            dialect, "*", Column(dialect, "price"), Literal(dialect, 2)
-        )
+        static_expr = ArithmeticOperation(dialect, "mul", Column(dialect, "price"), Literal(dialect, 2))
         df = DerivedField(static_expr)
         resolved = df.resolve(dialect)
         assert resolved is static_expr
@@ -140,9 +138,7 @@ class TestAsyncDerivedFieldDictForm:
         await self._insert(async_product_class, "D1", 100.0, 4)
         results = await async_product_class.find_all(
             derived={
-                "my_discount": lambda d: BinaryArithmeticExpression(
-                    d, "*", Column(d, "price"), Literal(d, 0.8)
-                )
+                "my_discount": lambda d: ArithmeticOperation(d, "mul", Column(d, "price"), Literal(d, 0.8))
             }
         )
         assert results[0].__dict__["my_discount"] == pytest.approx(80.0)
@@ -159,9 +155,7 @@ class TestAsyncDerivedFieldDictForm:
     async def test_derived_dict_with_expression_object(self, async_product_class):
         await self._insert(async_product_class, "D3", 80.0, 5)
         dialect = async_product_class.backend().dialect
-        expr = BinaryArithmeticExpression(
-            dialect, "*", Column(dialect, "price"), Literal(dialect, 0.5)
-        )
+        expr = ArithmeticOperation(dialect, "mul", Column(dialect, "price"), Literal(dialect, 0.5))
         results = await async_product_class.find_all(
             derived={"half_price": expr}
         )
@@ -194,9 +188,7 @@ class TestAsyncExtraDerived:
         await self._insert(async_product_class, "F", 100.0, 10)
         results = await async_product_class.find_all(
             extra_derived={
-                "triple_price": lambda d: BinaryArithmeticExpression(
-                    d, "*", Column(d, "price"), Literal(d, 3)
-                )
+                "triple_price": lambda d: ArithmeticOperation(d, "mul", Column(d, "price"), Literal(d, 3))
             }
         )
         assert len(results) == 1
@@ -207,9 +199,7 @@ class TestAsyncExtraDerived:
         with pytest.raises(ValueError, match="conflicts with a declared derived field"):
             await async_product_class.find_all(
                 extra_derived={
-                    "discounted_price": lambda d: BinaryArithmeticExpression(
-                        d, "*", Column(d, "price"), Literal(d, 0.5)
-                    )
+                    "discounted_price": lambda d: ArithmeticOperation(d, "mul", Column(d, "price"), Literal(d, 0.5))
                 }
             )
 
@@ -218,9 +208,7 @@ class TestAsyncExtraDerived:
         results = await async_product_class.find_all(
             derived=True,
             extra_derived={
-                "double_qty": lambda d: BinaryArithmeticExpression(
-                    d, "*", Column(d, "quantity"), Literal(d, 2)
-                )
+                "double_qty": lambda d: ArithmeticOperation(d, "mul", Column(d, "quantity"), Literal(d, 2))
             }
         )
         assert results[0].discounted_price == pytest.approx(36.0)
@@ -335,9 +323,7 @@ class TestAsyncDerivedFieldColumnConflict:
                 id: Optional[int] = None
                 discount_rate: Annotated[float, UseColumn("disc")]
                 discounted: ClassVar[Annotated[float, DerivedField(
-                    lambda d: BinaryArithmeticExpression(
-                        d, "*", Column(d, "price"), Literal(d, 0.9)
-                    ),
+                    lambda d: ArithmeticOperation(d, "mul", Column(d, "price"), Literal(d, 0.9)),
                 ), UseColumn("disc")]]
 
     async def test_use_column_no_conflict_different_names(self):
@@ -347,9 +333,7 @@ class TestAsyncDerivedFieldColumnConflict:
             id: Optional[int] = None
             discount_rate: Annotated[float, UseColumn("rate")]
             discounted: ClassVar[Annotated[float, DerivedField(
-                lambda d: BinaryArithmeticExpression(
-                    d, "*", Column(d, "price"), Literal(d, 0.9)
-                ),
+                lambda d: ArithmeticOperation(d, "mul", Column(d, "price"), Literal(d, 0.9)),
             ), UseColumn("disc")]]
 
         assert NoConflict.__derived_fields__["discounted"].column_name == "disc"
