@@ -61,10 +61,11 @@ import typing
 
 import pytest
 
-from rhosocial.activerecord.testsuite.utils.expression import (
+from expression_roundtrip_harness import (
     collect_expression_classes,
     make_instance,
     register_all,
+    register_enums_and_dataclasses,
     register_special_constructor,
     roundtrip_expression,
     sql_consistent,
@@ -79,6 +80,10 @@ CLASSES = collect_expression_classes(MYSQL_EXPR_PKG)
 CORE_CLASSES = collect_expression_classes(CORE_EXPR_PKG)
 ALL_CLASSES = {**CORE_CLASSES, **CLASSES}
 register_all(ALL_CLASSES)
+# The mysql expression package's enums and dataclasses ride inside artifacts
+# under their short class names; the whitelist resolves those names, so the
+# backend package's own vocabulary has to be registered beside the classes.
+register_enums_and_dataclasses(MYSQL_EXPR_PKG)
 
 
 def _table(d, name="t"):
