@@ -13,6 +13,7 @@ lists, GRANT/REVOKE with columns and GRANT OPTION) plus every
 import pytest
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from rhosocial.activerecord.backend.expression import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Function, Procedure, Table
 from rhosocial.activerecord.backend.impl.mysql import expression as mysql_expr
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -26,10 +27,17 @@ def dialect():
     return MySQLDialect()
 
 
-class _InspectableExpr:
-    """Minimal stand-in for a core expression exposing to_sql()."""
+class _InspectableExpr(BaseExpression):
+    """Minimal stand-in for a core expression exposing to_sql().
+
+    Subclasses :class:`BaseExpression` because the formatters dispatch an
+    "expression vs bare host value" slot with ``isinstance`` -- the same
+    judgement core's ``format_insert_values_source`` makes -- so the stand-in
+    has to be a declared expression node, not a duck-typed object.
+    """
 
     def __init__(self, sql="1 + 1", params=()):
+        super().__init__(None)
         self._sql = sql
         self._params = params
 

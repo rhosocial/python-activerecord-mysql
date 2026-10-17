@@ -1,6 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/admin.py
 from typing import TYPE_CHECKING, Tuple
 
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
 from .object_kind import require_kind
@@ -230,7 +231,7 @@ class MySQLAdminCommandMixin:
             parts.append(self.format_identifier(expr.index))
         parts.append(expr.mode.value)
         if expr.key_value is not None:
-            if hasattr(expr.key_value, "to_sql"):
+            if isinstance(expr.key_value, BaseExpression):
                 sql, p = expr.key_value.to_sql()
                 parts.append(f"({sql})")
                 params.extend(p)
@@ -262,7 +263,7 @@ class MySQLAdminCommandMixin:
         params = []
         expr_parts = []
         for e in expr.expressions:
-            if hasattr(e, "to_sql"):
+            if isinstance(e, BaseExpression):
                 sql, p = e.to_sql()
                 expr_parts.append(sql)
                 params.extend(p)

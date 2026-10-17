@@ -136,7 +136,7 @@ class MySQLNamespaceMixin:
                 MySQL's 64-character identifier limit, or contains one of the
                 characters MySQL reserves for name qualification.
         """
-        name = getattr(expr, "catalog_name", None)
+        name = expr.catalog_name
         if not name:
             return
         if len(name) > MAX_IDENTIFIER_LENGTH:

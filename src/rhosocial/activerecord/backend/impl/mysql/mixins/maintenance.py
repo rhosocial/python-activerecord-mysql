@@ -45,17 +45,17 @@ class MySQLMaintenanceMixin:
 
         parts = [f"{operation} TABLE"]
 
-        if hasattr(expr, "no_write_to_binlog") and expr.no_write_to_binlog.value:
+        if expr.no_write_to_binlog.value:
             parts.append(expr.no_write_to_binlog.value)
 
         table_parts = [self._format_maintenance_table(t) for t in expr.tables]
         parts.append(", ".join(table_parts))
 
-        if operation == "CHECK" and getattr(expr, "options", None):
+        if operation == "CHECK" and expr.options:
             parts.append(" ".join(option.value for option in expr.options))
-        elif operation == "CHECKSUM" and getattr(expr, "option", None):
+        elif operation == "CHECKSUM" and expr.option:
             parts.append(expr.option.value)
-        elif operation == "REPAIR" and getattr(expr, "options", None):
+        elif operation == "REPAIR" and expr.options:
             parts.append(" ".join(option.value for option in expr.options))
 
         return " ".join(parts), ()

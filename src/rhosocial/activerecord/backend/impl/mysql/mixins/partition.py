@@ -188,13 +188,13 @@ class MySQLPartitionMixin:
             params.extend(key_params)
 
         sql = f" PARTITION BY RANGE ({', '.join(key_sql_parts)})"
-        subpartition_by = getattr(expr, "subpartition_by", None)
+        subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
             sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
-        partitions = getattr(expr, "partitions", [])
+        partitions = expr.partitions
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
@@ -217,13 +217,13 @@ class MySQLPartitionMixin:
             params.extend(key_params)
 
         sql = f" PARTITION BY RANGE COLUMNS ({', '.join(key_sql_parts)})"
-        subpartition_by = getattr(expr, "subpartition_by", None)
+        subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
             sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
-        partitions = getattr(expr, "partitions", [])
+        partitions = expr.partitions
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
@@ -246,13 +246,13 @@ class MySQLPartitionMixin:
             params.extend(key_params)
 
         sql = f" PARTITION BY LIST ({', '.join(key_sql_parts)})"
-        subpartition_by = getattr(expr, "subpartition_by", None)
+        subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
             sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
-        partitions = getattr(expr, "partitions", [])
+        partitions = expr.partitions
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
@@ -275,13 +275,13 @@ class MySQLPartitionMixin:
             params.extend(key_params)
 
         sql = f" PARTITION BY LIST COLUMNS ({', '.join(key_sql_parts)})"
-        subpartition_by = getattr(expr, "subpartition_by", None)
+        subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
             sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
-        partitions = getattr(expr, "partitions", [])
+        partitions = expr.partitions
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
@@ -308,7 +308,7 @@ class MySQLPartitionMixin:
             params.extend(key_params)
 
         sql = f" PARTITION BY {keyword} ({', '.join(key_sql_parts)})"
-        partitions_count = getattr(expr, "partitions_count", None)
+        partitions_count = expr.partitions_count
         if partitions_count is not None:
             if not isinstance(partitions_count, int) or partitions_count <= 0:
                 raise ValueError("partitions_count must be a positive integer")
@@ -332,7 +332,7 @@ class MySQLPartitionMixin:
             params.extend(key_params)
 
         sql = f" PARTITION BY {keyword} ({', '.join(key_sql_parts)})"
-        partitions_count = getattr(expr, "partitions_count", None)
+        partitions_count = expr.partitions_count
         if partitions_count is not None:
             if not isinstance(partitions_count, int) or partitions_count <= 0:
                 raise ValueError("partitions_count must be a positive integer")
@@ -379,7 +379,7 @@ class MySQLPartitionMixin:
             if options_sql:
                 parts.append(options_sql)
             params.extend(options_params)
-        subpartition_defs = getattr(definition, "subpartition_definitions", None)
+        subpartition_defs = definition.subpartition_definitions
         if subpartition_defs:
             if not self.supports_subpartitioning():
                 raise UnsupportedFeatureError(self.name, "subpartition definitions")

@@ -92,7 +92,7 @@ class MySQLTableMixin:
         all_params: List[Any] = []
 
         options_part = ""
-        table_options = getattr(expr, "table_options", None)
+        table_options = expr.table_options
         if table_options is not None:
             options_sql, options_params = table_options.to_sql()
             if options_sql:
@@ -143,8 +143,7 @@ class MySQLTableMixin:
         from rhosocial.activerecord.backend.impl.mysql.expression.table_options import (
             MySQLCreateTableOptions,
         )
-        table_options = getattr(expr, "table_options", None)
-        if table_options is not None and getattr(table_options, "comment", None) is not None:
+        if table_options is not None and table_options.comment is not None:
             comment_sql, _ = self.format_table_comment_clause(table_options.comment)
             parts.append(comment_sql.strip())
 

@@ -37,8 +37,6 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TransactionControlSupport,
     SQLFunctionSupport,
     DataTypeSupport,
-    # Column Class Support Protocol
-    ColumnTypeSupport,
     TypeObjectSupport,
     CreateTypeSupport,
     AlterTypeSupport,
@@ -535,6 +533,12 @@ class MySQLDialect(
         - ``ignore=True`` → ``INSERT IGNORE``
         - ``replace=True`` → ``REPLACE INTO``
 
+        The flags are this backend's own derived-node contract, so they are
+        read off ``MySQLInsertExpression`` by type; a plain core
+        ``InsertStatement`` spells neither and renders a plain ``INSERT``.
+        Their mutual-exclusion rules are enforced by the derived node's
+        constructor, not here.
+
         Args:
             expr: InsertStatement instance
 
@@ -548,8 +552,6 @@ class MySQLDialect(
                 Sequence in the INTO slot renders through its own formatter --
                 a well-formed INSERT writing to something the caller never
                 named.
-            ValueError: If both 'ignore' and 'replace' are specified, or if
-                       'replace' is used with 'on_conflict'
         """
         # Perform strict parameter validation
         if self.strict_validation:
@@ -557,15 +559,12 @@ class MySQLDialect(
 
         require_kind(expr.into, Table, "InsertStatement.into")
 
-        # Check for conflicting options
-        is_replace = getattr(expr, "replace", False)
-        is_ignore = getattr(expr, "ignore", False)
+        is_replace = is_ignore = False
+        from .expression.dml import MySQLInsertExpression
 
-        if is_replace and is_ignore:
-            raise ValueError("Cannot use both 'replace' and 'ignore' options together")
-
-        if is_replace and expr.on_conflict:
-            raise ValueError("REPLACE INTO does not support ON CONFLICT clause")
+        if isinstance(expr, MySQLInsertExpression):
+            is_replace = expr.replace
+            is_ignore = expr.ignore
 
         all_params: List[Any] = []
         table_sql, table_params = expr.into.to_sql()
