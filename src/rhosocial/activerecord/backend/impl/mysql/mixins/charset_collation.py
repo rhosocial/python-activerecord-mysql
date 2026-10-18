@@ -408,12 +408,28 @@ class MySQLCharsetCollationMixin:
         return True
 
     def validate_collation_name(self, expr: "CollateFunction") -> str:
-        """Validate a ``CollateFunction`` and return its collation SQL."""
+        """Validate a ``CollateFunction`` and return its collation SQL.
+
+        The node's options bag is gone: core made schema qualification the
+        one named parameter, so there is no ``collation_options`` to read any
+        more (the old read raised ``AttributeError`` from inside the
+        renderer). MySQL's ``COLLATE`` grammar takes a single collation
+        identifier -- a schema-qualified request is not a spelling this
+        server parses, so it is refused by name here rather than silently
+        dropped.
+        """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        if expr.collation_options:
-            unsupported = ", ".join(sorted(expr.collation_options))
-            raise UnsupportedFeatureError(self.name, f"COLLATE options: {unsupported}")
+        if expr.schema is not None:
+            raise UnsupportedFeatureError(
+                self.name,
+                "COLLATE schema qualification",
+                suggestion=(
+                    "MySQL's COLLATE takes a single collation name, e.g. "
+                    "COLLATE utf8mb4_bin; a schema-qualified collation is "
+                    "not part of this server's grammar"
+                ),
+            )
         return self.validate_collation_by_name(expr.collation_name)
 
     # --- charset ---------------------------------------------------------

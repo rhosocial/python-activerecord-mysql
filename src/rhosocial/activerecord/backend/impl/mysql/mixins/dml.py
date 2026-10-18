@@ -1,6 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/dml.py
 from typing import TYPE_CHECKING, Any, List, Tuple
 
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -90,7 +91,7 @@ class MySQLDMLOperationMixin:
             set_parts = []
             for col, val in expr.options.set_assignments.items():
                 col_sql = self.format_identifier(col)
-                if hasattr(val, "to_sql"):
+                if isinstance(val, BaseExpression):
                     val_sql, val_params = val.to_sql()
                     all_params.extend(val_params)
                 else:
@@ -110,7 +111,7 @@ class MySQLDMLOperationMixin:
         if expr.update_assignments:
             for col_name, value_expr in expr.update_assignments.items():
                 col_sql = self.format_identifier(col_name)
-                if hasattr(value_expr, "to_sql"):
+                if isinstance(value_expr, BaseExpression):
                     val_sql, val_params = value_expr.to_sql()
                 else:
                     val_sql, val_params = Literal(self, value_expr).to_sql()

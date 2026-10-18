@@ -1,5 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/function.py
-from typing import Dict
+from typing import Dict, Tuple
+
+from rhosocial.activerecord.backend.expression import bases
 
 # MySQL function version support: function_name -> (min_version, max_version)
 # min_version: minimum supported version (inclusive), None = all versions
@@ -112,3 +114,32 @@ class MySQLFunctionMixin:
             return False
 
         return True
+
+    def format_char_length_function(self, expr: "bases.BaseExpression") -> Tuple[str, tuple]:
+        """MySQL's three length spellings, by the unit the node declares.
+
+        The core default spells ``LENGTH``, which on MySQL counts **bytes**
+        -- measured on 8.0.46: ``LENGTH('aé')`` answers 3 where
+        ``CHAR_LENGTH('aé')`` answers 2, so the default would answer a
+        different question than the node's ``unit='char'`` records. MySQL
+        has a native spelling for each of the three declared units, so this
+        override honours the unit rather than picking one:
+
+        * ``char`` -- ``CHAR_LENGTH(operand)``, counted in characters;
+        * ``octet`` -- ``LENGTH(operand)``, counted in bytes (measured:
+          ``LENGTH(X'0102')`` answers 2);
+        * ``bit`` -- ``BIT_LENGTH(operand)`` (measured:
+          ``BIT_LENGTH('abc')`` answers 24).
+
+        Args:
+            expr: The :class:`CharLengthFunction` whose ``unit`` names the
+                length semantics asked for.
+
+        Returns:
+            A ``(sql, params)`` tuple.
+        """
+        if expr.unit == "octet":
+            return self._format_scalar_function("LENGTH", expr)
+        if expr.unit == "bit":
+            return self._format_scalar_function("BIT_LENGTH", expr)
+        return self._format_scalar_function("CHAR_LENGTH", expr)

@@ -603,16 +603,13 @@ class MySQLDialect(
         if isinstance(expr.source, DefaultValuesSource):
             parts.append("DEFAULT VALUES")
         elif isinstance(expr.source, ValuesSource):
-            all_rows_sql = []
-            for row in expr.source.values_list:
-                row_sql, row_params = [], []
-                for val in row:
-                    s, p = val.to_sql()
-                    row_sql.append(s)
-                    row_params.extend(p)
-                all_rows_sql.append(f"({', '.join(row_sql)})")
-                all_params.extend(row_params)
-            parts.append("VALUES " + ", ".join(all_rows_sql))
+            # A cell is either an expression or a bare host value, and the
+            # base formatter owns that judgement in one place -- the local
+            # loop this used to be wrote ``val.to_sql()`` per cell and could
+            # not accept a bare value at all.
+            values_sql, values_params = self.format_insert_values_source(expr.source)
+            parts.append(values_sql)
+            all_params.extend(values_params)
         elif isinstance(expr.source, SelectSource):
             s_sql, s_params = expr.source.select_query.to_sql()
             parts.append(s_sql)
