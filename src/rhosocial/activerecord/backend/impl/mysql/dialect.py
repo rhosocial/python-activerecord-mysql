@@ -103,6 +103,11 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DomainMixin,
     TransactionControlMixin,
     SetOperationMixin,
+    # Value literals: the base tier-1 rendering plus the tier-2 methods a
+    # backend must implement. MySQL's own spellings come from
+    # MySQLTypedValueMixin (imported with the local mixins), which the
+    # dialect composes ahead of this one.
+    TypedValueMixin,
 )
 from .protocols import (
     MySQLTriggerSupport,
@@ -168,6 +173,7 @@ from .mixins import (
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
     MySQLColumnTypeMixin,
+    MySQLTypedValueMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -326,6 +332,12 @@ class MySQLDialect(
     IntrospectionMixin,
     PredicateMixin,
     ExpressionMixin,
+    # Value literals: MySQL's spellings ahead of the base's tier-1 rendering.
+    # This order is what resolves format_binary_value and format_uuid_value
+    # (INTERVAL is deliberately absent -- see mixins/typed_value.py for the
+    # measured refusals behind that).
+    MySQLTypedValueMixin,
+    TypedValueMixin,
     DateTimeMixin,
     DQLMixin,
     DMLMixin,

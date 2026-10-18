@@ -47,6 +47,7 @@ from .generated_column import MySQLGeneratedColumnMixin
 from .function import MySQLFunctionMixin
 from .namespace import MySQLNamespaceMixin
 from .column_type import MySQLColumnTypeMixin
+from .typed_value import MySQLTypedValueMixin
 
 # ``__all__`` is the mixin surface: the names ``dialect.py`` mixes into
 # MySQLDialect. ``require_kind`` from ``.object_kind`` is deliberately absent --
@@ -101,4 +102,5 @@ __all__ = [
     "MySQLFunctionMixin",
     "MySQLNamespaceMixin",
     "MySQLColumnTypeMixin",
+    "MySQLTypedValueMixin",
 ]
