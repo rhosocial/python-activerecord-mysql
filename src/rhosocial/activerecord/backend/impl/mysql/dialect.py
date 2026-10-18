@@ -103,11 +103,6 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DomainMixin,
     TransactionControlMixin,
     SetOperationMixin,
-    # Value literals: the base tier-1 rendering plus the tier-2 methods a
-    # backend must implement. MySQL's own spellings come from
-    # MySQLTypedValueMixin (imported with the local mixins), which the
-    # dialect composes ahead of this one.
-    TypedValueMixin,
 )
 from .protocols import (
     MySQLTriggerSupport,
@@ -173,7 +168,7 @@ from .mixins import (
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
     MySQLColumnTypeMixin,
-    MySQLTypedValueMixin,
+    MySQLLiteralValueMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -186,6 +181,12 @@ if TYPE_CHECKING:
 
 
 class MySQLDialect(
+    # MySQL's tier-2 value literals (bytes X'...' and the quoted UUID text)
+    # override format_literal, and this is the one base that defines it, so
+    # the mixin is placed ahead of SQLDialectBase: a mixin placed after the
+    # class it overrides never wins. Everything else about this mixin is the
+    # base's own tiering, which super() reaches.
+    MySQLLiteralValueMixin,
     SQLDialectBase,
     # MySQL's own namespace rules first, and before NamespaceMixin for the C3
     # reason: MySQLNamespaceMixin overrides supports_catalog,
@@ -332,12 +333,6 @@ class MySQLDialect(
     IntrospectionMixin,
     PredicateMixin,
     ExpressionMixin,
-    # Value literals: MySQL's spellings ahead of the base's tier-1 rendering.
-    # This order is what resolves format_binary_value and format_uuid_value
-    # (INTERVAL is deliberately absent -- see mixins/typed_value.py for the
-    # measured refusals behind that).
-    MySQLTypedValueMixin,
-    TypedValueMixin,
     DateTimeMixin,
     DQLMixin,
     DMLMixin,

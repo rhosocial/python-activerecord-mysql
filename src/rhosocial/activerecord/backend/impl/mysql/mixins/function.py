@@ -116,30 +116,18 @@ class MySQLFunctionMixin:
         return True
 
     def format_char_length_function(self, expr: "bases.BaseExpression") -> Tuple[str, tuple]:
-        """MySQL's three length spellings, by the unit the node declares.
+        """MySQL's character-length spelling: ``CHAR_LENGTH(operand)``.
 
-        The core default spells ``LENGTH``, which on MySQL counts **bytes**
-        -- measured on 8.0.46: ``LENGTH('aé')`` answers 3 where
-        ``CHAR_LENGTH('aé')`` answers 2, so the default would answer a
-        different question than the node's ``unit='char'`` records. MySQL
-        has a native spelling for each of the three declared units, so this
-        override honours the unit rather than picking one:
+        The base spells ``LENGTH``, and on MySQL that answers a different
+        question: measured on 8.0.46 (192.168.1.3:14682),
+        ``LENGTH('aé')`` is 3 -- the byte count, é being two bytes -- while
+        ``CHAR_LENGTH('aé')`` is 2, the characters, so the default would
+        answer a different question than this node asks.
 
-        * ``char`` -- ``CHAR_LENGTH(operand)``, counted in characters;
-        * ``octet`` -- ``LENGTH(operand)``, counted in bytes (measured:
-          ``LENGTH(X'0102')`` answers 2);
-        * ``bit`` -- ``BIT_LENGTH(operand)`` (measured:
-          ``BIT_LENGTH('abc')`` answers 24).
-
-        Args:
-            expr: The :class:`CharLengthFunction` whose ``unit`` names the
-                length semantics asked for.
-
-        Returns:
-            A ``(sql, params)`` tuple.
+        The node's ``unit`` records the semantics the caller asked for and
+        never enters the SQL, exactly as the base's contract says; the
+        octet and bit semantics have their own dedicated nodes, whose
+        defaults (``OCTET_LENGTH`` / ``BIT_LENGTH``) are spellings MySQL
+        accepts as-is.
         """
-        if expr.unit == "octet":
-            return self._format_scalar_function("LENGTH", expr)
-        if expr.unit == "bit":
-            return self._format_scalar_function("BIT_LENGTH", expr)
         return self._format_scalar_function("CHAR_LENGTH", expr)

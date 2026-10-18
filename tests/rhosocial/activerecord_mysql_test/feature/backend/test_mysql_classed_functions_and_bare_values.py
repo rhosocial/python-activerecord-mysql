@@ -3,14 +3,14 @@
 
 Two threads of the core waves land in this dialect here:
 
-* :class:`CharLengthFunction` carries a declared ``unit`` (char / octet /
-  bit), and core's default ``LENGTH`` spelling counts **bytes** on MySQL --
-  measured on 8.0.46: ``LENGTH('aé')`` answers 3 where ``CHAR_LENGTH('aé')``
-  answers 2, so the default would answer a different question than the
-  unit records. MySQL has a native spelling for each unit, so the dialect
-  override maps char -> ``CHAR_LENGTH``, octet -> ``LENGTH`` (bytes,
-  measured: ``LENGTH(X'0102')`` answers 2), bit -> ``BIT_LENGTH`` (measured:
-  ``BIT_LENGTH('abc')`` answers 24).
+* :class:`CharLengthFunction` asks the characters question, and core's
+  default ``LENGTH`` spelling counts **bytes** on MySQL -- measured on
+  8.0.46: ``LENGTH('aé')`` answers 3 where ``CHAR_LENGTH('aé')`` answers
+  2, so the default would answer a different question than this node asks.
+  The override spells ``CHAR_LENGTH``; the node's ``unit`` never enters
+  the SQL (the octet and bit semantics have their own dedicated nodes,
+  whose defaults -- ``OCTET_LENGTH`` / ``BIT_LENGTH`` -- are spellings
+  MySQL accepts as-is).
 * An INSERT's VALUES cells may be bare host values since core ``8e2e4d82``
   -- a cell is either an expression, rendered through its own ``to_sql()``,
   or a plain value that becomes a bind parameter -- and this dialect now
@@ -35,32 +35,27 @@ def dialect():
 
 
 class TestCharLengthSpelling:
-    """The unit the node declares picks this engine's native spelling."""
+    """The characters question, spelled the way MySQL answers it."""
 
-    def test_char_unit_spells_char_length(self, dialect):
+    def test_the_default_unit_spells_char_length(self, dialect):
         sql, params = CharLengthFunction(dialect, Column(dialect, "name")).to_sql()
         assert sql == "CHAR_LENGTH(`name`)"
         assert params == ()
 
-    def test_octet_unit_spells_length(self, dialect):
-        sql, params = CharLengthFunction(
-            dialect, Column(dialect, "payload"), unit="octet"
-        ).to_sql()
-        assert sql == "LENGTH(`payload`)"
-        assert params == ()
-
-    def test_bit_unit_spells_bit_length(self, dialect):
-        sql, params = CharLengthFunction(
-            dialect, Column(dialect, "payload"), unit="bit"
-        ).to_sql()
-        assert sql == "BIT_LENGTH(`payload`)"
-        assert params == ()
+    def test_the_unit_never_enters_the_sql(self, dialect):
+        # The node records which length semantics the caller asked for, and
+        # the octet and bit semantics have their own dedicated nodes
+        # (OctetLengthFunction / BitLengthFunction); this entry point answers
+        # the characters question whatever the record says.
+        for unit in ("char", "octet", "bit"):
+            sql, _ = CharLengthFunction(
+                dialect, Column(dialect, "name"), unit=unit
+            ).to_sql()
+            assert sql == "CHAR_LENGTH(`name`)"
 
     def test_alias_survives_the_override(self, dialect):
-        sql, _ = CharLengthFunction(
-            dialect, Column(dialect, "name"), unit="octet"
-        ).as_("len").to_sql()
-        assert sql == "LENGTH(`name`) AS `len`"
+        sql, _ = CharLengthFunction(dialect, Column(dialect, "name")).as_("len").to_sql()
+        assert sql == "CHAR_LENGTH(`name`) AS `len`"
 
     def test_the_override_resolves_from_the_mysql_function_mixin(self, dialect):
         assert dialect.format_char_length_function.__func__.__qualname__.startswith(
@@ -101,10 +96,11 @@ class TestInsertBareValuesCells:
         assert sql == "INSERT INTO `t` (`a`, `b`) VALUES (%s, %s)"
         assert params == ("a", 7)
 
-    def test_a_typed_value_cell_binds_like_a_literal(self, dialect):
-        from rhosocial.activerecord.backend.expression.values import IntegerValue
-
-        stmt = self._insert(dialect, [(IntegerValue(dialect, 3), 4)])
+    def test_a_literal_cell_binds_like_a_bare_one(self, dialect):
+        # Core collapsed the value kinds into one Literal node that owns the
+        # binding decision; at a data position it binds behind the same
+        # placeholder a bare host value gets.
+        stmt = self._insert(dialect, [(Literal(dialect, 3), 4)])
         sql, params = stmt.to_sql()
         assert sql == "INSERT INTO `t` (`a`, `b`) VALUES (%s, %s)"
         assert params == (3, 4)
