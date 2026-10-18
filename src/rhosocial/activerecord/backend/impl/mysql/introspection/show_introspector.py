@@ -347,7 +347,7 @@ class SyncShowIntrospector(ShowMixin):
         """Get CREATE TABLE statement for a table."""
         expr = ShowCreateTableExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_create_table(self._exec(sql, params), table_name)
 
@@ -355,7 +355,7 @@ class SyncShowIntrospector(ShowMixin):
         """Get CREATE VIEW statement for a view."""
         expr = ShowCreateViewExpression(self.dialect, view_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_create_view(self._exec(sql, params), view_name)
 
@@ -369,11 +369,11 @@ class SyncShowIntrospector(ShowMixin):
         """Get column information for a table."""
         expr = ShowColumnsExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if full:
-            expr.full()
+            expr.with_full()
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_columns(self._exec(sql, params))
 
@@ -381,7 +381,7 @@ class SyncShowIntrospector(ShowMixin):
         """Get index information for a table."""
         expr = ShowIndexExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_indexes(self._exec(sql, params))
 
@@ -394,11 +394,11 @@ class SyncShowIntrospector(ShowMixin):
         """List tables in the database."""
         expr = ShowTablesExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if full:
-            expr.full()
+            expr.with_full()
         sql, params = expr.to_sql()
         return self._parse_tables(self._exec(sql, params))
 
@@ -406,7 +406,7 @@ class SyncShowIntrospector(ShowMixin):
         """List databases."""
         expr = ShowDatabasesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_databases(self._exec(sql, params))
 
@@ -414,9 +414,9 @@ class SyncShowIntrospector(ShowMixin):
         """Get table status information."""
         expr = ShowTableStatusExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_table_status(self._exec(sql, params))
 
@@ -424,9 +424,9 @@ class SyncShowIntrospector(ShowMixin):
         """List triggers."""
         expr = ShowTriggersExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if table_name:
-            expr.for_table(table_name)
+            expr.with_table_name(table_name)
         sql, params = expr.to_sql()
         return self._parse_triggers(self._exec(sql, params))
 
@@ -434,7 +434,7 @@ class SyncShowIntrospector(ShowMixin):
         """Get CREATE TRIGGER statement."""
         expr = ShowCreateTriggerExpression(self.dialect, trigger_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_create_trigger(self._exec(sql, params), trigger_name)
 
@@ -442,9 +442,9 @@ class SyncShowIntrospector(ShowMixin):
         """Show server variables."""
         expr = ShowVariablesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_vars()
+            expr.with_global_vars()
         sql, params = expr.to_sql()
         return self._parse_variables(self._exec(sql, params))
 
@@ -452,9 +452,9 @@ class SyncShowIntrospector(ShowMixin):
         """Show server status."""
         expr = ShowStatusExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_status()
+            expr.with_global_status()
         sql, params = expr.to_sql()
         return self._parse_status(self._exec(sql, params))
 
@@ -462,7 +462,7 @@ class SyncShowIntrospector(ShowMixin):
         """Show process list."""
         expr = ShowProcessListExpression(self.dialect)
         if full:
-            expr.full()
+            expr.with_full()
         sql, params = expr.to_sql()
         return self._parse_processlist(self._exec(sql, params))
 
@@ -470,7 +470,7 @@ class SyncShowIntrospector(ShowMixin):
         """Show warnings."""
         expr = ShowWarningsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
         sql, params = expr.to_sql()
         return self._parse_warnings(self._exec(sql, params))
 
@@ -478,7 +478,7 @@ class SyncShowIntrospector(ShowMixin):
         """Show errors."""
         expr = ShowErrorsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
         sql, params = expr.to_sql()
         return self._parse_warnings(self._exec(sql, params))
 
@@ -492,7 +492,7 @@ class SyncShowIntrospector(ShowMixin):
         """Show character sets."""
         expr = ShowCharsetExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_charset(self._exec(sql, params))
 
@@ -500,7 +500,7 @@ class SyncShowIntrospector(ShowMixin):
         """Show collations."""
         expr = ShowCollationExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_collation(self._exec(sql, params))
 
@@ -508,7 +508,7 @@ class SyncShowIntrospector(ShowMixin):
         """Show grants."""
         expr = ShowGrantsExpression(self.dialect)
         if user:
-            expr.for_user(user, host)
+            expr.with_user(user, host)
         sql, params = expr.to_sql()
         return self._parse_grants(self._exec(sql, params))
 
@@ -548,7 +548,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Get CREATE TABLE statement for a table."""
         expr = ShowCreateTableExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_create_table(await self._exec(sql, params), table_name)
 
@@ -556,7 +556,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Get CREATE VIEW statement for a view."""
         expr = ShowCreateViewExpression(self.dialect, view_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_create_view(await self._exec(sql, params), view_name)
 
@@ -570,11 +570,11 @@ class AsyncShowIntrospector(ShowMixin):
         """Get column information for a table."""
         expr = ShowColumnsExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if full:
-            expr.full()
+            expr.with_full()
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_columns(await self._exec(sql, params))
 
@@ -582,7 +582,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Get index information for a table."""
         expr = ShowIndexExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_indexes(await self._exec(sql, params))
 
@@ -595,11 +595,11 @@ class AsyncShowIntrospector(ShowMixin):
         """List tables in the database."""
         expr = ShowTablesExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if full:
-            expr.full()
+            expr.with_full()
         sql, params = expr.to_sql()
         return self._parse_tables(await self._exec(sql, params))
 
@@ -607,7 +607,7 @@ class AsyncShowIntrospector(ShowMixin):
         """List databases."""
         expr = ShowDatabasesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_databases(await self._exec(sql, params))
 
@@ -615,9 +615,9 @@ class AsyncShowIntrospector(ShowMixin):
         """Get table status information."""
         expr = ShowTableStatusExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_table_status(await self._exec(sql, params))
 
@@ -625,9 +625,9 @@ class AsyncShowIntrospector(ShowMixin):
         """List triggers."""
         expr = ShowTriggersExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if table_name:
-            expr.for_table(table_name)
+            expr.with_table_name(table_name)
         sql, params = expr.to_sql()
         return self._parse_triggers(await self._exec(sql, params))
 
@@ -635,7 +635,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Get CREATE TRIGGER statement."""
         expr = ShowCreateTriggerExpression(self.dialect, trigger_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         return self._parse_create_trigger(await self._exec(sql, params), trigger_name)
 
@@ -643,9 +643,9 @@ class AsyncShowIntrospector(ShowMixin):
         """Show server variables."""
         expr = ShowVariablesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_vars()
+            expr.with_global_vars()
         sql, params = expr.to_sql()
         return self._parse_variables(await self._exec(sql, params))
 
@@ -653,9 +653,9 @@ class AsyncShowIntrospector(ShowMixin):
         """Show server status."""
         expr = ShowStatusExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_status()
+            expr.with_global_status()
         sql, params = expr.to_sql()
         return self._parse_status(await self._exec(sql, params))
 
@@ -663,7 +663,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Show process list."""
         expr = ShowProcessListExpression(self.dialect)
         if full:
-            expr.full()
+            expr.with_full()
         sql, params = expr.to_sql()
         return self._parse_processlist(await self._exec(sql, params))
 
@@ -671,7 +671,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Show warnings."""
         expr = ShowWarningsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
         sql, params = expr.to_sql()
         return self._parse_warnings(await self._exec(sql, params))
 
@@ -679,7 +679,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Show errors."""
         expr = ShowErrorsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
         sql, params = expr.to_sql()
         return self._parse_warnings(await self._exec(sql, params))
 
@@ -693,7 +693,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Show character sets."""
         expr = ShowCharsetExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_charset(await self._exec(sql, params))
 
@@ -701,7 +701,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Show collations."""
         expr = ShowCollationExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         return self._parse_collation(await self._exec(sql, params))
 
@@ -709,7 +709,7 @@ class AsyncShowIntrospector(ShowMixin):
         """Show grants."""
         expr = ShowGrantsExpression(self.dialect)
         if user:
-            expr.for_user(user, host)
+            expr.with_user(user, host)
         sql, params = expr.to_sql()
         return self._parse_grants(await self._exec(sql, params))
 

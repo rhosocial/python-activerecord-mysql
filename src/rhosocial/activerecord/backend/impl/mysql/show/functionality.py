@@ -384,7 +384,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowCreateTableExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_create_table_result(result, table_name)
@@ -403,7 +403,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowCreateViewExpression(self.dialect, view_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_create_view_result(result, view_name)
@@ -430,11 +430,11 @@ class MySQLShowFunctionality:
         """
         expr = ShowColumnsExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if full:
-            expr.full()
+            expr.with_full()
         if like:
-            expr.like(like)
+            expr.with_like(like)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -454,7 +454,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowIndexExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_indexes_result(result)
@@ -479,11 +479,11 @@ class MySQLShowFunctionality:
         """
         expr = ShowTablesExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if full:
-            expr.full()
+            expr.with_full()
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -502,7 +502,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowDatabasesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -522,9 +522,9 @@ class MySQLShowFunctionality:
         """
         expr = ShowTableStatusExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -544,9 +544,9 @@ class MySQLShowFunctionality:
         """
         expr = ShowTriggersExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if table_name:
-            expr.for_table(table_name)
+            expr.with_table_name(table_name)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -564,7 +564,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowCreateTriggerExpression(self.dialect, trigger_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -584,9 +584,9 @@ class MySQLShowFunctionality:
         """
         expr = ShowVariablesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_vars()
+            expr.with_global_vars()
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -606,9 +606,9 @@ class MySQLShowFunctionality:
         """
         expr = ShowStatusExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_status()
+            expr.with_global_status()
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -627,7 +627,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowProcessListExpression(self.dialect)
         if full:
-            expr.full()
+            expr.with_full()
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -646,7 +646,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowWarningsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -663,7 +663,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowErrorsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -695,7 +695,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowCharsetExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -714,7 +714,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowCollationExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -734,7 +734,7 @@ class MySQLShowFunctionality:
         """
         expr = ShowGrantsExpression(self.dialect)
         if user:
-            expr.for_user(user, host)
+            expr.with_user(user, host)
 
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
@@ -780,7 +780,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of create_table."""
         expr = ShowCreateTableExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_table_result(result, table_name)
@@ -791,7 +791,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of create_view."""
         expr = ShowCreateViewExpression(self.dialect, view_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_view_result(result, view_name)
@@ -808,11 +808,11 @@ class AsyncMySQLShowFunctionality:
         """Async version of columns."""
         expr = ShowColumnsExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if full:
-            expr.full()
+            expr.with_full()
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_columns_result(result)
@@ -823,7 +823,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of indexes."""
         expr = ShowIndexExpression(self.dialect, table_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_indexes_result(result)
@@ -839,11 +839,11 @@ class AsyncMySQLShowFunctionality:
         """Async version of tables."""
         expr = ShowTablesExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if full:
-            expr.full()
+            expr.with_full()
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_tables_result(result)
@@ -854,7 +854,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of databases."""
         expr = ShowDatabasesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_databases_result(result)
@@ -865,9 +865,9 @@ class AsyncMySQLShowFunctionality:
         """Async version of table_status."""
         expr = ShowTableStatusExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_table_status_result(result)
@@ -878,9 +878,9 @@ class AsyncMySQLShowFunctionality:
         """Async version of triggers."""
         expr = ShowTriggersExpression(self.dialect)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         if table_name:
-            expr.for_table(table_name)
+            expr.with_table_name(table_name)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_triggers_result(result)
@@ -889,7 +889,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of create_trigger."""
         expr = ShowCreateTriggerExpression(self.dialect, trigger_name)
         if schema:
-            expr.schema(schema)
+            expr.with_schema(schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_trigger_result(result, trigger_name)
@@ -900,9 +900,9 @@ class AsyncMySQLShowFunctionality:
         """Async version of variables."""
         expr = ShowVariablesExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_vars()
+            expr.with_global_vars()
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_variables_result(result)
@@ -913,9 +913,9 @@ class AsyncMySQLShowFunctionality:
         """Async version of status."""
         expr = ShowStatusExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         if not session:
-            expr.global_status()
+            expr.with_global_status()
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_status_result(result)
@@ -926,7 +926,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of processlist."""
         expr = ShowProcessListExpression(self.dialect)
         if full:
-            expr.full()
+            expr.with_full()
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_processlist_result(result)
@@ -937,7 +937,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of warnings."""
         expr = ShowWarningsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_warnings_result(result)
@@ -946,7 +946,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of errors."""
         expr = ShowErrorsExpression(self.dialect)
         if limit is not None:
-            expr.limit(limit)
+            expr.with_limit(limit)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_errors_result(result)
@@ -966,7 +966,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of charset."""
         expr = ShowCharsetExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_charset_result(result)
@@ -977,7 +977,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of collation."""
         expr = ShowCollationExpression(self.dialect)
         if like:
-            expr.like(like)
+            expr.with_like(like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_collation_result(result)
@@ -988,7 +988,7 @@ class AsyncMySQLShowFunctionality:
         """Async version of grants."""
         expr = ShowGrantsExpression(self.dialect)
         if user:
-            expr.for_user(user, host)
+            expr.with_user(user, host)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_grants_result(result)
