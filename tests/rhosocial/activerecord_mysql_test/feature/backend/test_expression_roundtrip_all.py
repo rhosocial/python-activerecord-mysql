@@ -65,7 +65,6 @@ from expression_roundtrip_harness import (
     collect_expression_classes,
     make_instance,
     register_all,
-    register_enums_and_dataclasses,
     register_special_constructor,
     roundtrip_expression,
     sql_consistent,
@@ -80,10 +79,6 @@ CLASSES = collect_expression_classes(MYSQL_EXPR_PKG)
 CORE_CLASSES = collect_expression_classes(CORE_EXPR_PKG)
 ALL_CLASSES = {**CORE_CLASSES, **CLASSES}
 register_all(ALL_CLASSES)
-# The mysql expression package's enums and dataclasses ride inside artifacts
-# under their short class names; the whitelist resolves those names, so the
-# backend package's own vocabulary has to be registered beside the classes.
-register_enums_and_dataclasses(MYSQL_EXPR_PKG)
 
 
 def _table(d, name="t"):
@@ -403,20 +398,11 @@ _register_mysql_specials()
 # :data:`_DECLARED_GAP`, which is where a class that constructs but does not
 # render belongs.
 _UNBUILDABLE = {
-    "statements.ddl_alter.AlterConstraint":
+    "statements.ddl_alter.AlterConstraintAction":
         "constraint_name defaults to None and the constructor rejects it, so "
         "the generic placeholder is never reached.",
-    "statements.ddl_alter.AlterConstraintAction":
-        "same shape as AlterConstraint: an abstract constraint action with no "
-        "constructible default.",
-    "statements.ddl_alter.AlterTableConstraint":
-        "same shape as AlterConstraint.",
-    "statements.ddl_alter.ValidateConstraint":
-        "constraint_name defaults to None and the constructor rejects it.",
     "statements.ddl_alter.ValidateConstraintAction":
-        "same shape as ValidateConstraint.",
-    "statements.ddl_alter.ValidateTableConstraint":
-        "same shape as ValidateConstraint.",
+        "constraint_name defaults to None and the constructor rejects it.",
     "statements.ddl_domain.AddDomainCheckAction":
         "check must be a DomainCheckConstraint instance; the generic "
         "constructor supplies a string.",
@@ -893,22 +879,22 @@ _NOT_RENDERED = {
         "renames must be a non-empty list of (old, new) Table pairs; the "
         "generic constructor supplies an empty list.",
     ),
-    "statements.ddl_alter.AddColumn": (
+    "statements.ddl_alter.AddColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_alter.AddTableConstraint": (
+    "statements.ddl_alter.AddTableConstraintAction": (
         "AttributeError",
         "constraint must be a TableConstraint; the generic constructor supplies "
         "a string.",
     ),
-    "statements.ddl_alter.ChangeColumn": (
+    "statements.ddl_alter.ChangeColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_alter.ModifyColumn": (
+    "statements.ddl_alter.ModifyColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",

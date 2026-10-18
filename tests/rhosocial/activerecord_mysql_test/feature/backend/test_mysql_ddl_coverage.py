@@ -17,7 +17,7 @@ Covers the missing SQL statements identified in the coverage-gap analysis:
 import pytest
 
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
-    AlterColumn,
+    AlterColumnAction,
     AlterTableStatement,
     ColumnAlterOperation,
 )
@@ -105,18 +105,18 @@ class TestAlterColumnDefault:
     """Test ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}."""
 
     def test_set_default_string(self, dialect):
-        action = AlterColumn(dialect, "col", ColumnAlterOperation.SET_DEFAULT, new_value="ABC")
+        action = AlterColumnAction(dialect, "col", ColumnAlterOperation.SET_DEFAULT, new_value="ABC")
         sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
         assert "ALTER COLUMN `col` SET DEFAULT 'ABC'" in sql
         assert params == ()
 
     def test_set_default_integer(self, dialect):
-        action = AlterColumn(dialect, "num", ColumnAlterOperation.SET_DEFAULT, new_value=5)
+        action = AlterColumnAction(dialect, "num", ColumnAlterOperation.SET_DEFAULT, new_value=5)
         sql, _ = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
         assert "ALTER COLUMN `num` SET DEFAULT 5" in sql
 
     def test_drop_default(self, dialect):
-        action = AlterColumn(dialect, "col", ColumnAlterOperation.DROP_DEFAULT)
+        action = AlterColumnAction(dialect, "col", ColumnAlterOperation.DROP_DEFAULT)
         sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
         assert "ALTER COLUMN `col` DROP DEFAULT" in sql
         assert params == ()

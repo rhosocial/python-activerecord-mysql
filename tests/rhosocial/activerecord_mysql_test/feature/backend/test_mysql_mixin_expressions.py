@@ -19,12 +19,12 @@ from rhosocial.activerecord.backend.expression.statements import (
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
-    AddColumn,
+    AddColumnAction,
     AlterTableStatement,
-    ChangeColumn,
-    DropColumn,
-    DropTableConstraint,
-    ModifyColumn,
+    ChangeColumnAction,
+    DropColumnAction,
+    DropTableConstraintAction,
+    ModifyColumnAction,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
     CreateTriggerStatement,
@@ -734,7 +734,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_modify_column(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ModifyColumn(
+        action = ModifyColumnAction(
             dialect=dialect,
             column=ColumnDefinition(dialect, "name", VarCharType(dialect, 200)),
         )
@@ -747,7 +747,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_modify_column_first(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ModifyColumn(
+        action = ModifyColumnAction(
             dialect=dialect,
             column=ColumnDefinition(dialect, "name", VarCharType(dialect, 200)),
             first=True,
@@ -761,7 +761,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_modify_column_after(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ModifyColumn(
+        action = ModifyColumnAction(
             dialect=dialect,
             column=ColumnDefinition(dialect, "name", VarCharType(dialect, 200)),
             after_column="id",
@@ -775,7 +775,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_change_column(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ChangeColumn(
+        action = ChangeColumnAction(
             dialect=dialect,
             old_name="username",
             column=ColumnDefinition(dialect, "login_name", VarCharType(dialect, 150)),
@@ -788,7 +788,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_change_column_first(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ChangeColumn(
+        action = ChangeColumnAction(
             dialect=dialect,
             old_name="name",
             column=ColumnDefinition(dialect, "full_name", VarCharType(dialect, 300)),
@@ -803,7 +803,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_change_column_after(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ChangeColumn(
+        action = ChangeColumnAction(
             dialect=dialect,
             old_name="name",
             column=ColumnDefinition(dialect, "full_name", VarCharType(dialect, 300)),
@@ -818,7 +818,7 @@ class TestMySQLColumnModificationExpressions:
 
     def test_modify_column_with_constraints(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = ModifyColumn(
+        action = ModifyColumnAction(
             dialect=dialect,
             column=ColumnDefinition(dialect, 
                 "email",
@@ -839,13 +839,13 @@ class TestMySQLAlterTableModifierGuards:
     """MySQL does not support any IF [NOT] EXISTS qualifiers on ALTER TABLE.
 
     Requesting them via ``if_not_exists=True`` / ``if_exists=True`` on
-    ``AddColumn`` / ``DropColumn`` / ``DropTableConstraint`` must raise
-    ``UnsupportedFeatureError`` instead of emitting invalid SQL.
+    ``AddColumnAction`` / ``DropColumnAction`` / ``DropTableConstraintAction``
+    must raise ``UnsupportedFeatureError`` instead of emitting invalid SQL.
     """
 
     def test_add_column_if_not_exists_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = AddColumn(
+        action = AddColumnAction(
             dialect=dialect,
             column=ColumnDefinition(dialect, "email", VarCharType(dialect, 255)),
             if_not_exists=True,
@@ -855,13 +855,13 @@ class TestMySQLAlterTableModifierGuards:
 
     def test_drop_column_if_exists_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = DropColumn(dialect=dialect, column_name="email", if_exists=True)
+        action = DropColumnAction(dialect=dialect, column_name="email", if_exists=True)
         with pytest.raises(UnsupportedFeatureError):
             action.to_sql()
 
     def test_drop_table_constraint_if_exists_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        action = DropTableConstraint(
+        action = DropTableConstraintAction(
             dialect=dialect, constraint_name="fk_users_email", if_exists=True
         )
         with pytest.raises(UnsupportedFeatureError):
@@ -870,7 +870,7 @@ class TestMySQLAlterTableModifierGuards:
     def test_default_qualifiers_keep_behavior(self):
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        add_action = AddColumn(
+        add_action = AddColumnAction(
             dialect=dialect,
             column=ColumnDefinition(dialect, "email", VarCharType(dialect, 255)),
         )
@@ -878,12 +878,12 @@ class TestMySQLAlterTableModifierGuards:
         assert "ADD COLUMN" in add_sql
         assert "IF NOT EXISTS" not in add_sql
 
-        drop_action = DropColumn(dialect=dialect, column_name="email")
+        drop_action = DropColumnAction(dialect=dialect, column_name="email")
         drop_sql, _ = drop_action.to_sql()
         assert "DROP COLUMN" in drop_sql
         assert "IF EXISTS" not in drop_sql
 
-        drop_constraint = DropTableConstraint(
+        drop_constraint = DropTableConstraintAction(
             dialect=dialect, constraint_name="fk_users_email"
         )
         drop_constraint_sql, _ = drop_constraint.to_sql()

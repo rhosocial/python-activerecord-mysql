@@ -129,10 +129,10 @@ class TestConstraintSwitchValues:
         formatter narrows to CHECK by name instead of sending a statement
         the server rejects.
         """
-        from rhosocial.activerecord.backend.expression import AlterConstraint
+        from rhosocial.activerecord.backend.expression import AlterConstraintAction
 
         dialect = _dialect()
-        sql, _ = AlterConstraint(
+        sql, _ = AlterConstraintAction(
             dialect,
             constraint_name="ck",
             not_enforced=True,
@@ -141,7 +141,7 @@ class TestConstraintSwitchValues:
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
 
         with pytest.raises(UnsupportedFeatureError, match="3941"):
-            AlterConstraint(
+            AlterConstraintAction(
                 dialect,
                 constraint_name="fk",
                 not_enforced=True,
@@ -151,7 +151,7 @@ class TestConstraintSwitchValues:
     def test_alter_constraint_normalises_a_string_kind_at_construction(self):
         """A string kind is the constructor's to normalise, not the probe's.
 
-        ``AlterConstraint`` declares ``str`` in its ``constraint_kind``
+        ``AlterConstraintAction`` declares ``str`` in its ``constraint_kind``
         union and normalises at construction, so a spelling that matches a
         branch reaches the formatter as the branch *class* -- and the
         formatter, not the probe, is what narrows it to CHECK on this
@@ -169,9 +169,9 @@ class TestConstraintSwitchValues:
         ``ValueError``; the expression layer owns that mapping and this
         backend has no say in it.
         """
-        from rhosocial.activerecord.backend.expression import AlterConstraint
+        from rhosocial.activerecord.backend.expression import AlterConstraintAction
 
-        sql, _ = AlterConstraint(
+        sql, _ = AlterConstraintAction(
             _dialect(),
             constraint_name="ck",
             not_enforced=True,
@@ -180,7 +180,7 @@ class TestConstraintSwitchValues:
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
 
         with pytest.raises(ValueError):
-            AlterConstraint(
+            AlterConstraintAction(
                 _dialect(),
                 constraint_name="ck",
                 not_enforced=True,

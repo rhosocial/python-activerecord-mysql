@@ -6,15 +6,15 @@ equivalent:
 
 * ``AFTER <column>`` — place the new column immediately after ``column``.
 
-It lives on ``MySQLAddColumn`` (deriving the generic ``AddColumn``) and is
-rendered by the MySQL ``format_add_column_action`` override. MySQL does
-**not** share it with any other backend.
+It lives on ``MySQLAddColumn`` (deriving the generic ``AddColumnAction``)
+and is rendered by the MySQL ``format_add_column_action`` override. MySQL
+does **not** share it with any other backend.
 """
 
 from typing import Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.statements import (
-    AddColumn,
+    AddColumnAction,
     ColumnDefinition,
 )
 
@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-class MySQLAddColumn(AddColumn):
+class MySQLAddColumn(AddColumnAction):
     """A MySQL ``ADD COLUMN`` action extending the generic one.
 
     Adds the MySQL-only ``after`` positional clause.

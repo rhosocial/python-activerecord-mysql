@@ -20,10 +20,10 @@ from rhosocial.activerecord.backend.expression.statements import (
     TableForeignKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
-    AddTableConstraint,
-    AlterConstraint,
-    DropTableConstraint,
-    ValidateConstraint,
+    AddTableConstraintAction,
+    AlterConstraintAction,
+    DropTableConstraintAction,
+    ValidateConstraintAction,
 )
 from rhosocial.activerecord.backend.expression.types import IntegerType
 from rhosocial.activerecord.backend.expression.statements import ViewOptions, ViewCheckOption
@@ -256,7 +256,7 @@ class TestMeasuredConstraintLifecycleCapabilities:
         """
         dialect = self._dialect()
         assert dialect.supports_drop_constraint_if_exists() is False
-        action = DropTableConstraint(dialect, "uq_content", if_exists=True)
+        action = DropTableConstraintAction(dialect, "uq_content", if_exists=True)
         with pytest.raises(UnsupportedFeatureError, match="IF EXISTS"):
             action.to_sql()
 
@@ -266,14 +266,14 @@ class TestMeasuredConstraintLifecycleCapabilities:
         assert dialect.supports_constraint_novalidate() is False
         constraint = self._check(dialect, validation=ConstraintValidation.NOVALIDATE)
         with pytest.raises(UnsupportedFeatureError, match="NOT VALID"):
-            AddTableConstraint(dialect, constraint).to_sql()
+            AddTableConstraintAction(dialect, constraint).to_sql()
 
     def test_validate_constraint_is_declined_and_refused_by_name(self):
         """``VALIDATE CONSTRAINT`` is a parser error (``1064 ... near 'VALIDATE``)."""
         dialect = self._dialect()
         assert dialect.supports_validate_constraint() is False
         with pytest.raises(UnsupportedFeatureError, match="VALIDATE CONSTRAINT"):
-            ValidateConstraint(dialect, "ck").to_sql()
+            ValidateConstraintAction(dialect, "ck").to_sql()
 
     def test_alter_constraint_enforced_is_declared_for_check_only(self):
         """``ALTER CONSTRAINT [NOT] ENFORCED`` is the one form the server takes.
@@ -295,14 +295,14 @@ class TestMeasuredConstraintLifecycleCapabilities:
     def test_alter_constraint_enforced_renders_for_check_only(self):
         """The rendering follows the probe: CHECK renders, FOREIGN KEY refuses."""
         dialect = self._dialect()
-        sql, params = AlterConstraint(
+        sql, params = AlterConstraintAction(
             dialect, "ck", not_enforced=True, constraint_kind=TableCheckConstraint
         ).to_sql()
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
         assert params == ()
 
         with pytest.raises(UnsupportedFeatureError, match="ENFORCED"):
-            AlterConstraint(
+            AlterConstraintAction(
                 dialect, "fk", enforced=True, constraint_kind=TableForeignKeyConstraint
             ).to_sql()
 

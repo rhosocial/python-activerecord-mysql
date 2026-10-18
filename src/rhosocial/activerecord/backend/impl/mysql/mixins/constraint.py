@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
-        AlterConstraint,
+        AlterConstraintAction,
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnConstraint,
@@ -399,7 +399,7 @@ class MySQLConstraintMixin:
         return self.version >= (8, 0, 16)
 
     def format_alter_constraint_action(
-        self, action: "AlterConstraint"
+        self, action: "AlterConstraintAction"
     ) -> Tuple[str, tuple]:
         """``ALTER CONSTRAINT`` addresses CHECK only on this server.
 

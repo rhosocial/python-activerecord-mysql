@@ -15,8 +15,8 @@ from typing import Protocol, runtime_checkable, Tuple, Any, Dict, Sequence, Froz
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
     from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
-        ModifyColumn,
-        ChangeColumn,
+        ChangeColumnAction,
+        ModifyColumnAction,
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         CreateTableLikeStatement,
@@ -1583,22 +1583,22 @@ class MySQLModifyColumnSupport(Protocol):
         """Whether CHANGE COLUMN is supported."""
         ...
 
-    def format_modify_column_action(self, action: "ModifyColumn") -> Tuple[str, tuple]:
+    def format_modify_column_action(self, action: "ModifyColumnAction") -> Tuple[str, tuple]:
         """Format MODIFY COLUMN action for ALTER TABLE.
 
         Args:
-            action: ModifyColumn action instance
+            action: ModifyColumnAction action instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_change_column_action(self, action: "ChangeColumn") -> Tuple[str, tuple]:
+    def format_change_column_action(self, action: "ChangeColumnAction") -> Tuple[str, tuple]:
         """Format CHANGE COLUMN action for ALTER TABLE.
 
         Args:
-            action: ChangeColumn action instance
+            action: ChangeColumnAction action instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
