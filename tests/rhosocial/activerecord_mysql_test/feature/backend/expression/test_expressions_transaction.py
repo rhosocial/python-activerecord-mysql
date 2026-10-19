@@ -44,7 +44,7 @@ class TestMySQLBeginTransactionExpression:
         only returns the START TRANSACTION statement.
         """
         expr = BeginTransactionStatement(mysql_dialect)
-        expr.isolation_level(IsolationLevel.SERIALIZABLE)
+        expr.with_isolation_level(IsolationLevel.SERIALIZABLE)
         sql, params = expr.to_sql()
         # MySQL dialect does NOT include isolation level in START TRANSACTION
         assert sql == "START TRANSACTION"
@@ -76,7 +76,7 @@ class TestMySQLBeginTransactionExpression:
         for READ ONLY mode.
         """
         expr = BeginTransactionStatement(mysql_dialect)
-        expr.isolation_level(IsolationLevel.READ_COMMITTED).read_only()
+        expr.with_isolation_level(IsolationLevel.READ_COMMITTED).read_only()
         sql, params = expr.to_sql()
         # Only READ ONLY mode is included, isolation level is NOT
         assert sql == "START TRANSACTION READ ONLY"
@@ -97,7 +97,7 @@ class TestMySQLBeginTransactionExpression:
         MySQL requires separate SET TRANSACTION ISOLATION LEVEL statement.
         """
         expr = BeginTransactionStatement(mysql_dialect)
-        expr.isolation_level(level)
+        expr.with_isolation_level(level)
         sql, params = expr.to_sql()
         # MySQL dialect does NOT include isolation level
         assert sql == "START TRANSACTION"
@@ -114,7 +114,7 @@ class TestMySQLSetTransactionExpression:
     def test_set_isolation_level(self, mysql_dialect):
         """Test SET TRANSACTION ISOLATION LEVEL."""
         expr = SetTransactionExpression(mysql_dialect)
-        expr.isolation_level(IsolationLevel.SERIALIZABLE)
+        expr.with_isolation_level(IsolationLevel.SERIALIZABLE)
         sql, params = expr.to_sql()
         assert sql == "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
         assert params == ()
@@ -131,7 +131,7 @@ class TestMySQLSetTransactionExpression:
     def test_all_isolation_levels(self, mysql_dialect, level, expected_name):
         """Test all isolation levels in SET TRANSACTION."""
         expr = SetTransactionExpression(mysql_dialect)
-        expr.isolation_level(level)
+        expr.with_isolation_level(level)
         sql, params = expr.to_sql()
         assert expected_name in sql
         assert params == ()
