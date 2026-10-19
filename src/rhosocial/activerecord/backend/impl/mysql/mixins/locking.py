@@ -15,7 +15,14 @@ class MySQLLockingMixin:
         return self.version >= (8, 0, 0)
 
     def format_for_update_clause(self, clause) -> Tuple[str, tuple]:
-        """Format MySQL-specific FOR UPDATE / FOR SHARE clause."""
+        """Format MySQL-specific FOR UPDATE / FOR SHARE clause.
+
+        The node normalises ``strength`` to a :class:`LockStrength` member,
+        so the clause text is written from the member's ``phrase``: the wire
+        value stays the language-neutral strength word (``update`` / ``share``)
+        and the SQL spelling (``FOR UPDATE`` / ``FOR SHARE``) belongs to the
+        dialect, not to the artifact.
+        """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
         from rhosocial.activerecord.backend.expression import LockStrength
 
@@ -31,11 +38,14 @@ class MySQLLockingMixin:
                 self.name, f"{strength.value} (unsupported lock strength)"
             )
 
-        sql_parts = [strength.value]
+        sql_parts = [strength.phrase]
 
         if clause.of_columns:
             of_parts = []
             for col in clause.of_columns:
+                if isinstance(col, str):
+                    of_parts.append(self.format_identifier(col))
+                    continue
                 col_sql, col_params = col.to_sql()
                 of_parts.append(col_sql)
                 all_params.extend(col_params)
