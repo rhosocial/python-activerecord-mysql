@@ -5,7 +5,9 @@ Tests for expression-level COLLATE support on MySQL.
 
 import pytest
 
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression import Column, Literal
+from rhosocial.activerecord.backend.expression.collation import collate
 from rhosocial.activerecord.backend.impl.mysql.mixins import MySQLCollation
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
@@ -70,7 +72,10 @@ class TestMySQLCollationExpression:
         assert params == ()
 
     def test_literal_collate_preserves_parameter_binding(self, dialect):
-        expr = Literal(dialect, "Alice").collate(MySQLCollation.UTF8MB4_0900_AI_CI)
+        # A Literal is a value node and carries no operation surface of its
+        # own (rules §4.3), so COLLATE is composed with the collate factory
+        # over it rather than as a chain on the literal.
+        expr = collate(Literal(dialect, "Alice"), MySQLCollation.UTF8MB4_0900_AI_CI)
 
         sql, params = expr.to_sql()
 
@@ -80,7 +85,9 @@ class TestMySQLCollationExpression:
     def test_rejects_schema_qualified_collation(self, dialect):
         expr = Column(dialect, "name").collate("utf8mb4_bin", schema="public")
 
-        with pytest.raises(Exception, match="COLLATE options: schema"):
+        with pytest.raises(
+            UnsupportedFeatureError, match="COLLATE schema qualification"
+        ):
             expr.to_sql()
 
     def test_rejects_unsupported_collation(self, dialect):
