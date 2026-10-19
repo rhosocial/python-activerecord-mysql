@@ -6,7 +6,6 @@ This module provides MySQLLoadDataExpression and LoadDataOptions for
 MySQL's LOAD DATA INFILE functionality.
 """
 
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
@@ -16,9 +15,17 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-@dataclass
-class LoadDataOptions:
-    """Options for LOAD DATA INFILE statement.
+class LoadDataOptions(BaseExpression):
+    """Options for LOAD DATA INFILE statement, as a node.
+
+    A clause node rather than a plain dataclass: ``options`` is a
+    constructor parameter of :class:`MySQLLoadDataExpression`, and a
+    parameter is either a language-neutral scalar or an expression
+    instance (§10) -- those are the two forms an artifact can carry, and a
+    dataclass is neither. Being a node is also what makes the bundle
+    readable back: the artifact carries a nested ``load_data_options``
+    node and the reader rebuilds it by name, exactly like any other
+    clause.
 
     Attributes:
         local: Use LOCAL keyword (client-side file)
@@ -35,18 +42,52 @@ class LoadDataOptions:
         set_assignments: SET clause for column transformations
     """
 
-    local: bool = True
-    replace: bool = False
-    ignore: bool = False
-    character_set: Optional[str] = None
-    fields_terminated_by: Optional[str] = None
-    fields_enclosed_by: Optional[str] = None
-    fields_escaped_by: Optional[str] = None
-    lines_starting_by: Optional[str] = None
-    lines_terminated_by: Optional[str] = None
-    ignore_lines: Optional[int] = None
-    column_list: Optional[List[str]] = None
-    set_assignments: Optional[Dict[str, Any]] = None
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        *,
+        local: bool = True,
+        replace: bool = False,
+        ignore: bool = False,
+        character_set: Optional[str] = None,
+        fields_terminated_by: Optional[str] = None,
+        fields_enclosed_by: Optional[str] = None,
+        fields_escaped_by: Optional[str] = None,
+        lines_starting_by: Optional[str] = None,
+        lines_terminated_by: Optional[str] = None,
+        ignore_lines: Optional[int] = None,
+        column_list: Optional[List[str]] = None,
+        set_assignments: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(dialect)
+        self.local: bool = local
+        self.replace: bool = replace
+        self.ignore: bool = ignore
+        self.character_set: Optional[str] = character_set
+        self.fields_terminated_by: Optional[str] = fields_terminated_by
+        self.fields_enclosed_by: Optional[str] = fields_enclosed_by
+        self.fields_escaped_by: Optional[str] = fields_escaped_by
+        self.lines_starting_by: Optional[str] = lines_starting_by
+        self.lines_terminated_by: Optional[str] = lines_terminated_by
+        self.ignore_lines: Optional[int] = ignore_lines
+        self.column_list: Optional[List[str]] = (
+            list(column_list) if column_list is not None else None
+        )
+        self.set_assignments: Optional[Dict[str, Any]] = (
+            dict(set_assignments) if set_assignments is not None else None
+        )
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression.
+
+        No dialect defines a standalone entry for this clause: the LOAD
+        DATA statement's own formatter renders the options inline, reading
+        the fields declared here. The clause travels as a node so the
+        statement's parameters can carry it, not because it renders
+        standing alone.
+        """
+        return "format_load_data_options"
 
 
 class MySQLLoadDataExpression(BaseExpression):
@@ -75,12 +116,12 @@ class MySQLLoadDataExpression(BaseExpression):
                 Supplying an object rather than a bare string is what makes
                 ``LOAD DATA ... INTO TABLE `other_db`.`users``` expressible;
                 a string can only ever mean the session's current database.
-            options: Load options (default: LoadDataOptions())
+            options: Load options (default: LoadDataOptions(dialect))
         """
         super().__init__(dialect)
         self.file_path = file_path
         self.table = table
-        self.options = options or LoadDataOptions()
+        self.options = options or LoadDataOptions(dialect)
 
     def validate(self, strict: bool = True) -> None:
         """Validate expression parameters.

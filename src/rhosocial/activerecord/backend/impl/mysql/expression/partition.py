@@ -18,8 +18,11 @@ from rhosocial.activerecord.backend.expression.statements import (
 from rhosocial.activerecord.backend.expression.objects import Table
 
 
-class MySQLPartitionStrategy(Enum):
+class MySQLPartitionStrategy(str, Enum):
     """MySQL table partitioning strategies supported by MySQLPartitionMixin."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     RANGE = "RANGE"
     RANGE_COLUMNS = "RANGE COLUMNS"
@@ -31,12 +34,15 @@ class MySQLPartitionStrategy(Enum):
     LINEAR_KEY = "LINEAR KEY"
 
 
-class MySQLSubpartitionStrategy(Enum):
+class MySQLSubpartitionStrategy(str, Enum):
     """MySQL subpartitioning strategies.
 
     MySQL restricts subpartitioning to HASH and KEY (and their LINEAR
     variants) only. RANGE and LIST cannot be used for subpartitioning.
     """
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     HASH = "HASH"
     KEY = "KEY"
@@ -107,7 +113,7 @@ class MySQLSubpartitionClause(BaseExpression):
     override the template for each parent partition.
 
     Raises:
-        TypeError: if strategy is not a MySQLSubpartitionStrategy.
+        ValueError: if strategy is not a MySQLSubpartitionStrategy word.
         ValueError: if count is provided but is not a positive integer.
     """
 
@@ -121,14 +127,14 @@ class MySQLSubpartitionClause(BaseExpression):
         definitions: Optional[Sequence[MySQLSubpartitionDefinition]] = None,
     ):
         super().__init__(dialect)
-        if not isinstance(strategy, MySQLSubpartitionStrategy):
-            raise TypeError(
-                "strategy must be a MySQLSubpartitionStrategy value, "
-                f"got {type(strategy).__name__}"
-            )
+        # The member or the word it spells (§10: wide entry, normalised
+        # storage): an artifact carries the word, and the formatter reads
+        # ``.value``, which only the member has. A word this enum does not
+        # name is refused here, where the caller can still see which
+        # strategy was meant.
+        self.strategy = MySQLSubpartitionStrategy(strategy)
         if count is not None and (not isinstance(count, int) or count <= 0):
             raise ValueError("count must be a positive integer when provided")
-        self.strategy = strategy
         self.expression = expression
         self.count = count
         self.definitions = list(definitions) if definitions else None
@@ -255,6 +261,11 @@ class MySQLPartitionByRange(MySQLPartitionClause):
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_by_range"
+
 
 class MySQLPartitionByRangeColumns(MySQLPartitionClause):
     """MySQL PARTITION BY RANGE COLUMNS expression.
@@ -278,6 +289,11 @@ class MySQLPartitionByRangeColumns(MySQLPartitionClause):
             raise TypeError("subpartition_by must be a MySQLSubpartitionClause")
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_by_range_columns"
 
 
 class MySQLPartitionByList(MySQLPartitionClause):
@@ -303,6 +319,11 @@ class MySQLPartitionByList(MySQLPartitionClause):
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_by_list"
+
 
 class MySQLPartitionByListColumns(MySQLPartitionClause):
     """MySQL PARTITION BY LIST COLUMNS expression.
@@ -327,6 +348,11 @@ class MySQLPartitionByListColumns(MySQLPartitionClause):
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_by_list_columns"
+
 
 class MySQLPartitionByHash(MySQLPartitionClause):
     """MySQL PARTITION BY HASH expression."""
@@ -343,6 +369,11 @@ class MySQLPartitionByHash(MySQLPartitionClause):
         super().__init__(dialect, method, keys)
         self.partitions_count = partitions_count
         self.linear = linear
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_by_hash"
 
 
 class MySQLPartitionByKey(MySQLPartitionClause):
@@ -371,6 +402,11 @@ class MySQLPartitionByKey(MySQLPartitionClause):
             self.keys = list(keys) if keys else []
         self.partitions_count = partitions_count
         self.linear = linear
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_partition_by_key"
 
 
 class MySQLPartitionTableExpression(BaseExpression):

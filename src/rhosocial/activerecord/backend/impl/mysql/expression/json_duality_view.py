@@ -22,8 +22,11 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class DualityViewDMLTag(Enum):
+class DualityViewDMLTag(str, Enum):
     """DML permission tags for JSON_DUALITY_OBJECT."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     INSERT = "INSERT"
     UPDATE = "UPDATE"

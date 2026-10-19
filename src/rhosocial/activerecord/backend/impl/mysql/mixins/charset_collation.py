@@ -24,8 +24,11 @@ __all__ = [
 ]
 
 
-class MySQLCharset(Enum):
+class MySQLCharset(str, Enum):
     """MySQL character sets for table/column ``CHARACTER SET``."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     ARMSCII8 = "armscii8"
     ASCII = "ascii"
@@ -71,8 +74,11 @@ class MySQLCharset(Enum):
     UTF32 = "utf32"
 
 
-class MySQLStorageEngine(Enum):
+class MySQLStorageEngine(str, Enum):
     """Built-in MySQL storage engines for ``ENGINE=<name>``."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     INNODB = "InnoDB"
     MYISAM = "MyISAM"
@@ -89,8 +95,11 @@ class MySQLStorageEngine(Enum):
     TEMPORARY = "TEMPORARY"
 
 
-class MySQLCollation(Enum):
+class MySQLCollation(str, Enum):
     """MySQL collations for expression-level COLLATE."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     # Built-in pseudo collation
     BINARY = "binary"

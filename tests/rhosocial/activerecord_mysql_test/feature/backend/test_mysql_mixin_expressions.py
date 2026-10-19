@@ -139,7 +139,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_local_replace(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(local=True, replace=True)
+        options = LoadDataOptions(dialect, local=True, replace=True)
         expr = MySQLLoadDataExpression(
             dialect, file_path="data.csv", table=Table(dialect, "products"), options=options
         )
@@ -148,7 +148,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_ignore(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(local=True, ignore=True)
+        options = LoadDataOptions(dialect, local=True, ignore=True)
         expr = MySQLLoadDataExpression(
             dialect, file_path="data.csv", table=Table(dialect, "products"), options=options
         )
@@ -157,7 +157,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_full_options(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(
+        options = LoadDataOptions(dialect, 
             local=True,
             character_set="utf8mb4",
             fields_terminated_by=",",
@@ -184,7 +184,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_validate_replaces_ignore_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(replace=True, ignore=True)
+        options = LoadDataOptions(dialect, replace=True, ignore=True)
         expr = MySQLLoadDataExpression(
             dialect, file_path="data.csv", table=Table(dialect, "t"), options=options
         )
@@ -1023,8 +1023,14 @@ class TestMySQLPartitionExpressionEdgeCases:
             )
 
     def test_subpartition_clause_wrong_type(self):
+        """A word the strategy vocabulary does not name is refused.
+
+        The entry is wide -- the member or the word it spells (§10) -- so the
+        refusal is a ``ValueError`` from the enum the constructor normalises
+        through, naming the word it cannot place.
+        """
         dialect = MySQLDialect(version=(8, 0, 0))
-        with pytest.raises(TypeError):
+        with pytest.raises(ValueError):
             MySQLSubpartitionClause(
                 dialect,
                 strategy="INVALID",

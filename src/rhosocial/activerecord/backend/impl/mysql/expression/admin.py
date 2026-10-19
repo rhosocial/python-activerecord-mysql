@@ -30,8 +30,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class FlushOption(Enum):
+class FlushOption(str, Enum):
     """FLUSH statement options."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     TABLES = "TABLES"
     LOGS = "LOGS"
@@ -53,8 +56,11 @@ class FlushOption(Enum):
     SLAVE = "SLAVE"
 
 
-class ResetOption(Enum):
+class ResetOption(str, Enum):
     """RESET statement options."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     MASTER = "MASTER"
     REPLICA = "REPLICA"
@@ -62,15 +68,21 @@ class ResetOption(Enum):
     PERSIST = "PERSIST"
 
 
-class KillTarget(Enum):
+class KillTarget(str, Enum):
     """KILL target selector."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     CONNECTION = "CONNECTION"
     QUERY = "QUERY"
 
 
-class HandlerReadMode(Enum):
+class HandlerReadMode(str, Enum):
     """HANDLER READ modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     FIRST = "FIRST"
     NEXT = "NEXT"
@@ -89,7 +101,10 @@ class MySQLFlushExpression(BaseExpression):
         no_write_to_binlog: bool = False,
     ):
         super().__init__(dialect)
-        self.options: List[FlushOption] = list(options)
+        # Members or the words they spell (§10: wide entry, normalised
+        # storage) -- the formatter reads ``.value``, so a raw string would
+        # only render on the constructing side of a round-trip.
+        self.options: List[FlushOption] = [FlushOption(o) for o in options]
         self.no_write_to_binlog: bool = no_write_to_binlog
 
     def validate(self, strict: bool = True) -> None:
@@ -114,7 +129,10 @@ class MySQLResetExpression(BaseExpression):
         option: ResetOption,
     ):
         super().__init__(dialect)
-        self.option: ResetOption = option
+        # The member or the word it spells: the formatter reads ``.value``.
+        # A word this enum does not name is refused here, where the caller
+        # can still see which option was meant.
+        self.option: ResetOption = ResetOption(option)
 
     @property
     def format_method(self) -> str:
@@ -432,8 +450,12 @@ class MySQLKillExpression(BaseExpression):
         target: KillTarget = KillTarget.CONNECTION,
     ):
         super().__init__(dialect)
+        # The member or the word it spells: an artifact carries the word, so a
+        # read must not need the enum object to get back. The formatter reads
+        # ``.value``, which only the member has -- a stored raw string would
+        # render the pre-round-trip instance and refuse the restored one.
         self.processlist_id: int = processlist_id
-        self.target: KillTarget = target
+        self.target: KillTarget = KillTarget(target)
 
     @property
     def format_method(self) -> str:

@@ -63,7 +63,16 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValue):
     Example:
         >>> expr = MySQLJSONObjectExpression(dialect, {'name': 'Alice', 'age': 30})
         OR
-        >>> expr = MySQLJSONObjectExpression(dialect, ('name', 'Alice'), ('age', 30))
+        >>> expr = MySQLJSONObjectExpression(dialect, [('name', 'Alice'), ('age', 30)])
+
+    ``data`` is the one parameter the pairs come from: a mapping, or an
+    iterable of ``(key, value)`` pairs. The class used to also accept the
+    pairs as ``**kwargs`` -- ``name="Alice"`` -- but a parameter whose
+    identity depends on how many extras arrived has no artifact spelling
+    (§4.11.4): the deserializer matches parameters by name, and a reader
+    would have to be told which names happened to arrive. The mapping and
+    the pair list are the two shapes that name every member, so they are
+    the two the constructor takes.
     """
 
     def __init__(
@@ -72,20 +81,10 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValue):
         data: Any = None,
         *,
         alias: Optional[str] = None,
-        **kwargs: Any,
     ):
         super().__init__(dialect)
-        self.data = data  # keep raw for get_params() introspection
-        self.kwargs: Dict[str, Any] = dict(kwargs)
-        if data is not None and kwargs:
-            pairs = self._convert_to_pairs(data) + self._convert_to_pairs(kwargs)
-        elif data is not None:
-            pairs = self._convert_to_pairs(data)
-        elif kwargs:
-            pairs = self._convert_to_pairs(kwargs)
-        else:
-            pairs = []
-        self.pairs = pairs
+        self.data = data
+        self.pairs = self._convert_to_pairs(data) if data is not None else []
         self.alias = alias
 
     def _convert_to_pairs(self, data: Any) -> List[tuple]:

@@ -5,6 +5,10 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
+from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+    MySQLPartitionStrategy,
+)
+
 from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -154,26 +158,35 @@ class MySQLPartitionMixin:
         return True
 
     def format_partition_clause(self, expr: "PartitionClause") -> Tuple[str, tuple]:
-        """Format MySQL PARTITION BY clause from a PartitionClause expression."""
+        """Format the clause shape ``PARTITION BY <method> (<keys>)``.
+
+        This is the contract :class:`~...statements.ddl_partition.
+        PartitionClause` declares -- method and keys, nothing else -- so it
+        is all that is read here. Named partitions, ``VALUES`` boundaries
+        and subpartitioning are fields the MySQL ``MySQLPartitionBy*``
+        subclasses declare, and each of those classes names its own entry
+        (``format_partition_by_range`` and siblings); routing a base clause
+        into one of those entries used to read ``subpartition_by`` off a
+        node that does not declare it.
+        """
         if not self.supports_table_partitioning():
             raise UnsupportedFeatureError(self.name, "table partitioning")
         if not self.supports_partitioned_table_creation():
             raise UnsupportedFeatureError(self.name, "partitioned table creation")
 
         method = expr.method.upper()
-        if method == "RANGE":
-            return self.format_partition_by_range(expr)
-        if method == "RANGE COLUMNS":
-            return self.format_partition_by_range_columns(expr)
-        if method == "LIST":
-            return self.format_partition_by_list(expr)
-        if method == "LIST COLUMNS":
-            return self.format_partition_by_list_columns(expr)
-        if method in {"HASH", "LINEAR HASH"}:
-            return self.format_partition_by_hash(expr)
-        if method in {"KEY", "LINEAR KEY"}:
-            return self.format_partition_by_key(expr)
-        raise ValueError("Invalid MySQL partition method")
+        if not any(
+            method == strategy.value for strategy in MySQLPartitionStrategy
+        ):
+            raise ValueError("Invalid MySQL partition method")
+
+        key_sql_parts = []
+        params: List[Any] = []
+        for key in expr.keys:
+            key_sql, key_params = key.to_sql()
+            key_sql_parts.append(key_sql)
+            params.extend(key_params)
+        return f" PARTITION BY {method} ({', '.join(key_sql_parts)})", tuple(params)
 
     def format_partition_by_range(self, expr: "MySQLPartitionByRange") -> Tuple[str, tuple]:
         """Format PARTITION BY RANGE with optional subpartitioning."""

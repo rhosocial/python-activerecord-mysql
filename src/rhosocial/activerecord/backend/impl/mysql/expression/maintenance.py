@@ -21,16 +21,22 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class NoWriteToBinlogOption(Enum):
+class NoWriteToBinlogOption(str, Enum):
     """NO_WRITE_TO_BINLOG / LOCAL synonym selector."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     NONE = ""
     NO_WRITE_TO_BINLOG = "NO_WRITE_TO_BINLOG"
     LOCAL = "LOCAL"
 
 
-class CheckTableOption(Enum):
+class CheckTableOption(str, Enum):
     """CHECK TABLE optional modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     FOR_UPGRADE = "FOR UPGRADE"
     QUICK = "QUICK"
@@ -40,15 +46,21 @@ class CheckTableOption(Enum):
     CHANGED = "CHANGED"
 
 
-class ChecksumTableOption(Enum):
+class ChecksumTableOption(str, Enum):
     """CHECKSUM TABLE optional modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     QUICK = "QUICK"
     EXTENDED = "EXTENDED"
 
 
-class RepairTableOption(Enum):
+class RepairTableOption(str, Enum):
     """REPAIR TABLE optional modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     QUICK = "QUICK"
     EXTENDED = "EXTENDED"
@@ -80,7 +92,12 @@ class MySQLTableMaintenanceExpression(BaseExpression):
     ):
         super().__init__(dialect)
         self.tables: List[RelationObject] = list(tables)
-        self.no_write_to_binlog: NoWriteToBinlogOption = no_write_to_binlog
+        # The member or the word it spells (§10: wide entry, normalised
+        # storage): an artifact carries the word, and the formatter reads
+        # ``.value``, which only the member has.
+        self.no_write_to_binlog: NoWriteToBinlogOption = NoWriteToBinlogOption(
+            no_write_to_binlog
+        )
 
     def validate(self, strict: bool = True) -> None:
         """Validate table list.
@@ -136,7 +153,7 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
             tables,
             no_write_to_binlog=NoWriteToBinlogOption.NONE,
         )
-        self.options: List[CheckTableOption] = list(options or [])
+        self.options: List[CheckTableOption] = [CheckTableOption(o) for o in (options or [])]
 
     @property
     def format_method(self) -> str:
@@ -162,7 +179,9 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
             tables,
             no_write_to_binlog=NoWriteToBinlogOption.NONE,
         )
-        self.option: Optional[ChecksumTableOption] = option
+        self.option: Optional[ChecksumTableOption] = (
+            ChecksumTableOption(option) if option is not None else None
+        )
 
     @property
     def format_method(self) -> str:
@@ -195,7 +214,7 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
             tables,
             no_write_to_binlog=no_write_to_binlog,
         )
-        self.options: List[RepairTableOption] = list(options or [])
+        self.options: List[RepairTableOption] = [RepairTableOption(o) for o in (options or [])]
 
     @property
     def format_method(self) -> str:
