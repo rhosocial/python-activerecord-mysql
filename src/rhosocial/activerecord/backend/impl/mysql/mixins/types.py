@@ -1213,7 +1213,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
                 # guessed at, so a hand-written string gets the same answer a
                 # constructor call would.
                 if length is None:
-                    return CustomType(self, stripped)
+                    return CustomType(self, raw=stripped)
                 from ..expression.types import MySQLVarBinaryType
                 return MySQLVarBinaryType(self, length)
             # CHAR / VARCHAR
@@ -1319,7 +1319,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             return MySQLVectorType(self, dim)
 
         # Fallback: an honest "I do not model this type" rather than a guess.
-        return CustomType(self, stripped)
+        return CustomType(self, raw=stripped)
 
     # ------------------------------------------------------------------
     # DataTypeSupport — cross-backend type suggestions
