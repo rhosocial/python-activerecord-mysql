@@ -207,6 +207,36 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "predicates.ILikePredicate": "column is annotated Any, so the generic "
     "constructor supplies a plain string where a value node belongs and the "
     "instance cannot render.",
+    # The string-function family whose operands are ``SQLValue`` forward
+    # references: the generic guess hands plain strings where value nodes
+    # belong, and the classes compare a Literal's value against a bound
+    # (``count.value < 0``) that a string cannot survive on the way back.
+    # The factories hand real value nodes.
+    "functions.string.ChrFunction": "code is a SQLValue forward reference, so "
+    "the generic constructor supplies a plain string where a value node "
+    "belongs.",
+    "functions.string.SpaceFunction": "count is a SQLValue forward reference, "
+    "so the generic constructor supplies a plain string where a value node "
+    "belongs.",
+    "functions.string.LeftFunction": "count is a SQLValue forward reference, "
+    "so the generic constructor supplies a plain string whose second "
+    "construction trips the n >= 0 comparison.",
+    "functions.string.RightFunction": "count is a SQLValue forward reference, "
+    "so the generic constructor supplies a plain string whose second "
+    "construction trips the n >= 0 comparison.",
+    "functions.string.OverlayExpression": "target / replacement / start are "
+    "SQLValue forward references, so the generic constructor supplies plain "
+    "strings where value nodes belong.",
+    "functions.string.SubstringExpression": "target / start are SQLValue "
+    "forward references, so the generic constructor supplies plain strings "
+    "whose second construction trips the start >= 1 comparison.",
+    # The two extract spellings: ``field`` reaches ``normalize_datetime_field``
+    # at construction, and the generic guess is not a word the vocabulary
+    # names.
+    "datetime.ExtractFieldExpression": "field must name a DateTimeField member "
+    "or its word; the generic constructor supplies \"x\".",
+    "datetime._ExtractBase": "field must name a DateTimeField member or its "
+    "word; the generic constructor supplies \"x\".",
     # The two nodes whose operation is a closed set of *words*, validated at
     # construction. The generic constructor guesses a string for an unannotated
     # ``op`` and the node refuses it, so the factories hand a real word form.
@@ -285,6 +315,18 @@ def _register_mysql_specials():
     from rhosocial.activerecord.backend.expression.statements.dql import (
         QueryStatement,
     )
+    from rhosocial.activerecord.backend.expression.datetime import (
+        ExtractFieldExpression,
+        _ExtractBase,
+    )
+    from rhosocial.activerecord.backend.expression.functions.string import (
+        ChrFunction,
+        LeftFunction,
+        OverlayExpression,
+        RightFunction,
+        SpaceFunction,
+        SubstringExpression,
+    )
 
     factories = {
         "predicates.LikePredicate":
@@ -306,6 +348,24 @@ def _register_mysql_specials():
                     d, select=[Column(d, "id")], from_=Table(d, "other")
                 ),
             ),
+        "functions.string.ChrFunction": lambda d: ChrFunction(d, Literal(d, 65)),
+        "functions.string.SpaceFunction": lambda d: SpaceFunction(d, Literal(d, 3)),
+        "functions.string.LeftFunction":
+            lambda d: LeftFunction(d, Literal(d, "abcdef"), Literal(d, 3)),
+        "functions.string.RightFunction":
+            lambda d: RightFunction(d, Literal(d, "abcdef"), Literal(d, 3)),
+        "functions.string.OverlayExpression":
+            lambda d: OverlayExpression(
+                d, Literal(d, "abcdef"), Literal(d, "XY"), Literal(d, 2), Literal(d, 3)
+            ),
+        "functions.string.SubstringExpression":
+            lambda d: SubstringExpression(
+                d, Literal(d, "abcdef"), Literal(d, 1), Literal(d, 3)
+            ),
+        "datetime.ExtractFieldExpression":
+            lambda d: ExtractFieldExpression(d, "YEAR", Column(d, "created_at")),
+        "datetime._ExtractBase":
+            lambda d: _ExtractBase(d, "YEAR", Column(d, "created_at")),
         "match_against.MySQLMatchAgainstExpression":
             lambda d: MySQLMatchAgainstExpression(d, columns=["title"], search_string="x"),
         "json.MySQLJSONObjectExpression":
@@ -398,19 +458,19 @@ _register_mysql_specials()
 # :data:`_DECLARED_GAP`, which is where a class that constructs but does not
 # render belongs.
 _UNBUILDABLE = {
+    # RESET names its option through the enum the constructor normalises
+    # through, so the generic guess ("x") is refused at construction rather
+    # than at render time.
+    "admin.MySQLResetExpression":
+        "option must be a ResetOption member or its word; the constructor "
+        "normalises through the enum and refuses \"x\" at construction.",
     "statements.ddl_alter.AlterConstraintAction":
-        "constraint_name defaults to None and the constructor rejects it, so "
-        "the generic placeholder is never reached.",
-    "statements.ddl_alter.ValidateConstraintAction":
-        "constraint_name defaults to None and the constructor rejects it.",
+        "constraint_kind is a required keyword-only parameter naming the "
+        "branch class, and constraint_name defaults to None and is refused; "
+        "the generic placeholder reaches neither.",
     "statements.ddl_domain.AddDomainCheckAction":
         "check must be a DomainCheckConstraint instance; the generic "
         "constructor supplies a string.",
-    "types.enum_.EnumType":
-        "values defaults to None and EnumType requires a non-empty list.",
-    "types.custom.CustomType":
-        "raw defaults to '' and CustomType requires a SQL type name; dialect "
-        "comes first, so a required raw behind that default is not expressible.",
     "types.MySQLVarBinaryType":
         "length defaults to None and the class requires a length, so no "
         "signature makes it required at the filler's call site.",
@@ -472,6 +532,16 @@ _DECLARED_GAP = {
         "the class is unreachable from any rendering path in this backend -- "
         "nothing in src or tests constructs it.",
     ),
+    # --- The clause travels as a node; its rendering is inline. -----------
+    "load_data.LoadDataOptions": (
+        "format_load_data_options",
+        "DECLARED BUT NOT RENDERED. The LOAD DATA statement's own formatter "
+        "renders the options inline, reading the fields this clause declares; "
+        "no dialect defines a standing-alone entry for it. The clause is a "
+        "node because a constructor parameter is a scalar or an expression "
+        "instance (§10) and a dataclass is neither -- not because it renders "
+        "by itself.",
+    ),
     # --- SQL/PGQ: property graphs are not a MySQL feature. ----------------
     "graph.AlterPropertyGraphStatement": (
         "format_alter_property_graph_statement",
@@ -490,9 +560,11 @@ _DECLARED_GAP = {
         "format_drop_property_graph_statement",
         "SQL/PGQ: no format_drop_property_graph_statement.",
     ),
-    "graph.EdgeTable": (
-        "format_edge_table",
-        "SQL/PGQ edge table; no format_edge_table.",
+    "graph.EdgeTableDefinition": (
+        "format_edge_table_definition",
+        "SQL/PGQ edge table definition; no format_edge_table_definition. The "
+        "row was pinned as graph.EdgeTable / format_edge_table until core "
+        "renamed the declaration class.",
     ),
     "graph.GraphTableExpression": (
         "format_graph_table_expression",
@@ -786,10 +858,72 @@ _NOT_RENDERED = {
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    "admin.MySQLResetExpression": (
+    # --- The declared-result annotations render through a formatter that
+    # --- reads an optional field not every node declares. ----------------
+    # ``format_declared_result`` (a core dialect mixin) reads
+    # ``expr.source.alias`` directly. ``alias`` is an optional field and
+    # not every node declares it -- ``Literal`` has none -- so any
+    # annotation over a bare literal is refused with AttributeError from
+    # inside the renderer. §11.2 spells the expectation: an optional field
+    # is a class attribute with a default, and a formatter reads declared
+    # fields. These rows name the defect so the table says to come back
+    # when the formatter or the base declares it.
+    "declared._Annotation": (
         "AttributeError",
-        "option must be a ResetOption member; the generic constructor supplies "
-        "a string.",
+        "format_declared_result reads expr.source.alias; the annotation's "
+        "source is a Literal, which declares no alias. The same defect sits "
+        "under every row below -- one entry per class because the table is "
+        "keyed by class.",
+    ),
+    "declared.ArrayAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.BinaryAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.BooleanAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.IntegerAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.JSONAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.NumberAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.TemporalAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.TextAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.UUIDAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.XMLAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
     ),
     "alter_column.MySQLAddColumn": (
         "AttributeError",
@@ -899,6 +1033,13 @@ _NOT_RENDERED = {
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
+    "statements.ddl_table.ColumnGeneratedConstraint": (
+        "ValueError",
+        "The generic constructor supplies a plain string for the generated "
+        "expression, and the constraint refuses to render an expression slot "
+        "that cannot render. The class round-trips its enum through no "
+        "artifact either -- see _ROUNDTRIP_DEFECT.",
+    ),
     "statements.ddl_trigger.CreateTriggerStatement": (
         "AttributeError",
         "timing must be a TriggerTiming member; the generic constructor "
@@ -929,6 +1070,165 @@ _NOT_RENDERED = {
         "ValueError",
         "VALUES needs at least one ROW(...); the generic constructor supplies "
         "an empty list.",
+    ),
+}
+
+# Classes that build, whose round-trip through the artifact does not deliver
+# an equivalent instance -- whether the parameter comparison catches it or the
+# re-render after the trip does -- for a reason that lives outside this
+# repository. Keyed by fqn suffix; the value is
+# ``(exception type name, reason)`` and both are asserted, so a row cannot
+# quietly start describing a different failure.
+#
+# The serialization half of this matrix has no other escape hatch, and it
+# needs exactly one: every buildable class must survive all three channels,
+# and these classes cannot, because a *core* class breaks the trip -- an enum
+# whose spelling the XML channel mangles, an enum whose member the value
+# vocabulary refuses to write, a constructor that refuses the word its own
+# artifact carries, or a parameter whose type has no artifact form at all.
+# The owner is the core worktree; each reason names the defect and the class
+# it sits in, and the exactness test below makes a core fix delete its own
+# row: once the class round-trips, a row left behind is a failure.
+_ROUNDTRIP_DEFECT = {
+    # --- A (str, Enum) without ``__str__ = str.__str__``: the XML channel ---
+    # --- writes ``EnumName.MEMBER``, which the constructor then refuses. ---
+    # ``_scalar_to_text`` in the core's xml_serialization spells a scalar as
+    # ``str(value)``, and for an enum member that carries no ``__str__``
+    # override, ``Enum.__str__`` wins: ``DateTimeField.YEAR`` spells as the
+    # *string* "DateTimeField.YEAR", not the word "year" the member holds.
+    # Reading it back hands that string to ``normalize_datetime_field``,
+    # which refuses it by name. The JSON channel is unaffected -- a str
+    # member dumps as its word -- which is what pins the defect to the XML
+    # spelling and nowhere else.
+    "datetime.ExtractExpression": (
+        "ValueError",
+        "CORE DEFECT: core's DateTimeField carries no ``__str__ = "
+        "str.__str__``, so the XML channel writes 'DateTimeField.YEAR' and "
+        "normalize_datetime_field refuses it on read.",
+    ),
+    "datetime.ExtractFieldExpression": (
+        "ValueError",
+        "CORE DEFECT: same DateTimeField spelling as ExtractExpression -- the "
+        "XML channel writes 'DateTimeField.YEAR' and the read refuses it.",
+    ),
+    "datetime._ExtractBase": (
+        "ValueError",
+        "CORE DEFECT: same DateTimeField spelling as ExtractExpression -- the "
+        "XML channel writes 'DateTimeField.YEAR' and the read refuses it.",
+    ),
+    "datetime.DatePartExpression": (
+        "ValueError",
+        "CORE DEFECT: same DateTimeField spelling -- the XML channel writes "
+        "'DateTimeField.YEAR' and the read refuses it.",
+    ),
+    "datetime.DateTruncExpression": (
+        "ValueError",
+        "CORE DEFECT: same DateTimeField spelling -- the XML channel writes "
+        "'DateTimeField.YEAR' and the read refuses it.",
+    ),
+    "datetime.DateTimeAddExpression": (
+        "ValueError",
+        "CORE DEFECT: core's IntervalUnit carries no ``__str__ = "
+        "str.__str__``, so the XML channel writes 'IntervalUnit.DAY' and "
+        "normalize_interval_unit refuses it on read.",
+    ),
+    "datetime.DateTimeDiffExpression": (
+        "ValueError",
+        "CORE DEFECT: same IntervalUnit spelling -- the XML channel writes "
+        "'IntervalUnit.DAY' and the read refuses it.",
+    ),
+    "datetime.DateTimeSubtractExpression": (
+        "ValueError",
+        "CORE DEFECT: same IntervalUnit spelling -- the XML channel writes "
+        "'IntervalUnit.DAY' and the read refuses it.",
+    ),
+    "datetime.IntervalExpression": (
+        "ValueError",
+        "CORE DEFECT: same IntervalUnit spelling -- the XML channel writes "
+        "'IntervalUnit.DAY' and the read refuses it.",
+    ),
+    "xml.XMLParseExpression": (
+        "AssertionError",
+        "CORE DEFECT: core's XMLParseDocumentType carries no ``__str__`` "
+        "override, so the XML channel writes 'XMLParseDocumentType.DOCUMENT'; "
+        "the constructor stores the word raw, and the restored parameter is "
+        "not the word the member spells.",
+    ),
+    "xml.XMLSerializeExpression": (
+        "AssertionError",
+        "CORE DEFECT: same XMLSerializeDocumentType spelling -- the XML "
+        "channel writes the Enum.__str__ form and the constructor stores it "
+        "raw.",
+    ),
+    # --- A plain Enum where the value vocabulary needs a word. -------------
+    # ``LiteralKind.of`` is total over the closed value set and refuses a
+    # host value it does not name. A plain Enum member is neither a JSON
+    # scalar nor a node, so an artifact cannot carry it -- the spelling is
+    # the core's own §11.3 rule and these two enums predate it.
+    "statements.ddl_table.ForeignKeyConstraint": (
+        "TypeError",
+        "CORE DEFECT: core's ReferentialAction is a plain Enum, so "
+        "LiteralKind.of refuses the member and no artifact can carry the "
+        "constraint's referential actions.",
+    ),
+    "statements.ddl_table.ColumnGeneratedConstraint": (
+        "TypeError",
+        "CORE DEFECT: core's GeneratedColumnType is a plain Enum and the "
+        "constructor forces a member into storage (``storage_type or "
+        "VIRTUAL``), so serialization refuses every instance.",
+    ),
+    # --- A constructor that refuses its own artifact's word. ---------------
+    # §10: the constructor accepts the serialized form and normalises it.
+    # These two do the opposite -- the entry is narrower than the wire.
+    "statements.ddl_table.CreateTableCloneStatement": (
+        "TypeError",
+        "CORE DEFECT: the constructor refuses the word its artifact carries "
+        "('mode must be a CreateTableCloneMode, got str') instead of "
+        "normalising it, so the JSON channel's own output cannot be read "
+        "back.",
+    ),
+    "statements.ddl_trigger.CreateTriggerStatement": (
+        "AssertionError",
+        "CORE DEFECT: the constructor stores ``level`` raw, so the restored "
+        "instance carries the plain word where the original carried the "
+        "TriggerLevel member -- and the formatter reads ``.value``, which "
+        "only the member has.",
+    ),
+    "query_parts.ForUpdateClause": (
+        "AssertionError",
+        "CORE DEFECT: the constructor stores ``strength`` raw, so the "
+        "restored instance carries the plain word where the original carried "
+        "the LockStrength member.",
+    ),
+    "graph.GraphEdge": (
+        "AssertionError",
+        "CORE DEFECT: the constructor stores ``direction`` raw; the restored "
+        "instance carries the plain word, and format_graph_edge's "
+        "isinstance guard refuses it on re-render.",
+    ),
+    "advanced_functions.ExistsPredicate": (
+        "AssertionError",
+        "CORE DEFECT: the constructor renders its subquery input at "
+        "construction time (``query_input, query_params = query.to_sql()``), "
+        "and the artifact carries that tuple as a JSON array; the "
+        "constructor does not normalise the array back to a tuple, so the "
+        "restored statement binds a list where the original bound a tuple.",
+    ),
+    # --- A parameter whose type has no artifact form. -----------------------
+    # §10 names exactly two parameter forms: a language-neutral scalar, or an
+    # expression instance. A dataclass is neither, and the core's own
+    # artifact-contract test states the absence: a dataclass has no place in
+    # the artifact at all.
+    "graph.GraphTableExpression": (
+        "TypeError",
+        "CORE DEFECT: GraphColumn is a dataclass carried in the columns "
+        "parameter -- neither scalar nor node, so LiteralKind.of refuses it "
+        "and the graph-table contract has no artifact form.",
+    ),
+    "statements.ddl_view.CreateViewStatement": (
+        "TypeError",
+        "CORE DEFECT: ViewOptions is a dataclass carried in the options "
+        "parameter -- neither scalar nor node, so LiteralKind.of refuses it.",
     ),
 }
 
@@ -1007,7 +1307,18 @@ class TestExpressionSerialization:
 
     def test_get_params_roundtrip(self, expr_case, mysql_dialect):
         suffix, instance = expr_case
-        roundtrip_expression(suffix, instance, mysql_dialect)
+        try:
+            roundtrip_expression(suffix, instance, mysql_dialect)
+        except Exception as exc:
+            row = _ROUNDTRIP_DEFECT.get(suffix)
+            assert row is not None, (
+                f"{suffix}: round-trip raised {type(exc).__name__}, which is "
+                f"not a named row in _ROUNDTRIP_DEFECT: {exc}"
+            )
+            assert type(exc).__name__ == row[0], (
+                f"{suffix}: _ROUNDTRIP_DEFECT says {row[0]} but it raised "
+                f"{type(exc).__name__}: {exc}"
+            )
 
 
 class TestExpressionRendering:
@@ -1050,7 +1361,18 @@ class TestExpressionRendering:
         assert isinstance(rendered, tuple) and len(rendered) == 2, (
             f"{suffix}: to_sql() returned {rendered!r}, expected a (sql, params) tuple"
         )
-        sql_consistent(suffix, instance, mysql_dialect)
+        try:
+            sql_consistent(suffix, instance, mysql_dialect)
+        except Exception as exc:
+            # A class whose round-trip is broken by a named defect cannot be
+            # asked to render identically *after* that trip: the restored
+            # instance is exactly the one the defect mangles. The row already
+            # accounts for the class, and test_roundtrip_defect_table_is_exact
+            # is what says the row still describes a live failure.
+            assert suffix in _ROUNDTRIP_DEFECT, (
+                f"{suffix}: the restored instance failed where the original "
+                f"rendered, and no _ROUNDTRIP_DEFECT row accounts for it: {exc}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -1118,6 +1440,59 @@ def _verdicts(mysql_dialect):
         else:
             out["probe"].add(suffix)
     return out
+
+
+def _roundtrip_defects(mysql_dialect):
+    """What every buildable class actually does when asked to round-trip.
+
+    The observed half of ``_ROUNDTRIP_DEFECT``'s exactness assertion, built
+    the same way the two tests build their cases: every buildable class,
+    constructed, walked through all three channels, and -- where the
+    original renders -- asked to render identically after the trip.
+    ``sql_consistent`` guards its own ``to_sql`` call, so a class whose
+    rendering is refused contributes only its serialization verdict.
+    """
+    failures = {}
+    for fqn in _MATRIX_FQNS:
+        instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect)
+        if instance is None:
+            continue
+        suffix = _suffix(fqn)
+        try:
+            roundtrip_expression(suffix, instance, mysql_dialect)
+            sql_consistent(suffix, instance, mysql_dialect)
+        except Exception as exc:
+            failures[suffix] = type(exc).__name__
+    return failures
+
+
+def test_roundtrip_defect_table_is_exact(mysql_dialect):
+    """_ROUNDTRIP_DEFECT lists every class whose round-trip fails, and only those.
+
+    A row means the trip does not deliver an equivalent instance -- whether
+    the parameter comparison catches it or the re-render does. Exact in both
+    directions, like the other tables: a core fix that makes a class
+    round-trip leaves a stale row behind, and that is a failure -- the table
+    cannot outlive the defect it describes. A new failure with no row is a
+    failure too, for the usual reason.
+    """
+    observed = _roundtrip_defects(mysql_dialect)
+    missing = sorted(set(observed) - set(_ROUNDTRIP_DEFECT))
+    stale = sorted(set(_ROUNDTRIP_DEFECT) - set(observed))
+    assert not missing, (
+        "these classes fail to round-trip and are not pinned in "
+        f"_ROUNDTRIP_DEFECT: {missing}"
+    )
+    assert not stale, (
+        f"these rows in _ROUNDTRIP_DEFECT are stale -- the classes now "
+        f"round-trip (a core fix landed; delete the rows): {stale}"
+    )
+    for suffix, (exc_name, reason) in _ROUNDTRIP_DEFECT.items():
+        assert exc_name == observed[suffix], (
+            f"_ROUNDTRIP_DEFECT[{suffix!r}] says {exc_name} but it raises "
+            f"{observed[suffix]}"
+        )
+        assert reason.strip(), f"_ROUNDTRIP_DEFECT[{suffix!r}] has no reason"
 
 
 def test_unbuildable_table_is_exact(mysql_dialect):
@@ -1226,7 +1601,7 @@ def test_the_three_render_verdicts_partition_the_matrix(mysql_dialect):
 
 def test_constructor_tables_are_exact():
     """Every row has a registered factory, and every factory has a row."""
-    from rhosocial.activerecord.testsuite.utils import expression as harness
+    import expression_roundtrip_harness as harness
 
     installed = set(harness._SPECIAL_REGISTRY) - set(harness.special_constructors())
     listed = set(DEDICATED_CONSTRUCTORS)
