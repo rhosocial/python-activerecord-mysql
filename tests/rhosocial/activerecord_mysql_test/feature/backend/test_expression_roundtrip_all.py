@@ -237,7 +237,7 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "or its word; the generic constructor supplies \"x\".",
     "datetime._ExtractBase": "field must name a DateTimeField member or its "
     "word; the generic constructor supplies \"x\".",
-    # The two nodes whose operation is a closed set of *words*, validated at
+    # The three nodes whose operation is a closed set of *words*, validated at
     # construction. The generic constructor guesses a string for an unannotated
     # ``op`` and the node refuses it, so the factories hand a real word form.
     "operators.ArithmeticOperation": "op is validated against the wire word "
@@ -246,6 +246,10 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "query_sources.SetOperation": "op is validated against the wire word "
     "forms (union / union_all / intersect / except); the generic constructor "
     "supplies \"x\", which is not one of them.",
+    "predicates.ComparisonPredicate": "op is validated at construction by "
+    "normalize_comparison_operator, which accepts a ComparisonOperator member, "
+    "a wire word, or a SQL character; the generic constructor supplies \"x\", "
+    "which is none of them, so the factory hands ComparisonOperator.EQ.",
 }
 
 #: Every class with a dedicated constructor, in one mapping, so
@@ -308,6 +312,8 @@ def _register_mysql_specials():
 
     from rhosocial.activerecord.backend.expression.operators import ArithmeticOperation
     from rhosocial.activerecord.backend.expression.predicates import (
+        ComparisonOperator,
+        ComparisonPredicate,
         ILikePredicate,
         LikePredicate,
     )
@@ -333,6 +339,10 @@ def _register_mysql_specials():
             lambda d: LikePredicate(d, "LIKE", Column(d, "a"), Literal(d, "%x%")),
         "predicates.ILikePredicate":
             lambda d: ILikePredicate(d, Column(d, "a"), "%x%"),
+        "predicates.ComparisonPredicate":
+            lambda d: ComparisonPredicate(
+                d, ComparisonOperator.EQ, Column(d, "a"), Literal(d, 1)
+            ),
         "operators.ArithmeticOperation":
             lambda d: ArithmeticOperation(
                 d, "add", Column(d, "a"), Column(d, "b")
@@ -1186,12 +1196,6 @@ _ROUNDTRIP_DEFECT = {
         "instance carries the plain word where the original carried the "
         "TriggerLevel member -- and the formatter reads ``.value``, which "
         "only the member has.",
-    ),
-    "query_parts.ForUpdateClause": (
-        "AssertionError",
-        "CORE DEFECT: the constructor stores ``strength`` raw, so the "
-        "restored instance carries the plain word where the original carried "
-        "the LockStrength member.",
     ),
     "graph.GraphEdge": (
         "AssertionError",
