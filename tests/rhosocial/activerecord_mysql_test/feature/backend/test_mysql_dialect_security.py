@@ -94,7 +94,7 @@ def test_mysql_json_table_path_escaping(dialect):
         ],
     )
 
-    sql, params = dialect.format_json_table_expression(expr)
+    sql, params = dialect.format_mysql_json_table_expression(expr)
 
     assert "key''s" in sql
     assert "'; DROP" not in sql
@@ -115,7 +115,7 @@ def test_mysql_json_table_column_path_escaping(dialect):
         ],
     )
 
-    sql, params = dialect.format_json_table_expression(expr)
+    sql, params = dialect.format_mysql_json_table_expression(expr)
 
     assert "field''s" in sql
 
@@ -136,7 +136,7 @@ def test_mysql_json_table_alias_quoted(dialect):
         alias="test_alias",
     )
 
-    sql, params = dialect.format_json_table_expression(expr)
+    sql, params = dialect.format_mysql_json_table_expression(expr)
 
     # MySQL uses backticks for identifier quotes
     assert "`test_alias`" in sql
@@ -235,7 +235,7 @@ class TestMySQLJSONTableTypeValidation:
             ],
         )
 
-        sql, params = dialect.format_json_table_expression(expr)
+        sql, params = dialect.format_mysql_json_table_expression(expr)
         assert "VARCHAR(255)" in sql
 
     def test_json_table_invalid_data_type_rejected(self, dialect):
@@ -254,7 +254,7 @@ class TestMySQLJSONTableTypeValidation:
         )
 
         with pytest.raises(ValueError, match="Invalid data type"):
-            dialect.format_json_table_expression(expr)
+            dialect.format_mysql_json_table_expression(expr)
 
 
 class TestMySQLJSONTableErrorHandling:
@@ -276,7 +276,7 @@ class TestMySQLJSONTableErrorHandling:
             ],
         )
 
-        sql, params = dialect.format_json_table_expression(expr)
+        sql, params = dialect.format_mysql_json_table_expression(expr)
         assert "NULL ON ERROR" in sql
 
     def test_json_table_valid_error_handling_error(self, dialect):
@@ -295,7 +295,7 @@ class TestMySQLJSONTableErrorHandling:
             ],
         )
 
-        sql, params = dialect.format_json_table_expression(expr)
+        sql, params = dialect.format_mysql_json_table_expression(expr)
         assert "ERROR ON ERROR" in sql
 
     def test_json_table_valid_error_handling_default(self, dialect):
@@ -315,7 +315,7 @@ class TestMySQLJSONTableErrorHandling:
             ],
         )
 
-        sql, params = dialect.format_json_table_expression(expr)
+        sql, params = dialect.format_mysql_json_table_expression(expr)
         assert "DEFAULT" in sql
         assert "fallback" in sql
 
@@ -336,7 +336,7 @@ class TestMySQLJSONTableErrorHandling:
         )
 
         with pytest.raises(ValueError, match="Invalid error_handling"):
-            dialect.format_json_table_expression(expr)
+            dialect.format_mysql_json_table_expression(expr)
 
 
 class TestMySQLJSONTableDefaultValueEscaping:
@@ -359,7 +359,7 @@ class TestMySQLJSONTableDefaultValueEscaping:
             ],
         )
 
-        sql, params = dialect.format_json_table_expression(expr)
+        sql, params = dialect.format_mysql_json_table_expression(expr)
         assert "it''s broken" in sql
         assert "'; DROP" not in sql
 
@@ -382,7 +382,7 @@ class TestMySQLJSONTableJsonDocSecurity:
             ],
         )
 
-        sql, params = dialect.format_json_table_expression(expr)
+        sql, params = dialect.format_mysql_json_table_expression(expr)
         assert "key" in sql
 
     def test_json_table_json_doc_to_sql_protocol_rejected_by_validate(self, dialect):
@@ -416,7 +416,7 @@ class TestMySQLJSONTableJsonDocSecurity:
         )
 
         with pytest.raises(TypeError, match="json_doc must be str"):
-            dialect.format_json_table_expression(expr)
+            dialect.format_mysql_json_table_expression(expr)
 
     def test_json_table_json_doc_invalid_type_rejected(self, dialect):
         """Test json_doc with invalid type is rejected (raises before our check)."""
@@ -434,7 +434,7 @@ class TestMySQLJSONTableJsonDocSecurity:
         )
 
         with pytest.raises(TypeError, match="json_doc must be str"):
-            dialect.format_json_table_expression(expr)
+            dialect.format_mysql_json_table_expression(expr)
 
 
 class TestMySQLCreateTableCommentEscaping:

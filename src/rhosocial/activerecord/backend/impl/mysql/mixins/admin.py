@@ -41,7 +41,7 @@ class MySQLAdminCommandMixin:
     def supports_flush(self) -> bool:
         return True
 
-    def format_flush_statement(self, expr: "MySQLFlushExpression") -> Tuple[str, tuple]:
+    def format_mysql_flush_expression(self, expr: "MySQLFlushExpression") -> Tuple[str, tuple]:
         """Format ``FLUSH [NO_WRITE_TO_BINLOG|LOCAL] option [, option ...]``."""
         expr.validate(strict=self.strict_validation)
         parts = ["FLUSH"]
@@ -55,7 +55,7 @@ class MySQLAdminCommandMixin:
     def supports_reset(self) -> bool:
         return True
 
-    def format_reset_statement(self, expr: "MySQLResetExpression") -> Tuple[str, tuple]:
+    def format_mysql_reset_expression(self, expr: "MySQLResetExpression") -> Tuple[str, tuple]:
         """Format ``RESET option``."""
         return f"RESET {expr.option.value}", ()
 
@@ -98,7 +98,7 @@ class MySQLAdminCommandMixin:
             parts.append(f"'{acct.user}'@'{host}'")
         return ", ".join(parts)
 
-    def format_cache_index_statement(
+    def format_mysql_cache_index_expression(
         self,
         expr: "MySQLCacheIndexExpression",
     ) -> Tuple[str, tuple]:
@@ -110,7 +110,7 @@ class MySQLAdminCommandMixin:
     def supports_load_index_into_cache(self) -> bool:
         return True
 
-    def format_load_index_into_cache_statement(
+    def format_mysql_load_index_into_cache_expression(
         self,
         expr: "MySQLLoadIndexIntoCacheExpression",
     ) -> Tuple[str, tuple]:
@@ -124,7 +124,7 @@ class MySQLAdminCommandMixin:
     def supports_install_component(self) -> bool:
         return True
 
-    def format_install_component_statement(
+    def format_mysql_install_component_expression(
         self,
         expr: "MySQLInstallComponentExpression",
     ) -> Tuple[str, tuple]:
@@ -136,7 +136,7 @@ class MySQLAdminCommandMixin:
     def supports_uninstall_component(self) -> bool:
         return True
 
-    def format_uninstall_component_statement(
+    def format_mysql_uninstall_component_expression(
         self,
         expr: "MySQLUninstallComponentExpression",
     ) -> Tuple[str, tuple]:
@@ -148,7 +148,7 @@ class MySQLAdminCommandMixin:
     def supports_install_plugin(self) -> bool:
         return True
 
-    def format_install_plugin_statement(
+    def format_mysql_install_plugin_expression(
         self,
         expr: "MySQLInstallPluginExpression",
     ) -> Tuple[str, tuple]:
@@ -159,7 +159,7 @@ class MySQLAdminCommandMixin:
     def supports_uninstall_plugin(self) -> bool:
         return True
 
-    def format_uninstall_plugin_statement(
+    def format_mysql_uninstall_plugin_expression(
         self,
         expr: "MySQLUninstallPluginExpression",
     ) -> Tuple[str, tuple]:
@@ -172,7 +172,7 @@ class MySQLAdminCommandMixin:
     def supports_clone(self) -> bool:
         return True
 
-    def format_clone_statement(self, expr: "MySQLCloneExpression") -> Tuple[str, tuple]:
+    def format_mysql_clone_expression(self, expr: "MySQLCloneExpression") -> Tuple[str, tuple]:
         """Format ``CLONE INSTANCE FROM ...`` / ``CLONE LOCAL DATA DIRECTORY``."""
         parts = ["CLONE"]
         if expr.from_data_directory:
@@ -193,14 +193,14 @@ class MySQLAdminCommandMixin:
     def supports_restart(self) -> bool:
         return True
 
-    def format_restart_statement(self, expr: "MySQLRestartExpression") -> Tuple[str, tuple]:
+    def format_mysql_restart_expression(self, expr: "MySQLRestartExpression") -> Tuple[str, tuple]:
         """Format the ``RESTART`` server statement."""
         return "RESTART", ()
 
     def supports_binlog(self) -> bool:
         return True
 
-    def format_binlog_statement(self, expr: "MySQLBinlogExpression") -> Tuple[str, tuple]:
+    def format_mysql_binlog_expression(self, expr: "MySQLBinlogExpression") -> Tuple[str, tuple]:
         """Format ``BINLOG 'base64_encoded_event'``."""
         return f"BINLOG '{expr.encoded}'", ()
 
@@ -209,7 +209,7 @@ class MySQLAdminCommandMixin:
     def supports_handler(self) -> bool:
         return True
 
-    def format_handler_open_statement(
+    def format_mysql_handler_open_expression(
         self,
         expr: "MySQLHandlerOpenExpression",
     ) -> Tuple[str, tuple]:
@@ -220,7 +220,7 @@ class MySQLAdminCommandMixin:
             parts.append(self.format_identifier(expr.alias))
         return " ".join(parts), ()
 
-    def format_handler_read_statement(
+    def format_mysql_handler_read_expression(
         self,
         expr: "MySQLHandlerReadExpression",
     ) -> Tuple[str, tuple]:
@@ -246,7 +246,7 @@ class MySQLAdminCommandMixin:
             parts.append(f"LIMIT {int(expr.limit)}")
         return " ".join(parts), tuple(params)
 
-    def format_handler_close_statement(
+    def format_mysql_handler_close_expression(
         self,
         expr: "MySQLHandlerCloseExpression",
     ) -> Tuple[str, tuple]:
@@ -258,7 +258,7 @@ class MySQLAdminCommandMixin:
     def supports_do(self) -> bool:
         return True
 
-    def format_do_statement(self, expr: "MySQLDoExpression") -> Tuple[str, tuple]:
+    def format_mysql_do_expression(self, expr: "MySQLDoExpression") -> Tuple[str, tuple]:
         """Format ``DO expr [, expr ...]``."""
         params = []
         expr_parts = []
@@ -275,7 +275,7 @@ class MySQLAdminCommandMixin:
     def supports_kill(self) -> bool:
         return True
 
-    def format_kill_statement(self, expr: "MySQLKillExpression") -> Tuple[str, tuple]:
+    def format_mysql_kill_expression(self, expr: "MySQLKillExpression") -> Tuple[str, tuple]:
         """Format ``KILL [CONNECTION | QUERY] processlist_id``."""
         parts = ["KILL"]
         if expr.target.value:
@@ -286,14 +286,14 @@ class MySQLAdminCommandMixin:
     def supports_shutdown(self) -> bool:
         return True
 
-    def format_shutdown_statement(self, expr: "MySQLShutdownExpression") -> Tuple[str, tuple]:
+    def format_mysql_shutdown_expression(self, expr: "MySQLShutdownExpression") -> Tuple[str, tuple]:
         """Format the ``SHUTDOWN`` statement."""
         return "SHUTDOWN", ()
 
     def supports_help(self) -> bool:
         return True
 
-    def format_help_statement(self, expr: "MySQLHelpExpression") -> Tuple[str, tuple]:
+    def format_mysql_help_expression(self, expr: "MySQLHelpExpression") -> Tuple[str, tuple]:
         """Format ``HELP 'topic'``."""
         return f"HELP '{expr.topic}'", ()
 
@@ -302,7 +302,7 @@ class MySQLAdminCommandMixin:
     def supports_create_user(self) -> bool:
         return True
 
-    def format_create_user_statement(
+    def format_mysql_create_user_expression(
         self,
         expr: "MySQLCreateUserExpression",
     ) -> Tuple[str, tuple]:
@@ -318,7 +318,7 @@ class MySQLAdminCommandMixin:
     def supports_drop_user(self) -> bool:
         return True
 
-    def format_drop_user_statement(self, expr: "MySQLDropUserExpression") -> Tuple[str, tuple]:
+    def format_mysql_drop_user_expression(self, expr: "MySQLDropUserExpression") -> Tuple[str, tuple]:
         """Format ``DROP USER [IF EXISTS] acct [, acct ...]``."""
         parts = ["DROP USER"]
         if expr.if_exists:
@@ -329,7 +329,7 @@ class MySQLAdminCommandMixin:
     def supports_grant(self) -> bool:
         return True
 
-    def format_grant_statement(self, expr: "MySQLGrantExpression") -> Tuple[str, tuple]:
+    def format_mysql_grant_expression(self, expr: "MySQLGrantExpression") -> Tuple[str, tuple]:
         """Format ``GRANT priv ON obj TO acct [WITH GRANT OPTION]``."""
         priv_parts = []
         for p in expr.privileges:
@@ -350,7 +350,7 @@ class MySQLAdminCommandMixin:
     def supports_revoke(self) -> bool:
         return True
 
-    def format_revoke_statement(self, expr: "MySQLRevokeExpression") -> Tuple[str, tuple]:
+    def format_mysql_revoke_expression(self, expr: "MySQLRevokeExpression") -> Tuple[str, tuple]:
         """Format ``REVOKE priv ON obj FROM acct``."""
         priv_parts = []
         for p in expr.privileges:

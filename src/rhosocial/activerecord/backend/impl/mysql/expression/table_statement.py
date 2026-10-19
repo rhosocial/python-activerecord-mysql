@@ -119,7 +119,7 @@ class MySQLTableStatement(MySQLBaseTableStatement):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_statement"
+        return "format_mysql_table_statement"
 
 
 class MySQLValuesExpression(MySQLBaseTableStatement):
@@ -152,4 +152,4 @@ class MySQLValuesExpression(MySQLBaseTableStatement):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_values_statement"
+        return "format_mysql_values_expression"

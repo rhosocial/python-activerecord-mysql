@@ -43,7 +43,7 @@ class LoadXMLConflictMode(str, Enum):
     IGNORE = "IGNORE"
 
 
-class MySQLLoadXMLEXpression(BaseExpression):
+class MySQLLoadXMLStatement(BaseExpression):
     """Represent the MySQL ``LOAD XML`` statement.
 
     Attributes:
@@ -122,4 +122,4 @@ class MySQLLoadXMLEXpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_load_xml_statement"
+        return "format_mysql_load_xml_statement"

@@ -27,7 +27,7 @@ class MySQLTableStatementMixin:
         """MySQL 8.0.19+ supports VALUES as a table value constructor."""
         return getattr(self, "version", None) is not None and self.version >= (8, 0, 19)
 
-    def format_table_statement(self, expr: "MySQLTableStatement") -> Tuple[str, tuple]:
+    def format_mysql_table_statement(self, expr: "MySQLTableStatement") -> Tuple[str, tuple]:
         """Format ``TABLE <table> [ORDER BY ...] [LIMIT ...]``.
 
         The table is a schema object, so it renders itself and
@@ -43,7 +43,7 @@ class MySQLTableStatementMixin:
         parts.extend(self._format_statement_clauses(expr))
         return " ".join(part for part in parts if part), ()
 
-    def format_values_statement(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
+    def format_mysql_values_expression(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
         """Format ``VALUES ROW(...), ... [ORDER BY ...] [LIMIT ...]``."""
         expr.validate(strict=self.strict_validation)
         params = []

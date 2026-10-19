@@ -16,7 +16,7 @@ class MySQLVectorMixin:
     def get_max_vector_dimension(self) -> int:
         return self.MAX_VECTOR_DIMENSION
 
-    def format_vector_literal(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_vector_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLVectorExpression` node (VECTOR literal)."""
         sql, params = self._format_vector_literal_parts(expr.vector)
         if expr.alias:
@@ -32,7 +32,7 @@ class MySQLVectorMixin:
         vector_str = "[" + ",".join(str(v) for v in values) + "]"
         return f"STRING_TO_VECTOR({self.p()})", (vector_str,)
 
-    def format_string_to_vector(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_string_to_vector_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLStringToVectorExpression or a raw vector string."""
         from ..expression.vector import MySQLStringToVectorExpression
 
@@ -47,7 +47,7 @@ class MySQLVectorMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, (vector_str,)
 
-    def format_vector_to_string(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_vector_to_string_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLVectorToStringExpression or a raw vector reference."""
         from ..expression.vector import MySQLVectorToStringExpression
 
@@ -63,7 +63,7 @@ class MySQLVectorMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_vector_dim(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_vector_dim_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLVectorDimExpression or a raw vector reference."""
         from ..expression.vector import MySQLVectorDimExpression
 
@@ -79,31 +79,31 @@ class MySQLVectorMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_distance_euclidean(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_distance_euclidean_expression(self, expr) -> Tuple[str, tuple]:
         sql = f"DISTANCE_EUCLIDEAN({expr.vec1}, {expr.vec2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_distance_cosine(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_distance_cosine_expression(self, expr) -> Tuple[str, tuple]:
         sql = f"DISTANCE_COSINE({expr.vec1}, {expr.vec2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_distance_dot(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_distance_dot_expression(self, expr) -> Tuple[str, tuple]:
         sql = f"DISTANCE_DOT({expr.vec1}, {expr.vec2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_create_vector_index(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_create_vector_index_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLCreateVectorIndexExpression` node."""
         from ..expression.vector import MySQLCreateVectorIndexExpression
 
         if not isinstance(expr, MySQLCreateVectorIndexExpression):
             raise TypeError(
-                f"format_create_vector_index expects MySQLCreateVectorIndexExpression, "
+                f"format_mysql_create_vector_index_expression expects MySQLCreateVectorIndexExpression, "
                 f"got {type(expr).__name__}"
             )
 

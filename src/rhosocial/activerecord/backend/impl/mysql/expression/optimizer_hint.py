@@ -53,5 +53,5 @@ class MySQLOptimizerHintExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_optimizer_hint"
+        return "format_mysql_optimizer_hint_expression"
 

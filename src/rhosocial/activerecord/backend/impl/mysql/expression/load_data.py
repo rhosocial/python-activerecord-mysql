@@ -94,7 +94,7 @@ class MySQLLoadDataExpression(BaseExpression):
     """MySQL LOAD DATA INFILE expression.
 
     Collects parameters for LOAD DATA [LOCAL] INFILE statement.
-    The actual SQL formatting is done by MySQLDialect.format_load_data_statement().
+    The actual SQL formatting is done by MySQLDialect.format_mysql_load_data_expression().
 
     Attributes:
         file_path: Path to the data file
@@ -154,4 +154,4 @@ class MySQLLoadDataExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_load_data_statement"
+        return "format_mysql_load_data_expression"

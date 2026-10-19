@@ -15,6 +15,9 @@ if TYPE_CHECKING:
         TableCheckConstraint,
         TableForeignKeyConstraint,
     )
+    from rhosocial.activerecord.backend.impl.mysql.expression.table_expr import (
+        MySQLStorageOptionsExpression,
+    )
 
 
 class MySQLTableMixin:
@@ -324,10 +327,26 @@ class MySQLTableMixin:
         return " ".join(parts), ()
 
     def format_storage_options(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
-        """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
+        """Format core's table storage options (ENGINE, CHARSET, etc.)."""
+        return self._render_storage_options(expr.options), ()
+
+    def format_mysql_storage_options_expression(
+        self,
+        expr: "MySQLStorageOptionsExpression",
+    ) -> Tuple[str, tuple]:
+        """Format :class:`MySQLStorageOptionsExpression`.
+
+        Its own entry because it is its own node: the constructor parameter is
+        ``storage_options`` where core's node calls the same mapping
+        ``options``, and one entry reading the other field raised
+        ``AttributeError`` on half of the pair.
+        """
+        return self._render_storage_options(expr.storage_options), ()
+
+    def _render_storage_options(self, options) -> str:
         parts = []
-        for key, value in expr.options.items():
+        for key, value in options.items():
             rendered = self.inline_sql_literal(value)
             parts.append(f"{key}={rendered}")
-        return " ".join(parts), ()
+        return " ".join(parts)
 

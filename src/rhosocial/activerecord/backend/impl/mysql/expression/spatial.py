@@ -49,7 +49,7 @@ class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_geom_from_text"
+        return "format_mysql_st_geom_from_text_expression"
 
 
 class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -77,7 +77,7 @@ class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_distance"
+        return "format_mysql_st_distance_expression"
 
 
 class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -105,7 +105,7 @@ class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_within"
+        return "format_mysql_st_within_expression"
 
 
 class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -133,7 +133,7 @@ class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_contains"
+        return "format_mysql_st_contains_expression"
 
 
 class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -162,7 +162,7 @@ class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_spatial_literal"
+        return "format_mysql_spatial_literal_expression"
 
 
 class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -193,7 +193,7 @@ class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_geom_from_wkb"
+        return "format_mysql_st_geom_from_wkb_expression"
 
 
 class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -221,7 +221,7 @@ class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_as_text"
+        return "format_mysql_st_as_text_expression"
 
 
 class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -249,7 +249,7 @@ class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_as_geojson"
+        return "format_mysql_st_as_geo_json_expression"
 
 
 class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -281,7 +281,7 @@ class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValu
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_spatial_index"
+        return "format_mysql_create_spatial_index_expression"
 
 
 __all__ = [

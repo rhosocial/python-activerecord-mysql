@@ -524,10 +524,10 @@ _DECLARED_GAP = {
         "format_drop_schema_statement is absent.",
     ),
     "table_expr.MySQLInlineIndexExpression": (
-        "format_inline_index",
+        "format_mysql_inline_index_expression",
         "DECLARED BUT NOT RENDERED. MySQLDDLTableMixin."
         "supports_inline_index() answers True, and the expression dispatches "
-        "to format_inline_index, which MySQLDialect does not define. CREATE "
+        "to format_mysql_inline_index_expression, which MySQLDialect does not define. CREATE "
         "TABLE renders its inline indexes through format_index_definition, so "
         "the class is unreachable from any rendering path in this backend -- "
         "nothing in src or tests constructs it.",
@@ -706,6 +706,26 @@ _DECLARED_GAP = {
         "format_xmlserialize_expression",
         "XML functions are not in MySQL; no format_xmlserialize_expression.",
     ),
+    # --- The standard spelling of what MySQL renders under its own node. ----
+    # Both rows are the honest outcome of splitting one entry into two: this
+    # dialect renders CREATE/DROP FUNCTION through MySQLCreateFunctionExpression
+    # and MySQLDropFunctionExpression, whose contract is the stored routine MySQL
+    # actually has, and it names no entry for core's SQL/PSM nodes. Those two
+    # used to reach the MySQL entry, which read ``expr.name`` off a node that
+    # carries ``expr.function`` and raised AttributeError -- a claim of support
+    # followed by a crash. Naming no entry is the support claim being withdrawn.
+    "statements.ddl_function.CreateFunctionStatement": (
+        "format_create_function_statement",
+        "MySQL models CREATE FUNCTION as a stored routine "
+        "(MySQLCreateFunctionExpression, entry format_mysql_create_function_expression); "
+        "core's SQL/PSM node carries function/parameters/language, and this "
+        "dialect declares no entry for that shape.",
+    ),
+    "statements.ddl_function.DropFunctionStatement": (
+        "format_drop_function_statement",
+        "Same split as CreateFunctionStatement: MySQLDropFunctionExpression "
+        "renders DROP FUNCTION; core's node has no entry here.",
+    ),
 }
 
 # Classes that build but whose ``to_sql()`` raises something outside the legal
@@ -720,24 +740,6 @@ _DECLARED_GAP = {
 # interesting half -- every row below is a refusal that is the right answer to
 # a wrong value.
 _NOT_RENDERED = {
-    # --- A MySQL formatter shadows the core one and reads other slots. ----
-    "statements.ddl_function.CreateFunctionStatement": (
-        "AttributeError",
-        "MySQLRoutineMixin.format_create_function_statement reads expr.name; "
-        "core's CreateFunctionStatement carries expr.function, so the MySQL "
-        "routine formatter shadows the core one for an expression it cannot "
-        "render.",
-    ),
-    "statements.ddl_function.DropFunctionStatement": (
-        "AttributeError",
-        "Same shadowing as CreateFunctionStatement.",
-    ),
-    "query_sources.JSONTableExpression": (
-        "AttributeError",
-        "MySQLJSONFunctionMixin.format_json_table_expression reads json_doc / "
-        "path / columns; core's JSONTableExpression exposes a different "
-        "shape, so the MySQL formatter cannot read it.",
-    ),
     # --- The dialect correctly refuses what the harness invented. ---------
     "collation.CollateFunction": (
         "ValueError",
@@ -978,11 +980,6 @@ _NOT_RENDERED = {
         "REPAIR TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLTableMaintenanceExpression": (
-        "ValueError",
-        "A whole-table maintenance statement needs at least one table; the "
-        "generic constructor supplies an empty list.",
-    ),
     "optimizer_hint.MySQLOptimizerHintExpression": (
         "AttributeError",
         "hints must be objects carrying variable / value; the generic "
@@ -1061,10 +1058,6 @@ _NOT_RENDERED = {
         "AttributeError",
         "source must be a row source; the generic constructor supplies a "
         "string. MySQL has no MERGE.",
-    ),
-    "table_expr.MySQLStorageOptionsExpression": (
-        "AttributeError",
-        "Built without the options mapping its formatter reads.",
     ),
     "table_statement.MySQLValuesExpression": (
         "ValueError",

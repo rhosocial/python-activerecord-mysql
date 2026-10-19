@@ -126,4 +126,4 @@ class MySQLJSONTableExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_table_expression"
+        return "format_mysql_json_table_expression"

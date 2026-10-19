@@ -39,7 +39,7 @@ class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_set_literal"
+        return "format_mysql_set_literal_expression"
 
 
 class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -68,7 +68,7 @@ class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_find_in_set"
+        return "format_mysql_find_in_set_expression"
 
 
 class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -97,7 +97,7 @@ class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_set_contains"
+        return "format_mysql_set_contains_expression"
 
 
 __all__ = [

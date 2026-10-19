@@ -145,7 +145,7 @@ from .routine import (
     MySQLCreateFunctionExpression,
     MySQLDropFunctionExpression,
 )
-from .load_xml import MySQLLoadXMLEXpression, LoadXMLPriority, LoadXMLConflictMode
+from .load_xml import MySQLLoadXMLStatement, LoadXMLPriority, LoadXMLConflictMode
 from .admin import (
     MySQLCacheIndexExpression,
     MySQLLoadIndexIntoCacheExpression,
@@ -315,7 +315,7 @@ __all__ = [
     "MySQLDropProcedureExpression",
     "MySQLCreateFunctionExpression",
     "MySQLDropFunctionExpression",
-    "MySQLLoadXMLEXpression",
+    "MySQLLoadXMLStatement",
     "LoadXMLPriority",
     "LoadXMLConflictMode",
     "MySQLCacheIndexExpression",

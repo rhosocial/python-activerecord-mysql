@@ -5,6 +5,13 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.objects import RelationObject
+    from rhosocial.activerecord.backend.impl.mysql.expression.maintenance import (
+        MySQLAnalyzeTableExpression,
+        MySQLCheckTableExpression,
+        MySQLChecksumTableExpression,
+        MySQLOptimizeTableExpression,
+        MySQLRepairTableExpression,
+    )
 
 
 class MySQLMaintenanceMixin:
@@ -34,8 +41,14 @@ class MySQLMaintenanceMixin:
     def supports_repair_table(self) -> bool:
         return True
 
-    def format_table_maintenance_statement(self, expr) -> Tuple[str, tuple]:
-        """Format a whole-table maintenance statement (analyze/check/...)."""
+    def _render_mysql_table_maintenance(self, expr) -> Tuple[str, tuple]:
+        """Render the whole-table maintenance shape the five entries share.
+
+        The public entries are one per kind; this is the shared assembly,
+        reached only from them. The keyword comes from the node's own
+        ``operation`` -- a class attribute each subclass declares -- so no
+        entry has to be told which word it renders.
+        """
         expr.validate(strict=self.strict_validation)
         operation = expr.operation
         support_method = f"supports_{operation.lower()}_table"
@@ -59,6 +72,41 @@ class MySQLMaintenanceMixin:
             parts.append(" ".join(option.value for option in expr.options))
 
         return " ".join(parts), ()
+
+    def format_mysql_analyze_table_expression(
+        self,
+        expr: "MySQLAnalyzeTableExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ``ANALYZE TABLE``."""
+        return self._render_mysql_table_maintenance(expr)
+
+    def format_mysql_optimize_table_expression(
+        self,
+        expr: "MySQLOptimizeTableExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ``OPTIMIZE TABLE``."""
+        return self._render_mysql_table_maintenance(expr)
+
+    def format_mysql_check_table_expression(
+        self,
+        expr: "MySQLCheckTableExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ``CHECK TABLE`` with its optional modes."""
+        return self._render_mysql_table_maintenance(expr)
+
+    def format_mysql_checksum_table_expression(
+        self,
+        expr: "MySQLChecksumTableExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ``CHECKSUM TABLE`` with its optional mode."""
+        return self._render_mysql_table_maintenance(expr)
+
+    def format_mysql_repair_table_expression(
+        self,
+        expr: "MySQLRepairTableExpression",
+    ) -> Tuple[str, tuple]:
+        """Format ``REPAIR TABLE`` with its optional modes."""
+        return self._render_mysql_table_maintenance(expr)
 
     def _format_maintenance_table(self, table: "RelationObject") -> str:
         """Render one maintenance target through its own formatter.

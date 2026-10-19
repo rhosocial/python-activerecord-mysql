@@ -81,7 +81,7 @@ class ShowCreateTableExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_create_table"
+        return "format_show_create_table_expression"
 
 
 
@@ -101,7 +101,7 @@ class ShowCreateViewExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_create_view"
+        return "format_show_create_view_expression"
 
 
 
@@ -135,7 +135,7 @@ class ShowColumnsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_columns"
+        return "format_show_columns_expression"
 
 
 
@@ -155,7 +155,7 @@ class ShowIndexExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_index"
+        return "format_show_index_expression"
 
 
 
@@ -187,7 +187,7 @@ class ShowTablesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_tables"
+        return "format_show_tables_expression"
 
 
 
@@ -211,7 +211,7 @@ class ShowDatabasesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_databases"
+        return "format_show_databases_expression"
 
 
 
@@ -236,7 +236,7 @@ class ShowTableStatusExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_table_status"
+        return "format_show_table_status_expression"
 
 
 
@@ -261,7 +261,7 @@ class ShowTriggersExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_triggers"
+        return "format_show_triggers_expression"
 
 
 
@@ -281,7 +281,7 @@ class ShowCreateTriggerExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_create_trigger"
+        return "format_show_create_trigger_expression"
 
 
 
@@ -317,7 +317,7 @@ class ShowVariablesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_variables"
+        return "format_show_variables_expression"
 
 
 
@@ -353,7 +353,7 @@ class ShowStatusExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_status"
+        return "format_show_status_expression"
 
 
 
@@ -377,7 +377,7 @@ class ShowProcessListExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_processlist"
+        return "format_show_process_list_expression"
 
 
 
@@ -401,7 +401,7 @@ class ShowWarningsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_warnings"
+        return "format_show_warnings_expression"
 
 
 
@@ -425,7 +425,7 @@ class ShowErrorsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_errors"
+        return "format_show_errors_expression"
 
 
 
@@ -435,7 +435,7 @@ class ShowEnginesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_engines"
+        return "format_show_engines_expression"
 
 
 
@@ -459,7 +459,7 @@ class ShowCharsetExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_charset"
+        return "format_show_charset_expression"
 
 
 
@@ -483,7 +483,7 @@ class ShowCollationExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_collation"
+        return "format_show_collation_expression"
 
 
 
@@ -510,7 +510,7 @@ class ShowGrantsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_grants"
+        return "format_show_grants_expression"
 
 
 
@@ -520,4 +520,4 @@ class ShowPluginsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_plugins"
+        return "format_show_plugins_expression"

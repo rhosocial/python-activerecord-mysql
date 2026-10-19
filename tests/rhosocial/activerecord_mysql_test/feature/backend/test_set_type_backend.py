@@ -100,7 +100,7 @@ class TestMySQLSetTypeBackend:
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_find_in_set")
 
     def test_format_set_literal_integration(self, mysql_backend):
-        """Test format_set_literal with database execution."""
+        """Test format_mysql_set_literal_expression with database execution."""
         # Create table
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_set_literal (
@@ -128,7 +128,7 @@ class TestMySQLSetTypeBackend:
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_set_literal")
 
     def test_format_find_in_set_integration(self, mysql_backend):
-        """Test format_find_in_set with database execution."""
+        """Test format_mysql_find_in_set_expression with database execution."""
         # Create table
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_find_format (
@@ -158,7 +158,7 @@ class TestMySQLSetTypeBackend:
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_find_format")
 
     def test_format_set_contains_integration(self, mysql_backend):
-        """Test format_set_contains with database execution."""
+        """Test format_mysql_set_contains_expression with database execution."""
         # Create table
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_contains_format (
@@ -322,7 +322,7 @@ class TestAsyncMySQLSetTypeBackend:
 
     @pytest.mark.asyncio
     async def test_async_format_set_literal_integration(self, async_mysql_backend):
-        """Test format_set_literal with database execution (async)."""
+        """Test format_mysql_set_literal_expression with database execution (async)."""
         # Create table
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_set_literal (
@@ -351,7 +351,7 @@ class TestAsyncMySQLSetTypeBackend:
 
     @pytest.mark.asyncio
     async def test_async_format_find_in_set_integration(self, async_mysql_backend):
-        """Test format_find_in_set with database execution (async)."""
+        """Test format_mysql_find_in_set_expression with database execution (async)."""
         # Create table
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_find_format (
@@ -381,7 +381,7 @@ class TestAsyncMySQLSetTypeBackend:
 
     @pytest.mark.asyncio
     async def test_async_format_set_contains_integration(self, async_mysql_backend):
-        """Test format_set_contains with database execution (async)."""
+        """Test format_mysql_set_contains_expression with database execution (async)."""
         # Create table
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_contains (

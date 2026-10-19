@@ -16,7 +16,7 @@ class MySQLOptimizerHintMixin:
     def supports_hypergraph_optimizer(self) -> bool:
         return self.version >= (9, 7, 0)
 
-    def format_optimizer_hint(self, expr: "MySQLOptimizerHintExpression") -> "Tuple[str, tuple]":
+    def format_mysql_optimizer_hint_expression(self, expr: "MySQLOptimizerHintExpression") -> "Tuple[str, tuple]":
         """Format /*+ SET_VAR(...) */ hint clause."""
         parts = []
         for hint in expr.hints:

@@ -104,7 +104,7 @@ class CreateJsonDualityViewExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_json_duality_view_statement"
+        return "format_create_json_duality_view_expression"
 
 
 
@@ -127,7 +127,7 @@ class DropJsonDualityViewExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_json_duality_view_statement"
+        return "format_drop_json_duality_view_expression"
 
 
 class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -155,7 +155,7 @@ class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLVal
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_duality_object_select"
+        return "format_mysql_duality_object_select_expression"
 
 
 class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -183,7 +183,7 @@ class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_duality_object_body"
+        return "format_mysql_duality_object_body_expression"
 
 
 class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -211,5 +211,5 @@ class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_nested_duality"
+        return "format_mysql_nested_duality_expression"
 

@@ -449,7 +449,7 @@ def test_subpartition_by_linear_hash(dialect):
         count=2,
     )
 
-    sql, params = dialect.format_subpartition_by(sub)
+    sql, params = dialect.format_mysql_subpartition_clause(sub)
 
     assert "SUBPARTITION BY LINEAR HASH" in sql
     assert "`id`" in sql
@@ -466,7 +466,7 @@ def test_subpartition_by_linear_key(dialect):
         count=4,
     )
 
-    sql, params = dialect.format_subpartition_by(sub)
+    sql, params = dialect.format_mysql_subpartition_clause(sub)
 
     assert "SUBPARTITION BY LINEAR KEY" in sql
     assert "`id`" in sql

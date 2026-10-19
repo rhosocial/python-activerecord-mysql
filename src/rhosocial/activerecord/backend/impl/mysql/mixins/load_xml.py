@@ -7,7 +7,7 @@ from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
-        MySQLLoadXMLEXpression,
+        MySQLLoadXMLStatement,
     )
 
 
@@ -17,7 +17,7 @@ class MySQLLoadXMLLMixin:
     def supports_load_xml(self) -> bool:
         return True
 
-    def format_load_xml_statement(self, expr: "MySQLLoadXMLEXpression") -> Tuple[str, tuple]:
+    def format_mysql_load_xml_statement(self, expr: "MySQLLoadXMLStatement") -> Tuple[str, tuple]:
         """Format ``LOAD XML ... INFILE ... INTO TABLE ...``.
 
         Raises:
@@ -25,7 +25,7 @@ class MySQLLoadXMLLMixin:
                 wrong kind there would render a statement loading into whatever
                 object's name was supplied.
         """
-        require_kind(expr.table, Table, "MySQLLoadXMLEXpression.table")
+        require_kind(expr.table, Table, "MySQLLoadXMLStatement.table")
         expr.validate(strict=self.strict_validation)
 
         parts = ["LOAD XML"]

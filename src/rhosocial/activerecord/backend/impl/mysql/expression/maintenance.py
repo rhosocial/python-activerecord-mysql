@@ -70,6 +70,10 @@ class RepairTableOption(str, Enum):
 class MySQLTableMaintenanceExpression(BaseExpression):
     """Base class for whole-table maintenance statements.
 
+    Not a node: it declares no ``format_method``, so it has no kind, cannot be
+    named in an artifact and never reaches the registry (§9: an abstract base
+    is not a node). The five subclasses below each name their own entry.
+
     Attributes:
         operation: Statement keyword (ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR).
         tables: List of target relations, as
@@ -123,17 +127,16 @@ class MySQLTableMaintenanceExpression(BaseExpression):
                     f"Table(self.dialect, 'users', catalog_name='app') to qualify the name"
                 )
 
-    @property
-    def format_method(self) -> str:
-        """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
-
-
 
 class MySQLAnalyzeTableExpression(MySQLTableMaintenanceExpression):
     """Represent ``ANALYZE TABLE``."""
 
     operation: str = "ANALYZE"
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_analyze_table_expression"
 
 
 class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
@@ -158,7 +161,7 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
+        return "format_mysql_check_table_expression"
 
 
 
@@ -186,7 +189,7 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
+        return "format_mysql_checksum_table_expression"
 
 
 
@@ -194,6 +197,11 @@ class MySQLOptimizeTableExpression(MySQLTableMaintenanceExpression):
     """Represent ``OPTIMIZE TABLE``."""
 
     operation: str = "OPTIMIZE"
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_optimize_table_expression"
 
 
 class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
@@ -219,4 +227,4 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
+        return "format_mysql_repair_table_expression"

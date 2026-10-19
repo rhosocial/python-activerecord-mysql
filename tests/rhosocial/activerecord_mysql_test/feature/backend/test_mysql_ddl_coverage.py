@@ -252,19 +252,19 @@ class TestLoadXML:
     """Test MySQL LOAD XML statement."""
 
     def test_basic(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(dialect, "/tmp/data.xml", Table(dialect, "t"))
+        expr = mysql_expr.MySQLLoadXMLStatement(dialect, "/tmp/data.xml", Table(dialect, "t"))
         sql, _ = expr.to_sql()
         assert sql == "LOAD XML INFILE '/tmp/data.xml' INTO TABLE `t`"
 
     def test_qualified_database(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(
+        expr = mysql_expr.MySQLLoadXMLStatement(
             dialect, "/tmp/data.xml", Table(dialect, "t", catalog_name="app")
         )
         sql, _ = expr.to_sql()
         assert sql == "LOAD XML INFILE '/tmp/data.xml' INTO TABLE `app`.`t`"
 
     def test_local(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(
+        expr = mysql_expr.MySQLLoadXMLStatement(
             dialect, "/tmp/data.xml", Table(dialect, "t"), local=True
         )
         sql, _ = expr.to_sql()

@@ -36,7 +36,7 @@ class MySQLInlineIndexExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_inline_index"
+        return "format_mysql_inline_index_expression"
 
 
 class MySQLStorageOptionsExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -62,7 +62,7 @@ class MySQLStorageOptionsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_storage_options"
+        return "format_mysql_storage_options_expression"
 
 
 __all__ = [

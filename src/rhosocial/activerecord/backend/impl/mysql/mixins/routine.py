@@ -43,7 +43,7 @@ class MySQLRoutineMixin:
     def supports_call(self) -> bool:
         return True
 
-    def format_create_procedure_statement(
+    def format_mysql_create_procedure_expression(
         self,
         expr: "MySQLCreateProcedureExpression",
     ) -> Tuple[str, tuple]:
@@ -64,7 +64,7 @@ class MySQLRoutineMixin:
             parts.append(expr.body)
         return " ".join(parts), ()
 
-    def format_drop_procedure_statement(
+    def format_mysql_drop_procedure_expression(
         self,
         expr: "MySQLDropProcedureExpression",
     ) -> Tuple[str, tuple]:
@@ -81,11 +81,19 @@ class MySQLRoutineMixin:
         parts.append(expr.name.to_sql()[0])
         return " ".join(parts), ()
 
-    def format_create_function_statement(
+    def format_mysql_create_function_expression(
         self,
         expr: "MySQLCreateFunctionExpression",
     ) -> Tuple[str, tuple]:
         """Format ``CREATE FUNCTION name(params) RETURNS type body``.
+
+        This is the entry :class:`MySQLCreateFunctionExpression` names. It is
+        deliberately not an override of core's
+        ``format_create_function_statement``: that node carries
+        ``function``/``parameters``/``language`` where this one carries
+        ``name``/``params``/``returns``, so one entry could read only one of
+        the two shapes and raised ``AttributeError`` on the other. Core's
+        entry renders core's node again.
 
         Raises:
             TypeError: ``expr.name`` is not a routine object.
@@ -102,14 +110,14 @@ class MySQLRoutineMixin:
             parts.append(expr.body)
         return " ".join(parts), ()
 
-    def format_drop_function_statement(
+    def format_mysql_drop_function_expression(
         self,
         expr: "MySQLDropFunctionExpression",
     ) -> Tuple[str, tuple]:
         """Format ``DROP FUNCTION [IF EXISTS] name`` (stored function).
 
-        The loadable UDF form ``DROP FUNCTION name`` is syntactically
-        identical and shares this method.
+        The entry :class:`MySQLDropFunctionExpression` names, for the reason
+        given on :meth:`format_mysql_create_function_expression`.
 
         Raises:
             TypeError: ``expr.name`` is not a routine object.
@@ -122,7 +130,7 @@ class MySQLRoutineMixin:
         parts.append(expr.name.to_sql()[0])
         return " ".join(parts), ()
 
-    def format_call_statement(self, expr: "MySQLCallExpression") -> Tuple[str, tuple]:
+    def format_mysql_call_expression(self, expr: "MySQLCallExpression") -> Tuple[str, tuple]:
         """Format ``CALL name([args])``.
 
         Raises:

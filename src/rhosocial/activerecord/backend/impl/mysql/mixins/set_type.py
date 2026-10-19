@@ -8,13 +8,13 @@ class MySQLSetTypeMixin:
     def supports_set_type(self) -> bool:
         return True
 
-    def format_set_literal(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_set_literal_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLSetLiteralExpression` node."""
         from ..expression.set_type import MySQLSetLiteralExpression
 
         if not isinstance(expr, MySQLSetLiteralExpression):
             raise TypeError(
-                f"format_set_literal expects MySQLSetLiteralExpression, got {type(expr).__name__}"
+                f"format_mysql_set_literal_expression expects MySQLSetLiteralExpression, got {type(expr).__name__}"
             )
 
         values = expr.values
@@ -37,13 +37,13 @@ class MySQLSetTypeMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, (literal,)
 
-    def format_find_in_set(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_find_in_set_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLFindInSetExpression` node."""
         from ..expression.set_type import MySQLFindInSetExpression
 
         if not isinstance(expr, MySQLFindInSetExpression):
             raise TypeError(
-                f"format_find_in_set expects MySQLFindInSetExpression, got {type(expr).__name__}"
+                f"format_mysql_find_in_set_expression expects MySQLFindInSetExpression, got {type(expr).__name__}"
             )
 
         sql = f"FIND_IN_SET({self.p()}, {self.format_identifier(expr.set_column)}) > 0"
@@ -51,13 +51,13 @@ class MySQLSetTypeMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, (expr.value,)
 
-    def format_set_contains(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_set_contains_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLSetContainsExpression` node."""
         from ..expression.set_type import MySQLSetContainsExpression
 
         if not isinstance(expr, MySQLSetContainsExpression):
             raise TypeError(
-                f"format_set_contains expects MySQLSetContainsExpression, got {type(expr).__name__}"
+                f"format_mysql_set_contains_expression expects MySQLSetContainsExpression, got {type(expr).__name__}"
             )
 
         conditions = []

@@ -52,7 +52,7 @@ class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_extract"
+        return "format_mysql_json_extract_expression"
 
 
 class MySQLJSONObjectExpression(AliasableMixin, SQLValue):
@@ -96,7 +96,7 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_object"
+        return "format_mysql_json_object_expression"
 
 
 class MySQLJSONArrayExpression(AliasableMixin, SQLValue):
@@ -142,7 +142,7 @@ class MySQLJSONArrayExpression(AliasableMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_array"
+        return "format_mysql_json_array_expression"
 
 
 class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -172,7 +172,7 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_contains"
+        return "format_mysql_json_contains_expression"
 
 
 class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -200,7 +200,7 @@ class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_unquote"
+        return "format_mysql_json_unquote_expression"
 
 
 class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -237,7 +237,7 @@ class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_set"
+        return "format_mysql_json_set_expression"
 
 
 class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -271,7 +271,7 @@ class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_remove"
+        return "format_mysql_json_remove_expression"
 
 
 class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -299,7 +299,7 @@ class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_type"
+        return "format_mysql_json_type_expression"
 
 
 class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -327,7 +327,7 @@ class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_valid"
+        return "format_mysql_json_valid_expression"
 
 
 class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -364,7 +364,7 @@ class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_search"
+        return "format_mysql_json_search_expression"
 
 
 __all__ = [

@@ -35,7 +35,7 @@ class MySQLRenameTableMixin:
         """
         return True
 
-    def format_rename_table_statement(
+    def format_mysql_rename_table_expression(
         self,
         expr: "MySQLRenameTableExpression",
     ) -> Tuple[str, tuple]:

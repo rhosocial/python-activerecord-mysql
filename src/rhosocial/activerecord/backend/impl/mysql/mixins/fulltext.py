@@ -25,13 +25,13 @@ class MySQLFullTextSearchMixin:
     def supports_fulltext_query_expansion(self) -> bool:
         return True
 
-    def format_fulltext_index_options(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_fulltext_index_options_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLFulltextIndexOptionsExpression` node."""
         from ..expression.fulltext import MySQLFulltextIndexOptionsExpression
 
         if not isinstance(expr, MySQLFulltextIndexOptionsExpression):
             raise TypeError(
-                f"format_fulltext_index_options expects MySQLFulltextIndexOptionsExpression, "
+                f"format_mysql_fulltext_index_options_expression expects MySQLFulltextIndexOptionsExpression, "
                 f"got {type(expr).__name__}"
             )
 
@@ -41,7 +41,7 @@ class MySQLFullTextSearchMixin:
             sql += f" WITH PARSER {self.format_identifier(expr.parser_name)}"
         return sql, ()
 
-    def format_match_against(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_match_against_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLMatchAgainstExpression` node."""
         cols_sql = ", ".join(self.format_identifier(c) for c in expr.columns)
 

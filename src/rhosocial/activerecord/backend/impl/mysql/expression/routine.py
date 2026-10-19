@@ -79,7 +79,7 @@ class MySQLCreateProcedureExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_procedure_statement"
+        return "format_mysql_create_procedure_expression"
 
 
 
@@ -99,7 +99,7 @@ class MySQLDropProcedureExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_procedure_statement"
+        return "format_mysql_drop_procedure_expression"
 
 
 
@@ -128,7 +128,7 @@ class MySQLCreateFunctionExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_function_statement"
+        return "format_mysql_create_function_expression"
 
 
 
@@ -148,7 +148,7 @@ class MySQLDropFunctionExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_function_statement"
+        return "format_mysql_drop_function_expression"
 
 
 
@@ -190,4 +190,4 @@ class MySQLCallExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_call_statement"
+        return "format_mysql_call_expression"

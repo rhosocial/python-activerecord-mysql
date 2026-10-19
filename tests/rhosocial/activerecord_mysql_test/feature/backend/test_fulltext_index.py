@@ -38,7 +38,7 @@ class TestFullTextProtocol:
         assert dialect_80.supports_fulltext_index()
 
     def test_format_match_against(self):
-        """Test format_match_against method."""
+        """Test format_mysql_match_against_expression method."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
         expr = MySQLMatchAgainstExpression(

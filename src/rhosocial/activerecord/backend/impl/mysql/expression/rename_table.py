@@ -78,4 +78,4 @@ class MySQLRenameTableExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_rename_table_statement"
+        return "format_mysql_rename_table_expression"

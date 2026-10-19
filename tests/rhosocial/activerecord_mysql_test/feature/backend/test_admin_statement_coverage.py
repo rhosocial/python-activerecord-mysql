@@ -307,7 +307,7 @@ class TestGrantRevoke:
 
 class TestLoadXMLBranches:
     def test_full_options(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(
+        expr = mysql_expr.MySQLLoadXMLStatement(
             dialect,
             "/tmp/f.xml",
             Table(dialect, "t"),
@@ -325,12 +325,12 @@ class TestLoadXMLBranches:
         )
 
     def test_validation_type_error(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(dialect, 123, Table(dialect, "t"))
+        expr = mysql_expr.MySQLLoadXMLStatement(dialect, 123, Table(dialect, "t"))
         with pytest.raises(TypeError):
             expr.to_sql()
 
     def test_validation_priority_local_conflict(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(
+        expr = mysql_expr.MySQLLoadXMLStatement(
             dialect,
             "/tmp/f.xml",
             Table(dialect, "t"),
@@ -341,24 +341,24 @@ class TestLoadXMLBranches:
             expr.to_sql()
 
     def test_validation_negative_ignore(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(dialect, "/tmp/f.xml", Table(dialect, "t"), ignore_count=-1)
+        expr = mysql_expr.MySQLLoadXMLStatement(dialect, "/tmp/f.xml", Table(dialect, "t"), ignore_count=-1)
         with pytest.raises(ValueError, match="non-negative"):
             expr.to_sql()
 
     def test_validation_bad_unit(self, dialect):
-        expr = mysql_expr.MySQLLoadXMLEXpression(dialect, "/tmp/f.xml", Table(dialect, "t"), ignore_unit="COLS")
+        expr = mysql_expr.MySQLLoadXMLStatement(dialect, "/tmp/f.xml", Table(dialect, "t"), ignore_unit="COLS")
         with pytest.raises(ValueError, match="'LINES' or 'ROWS'"):
             expr.to_sql()
 
     def test_validation_table_not_object(self, dialect):
         """A bare string cannot say which database it belongs to."""
-        expr = mysql_expr.MySQLLoadXMLEXpression(dialect, "/tmp/f.xml", 5)
+        expr = mysql_expr.MySQLLoadXMLStatement(dialect, "/tmp/f.xml", 5)
         with pytest.raises(TypeError):
             expr.to_sql()
 
     def test_qualified_target_renders_database(self, dialect):
         """LOAD XML may now name a database it previously could not."""
-        expr = mysql_expr.MySQLLoadXMLEXpression(
+        expr = mysql_expr.MySQLLoadXMLStatement(
             dialect, "/tmp/f.xml", Table(dialect, "t", catalog_name="app")
         )
         sql, _ = expr.to_sql()
@@ -408,7 +408,7 @@ class TestNonStrictValidation:
         mysql_expr.MySQLFlushExpression(dialect, []).validate(strict=False)
 
     def test_load_xml(self, dialect):
-        mysql_expr.MySQLLoadXMLEXpression(dialect, 123, 456).validate(strict=False)
+        mysql_expr.MySQLLoadXMLStatement(dialect, 123, 456).validate(strict=False)
 
     def test_maintenance(self, dialect):
         mysql_expr.MySQLAnalyzeTableExpression(dialect, []).validate(strict=False)
@@ -610,9 +610,20 @@ class TestMaintenanceBranches:
 
 
 class _UnsupportedMaintenanceExpr(MySQLTableMaintenanceExpression):
-    """Maintenance base with an unsupported operation keyword."""
+    """Maintenance node whose operation keyword MySQL has no support gate for.
+
+    The base declares no entry of its own -- it is an abstract base, not a
+    node (§9) -- so this subclass names one. The entry reads ``operation`` off
+    whatever it is handed, which is what makes the unsupported keyword reach
+    the support gate instead of the dispatch.
+    """
 
     operation = "VACUUM"
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_analyze_table_expression"
 
 
 class TestRenameTableBranches:

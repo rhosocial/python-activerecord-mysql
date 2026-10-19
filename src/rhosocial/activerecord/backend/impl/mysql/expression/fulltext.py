@@ -45,7 +45,7 @@ class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLVa
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_fulltext_index_options"
+        return "format_mysql_fulltext_index_options_expression"
 
 
 __all__ = [

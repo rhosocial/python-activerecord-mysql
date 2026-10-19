@@ -142,7 +142,7 @@ class MySQLSubpartitionClause(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_subpartition_by"
+        return "format_mysql_subpartition_clause"
 
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -158,7 +158,7 @@ class MySQLPartitionMaxValue(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_value"
+        return "format_mysql_partition_max_value"
 
 
 
@@ -182,7 +182,7 @@ class MySQLPartitionValue(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_value"
+        return "format_mysql_partition_value"
 
 
 
@@ -264,7 +264,7 @@ class MySQLPartitionByRange(MySQLPartitionClause):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_by_range"
+        return "format_mysql_partition_by_range"
 
 
 class MySQLPartitionByRangeColumns(MySQLPartitionClause):
@@ -293,7 +293,7 @@ class MySQLPartitionByRangeColumns(MySQLPartitionClause):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_by_range_columns"
+        return "format_mysql_partition_by_range_columns"
 
 
 class MySQLPartitionByList(MySQLPartitionClause):
@@ -322,7 +322,7 @@ class MySQLPartitionByList(MySQLPartitionClause):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_by_list"
+        return "format_mysql_partition_by_list"
 
 
 class MySQLPartitionByListColumns(MySQLPartitionClause):
@@ -351,7 +351,7 @@ class MySQLPartitionByListColumns(MySQLPartitionClause):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_by_list_columns"
+        return "format_mysql_partition_by_list_columns"
 
 
 class MySQLPartitionByHash(MySQLPartitionClause):
@@ -373,7 +373,7 @@ class MySQLPartitionByHash(MySQLPartitionClause):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_by_hash"
+        return "format_mysql_partition_by_hash"
 
 
 class MySQLPartitionByKey(MySQLPartitionClause):
@@ -406,7 +406,7 @@ class MySQLPartitionByKey(MySQLPartitionClause):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_by_key"
+        return "format_mysql_partition_by_key"
 
 
 class MySQLPartitionTableExpression(BaseExpression):
@@ -466,7 +466,7 @@ class MySQLAddPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_add_partition_statement"
+        return "format_mysql_add_partition_expression"
 
 
 
@@ -480,7 +480,7 @@ class MySQLDropPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_partition_statement"
+        return "format_mysql_drop_partition_expression"
 
 
 
@@ -494,7 +494,7 @@ class MySQLTruncatePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_truncate_partition_statement"
+        return "format_mysql_truncate_partition_expression"
 
 
 
@@ -515,7 +515,7 @@ class MySQLReorganizePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_reorganize_partition_statement"
+        return "format_mysql_reorganize_partition_expression"
 
 
 
@@ -559,7 +559,7 @@ class MySQLExchangePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_exchange_partition_statement"
+        return "format_mysql_exchange_partition_expression"
 
 
 
@@ -572,7 +572,7 @@ class MySQLRemovePartitioningExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_remove_partitioning_statement"
+        return "format_mysql_remove_partitioning_expression"
 
 
 
@@ -588,7 +588,7 @@ class MySQLCoalescePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_coalesce_partition_statement"
+        return "format_mysql_coalesce_partition_expression"
 
 
 
@@ -602,7 +602,7 @@ class MySQLAnalyzePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_analyze_partition_statement"
+        return "format_mysql_analyze_partition_expression"
 
 
 
@@ -616,7 +616,7 @@ class MySQLCheckPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_check_partition_statement"
+        return "format_mysql_check_partition_expression"
 
 
 
@@ -630,7 +630,7 @@ class MySQLOptimizePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_optimize_partition_statement"
+        return "format_mysql_optimize_partition_expression"
 
 
 
@@ -644,7 +644,7 @@ class MySQLRebuildPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_rebuild_partition_statement"
+        return "format_mysql_rebuild_partition_expression"
 
 
 
@@ -658,7 +658,7 @@ class MySQLRepairPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_repair_partition_statement"
+        return "format_mysql_repair_partition_expression"
 
 
 
@@ -667,7 +667,7 @@ class MySQLGetPartitionsExpression(BaseExpression):
 
     Generates a SELECT statement retrieving partition name, method,
     expression, description, and storage statistics for the given table.
-    Delegates SQL generation to the dialect's ``format_get_partitions_expression``.
+    Delegates SQL generation to the dialect's ``format_mysql_get_partitions_expression``.
 
     ``table_name`` stays a plain string here, and is matched against the
     ``TABLE_NAME`` *column* rather than used to name a relation: this is a
@@ -687,5 +687,5 @@ class MySQLGetPartitionsExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_get_partitions_expression"
+        return "format_mysql_get_partitions_expression"
 

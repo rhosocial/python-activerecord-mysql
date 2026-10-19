@@ -50,7 +50,7 @@ class MySQLVectorExpression(AliasableMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_vector_literal"
+        return "format_mysql_vector_expression"
 
 
 class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -76,7 +76,7 @@ class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_distance_euclidean"
+        return "format_mysql_distance_euclidean_expression"
 
 
 class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -102,7 +102,7 @@ class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_distance_cosine"
+        return "format_mysql_distance_cosine_expression"
 
 
 class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -128,7 +128,7 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_distance_dot"
+        return "format_mysql_distance_dot_expression"
 
 
 class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -156,7 +156,7 @@ class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_string_to_vector"
+        return "format_mysql_string_to_vector_expression"
 
 
 class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -184,7 +184,7 @@ class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_vector_to_string"
+        return "format_mysql_vector_to_string_expression"
 
 
 class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -212,7 +212,7 @@ class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValue):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_vector_dim"
+        return "format_mysql_vector_dim_expression"
 
 
 class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue):
@@ -244,7 +244,7 @@ class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_vector_index"
+        return "format_mysql_create_vector_index_expression"
 
 
 __all__ = [

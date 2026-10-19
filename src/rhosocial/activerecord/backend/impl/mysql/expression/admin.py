@@ -116,7 +116,7 @@ class MySQLFlushExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_flush_statement"
+        return "format_mysql_flush_expression"
 
 
 
@@ -137,7 +137,7 @@ class MySQLResetExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_reset_statement"
+        return "format_mysql_reset_expression"
 
 
 
@@ -167,7 +167,7 @@ class MySQLCacheIndexExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_cache_index_statement"
+        return "format_mysql_cache_index_expression"
 
 
 
@@ -194,7 +194,7 @@ class MySQLLoadIndexIntoCacheExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_load_index_into_cache_statement"
+        return "format_mysql_load_index_into_cache_expression"
 
 
 
@@ -212,7 +212,7 @@ class MySQLInstallComponentExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_install_component_statement"
+        return "format_mysql_install_component_expression"
 
 
 
@@ -230,7 +230,7 @@ class MySQLUninstallComponentExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_uninstall_component_statement"
+        return "format_mysql_uninstall_component_expression"
 
 
 
@@ -250,7 +250,7 @@ class MySQLInstallPluginExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_install_plugin_statement"
+        return "format_mysql_install_plugin_expression"
 
 
 
@@ -268,7 +268,7 @@ class MySQLUninstallPluginExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_uninstall_plugin_statement"
+        return "format_mysql_uninstall_plugin_expression"
 
 
 
@@ -304,7 +304,7 @@ class MySQLCloneExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_clone_statement"
+        return "format_mysql_clone_expression"
 
 
 
@@ -320,7 +320,7 @@ class MySQLRestartExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_restart_statement"
+        return "format_mysql_restart_expression"
 
 
 
@@ -338,7 +338,7 @@ class MySQLBinlogExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_binlog_statement"
+        return "format_mysql_binlog_expression"
 
 
 
@@ -363,7 +363,7 @@ class MySQLHandlerOpenExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_handler_open_statement"
+        return "format_mysql_handler_open_expression"
 
 
 
@@ -396,7 +396,7 @@ class MySQLHandlerReadExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_handler_read_statement"
+        return "format_mysql_handler_read_expression"
 
 
 
@@ -418,7 +418,7 @@ class MySQLHandlerCloseExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_handler_close_statement"
+        return "format_mysql_handler_close_expression"
 
 
 
@@ -436,7 +436,7 @@ class MySQLDoExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_do_statement"
+        return "format_mysql_do_expression"
 
 
 
@@ -460,7 +460,7 @@ class MySQLKillExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_kill_statement"
+        return "format_mysql_kill_expression"
 
 
 
@@ -476,7 +476,7 @@ class MySQLShutdownExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_shutdown_statement"
+        return "format_mysql_shutdown_expression"
 
 
 
@@ -494,7 +494,7 @@ class MySQLHelpExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_help_statement"
+        return "format_mysql_help_expression"
 
 
 
@@ -528,7 +528,7 @@ class MySQLCreateUserExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_user_statement"
+        return "format_mysql_create_user_expression"
 
 
 
@@ -549,7 +549,7 @@ class MySQLDropUserExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_user_statement"
+        return "format_mysql_drop_user_expression"
 
 
 
@@ -590,7 +590,7 @@ class MySQLGrantExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_grant_statement"
+        return "format_mysql_grant_expression"
 
 
 
@@ -613,4 +613,4 @@ class MySQLRevokeExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_revoke_statement"
+        return "format_mysql_revoke_expression"

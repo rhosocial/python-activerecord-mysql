@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py
-from typing import Any, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
@@ -165,7 +165,7 @@ class MySQLPartitionMixin:
         is all that is read here. Named partitions, ``VALUES`` boundaries
         and subpartitioning are fields the MySQL ``MySQLPartitionBy*``
         subclasses declare, and each of those classes names its own entry
-        (``format_partition_by_range`` and siblings); routing a base clause
+        (``format_mysql_partition_by_range`` and siblings); routing a base clause
         into one of those entries used to read ``subpartition_by`` off a
         node that does not declare it.
         """
@@ -188,7 +188,7 @@ class MySQLPartitionMixin:
             params.extend(key_params)
         return f" PARTITION BY {method} ({', '.join(key_sql_parts)})", tuple(params)
 
-    def format_partition_by_range(self, expr: "MySQLPartitionByRange") -> Tuple[str, tuple]:
+    def format_mysql_partition_by_range(self, expr: "MySQLPartitionByRange") -> Tuple[str, tuple]:
         """Format PARTITION BY RANGE with optional subpartitioning."""
         if not self.supports_range_table_partitioning():
             raise UnsupportedFeatureError(self.name, "RANGE partitioning")
@@ -203,7 +203,7 @@ class MySQLPartitionMixin:
         sql = f" PARTITION BY RANGE ({', '.join(key_sql_parts)})"
         subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
-            sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
+            sub_sql, sub_params = self.format_mysql_subpartition_clause(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
@@ -217,7 +217,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
         return sql, tuple(params)
 
-    def format_partition_by_range_columns(self, expr: "MySQLPartitionByRangeColumns") -> Tuple[str, tuple]:
+    def format_mysql_partition_by_range_columns(self, expr: "MySQLPartitionByRangeColumns") -> Tuple[str, tuple]:
         """Format PARTITION BY RANGE COLUMNS with optional subpartitioning."""
         if not self.supports_range_columns_partitioning():
             raise UnsupportedFeatureError(self.name, "RANGE COLUMNS partitioning")
@@ -232,7 +232,7 @@ class MySQLPartitionMixin:
         sql = f" PARTITION BY RANGE COLUMNS ({', '.join(key_sql_parts)})"
         subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
-            sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
+            sub_sql, sub_params = self.format_mysql_subpartition_clause(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
@@ -246,7 +246,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
         return sql, tuple(params)
 
-    def format_partition_by_list(self, expr: "MySQLPartitionByList") -> Tuple[str, tuple]:
+    def format_mysql_partition_by_list(self, expr: "MySQLPartitionByList") -> Tuple[str, tuple]:
         """Format PARTITION BY LIST with optional subpartitioning."""
         if not self.supports_list_table_partitioning():
             raise UnsupportedFeatureError(self.name, "LIST partitioning")
@@ -261,7 +261,7 @@ class MySQLPartitionMixin:
         sql = f" PARTITION BY LIST ({', '.join(key_sql_parts)})"
         subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
-            sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
+            sub_sql, sub_params = self.format_mysql_subpartition_clause(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
@@ -275,7 +275,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
         return sql, tuple(params)
 
-    def format_partition_by_list_columns(self, expr: "MySQLPartitionByListColumns") -> Tuple[str, tuple]:
+    def format_mysql_partition_by_list_columns(self, expr: "MySQLPartitionByListColumns") -> Tuple[str, tuple]:
         """Format PARTITION BY LIST COLUMNS with optional subpartitioning."""
         if not self.supports_list_columns_partitioning():
             raise UnsupportedFeatureError(self.name, "LIST COLUMNS partitioning")
@@ -290,7 +290,7 @@ class MySQLPartitionMixin:
         sql = f" PARTITION BY LIST COLUMNS ({', '.join(key_sql_parts)})"
         subpartition_by = expr.subpartition_by
         if subpartition_by is not None:
-            sub_sql, sub_params = self.format_subpartition_by(subpartition_by)
+            sub_sql, sub_params = self.format_mysql_subpartition_clause(subpartition_by)
             sql = f"{sql}{sub_sql}"
             params.extend(sub_params)
 
@@ -304,7 +304,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
         return sql, tuple(params)
 
-    def format_partition_by_hash(self, expr: "MySQLPartitionByHash") -> Tuple[str, tuple]:
+    def format_mysql_partition_by_hash(self, expr: "MySQLPartitionByHash") -> Tuple[str, tuple]:
         """Format PARTITION BY HASH or LINEAR HASH."""
         if not self.supports_hash_table_partitioning():
             raise UnsupportedFeatureError(self.name, "HASH partitioning")
@@ -328,7 +328,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} PARTITIONS {partitions_count}"
         return sql, tuple(params)
 
-    def format_partition_by_key(self, expr: "MySQLPartitionByKey") -> Tuple[str, tuple]:
+    def format_mysql_partition_by_key(self, expr: "MySQLPartitionByKey") -> Tuple[str, tuple]:
         """Format PARTITION BY KEY or LINEAR KEY."""
         if not self.supports_key_table_partitioning():
             raise UnsupportedFeatureError(self.name, "KEY partitioning")
@@ -451,7 +451,7 @@ class MySQLPartitionMixin:
                 parts.append(f"{keyword} {value}")
         return " ".join(parts), ()
 
-    def format_get_partitions_expression(self, expr: "MySQLGetPartitionsExpression") -> Tuple[str, tuple]:
+    def format_mysql_get_partitions_expression(self, expr: "MySQLGetPartitionsExpression") -> Tuple[str, tuple]:
         """Format a ``SELECT ... FROM information_schema.PARTITIONS`` query.
 
         Args:
@@ -507,23 +507,25 @@ class MySQLPartitionMixin:
         )
         return query.to_sql()
 
-    def format_partition_value(
-        self,
-        expr: Union["MySQLPartitionValue", "MySQLPartitionMaxValue"],
-    ) -> Tuple[str, tuple]:
+    def format_mysql_partition_max_value(self, expr: "MySQLPartitionMaxValue") -> Tuple[str, tuple]:
+        """Format the ``MAXVALUE`` partition boundary token.
+
+        Its own entry, not a branch of the value entry: ``MAXVALUE`` is a
+        token the boundary grammar names, while a value is a scalar the
+        entry below converts by type. One function branching on the node's
+        class is the "one entry, several contracts" shape the architecture
+        rules refuse.
+        """
+        if not self.supports_partition_value_maxvalue():
+            raise UnsupportedFeatureError(self.name, "MAXVALUE partition boundary")
+        return "MAXVALUE", ()
+
+    def format_mysql_partition_value(self, expr: "MySQLPartitionValue") -> Tuple[str, tuple]:
         """Format a MySQL partition boundary value."""
         from datetime import date, datetime
         from decimal import Decimal
         from math import isfinite
 
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-            MySQLPartitionMaxValue,
-        )
-
-        if isinstance(expr, MySQLPartitionMaxValue):
-            if not self.supports_partition_value_maxvalue():
-                raise UnsupportedFeatureError(self.name, "MAXVALUE partition boundary")
-            return "MAXVALUE", ()
         value = expr.value
         if value is None:
             return "NULL", ()
@@ -553,7 +555,7 @@ class MySQLPartitionMixin:
             f"date, datetime, or None, got {type(value).__name__}"
         )
 
-    def format_subpartition_by(self, expr: "MySQLSubpartitionClause") -> Tuple[str, tuple]:
+    def format_mysql_subpartition_clause(self, expr: "MySQLSubpartitionClause") -> Tuple[str, tuple]:
         """Format ``SUBPARTITION BY {HASH|KEY}(...) SUBPARTITIONS N``.
 
         Args:
@@ -613,7 +615,7 @@ class MySQLPartitionMixin:
             params.extend(options_params)
         return " ".join(parts), tuple(params)
 
-    def format_add_partition_statement(self, expr: "MySQLAddPartitionExpression") -> Tuple[str, tuple]:
+    def format_mysql_add_partition_expression(self, expr: "MySQLAddPartitionExpression") -> Tuple[str, tuple]:
         """Format ALTER TABLE ... ADD PARTITION.
 
         Each object is checked before it is rendered because a partition
@@ -637,7 +639,7 @@ class MySQLPartitionMixin:
         sql = f"ALTER TABLE {table_sql} ADD PARTITION ({', '.join(partition_sql_parts)})"
         return sql, tuple(params)
 
-    def format_drop_partition_statement(self, expr: "MySQLDropPartitionExpression") -> Tuple[str, tuple]:
+    def format_mysql_drop_partition_expression(self, expr: "MySQLDropPartitionExpression") -> Tuple[str, tuple]:
         """Format ALTER TABLE ... DROP PARTITION.
 
         Each object is checked before it is rendered because a partition
@@ -655,7 +657,7 @@ class MySQLPartitionMixin:
         partitions = ", ".join(self.format_identifier(partition) for partition in expr.partitions)
         return f"ALTER TABLE {table_sql} DROP PARTITION {partitions}", tuple(table_params)
 
-    def format_truncate_partition_statement(self, expr: "MySQLTruncatePartitionExpression") -> Tuple[str, tuple]:
+    def format_mysql_truncate_partition_expression(self, expr: "MySQLTruncatePartitionExpression") -> Tuple[str, tuple]:
         """Format ALTER TABLE ... TRUNCATE PARTITION.
 
         Each object is checked before it is rendered because a partition
@@ -673,7 +675,7 @@ class MySQLPartitionMixin:
         partitions = ", ".join(self.format_identifier(partition) for partition in expr.partitions)
         return f"ALTER TABLE {table_sql} TRUNCATE PARTITION {partitions}", tuple(table_params)
 
-    def format_reorganize_partition_statement(
+    def format_mysql_reorganize_partition_expression(
         self,
         expr: "MySQLReorganizePartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -705,7 +707,7 @@ class MySQLPartitionMixin:
         )
         return sql, tuple(params)
 
-    def format_exchange_partition_statement(
+    def format_mysql_exchange_partition_expression(
         self,
         expr: "MySQLExchangePartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -759,7 +761,7 @@ class MySQLPartitionMixin:
             raise ValueError("partitions must not be empty")
         return ", ".join(self.format_identifier(partition) for partition in partitions)
 
-    def format_remove_partitioning_statement(
+    def format_mysql_remove_partitioning_expression(
         self,
         expr: "MySQLRemovePartitioningExpression",
     ) -> Tuple[str, tuple]:
@@ -781,7 +783,7 @@ class MySQLPartitionMixin:
         table_sql, table_params = expr.table.to_sql()
         return f"ALTER TABLE {table_sql} REMOVE PARTITIONING", tuple(table_params)
 
-    def format_coalesce_partition_statement(
+    def format_mysql_coalesce_partition_expression(
         self,
         expr: "MySQLCoalescePartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -803,7 +805,7 @@ class MySQLPartitionMixin:
         table_sql, table_params = expr.table.to_sql()
         return f"ALTER TABLE {table_sql} COALESCE PARTITION {expr.count}", tuple(table_params)
 
-    def format_analyze_partition_statement(
+    def format_mysql_analyze_partition_expression(
         self,
         expr: "MySQLAnalyzePartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -824,7 +826,7 @@ class MySQLPartitionMixin:
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} ANALYZE PARTITION {partitions}", tuple(table_params)
 
-    def format_check_partition_statement(
+    def format_mysql_check_partition_expression(
         self,
         expr: "MySQLCheckPartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -845,7 +847,7 @@ class MySQLPartitionMixin:
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} CHECK PARTITION {partitions}", tuple(table_params)
 
-    def format_optimize_partition_statement(
+    def format_mysql_optimize_partition_expression(
         self,
         expr: "MySQLOptimizePartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -866,7 +868,7 @@ class MySQLPartitionMixin:
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} OPTIMIZE PARTITION {partitions}", tuple(table_params)
 
-    def format_rebuild_partition_statement(
+    def format_mysql_rebuild_partition_expression(
         self,
         expr: "MySQLRebuildPartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -887,7 +889,7 @@ class MySQLPartitionMixin:
         partitions = self.format_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REBUILD PARTITION {partitions}", tuple(table_params)
 
-    def format_repair_partition_statement(
+    def format_mysql_repair_partition_expression(
         self,
         expr: "MySQLRepairPartitionExpression",
     ) -> Tuple[str, tuple]:
@@ -912,7 +914,7 @@ class MySQLPartitionMixin:
     # Partition lifecycle helpers (composing low-level DDL expressions)
     # ------------------------------------------------------------------
 
-    def format_add_partition_helper(self, expr: "MySQLAddPartitionHelper") -> Tuple[str, tuple]:
+    def format_mysql_add_partition_helper(self, expr: "MySQLAddPartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLAddPartitionHelper` (generated partition names)."""
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
             MySQLAddPartitionExpression,
@@ -932,7 +934,7 @@ class MySQLPartitionMixin:
         add_expr = MySQLAddPartitionExpression(self, expr.table, partitions)
         return add_expr.to_sql()
 
-    def format_coalesce_partition_helper(self, expr: "MySQLCoalescePartitionHelper") -> Tuple[str, tuple]:
+    def format_mysql_coalesce_partition_helper(self, expr: "MySQLCoalescePartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLCoalescePartitionHelper` (with validation)."""
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
             MySQLCoalescePartitionExpression,
@@ -947,7 +949,7 @@ class MySQLPartitionMixin:
         coalesce_expr = MySQLCoalescePartitionExpression(self, expr.table, count)
         return coalesce_expr.to_sql()
 
-    def format_drop_oldest_partition_helper(self, expr: "MySQLDropOldestPartitionHelper") -> Tuple[str, tuple]:
+    def format_mysql_drop_oldest_partition_helper(self, expr: "MySQLDropOldestPartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLDropOldestPartitionHelper` (lexicographically oldest)."""
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
             MySQLDropPartitionExpression,
@@ -957,7 +959,7 @@ class MySQLPartitionMixin:
         drop_expr = MySQLDropPartitionExpression(self, expr.table, [sorted_names[0]])
         return drop_expr.to_sql()
 
-    def format_reorganize_partition_helper(self, expr: "MySQLReorganizePartitionHelper") -> Tuple[str, tuple]:
+    def format_mysql_reorganize_partition_helper(self, expr: "MySQLReorganizePartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLReorganizePartitionHelper`."""
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
             MySQLReorganizePartitionExpression,
@@ -966,7 +968,7 @@ class MySQLPartitionMixin:
         reorg_expr = MySQLReorganizePartitionExpression(self, expr.table, expr.partition, expr.into)
         return reorg_expr.to_sql()
 
-    def format_add_subpartition_helper(self, expr: "MySQLAddSubpartitionHelper") -> Tuple[str, tuple]:
+    def format_mysql_add_subpartition_helper(self, expr: "MySQLAddSubpartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLAddSubpartitionHelper` (partition + subpartitions)."""
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
             MySQLAddPartitionExpression,

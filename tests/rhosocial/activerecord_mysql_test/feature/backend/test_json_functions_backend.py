@@ -118,7 +118,7 @@ class TestMySQLJSONFunctionBackend:
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_json_contains")
 
     def test_format_json_extract_integration(self, mysql_backend):
-        """Test format_json_extract with database execution."""
+        """Test format_mysql_json_extract_expression with database execution."""
         if mysql_backend.dialect.version < (5, 7, 8):
             pytest.skip("JSON functions require MySQL 5.7.8+")
 
@@ -254,7 +254,7 @@ class TestAsyncMySQLJSONFunctionBackend:
 
     @pytest.mark.asyncio
     async def test_async_format_json_extract_integration(self, async_mysql_backend):
-        """Test format_json_extract with database execution (async)."""
+        """Test format_mysql_json_extract_expression with database execution (async)."""
         if async_mysql_backend.dialect.version < (5, 7, 8):
             pytest.skip("JSON functions require MySQL 5.7.8+")
 

@@ -26,7 +26,7 @@ class MySQLDMLOperationMixin:
     def supports_load_data(self) -> bool:
         return True
 
-    def format_load_data_statement(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
+    def format_mysql_load_data_expression(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement.
 
         Raises:

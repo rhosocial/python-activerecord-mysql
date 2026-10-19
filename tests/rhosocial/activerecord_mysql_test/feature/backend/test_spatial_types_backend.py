@@ -56,7 +56,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport, "supports_spatial_type")
     def test_format_spatial_literal_without_srid(self, mysql_backend):
-        """Test format_spatial_literal generates correct SQL without SRID."""
+        """Test format_mysql_spatial_literal_expression generates correct SQL without SRID."""
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_spatial_literal (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -77,7 +77,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport, "supports_spatial_type")
     def test_format_spatial_literal_with_srid(self, mysql_backend):
-        """Test format_spatial_literal generates correct SQL with SRID."""
+        """Test format_mysql_spatial_literal_expression generates correct SQL with SRID."""
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_spatial_srid (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -101,7 +101,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport)
     def test_format_st_geom_from_text_without_srid(self, mysql_backend):
-        """Test format_st_geom_from_text generates correct SQL without SRID."""
+        """Test format_mysql_st_geom_from_text_expression generates correct SQL without SRID."""
         dialect = mysql_backend.dialect
         expr = MySQLSTGeomFromTextExpression(dialect, "POINT(3 4)")
         sql, params = expr.to_sql()
@@ -112,7 +112,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport)
     def test_format_st_geom_from_text_with_srid(self, mysql_backend):
-        """Test format_st_geom_from_text generates correct SQL with SRID."""
+        """Test format_mysql_st_geom_from_text_expression generates correct SQL with SRID."""
         dialect = mysql_backend.dialect
         sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(1 1)", 4326).to_sql()
 
@@ -122,7 +122,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport)
     def test_format_st_as_text(self, mysql_backend):
-        """Test format_st_as_text generates correct SQL."""
+        """Test format_mysql_st_as_text_expression generates correct SQL."""
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_astext (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -143,7 +143,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport, "supports_geojson")
     def test_format_st_as_geojson(self, mysql_backend):
-        """Test format_st_as_geojson generates correct SQL."""
+        """Test format_mysql_st_as_geo_json_expression generates correct SQL."""
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_geojson (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -165,7 +165,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport)
     def test_format_st_distance(self, mysql_backend):
-        """Test format_st_distance generates correct SQL."""
+        """Test format_mysql_st_distance_expression generates correct SQL."""
         dialect = mysql_backend.dialect
 
         point1_sql, point1_params = MySQLSTGeomFromTextExpression(dialect, "POINT(0 0)").to_sql()
@@ -179,7 +179,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport)
     def test_format_st_within(self, mysql_backend):
-        """Test format_st_within generates correct SQL."""
+        """Test format_mysql_st_within_expression generates correct SQL."""
         dialect = mysql_backend.dialect
 
         point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
@@ -193,7 +193,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport)
     def test_format_st_contains(self, mysql_backend):
-        """Test format_st_contains generates correct SQL."""
+        """Test format_mysql_st_contains_expression generates correct SQL."""
         dialect = mysql_backend.dialect
 
         polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
@@ -207,7 +207,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport, "supports_spatial_index")
     def test_format_create_spatial_index(self, mysql_backend):
-        """Test format_create_spatial_index generates valid SQL."""
+        """Test format_mysql_create_spatial_index_expression generates valid SQL."""
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_spatial_idx (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -252,7 +252,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport)
     async def test_async_format_spatial_literal(self, async_mysql_backend):
-        """Test format_spatial_literal generates correct SQL (async)."""
+        """Test format_mysql_spatial_literal_expression generates correct SQL (async)."""
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_spatial (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -276,7 +276,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport)
     async def test_async_format_st_geom_from_text(self, async_mysql_backend):
-        """Test format_st_geom_from_text generates correct SQL (async)."""
+        """Test format_mysql_st_geom_from_text_expression generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
         sql, params = MySQLSpatialLiteralExpression(dialect, "POINT(10 20)", 4326).to_sql()
 
@@ -287,7 +287,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport)
     async def test_async_format_st_distance(self, async_mysql_backend):
-        """Test format_st_distance generates correct SQL (async)."""
+        """Test format_mysql_st_distance_expression generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
 
         point1_sql, point1_params = MySQLSTGeomFromTextExpression(dialect, "POINT(0 0)").to_sql()
@@ -302,7 +302,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport)
     async def test_async_format_st_within(self, async_mysql_backend):
-        """Test format_st_within generates correct SQL (async)."""
+        """Test format_mysql_st_within_expression generates correct SQL (async)."""
         dialect = async_mysql_backend.dialect
 
         point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
@@ -317,7 +317,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport, "supports_geojson")
     async def test_async_format_st_as_geojson(self, async_mysql_backend):
-        """Test format_st_as_geojson generates correct SQL (async)."""
+        """Test format_mysql_st_as_geo_json_expression generates correct SQL (async)."""
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_geojson (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -341,7 +341,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport, "supports_spatial_index")
     async def test_async_format_create_spatial_index(self, async_mysql_backend):
-        """Test format_create_spatial_index generates valid SQL (async)."""
+        """Test format_mysql_create_spatial_index_expression generates valid SQL (async)."""
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_idx (
                 id INT AUTO_INCREMENT PRIMARY KEY,
