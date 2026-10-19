@@ -7,7 +7,7 @@ equivalent:
 * ``AFTER <column>`` — place the new column immediately after ``column``.
 
 It lives on ``MySQLAddColumn`` (deriving the generic ``AddColumnAction``)
-and is rendered by the MySQL ``format_add_column_action`` override. MySQL
+and is rendered by its own entry, ``format_mysql_add_column``. MySQL
 does **not** share it with any other backend.
 """
 
@@ -43,3 +43,8 @@ class MySQLAddColumn(AddColumnAction):
     ):
         super().__init__(dialect, column, if_not_exists=if_not_exists)
         self.after = after
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_add_column"

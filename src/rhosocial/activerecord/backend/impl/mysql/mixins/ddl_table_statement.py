@@ -1,6 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table_statement.py
 from typing import List, TYPE_CHECKING, Tuple
 
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
 from .object_kind import require_kind
@@ -51,7 +52,11 @@ class MySQLTableStatementMixin:
         for row in expr.rows:
             cell_parts = []
             for value in row:
-                if hasattr(value, "to_sql"):
+                # A cell is a host value or an expression instance (§10, and
+                # the rule that binds: can the driver bind it?). Asking the
+                # object whether it happens to answer to ``to_sql`` cannot tell
+                # a value that renders from a value that does not.
+                if isinstance(value, BaseExpression):
                     sql, p = value.to_sql()
                     cell_parts.append(sql)
                     params.extend(p)

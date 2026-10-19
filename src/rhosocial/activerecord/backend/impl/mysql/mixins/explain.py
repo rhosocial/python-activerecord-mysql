@@ -1,4 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/explain.py
+from enum import Enum
 from typing import Tuple
 
 
@@ -37,7 +38,11 @@ class MySQLExplainMixin:
                 parts.append("ANALYZE")
 
             if options.format is not None:
-                fmt_name = options.format.name if hasattr(options.format, "name") else str(options.format)
+                # ``format`` is the enum member or the word it spells; asking
+                # the value whether it carries a ``name`` cannot tell the two
+                # apart from anything else.
+                fmt = options.format
+                fmt_name = fmt.value if isinstance(fmt, Enum) else str(fmt)
                 parts.append(f"FORMAT={fmt_name.upper()}")
             elif options.type is not None and options.type == ExplainType.QUERY_PLAN:
                 pass
