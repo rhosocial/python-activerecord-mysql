@@ -13,6 +13,7 @@ from rhosocial.activerecord.backend.expression import (
     ColumnDefinition,
     ColumnNotNullConstraint,
     ComparisonPredicate,
+    CountFunction,
     CreateTableStatement,
     DropTableStatement,
     FunctionCall,
