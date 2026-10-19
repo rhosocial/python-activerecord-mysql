@@ -1581,6 +1581,11 @@ class TestParseRoundTripSweep:
         "TimeTzType": "TimeType",
         "TimestampTzType": "TimestampType",
         "JsonBType": "JsonType",
+        # The core's generic enum renders ``ENUM('x')`` the same way MySQL
+        # does, but the server's declaration also carries a charset and a
+        # collation, so the parse answers the backend's own class -- which
+        # carries those two fields -- and it re-renders the identical string.
+        "EnumType": "MySQLEnumType",
     }
 
     #: CAST targets, not column types: ``CAST(x AS SIGNED)`` is the only
@@ -1609,7 +1614,10 @@ class TestParseRoundTripSweep:
         return registry
 
     def test_every_rendered_type_parses_back_coherently(self, dialect, registry):
-        from rhosocial.activerecord.testsuite.utils.parse_contract import (
+        # The sweep is vendored beside the matrix (the testsuite deleted its
+        # shared harness with round-trip coverage moving to each backend);
+        # make_instance is the same function the matrix registers with.
+        from expression_roundtrip_harness import (
             parse_roundtrip_failures,
         )
 
