@@ -203,6 +203,8 @@ class TestMySQLNiladicDDLContext:
 
     def test_ddl_default_current_timestamp_with_precision(self, mysql_backend):
         """DEFAULT CURRENT_TIMESTAMP(6) (with precision) works in MySQL DDL."""
+        from rhosocial.activerecord.backend.expression.core import Literal
+
         dialect = mysql_backend.dialect
         table_name = "test_niladic_ddl_3"
 
@@ -213,7 +215,7 @@ class TestMySQLNiladicDDLContext:
             dialect=dialect,
             table=Table(dialect, table_name),
             columns=[
-                ColumnDefinition(dialect, 
+                ColumnDefinition(dialect,
                     "id",
                     IntegerType(dialect),
                     constraints=[
@@ -226,14 +228,19 @@ class TestMySQLNiladicDDLContext:
                     "ts",
                     TimestampType(dialect, 6),
                     constraints=[
-                        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect, 6))),
+                        # A DEFAULT position accepts no bind parameters, so the
+                        # precision literal is composed inline (core §4.3): the
+                        # node's factory takes the expression as-is, and only a
+                        # bind-inlined tree survives format_default_value_clause.
+                        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(
+                            dialect, current_timestamp(dialect, Literal(dialect, 6, inline=True)))),
                     ],
                 ),
             ],
             if_not_exists=True,
         )
         sql, params = create.to_sql()
-        assert "CURRENT_TIMESTAMP(%s)" in sql or "CURRENT_TIMESTAMP(?)" in sql
+        assert "CURRENT_TIMESTAMP(6)" in sql
 
         try:
             mysql_backend.execute(sql, params)

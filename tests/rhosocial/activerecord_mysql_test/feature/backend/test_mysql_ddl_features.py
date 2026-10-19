@@ -547,7 +547,7 @@ class TestMySQLTableConstraints:
         ]
         check = TableConstraint(
     dialect,
-    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, ">=", Column(dialect, "age"), Literal(dialect, 0) ))
+    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, ">=", Column(dialect, "age"), Literal(dialect, 0, inline=True) ))
 )
         expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns, table_constraints=[check],
