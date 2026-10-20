@@ -18,8 +18,14 @@ class MySQLConcurrencyMixin:
     def _fetch_concurrency_hint(self) -> None:
         """Fetch max_connections from MySQL server and compute concurrency hint."""
         try:
+            from ..expression.show import ShowVariablesExpression
+
             cursor = self._connection.cursor(dictionary=True)
-            cursor.execute("SHOW VARIABLES LIKE 'max_connections'")
+            cursor.execute(
+                *ShowVariablesExpression(
+                    self.dialect, like_pattern="max_connections"
+                ).to_sql()
+            )
             row = cursor.fetchone()
             cursor.close()
 
@@ -56,8 +62,14 @@ class AsyncMySQLConcurrencyMixin:
     async def _fetch_concurrency_hint(self) -> None:
         """Fetch max_connections from MySQL server and compute concurrency hint."""
         try:
+            from ..expression.show import ShowVariablesExpression
+
             cursor = await self._connection.cursor(dictionary=True)
-            await cursor.execute("SHOW VARIABLES LIKE 'max_connections'")
+            await cursor.execute(
+                *ShowVariablesExpression(
+                    self.dialect, like_pattern="max_connections"
+                ).to_sql()
+            )
             row = await cursor.fetchone()
             await cursor.close()
 

@@ -10,7 +10,7 @@ Design principle: Sync and Async are separate and cannot coexist.
 - AsyncMySQLStatusIntrospector: for asynchronous backends
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from rhosocial.activerecord.backend.introspection.status import (
     StatusItem,
@@ -141,6 +141,241 @@ class MySQLStatusIntrospectorMixin:
     def _get_vendor_name(self) -> str:
         """Get MySQL vendor name."""
         return "MySQL"
+
+    # ------------------------------------------------------------------ #
+    # Statements as expression trees
+    # ------------------------------------------------------------------ #
+    #
+    # Every command this module runs is built here from a node, so the SQL is
+    # the dialect's to write and this module never spells a keyword. The SHOW
+    # family is this backend's own (``expression/show.py``); the SELECT family
+    # uses core's query and function nodes.
+    #
+    # It matters here rather than only in the formatters: a status introspector
+    # is a *caller*, and a caller that writes the SHOW command as an f-string
+    # has bypassed the expression layer entirely -- the command then exists only
+    # as text, uninspectable and one interpolation away from spelling something
+    # else.
+
+    @property
+    def _dialect(self) -> Any:
+        """The dialect the command nodes are rendered with."""
+        return self._backend.dialect
+
+    def _show_variables(self, like: Optional[str] = None, session: bool = True) -> Tuple[str, tuple]:
+        """``SHOW [GLOBAL] VARIABLES [LIKE ...]`` as a node."""
+        from ..expression.show import ShowVariablesExpression
+
+        return ShowVariablesExpression(self._dialect, like_pattern=like, session=session).to_sql()
+
+    def _show_status(self, like: Optional[str] = None, session: bool = True) -> Tuple[str, tuple]:
+        """``SHOW [GLOBAL] STATUS [LIKE ...]`` as a node."""
+        from ..expression.show import ShowStatusExpression
+
+        return ShowStatusExpression(self._dialect, like_pattern=like, session=session).to_sql()
+
+    def _show_processlist(self, full: bool = False) -> Tuple[str, tuple]:
+        """``SHOW [FULL] PROCESSLIST`` as a node."""
+        from ..expression.show import ShowProcessListExpression
+
+        return ShowProcessListExpression(self._dialect, full=full).to_sql()
+
+    def _show_binary_logs(self) -> Tuple[str, tuple]:
+        """``SHOW BINARY LOGS`` as a node."""
+        from ..expression.show import ShowBinaryLogsExpression
+
+        return ShowBinaryLogsExpression(self._dialect).to_sql()
+
+    def _show_master_status(self) -> Tuple[str, tuple]:
+        """``SHOW MASTER STATUS`` as a node.
+
+        Servers from 8.4 answer through ``performance_schema.log_status``
+        instead; the caller picks by version, and this is the older branch.
+        """
+        from ..expression.show import ShowMasterStatusExpression
+
+        return ShowMasterStatusExpression(self._dialect).to_sql()
+
+    def _show_slave_status(self) -> Tuple[str, tuple]:
+        """``SHOW SLAVE STATUS`` as a node (the branch for servers below 8.4)."""
+        from ..expression.show import ShowSlaveStatusExpression
+
+        return ShowSlaveStatusExpression(self._dialect).to_sql()
+
+    def _version_query(self) -> Tuple[str, tuple]:
+        """``SELECT VERSION()`` -- the server's own version string.
+
+        Built by the shared node in ``expression/system.py``, which the backend
+        uses for the same question. No alias: the column label ``VERSION()`` is
+        what every consumer in this module reads back.
+        """
+        from ..expression.system import version_query
+
+        return version_query(self._dialect).to_sql()
+
+    def _current_user_query(self) -> Tuple[str, tuple]:
+        """``SELECT CURRENT_USER`` -- the account this session authenticated as.
+
+        Core's node renders the niladic spelling, without the parentheses the
+        concatenated form wrote, so the column label is ``CURRENT_USER`` --
+        which is what the callers below read back.
+        """
+        from ..expression.system import current_user_query
+
+        return current_user_query(self._dialect).to_sql()
+
+    def _log_status_query(self, with_gtid: bool = False) -> Tuple[str, tuple]:
+        """``SELECT ... FROM performance_schema.log_status``.
+
+        The JSON paths stay literal-inline, exactly as the concatenated form
+        left them: the parameter tuple is empty either way.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            QueryStatement,
+            json_extract,
+            json_extract_text,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        local = Column(self._dialect, "LOCAL")
+        projection = [
+            json_extract_text(self._dialect, local, "$.binary_log_file").as_("File"),
+            json_extract(self._dialect, local, "$.binary_log_position").as_("Position"),
+        ]
+        if with_gtid:
+            projection.append(json_extract_text(self._dialect, local, "$.gtid_executed").as_("Gtid"))
+        return QueryStatement(
+            self._dialect,
+            select=projection,
+            from_=Table(self._dialect, "log_status", catalog_name="performance_schema"),
+        ).to_sql()
+
+    def _database_size_query(self) -> Tuple[str, tuple]:
+        """``SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM information_schema.TABLES``."""
+        from rhosocial.activerecord.backend.expression import (
+            ArithmeticOperation,
+            Column,
+            ComparisonPredicate,
+            Literal,
+            QueryStatement,
+            SumFunction,
+            WhereClause,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        dialect = self._dialect
+        total = SumFunction(
+            dialect,
+            ArithmeticOperation(
+                dialect, "add", Column(dialect, "DATA_LENGTH"), Column(dialect, "INDEX_LENGTH")
+            ),
+        ).as_("total_size")
+        return QueryStatement(
+            dialect,
+            select=[total],
+            from_=Table(dialect, "TABLES", catalog_name="information_schema"),
+            where=WhereClause(
+                dialect,
+                ComparisonPredicate(
+                    dialect,
+                    "eq",
+                    Column(dialect, "TABLE_SCHEMA"),
+                    Literal(dialect, self._backend.config.database),
+                ),
+            ),
+        ).to_sql()
+
+    def _table_type_counts_query(self, db_names: List[str]) -> Tuple[str, tuple]:
+        """Table and view counts per database, grouped by type."""
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            CountFunction,
+            GroupByHavingClause,
+            InPredicate,
+            Literal,
+            QueryStatement,
+            RowCountWildcard,
+            WhereClause,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        dialect = self._dialect
+        return QueryStatement(
+            dialect,
+            select=[
+                Column(dialect, "TABLE_SCHEMA"),
+                Column(dialect, "TABLE_TYPE"),
+                CountFunction(dialect, RowCountWildcard(dialect)).as_("count"),
+            ],
+            from_=Table(dialect, "TABLES", catalog_name="information_schema"),
+            where=WhereClause(
+                dialect,
+                InPredicate(
+                    dialect, Column(dialect, "TABLE_SCHEMA"), Literal(dialect, tuple(db_names))
+                ),
+            ),
+            group_by_having=GroupByHavingClause(
+                dialect, group_by=[Column(dialect, "TABLE_SCHEMA"), Column(dialect, "TABLE_TYPE")]
+            ),
+        ).to_sql()
+
+    def _users_query(self) -> Tuple[str, tuple]:
+        """``SELECT User, Host, Super_priv FROM mysql.user``."""
+        from rhosocial.activerecord.backend.expression import Column, QueryStatement
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        dialect = self._dialect
+        return QueryStatement(
+            dialect,
+            select=[
+                Column(dialect, "User"),
+                Column(dialect, "Host"),
+                Column(dialect, "Super_priv"),
+            ],
+            from_=Table(dialect, "user", catalog_name="mysql"),
+        ).to_sql()
+
+    def _replication_connection_status_query(self, limit: Optional[int] = None) -> Tuple[str, tuple]:
+        """Channels whose replication connection is running (8.4+ servers)."""
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            LimitOffsetClause,
+            Literal,
+            QueryStatement,
+            WhereClause,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        dialect = self._dialect
+        if limit is not None:
+            projection = [Column(dialect, "SERVICE_STATE")]
+        else:
+            projection = [
+                Column(dialect, "CHANNEL_NAME"),
+                Column(dialect, "SOURCE_UUID"),
+                Column(dialect, "SERVICE_STATE"),
+            ]
+        kwargs: Dict[str, Any] = {
+            "select": projection,
+            "from_": Table(
+                dialect, "replication_connection_status", catalog_name="performance_schema"
+            ),
+            "where": WhereClause(
+                dialect,
+                ComparisonPredicate(
+                    dialect,
+                    "eq",
+                    Column(dialect, "SERVICE_STATE"),
+                    Literal(dialect, "ON", inline=True),
+                ),
+            ),
+        }
+        if limit is not None:
+            kwargs["limit_offset"] = LimitOffsetClause(dialect, limit=limit)
+        return QueryStatement(dialect, **kwargs).to_sql()
+
 
     def _parse_variable_value(self, value: Any) -> Any:
         """Parse variable value to appropriate Python type."""
@@ -390,12 +625,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         # Get database size from information_schema if available
         total_size = None
         try:
-            result = self._backend.execute(
-                "SELECT SUM(data_length + index_length) as total_size "
-                "FROM information_schema.TABLES "
-                f"WHERE table_schema = {self._backend.dialect.p()}",
-                (self._backend.config.database,),
-            )
+            result = self._backend.execute(*self._database_size_query())
             if result and result.data:
                 total_size = result.data[0].get("total_size")
         except Exception:
@@ -421,15 +651,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         view_counts: Dict[str, int] = {}
 
         try:
-            p = self._backend.dialect.p()
-            placeholders = ", ".join([p] * len(db_names))
-            result = self._backend.execute(
-                "SELECT table_schema, table_type, COUNT(*) as count "
-                "FROM information_schema.TABLES "
-                f"WHERE table_schema IN ({placeholders}) "
-                "GROUP BY table_schema, table_type",
-                tuple(db_names),
-            )
+            result = self._backend.execute(*self._table_type_counts_query(db_names))
             if result and result.data:
                 for row in result.data:
                     # MySQL returns column names in uppercase
@@ -458,7 +680,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         users = []
 
         try:
-            result = self._backend.execute("SELECT User, Host, Super_priv FROM mysql.user", ())
+            result = self._backend.execute(*self._users_query())
             if result and result.data:
                 for row in result.data:
                     user = UserInfo(
@@ -479,9 +701,9 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
 
         # Get current user
         try:
-            result = self._backend.execute("SELECT CURRENT_USER()", ())
+            result = self._backend.execute(*self._current_user_query())
             if result and result.data:
-                current_user = result.data[0].get("CURRENT_USER()")
+                current_user = result.data[0].get("CURRENT_USER")
                 if current_user:
                     # Parse user@host format
                     parts = current_user.split("@")
@@ -496,7 +718,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
 
         # Get SSL status
         try:
-            result = self._backend.execute("SHOW STATUS LIKE 'Ssl_version'", ())
+            result = self._backend.execute(*self._show_status(like="Ssl_version"))
             if result and result.data:
                 ssl_version = result.data[0].get("Value")
                 if ssl_version:
@@ -507,7 +729,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
 
         # Get SSL cipher
         try:
-            result = self._backend.execute("SHOW STATUS LIKE 'Ssl_cipher'", ())
+            result = self._backend.execute(*self._show_status(like="Ssl_cipher"))
             if result and result.data:
                 ssl_cipher = result.data[0].get("Value")
                 if ssl_cipher:
@@ -525,7 +747,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         innodb = InnoDBInfo()
         # Get buffer pool info
         try:
-            result = self._backend.execute("SHOW STATUS LIKE 'Innodb_buffer_pool%'", ())
+            result = self._backend.execute(*self._show_status(like="Innodb_buffer_pool%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -548,7 +770,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             pass
         # Get InnoDB variables
         try:
-            result = self._backend.execute("SHOW VARIABLES LIKE 'innodb%'", ())
+            result = self._backend.execute(*self._show_variables(like="innodb%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -567,7 +789,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             pass
         # Get InnoDB row lock status
         try:
-            result = self._backend.execute("SHOW STATUS LIKE 'Innodb_row_lock%'", ())
+            result = self._backend.execute(*self._show_status(like="Innodb_row_lock%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -609,7 +831,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         binary_log = BinaryLogInfo()
         # Check if binary logging is enabled
         try:
-            result = self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
+            result = self._backend.execute(*self._show_variables(like="log_bin"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -623,7 +845,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         # Get binary log files (only if binary logging is enabled)
         if binary_log.log_enabled:
             try:
-                result = self._backend.execute("SHOW BINARY LOGS", ())
+                result = self._backend.execute(*self._show_binary_logs())
                 if result and result.data:
                     log_files = []
                     total_size = 0
@@ -645,20 +867,14 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
             try:
                 # Get server version first
-                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_result = self._backend.execute(*self._version_query())
                 version_str = (
                     version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
                 )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 8.4+: use performance_schema.log_status
-                    result = self._backend.execute(
-                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
-                        "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
-                        "FROM performance_schema.log_status",
-                        (),
-                    )
+                    result = self._backend.execute(*self._log_status_query(with_gtid=True))
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
@@ -666,7 +882,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
-                    result = self._backend.execute("SHOW MASTER STATUS", ())
+                    result = self._backend.execute(*self._show_master_status())
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
@@ -675,7 +891,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                 pass
         # Get GTID info
         try:
-            result = self._backend.execute("SHOW VARIABLES LIKE 'gtid_mode'", ())
+            result = self._backend.execute(*self._show_variables(like="gtid_mode"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -684,7 +900,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         except Exception:
             pass
         try:
-            result = self._backend.execute("SHOW GLOBAL VARIABLES LIKE 'gtid_executed'", ())
+            result = self._backend.execute(*self._show_variables(like="gtid_executed", session=False))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -704,7 +920,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         """List current running processes/queries."""
         processes = []
         try:
-            result = self._backend.execute("SHOW FULL PROCESSLIST", ())
+            result = self._backend.execute(*self._show_processlist(full=True))
             if result and result.data:
                 for row in result.data:
                     proc = ProcessInfo(
@@ -727,7 +943,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         slow_query = SlowQueryInfo()
         # Get slow query log status
         try:
-            result = self._backend.execute("SHOW VARIABLES LIKE 'slow_query_log%'", ())
+            result = self._backend.execute(*self._show_variables(like="slow_query_log%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -748,7 +964,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             pass
         # Get slow query count
         try:
-            result = self._backend.execute("SHOW STATUS LIKE 'Slow_queries'", ())
+            result = self._backend.execute(*self._show_status(like="Slow_queries"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -764,7 +980,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         repl_info = MySQLReplicationInfo()
         # Get server_id
         try:
-            result = self._backend.execute("SHOW VARIABLES LIKE 'server_id'", ())
+            result = self._backend.execute(*self._show_variables(like="server_id"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -776,7 +992,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         # First check if binary logging is enabled
         log_bin_enabled = False
         try:
-            result = self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
+            result = self._backend.execute(*self._show_variables(like="log_bin"))
             if result and result.data:
                 for row in result.data:
                     if row.get("Variable_name") == "log_bin":
@@ -790,20 +1006,14 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
             try:
                 # Get server version first
-                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_result = self._backend.execute(*self._version_query())
                 version_str = (
                     version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
                 )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 9.0+: use performance_schema.log_status
-                    result = self._backend.execute(
-                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
-                        "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
-                        "FROM performance_schema.log_status",
-                        (),
-                    )
+                    result = self._backend.execute(*self._log_status_query(with_gtid=True))
                     if result and result.data:
                         repl_info.is_master = True
                         master_info = ReplicationMasterInfo()
@@ -813,7 +1023,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                         repl_info.master_info = master_info
                 else:
                     # MySQL < 9.0: use SHOW MASTER STATUS
-                    result = self._backend.execute("SHOW MASTER STATUS", ())
+                    result = self._backend.execute(*self._show_master_status())
                     if result and result.data:
                         repl_info.is_master = True
                         master_info = ReplicationMasterInfo()
@@ -836,7 +1046,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         try:
             # Get server version first (reuse if already fetched above)
             if "version_str" not in dir() or not version_str:
-                version_result = self._backend.execute("SELECT VERSION()", ())
+                version_result = self._backend.execute(*self._version_query())
                 version_str = (
                     version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
                 )
@@ -844,12 +1054,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             if self._is_mysql_version_at_least(version_str, 8, 4):
                 # MySQL 9.0+: use performance_schema replication tables
                 # Check replication connection status
-                result = self._backend.execute(
-                    "SELECT CHANNEL_NAME, SOURCE_UUID, SERVICE_STATE "
-                    "FROM performance_schema.replication_connection_status "
-                    "WHERE SERVICE_STATE = 'ON'",
-                    (),
-                )
+                result = self._backend.execute(*self._replication_connection_status_query())
                 if result and result.data:
                     repl_info.is_slave = True
                     slave_info = ReplicationSlaveInfo()
@@ -859,7 +1064,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     repl_info.slave_info = slave_info
             else:
                 # MySQL < 9.0: use SHOW SLAVE STATUS
-                result = self._backend.execute("SHOW SLAVE STATUS", ())
+                result = self._backend.execute(*self._show_slave_status())
                 if result and result.data:
                     repl_info.is_slave = True
                     slave_info = ReplicationSlaveInfo()
@@ -1028,12 +1233,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
 
         total_size = None
         try:
-            result = await self._backend.execute(
-                "SELECT SUM(data_length + index_length) as total_size "
-                "FROM information_schema.TABLES "
-                f"WHERE table_schema = {self._backend.dialect.p()}",
-                (self._backend.config.database,),
-            )
+            result = await self._backend.execute(*self._database_size_query())
             if result and result.data:
                 total_size = result.data[0].get("total_size")
         except Exception:
@@ -1059,15 +1259,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         view_counts: Dict[str, int] = {}
 
         try:
-            p = self._backend.dialect.p()
-            placeholders = ", ".join([p] * len(db_names))
-            result = await self._backend.execute(
-                "SELECT table_schema, table_type, COUNT(*) as count "
-                "FROM information_schema.TABLES "
-                f"WHERE table_schema IN ({placeholders}) "
-                "GROUP BY table_schema, table_type",
-                tuple(db_names),
-            )
+            result = await self._backend.execute(*self._table_type_counts_query(db_names))
             if result and result.data:
                 for row in result.data:
                     # MySQL returns column names in uppercase
@@ -1096,7 +1288,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         users = []
 
         try:
-            result = await self._backend.execute("SELECT User, Host, Super_priv FROM mysql.user", ())
+            result = await self._backend.execute(*self._users_query())
             if result and result.data:
                 for row in result.data:
                     user = UserInfo(
@@ -1116,9 +1308,9 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
 
         # Get current user
         try:
-            result = await self._backend.execute("SELECT CURRENT_USER()", ())
+            result = await self._backend.execute(*self._current_user_query())
             if result and result.data:
-                current_user = result.data[0].get("CURRENT_USER()")
+                current_user = result.data[0].get("CURRENT_USER")
                 if current_user:
                     parts = current_user.split("@")
                     session.user = parts[0] if parts else current_user
@@ -1132,7 +1324,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
 
         # Get SSL status
         try:
-            result = await self._backend.execute("SHOW STATUS LIKE 'Ssl_version'", ())
+            result = await self._backend.execute(*self._show_status(like="Ssl_version"))
             if result and result.data:
                 ssl_version = result.data[0].get("Value")
                 if ssl_version:
@@ -1143,7 +1335,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
 
         # Get SSL cipher
         try:
-            result = await self._backend.execute("SHOW STATUS LIKE 'Ssl_cipher'", ())
+            result = await self._backend.execute(*self._show_status(like="Ssl_cipher"))
             if result and result.data:
                 ssl_cipher = result.data[0].get("Value")
                 if ssl_cipher:
@@ -1161,7 +1353,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         innodb = InnoDBInfo()
         # Get buffer pool info
         try:
-            result = await self._backend.execute("SHOW STATUS LIKE 'Innodb_buffer_pool%'", ())
+            result = await self._backend.execute(*self._show_status(like="Innodb_buffer_pool%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1184,7 +1376,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             pass
         # Get InnoDB variables
         try:
-            result = await self._backend.execute("SHOW VARIABLES LIKE 'innodb%'", ())
+            result = await self._backend.execute(*self._show_variables(like="innodb%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1203,7 +1395,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             pass
         # Get InnoDB row lock status
         try:
-            result = await self._backend.execute("SHOW STATUS LIKE 'Innodb_row_lock%'", ())
+            result = await self._backend.execute(*self._show_status(like="Innodb_row_lock%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1244,7 +1436,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         binary_log = BinaryLogInfo()
         # Check if binary logging is enabled
         try:
-            result = await self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
+            result = await self._backend.execute(*self._show_variables(like="log_bin"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1258,7 +1450,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         # Get binary log files (only if binary logging is enabled)
         if binary_log.log_enabled:
             try:
-                result = await self._backend.execute("SHOW BINARY LOGS", ())
+                result = await self._backend.execute(*self._show_binary_logs())
                 if result and result.data:
                     log_files = []
                     total_size = 0
@@ -1279,20 +1471,14 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             # MySQL 9.0+ removed SHOW MASTER STATUS, use performance_schema.log_status instead
             try:
                 # Get server version first
-                version_result = await self._backend.execute("SELECT VERSION()", ())
+                version_result = await self._backend.execute(*self._version_query())
                 version_str = (
                     version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
                 )
 
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 8.4+: use performance_schema.log_status
-                    result = await self._backend.execute(
-                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position, "
-                        "JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.gtid_executed')) as Gtid "
-                        "FROM performance_schema.log_status",
-                        (),
-                    )
+                    result = await self._backend.execute(*self._log_status_query(with_gtid=True))
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
@@ -1300,7 +1486,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
-                    result = await self._backend.execute("SHOW MASTER STATUS", ())
+                    result = await self._backend.execute(*self._show_master_status())
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
@@ -1309,7 +1495,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                 pass
         # Get GTID info
         try:
-            result = await self._backend.execute("SHOW VARIABLES LIKE 'gtid_mode'", ())
+            result = await self._backend.execute(*self._show_variables(like="gtid_mode"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1329,7 +1515,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         """List current running processes/queries."""
         processes = []
         try:
-            result = await self._backend.execute("SHOW FULL PROCESSLIST", ())
+            result = await self._backend.execute(*self._show_processlist(full=True))
             if result and result.data:
                 for row in result.data:
                     proc = ProcessInfo(
@@ -1351,7 +1537,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         slow_query = SlowQueryInfo()
         # Get slow query log settings
         try:
-            result = await self._backend.execute("SHOW VARIABLES LIKE 'slow_query_log%'", ())
+            result = await self._backend.execute(*self._show_variables(like="slow_query_log%"))
             if result and result.data:
                 for row in result.data:
                     key = row.get("Variable_name")
@@ -1364,7 +1550,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             pass
         # Get long_query_time
         try:
-            result = await self._backend.execute("SHOW VARIABLES LIKE 'long_query_time'", ())
+            result = await self._backend.execute(*self._show_variables(like="long_query_time"))
             if result and result.data:
                 for row in result.data:
                     value = row.get("Value")
@@ -1374,7 +1560,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             pass
         # Get slow query count
         try:
-            result = await self._backend.execute("SHOW STATUS LIKE 'Slow_queries'", ())
+            result = await self._backend.execute(*self._show_status(like="Slow_queries"))
             if result and result.data:
                 for row in result.data:
                     value = row.get("Value")
@@ -1389,7 +1575,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         repl = MySQLReplicationInfo()
         # Get server version first
         try:
-            version_result = await self._backend.execute("SELECT VERSION()", ())
+            version_result = await self._backend.execute(*self._version_query())
             version_str = version_result.data[0].get("VERSION()", "") if version_result and version_result.data else ""
         except Exception:
             version_str = ""
@@ -1397,7 +1583,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         # Check if binary logging is enabled first
         log_bin_enabled = False
         try:
-            result = await self._backend.execute("SHOW VARIABLES LIKE 'log_bin'", ())
+            result = await self._backend.execute(*self._show_variables(like="log_bin"))
             if result and result.data:
                 for row in result.data:
                     if row.get("Variable_name") == "log_bin":
@@ -1411,12 +1597,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             try:
                 if self._is_mysql_version_at_least(version_str, 8, 4):
                     # MySQL 8.4+: use performance_schema.log_status
-                    result = await self._backend.execute(
-                        "SELECT JSON_UNQUOTE(JSON_EXTRACT(LOCAL, '$.binary_log_file')) as File, "
-                        "JSON_EXTRACT(LOCAL, '$.binary_log_position') as Position "
-                        "FROM performance_schema.log_status",
-                        (),
-                    )
+                    result = await self._backend.execute(*self._log_status_query())
                     if result and result.data:
                         repl.is_master = True
                         row = result.data[0]
@@ -1424,7 +1605,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                         repl.master_log_position = self._parse_variable_value(row.get("Position"))
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
-                    result = await self._backend.execute("SHOW MASTER STATUS", ())
+                    result = await self._backend.execute(*self._show_master_status())
                     if result and result.data:
                         repl.is_master = True
                         row = result.data[0]
@@ -1436,17 +1617,13 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         try:
             if self._is_mysql_version_at_least(version_str, 8, 4):
                 # MySQL 9.0+: use performance_schema replication tables
-                result = await self._backend.execute(
-                    "SELECT SERVICE_STATE FROM performance_schema.replication_connection_status "
-                    "WHERE SERVICE_STATE = 'ON' LIMIT 1",
-                    (),
-                )
+                result = await self._backend.execute(*self._replication_connection_status_query(limit=1))
                 if result and result.data:
                     repl.is_slave = True
                     repl.slave_io_running = True
             else:
                 # MySQL < 9.0: use SHOW SLAVE STATUS
-                result = await self._backend.execute("SHOW SLAVE STATUS", ())
+                result = await self._backend.execute(*self._show_slave_status())
                 if result and result.data:
                     repl.is_slave = True
                     row = result.data[0]

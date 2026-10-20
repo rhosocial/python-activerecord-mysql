@@ -38,6 +38,9 @@ from ..expression.show import (
     ShowCollationExpression,
     ShowGrantsExpression,
     ShowPluginsExpression,
+    ShowBinaryLogsExpression,
+    ShowMasterStatusExpression,
+    ShowSlaveStatusExpression,
 )
 from .dialect import MySQLShowDialectMixin
 from .functionality import MySQLShowFunctionality, AsyncMySQLShowFunctionality
@@ -65,6 +68,9 @@ __all__ = [
     "ShowCollationExpression",
     "ShowGrantsExpression",
     "ShowPluginsExpression",
+    "ShowBinaryLogsExpression",
+    "ShowMasterStatusExpression",
+    "ShowSlaveStatusExpression",
     # Dialect mixin
     "MySQLShowDialectMixin",
     # Functionality classes

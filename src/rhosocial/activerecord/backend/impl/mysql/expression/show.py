@@ -10,15 +10,15 @@ Expression classes inherit from BaseExpression and implement to_sql(),
 following the expression-dialect pattern used throughout the codebase.
 
 Key design:
-- Every constructor parameter is stored under its **own name**: the
-  attribute ``get_params()`` reads and the one an artifact carries. The
-  fluent setters that used to share these names (``schema()``, ``full()``,
-  ``like()``, ...) are ``with_*`` now, mirroring core's own introspection
-  expressions -- the parameter owns the plain name, the setter keeps its
-  ergonomics, and neither shadows the other. The underscore-prefixed
-  storage this module used is what core's introspection-based
-  ``get_params()`` refuses to paper over: a parameter the class did not
-  store under its own name is a defect, not a spelling.
+- **Every parameter is a constructor parameter.** There is no fluent builder:
+  an instance is complete the moment ``get_params()`` reads it back, so the
+  artifact is the constructor call and nothing else. The ``with_like`` /
+  ``with_session`` / ``with_global_status`` setters that used to fill these
+  same fields in afterwards are gone -- a parameter that can be changed after
+  construction is a second, invisible constructor.
+- Each parameter is stored under its **own name**, which is what
+  ``get_params()`` reads. A parameter the class did not store under its own
+  name is a defect, not a spelling.
 - A subclass that supports a schema qualifier declares ``schema`` in its
   own ``__init__``: ``get_params()`` reads the class's own signature, so a
   parameter declared only on the base would be invisible to the formatter
@@ -40,26 +40,15 @@ if TYPE_CHECKING:
 class ShowExpression(BaseExpression):
     """Base class for MySQL SHOW command expressions.
 
-    All MySQL SHOW expressions inherit from this class and provide
-    fluent ``with_*`` methods for setting parameters; each parameter is
-    stored under the name it was declared with.
+    All MySQL SHOW expressions inherit from this class. Parameters are
+    declared by each ``__init__`` -- that signature is the wire contract, so a
+    parameter is always passed where the node is built rather than filled in
+    afterwards.
     """
 
     def __init__(self, dialect: "MySQLDialect", *, schema: Optional[str] = None):
         super().__init__(dialect)
         self.schema: Optional[str] = schema
-
-    def with_schema(self, name: str) -> "ShowExpression":
-        """Set the schema/database name.
-
-        Args:
-            name: Schema or database name.
-
-        Returns:
-            Self for method chaining.
-        """
-        self.schema = name
-        return self
 
     # Concrete subclasses declare their dialect formatting method by
     # overriding the `format_method` property (inherited from BaseExpression).
@@ -84,7 +73,6 @@ class ShowCreateTableExpression(ShowExpression):
         return "format_show_create_table_expression"
 
 
-
 class ShowCreateViewExpression(ShowExpression):
     """Expression for SHOW CREATE VIEW command."""
 
@@ -104,7 +92,6 @@ class ShowCreateViewExpression(ShowExpression):
         return "format_show_create_view_expression"
 
 
-
 class ShowColumnsExpression(ShowExpression):
     """Expression for SHOW [FULL] COLUMNS command."""
 
@@ -122,21 +109,10 @@ class ShowColumnsExpression(ShowExpression):
         self.full: bool = full
         self.like_pattern: Optional[str] = like_pattern
 
-    def with_full(self, value: bool = True) -> "ShowColumnsExpression":
-        """Include additional column information (privileges, comments)."""
-        self.full = value
-        return self
-
-    def with_like(self, pattern: str) -> "ShowColumnsExpression":
-        """Filter columns by name pattern."""
-        self.like_pattern = pattern
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_columns_expression"
-
 
 
 class ShowIndexExpression(ShowExpression):
@@ -158,7 +134,6 @@ class ShowIndexExpression(ShowExpression):
         return "format_show_index_expression"
 
 
-
 class ShowTablesExpression(ShowExpression):
     """Expression for SHOW [FULL] TABLES command."""
 
@@ -174,21 +149,10 @@ class ShowTablesExpression(ShowExpression):
         self.full: bool = full
         self.like_pattern: Optional[str] = like_pattern
 
-    def with_full(self, value: bool = True) -> "ShowTablesExpression":
-        """Include table type (BASE TABLE or VIEW)."""
-        self.full = value
-        return self
-
-    def with_like(self, pattern: str) -> "ShowTablesExpression":
-        """Filter tables by name pattern."""
-        self.like_pattern = pattern
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_tables_expression"
-
 
 
 class ShowDatabasesExpression(ShowExpression):
@@ -203,16 +167,10 @@ class ShowDatabasesExpression(ShowExpression):
         super().__init__(dialect)
         self.like_pattern: Optional[str] = like_pattern
 
-    def with_like(self, pattern: str) -> "ShowDatabasesExpression":
-        """Filter databases by name pattern."""
-        self.like_pattern = pattern
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_databases_expression"
-
 
 
 class ShowTableStatusExpression(ShowExpression):
@@ -228,16 +186,10 @@ class ShowTableStatusExpression(ShowExpression):
         super().__init__(dialect, schema=schema)
         self.like_pattern: Optional[str] = like_pattern
 
-    def with_like(self, pattern: str) -> "ShowTableStatusExpression":
-        """Filter tables by name pattern."""
-        self.like_pattern = pattern
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_table_status_expression"
-
 
 
 class ShowTriggersExpression(ShowExpression):
@@ -253,16 +205,10 @@ class ShowTriggersExpression(ShowExpression):
         super().__init__(dialect, schema=schema)
         self.table_name: Optional[str] = table_name
 
-    def with_table_name(self, table_name: str) -> "ShowTriggersExpression":
-        """Filter triggers for a specific table."""
-        self.table_name = table_name
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_triggers_expression"
-
 
 
 class ShowCreateTriggerExpression(ShowExpression):
@@ -284,9 +230,8 @@ class ShowCreateTriggerExpression(ShowExpression):
         return "format_show_create_trigger_expression"
 
 
-
 class ShowVariablesExpression(ShowExpression):
-    """Expression for SHOW VARIABLES command."""
+    """Expression for SHOW [GLOBAL] VARIABLES command."""
 
     def __init__(
         self,
@@ -298,21 +243,6 @@ class ShowVariablesExpression(ShowExpression):
         super().__init__(dialect)
         self.like_pattern: Optional[str] = like_pattern
         self.session: bool = session
-
-    def with_like(self, pattern: str) -> "ShowVariablesExpression":
-        """Filter variables by name pattern."""
-        self.like_pattern = pattern
-        return self
-
-    def with_session(self, value: bool = True) -> "ShowVariablesExpression":
-        """Show session variables (default)."""
-        self.session = value
-        return self
-
-    def with_global_vars(self) -> "ShowVariablesExpression":
-        """Show global variables."""
-        self.session = False
-        return self
 
     @property
     def format_method(self) -> str:
@@ -320,9 +250,8 @@ class ShowVariablesExpression(ShowExpression):
         return "format_show_variables_expression"
 
 
-
 class ShowStatusExpression(ShowExpression):
-    """Expression for SHOW STATUS command."""
+    """Expression for SHOW [GLOBAL] STATUS command."""
 
     def __init__(
         self,
@@ -335,30 +264,14 @@ class ShowStatusExpression(ShowExpression):
         self.like_pattern: Optional[str] = like_pattern
         self.session: bool = session
 
-    def with_like(self, pattern: str) -> "ShowStatusExpression":
-        """Filter status by name pattern."""
-        self.like_pattern = pattern
-        return self
-
-    def with_session(self, value: bool = True) -> "ShowStatusExpression":
-        """Show session status (default)."""
-        self.session = value
-        return self
-
-    def with_global_status(self) -> "ShowStatusExpression":
-        """Show global status."""
-        self.session = False
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_status_expression"
 
 
-
 class ShowProcessListExpression(ShowExpression):
-    """Expression for SHOW PROCESSLIST command."""
+    """Expression for SHOW [FULL] PROCESSLIST command."""
 
     def __init__(
         self,
@@ -369,16 +282,10 @@ class ShowProcessListExpression(ShowExpression):
         super().__init__(dialect)
         self.full: bool = full
 
-    def with_full(self, value: bool = True) -> "ShowProcessListExpression":
-        """Include full query text."""
-        self.full = value
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_process_list_expression"
-
 
 
 class ShowWarningsExpression(ShowExpression):
@@ -393,16 +300,10 @@ class ShowWarningsExpression(ShowExpression):
         super().__init__(dialect)
         self.limit: Optional[int] = limit
 
-    def with_limit(self, count: int) -> "ShowWarningsExpression":
-        """Limit number of warnings returned."""
-        self.limit = count
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_warnings_expression"
-
 
 
 class ShowErrorsExpression(ShowExpression):
@@ -417,16 +318,10 @@ class ShowErrorsExpression(ShowExpression):
         super().__init__(dialect)
         self.limit: Optional[int] = limit
 
-    def with_limit(self, count: int) -> "ShowErrorsExpression":
-        """Limit number of errors returned."""
-        self.limit = count
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_errors_expression"
-
 
 
 class ShowEnginesExpression(ShowExpression):
@@ -436,7 +331,6 @@ class ShowEnginesExpression(ShowExpression):
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_engines_expression"
-
 
 
 class ShowCharsetExpression(ShowExpression):
@@ -451,16 +345,10 @@ class ShowCharsetExpression(ShowExpression):
         super().__init__(dialect)
         self.like_pattern: Optional[str] = like_pattern
 
-    def with_like(self, pattern: str) -> "ShowCharsetExpression":
-        """Filter character sets by name pattern."""
-        self.like_pattern = pattern
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_charset_expression"
-
 
 
 class ShowCollationExpression(ShowExpression):
@@ -475,16 +363,10 @@ class ShowCollationExpression(ShowExpression):
         super().__init__(dialect)
         self.like_pattern: Optional[str] = like_pattern
 
-    def with_like(self, pattern: str) -> "ShowCollationExpression":
-        """Filter collations by name pattern."""
-        self.like_pattern = pattern
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_collation_expression"
-
 
 
 class ShowGrantsExpression(ShowExpression):
@@ -501,17 +383,10 @@ class ShowGrantsExpression(ShowExpression):
         self.user: Optional[str] = user
         self.host: Optional[str] = host
 
-    def with_user(self, user: str, host: Optional[str] = None) -> "ShowGrantsExpression":
-        """Show grants for a specific user."""
-        self.user = user
-        self.host = host
-        return self
-
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_grants_expression"
-
 
 
 class ShowPluginsExpression(ShowExpression):
@@ -521,3 +396,47 @@ class ShowPluginsExpression(ShowExpression):
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
         return "format_show_plugins_expression"
+
+
+class ShowBinaryLogsExpression(ShowExpression):
+    """Expression for SHOW BINARY LOGS command.
+
+    Its own node rather than a flag on another one: the command takes no
+    parameters at all, so what distinguishes it from its neighbours is the
+    command itself, which is exactly what a class names.
+    """
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_binary_logs_expression"
+
+
+class ShowMasterStatusExpression(ShowExpression):
+    """Expression for SHOW MASTER STATUS command.
+
+    MySQL 8.4 removed this command in favour of
+    ``performance_schema.log_status``; the node still renders the command,
+    and the caller chooses by server version which of the two to execute.
+    """
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_master_status_expression"
+
+
+class ShowSlaveStatusExpression(ShowExpression):
+    """Expression for SHOW SLAVE STATUS command.
+
+    MySQL 8.0.22 added ``SHOW REPLICA STATUS`` as the preferred spelling and
+    9.0 removed ``SHOW SLAVE STATUS``; this node renders the older command,
+    because it is the one every server in this backend's supported range
+    accepts. A server that has dropped it is asked through
+    ``performance_schema`` instead.
+    """
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_show_slave_status_expression"

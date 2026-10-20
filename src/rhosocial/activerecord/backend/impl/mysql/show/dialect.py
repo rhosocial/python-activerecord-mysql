@@ -43,6 +43,9 @@ if TYPE_CHECKING:
         ShowCollationExpression,
         ShowGrantsExpression,
         ShowPluginsExpression,
+        ShowBinaryLogsExpression,
+        ShowMasterStatusExpression,
+        ShowSlaveStatusExpression,
     )
 
 
@@ -310,3 +313,26 @@ class MySQLShowDialectMixin:
     def format_show_plugins_expression(self, expr: "ShowPluginsExpression") -> Tuple[str, tuple]:
         """Format SHOW PLUGINS statement."""
         return "SHOW PLUGINS", ()
+
+    # ========== SHOW BINARY LOGS / REPLICATION STATUS ==========
+    #
+    # Each of these is a whole command with no parameters, so each has its own
+    # node and its own entry: a boolean on a neighbouring node would say "this
+    # is a different command" with something other than the class, which is what
+    # the class is for.
+
+    def format_show_binary_logs_expression(self, expr: "ShowBinaryLogsExpression") -> Tuple[str, tuple]:
+        """Format SHOW BINARY LOGS statement."""
+        return "SHOW BINARY LOGS", ()
+
+    def format_show_master_status_expression(
+        self, expr: "ShowMasterStatusExpression"
+    ) -> Tuple[str, tuple]:
+        """Format SHOW MASTER STATUS statement."""
+        return "SHOW MASTER STATUS", ()
+
+    def format_show_slave_status_expression(
+        self, expr: "ShowSlaveStatusExpression"
+    ) -> Tuple[str, tuple]:
+        """Format SHOW SLAVE STATUS statement."""
+        return "SHOW SLAVE STATUS", ()
