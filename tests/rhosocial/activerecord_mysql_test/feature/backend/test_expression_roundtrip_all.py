@@ -315,6 +315,7 @@ def _register_mysql_specials():
         ComparisonOperator,
         ComparisonPredicate,
         ILikePredicate,
+        LikeOperator,
         LikePredicate,
     )
     from rhosocial.activerecord.backend.expression.query_sources import SetOperation
@@ -336,7 +337,7 @@ def _register_mysql_specials():
 
     factories = {
         "predicates.LikePredicate":
-            lambda d: LikePredicate(d, "LIKE", Column(d, "a"), Literal(d, "%x%")),
+            lambda d: LikePredicate(d, LikeOperator.LIKE, Column(d, "a"), Literal(d, "%x%")),
         "predicates.ILikePredicate":
             lambda d: ILikePredicate(d, Column(d, "a"), "%x%"),
         "predicates.ComparisonPredicate":
