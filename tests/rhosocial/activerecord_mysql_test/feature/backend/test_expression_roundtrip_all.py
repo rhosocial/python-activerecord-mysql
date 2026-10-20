@@ -1094,92 +1094,45 @@ _NOT_RENDERED = {
 # it sits in, and the exactness test below makes a core fix delete its own
 # row: once the class round-trips, a row left behind is a failure.
 _ROUNDTRIP_DEFECT = {
-    # --- A (str, Enum) without ``__str__ = str.__str__``: the XML channel ---
-    # --- writes ``EnumName.MEMBER``, which the constructor then refuses. ---
-    # ``_scalar_to_text`` in the core's xml_serialization spells a scalar as
-    # ``str(value)``, and for an enum member that carries no ``__str__``
-    # override, ``Enum.__str__`` wins: ``DateTimeField.YEAR`` spells as the
-    # *string* "DateTimeField.YEAR", not the word "year" the member holds.
-    # Reading it back hands that string to ``normalize_datetime_field``,
-    # which refuses it by name. The JSON channel is unaffected -- a str
-    # member dumps as its word -- which is what pins the defect to the XML
-    # spelling and nowhere else.
-    "datetime.ExtractExpression": (
-        "ValueError",
-        "CORE DEFECT: core's DateTimeField carries no ``__str__ = "
-        "str.__str__``, so the XML channel writes 'DateTimeField.YEAR' and "
-        "normalize_datetime_field refuses it on read.",
-    ),
-    "datetime.ExtractFieldExpression": (
-        "ValueError",
-        "CORE DEFECT: same DateTimeField spelling as ExtractExpression -- the "
-        "XML channel writes 'DateTimeField.YEAR' and the read refuses it.",
-    ),
-    "datetime._ExtractBase": (
-        "ValueError",
-        "CORE DEFECT: same DateTimeField spelling as ExtractExpression -- the "
-        "XML channel writes 'DateTimeField.YEAR' and the read refuses it.",
-    ),
-    "datetime.DatePartExpression": (
-        "ValueError",
-        "CORE DEFECT: same DateTimeField spelling -- the XML channel writes "
-        "'DateTimeField.YEAR' and the read refuses it.",
-    ),
-    "datetime.DateTruncExpression": (
-        "ValueError",
-        "CORE DEFECT: same DateTimeField spelling -- the XML channel writes "
-        "'DateTimeField.YEAR' and the read refuses it.",
-    ),
-    "datetime.DateTimeAddExpression": (
-        "ValueError",
-        "CORE DEFECT: core's IntervalUnit carries no ``__str__ = "
-        "str.__str__``, so the XML channel writes 'IntervalUnit.DAY' and "
-        "normalize_interval_unit refuses it on read.",
-    ),
-    "datetime.DateTimeDiffExpression": (
-        "ValueError",
-        "CORE DEFECT: same IntervalUnit spelling -- the XML channel writes "
-        "'IntervalUnit.DAY' and the read refuses it.",
-    ),
-    "datetime.DateTimeSubtractExpression": (
-        "ValueError",
-        "CORE DEFECT: same IntervalUnit spelling -- the XML channel writes "
-        "'IntervalUnit.DAY' and the read refuses it.",
-    ),
-    "datetime.IntervalExpression": (
-        "ValueError",
-        "CORE DEFECT: same IntervalUnit spelling -- the XML channel writes "
-        "'IntervalUnit.DAY' and the read refuses it.",
-    ),
+    # --- A constructor that keeps the artifact's word instead of the -------
+    # --- member, so the restored parameter is not the one that went out. ---
+    # §10: the constructor takes the serialized form and normalises it. These
+    # store what the artifact hands back, so a parameter that left as a member
+    # returns as a plain ``str`` -- and everything downstream that reads
+    # ``.value`` only finds it on the member.
+    #
+    # The four enum families below are the residue of a core fix that made the
+    # member *be* its word on the wire: the artifact now carries 'DOCUMENT',
+    # 'CASCADE', 'VIRTUAL' as a plain string, and the reader has nothing left
+    # to normalise with. The spelling half of the defect is gone; the
+    # normalisation half is not.
     "xml.XMLParseExpression": (
         "AssertionError",
-        "CORE DEFECT: core's XMLParseDocumentType carries no ``__str__`` "
-        "override, so the XML channel writes 'XMLParseDocumentType.DOCUMENT'; "
-        "the constructor stores the word raw, and the restored parameter is "
-        "not the word the member spells.",
+        "CORE DEFECT: core's XMLParseExpression stores ``document_type`` raw, "
+        "so the word the artifact carries ('DOCUMENT') comes back as a str "
+        "where the original carried the XMLParseDocumentType member. The "
+        "spelling itself is now right -- the XML channel writes the word, not "
+        "'XMLParseDocumentType.DOCUMENT'.",
     ),
     "xml.XMLSerializeExpression": (
         "AssertionError",
-        "CORE DEFECT: same XMLSerializeDocumentType spelling -- the XML "
-        "channel writes the Enum.__str__ form and the constructor stores it "
-        "raw.",
+        "CORE DEFECT: same raw-store of ``document_type`` in "
+        "XMLSerializeExpression -- the restored parameter is the word, not the "
+        "XMLSerializeDocumentType member.",
     ),
-    # --- A plain Enum where the value vocabulary needs a word. -------------
-    # ``LiteralKind.of`` is total over the closed value set and refuses a
-    # host value it does not name. A plain Enum member is neither a JSON
-    # scalar nor a node, so an artifact cannot carry it -- the spelling is
-    # the core's own §11.3 rule and these two enums predate it.
     "statements.ddl_table.ForeignKeyConstraint": (
-        "TypeError",
-        "CORE DEFECT: core's ReferentialAction is a plain Enum, so "
-        "LiteralKind.of refuses the member and no artifact can carry the "
-        "constraint's referential actions.",
+        "AssertionError",
+        "CORE DEFECT: core's ReferentialAction is a str enum now, so the "
+        "artifact carries 'CASCADE' -- and TableForeignKeyConstraint stores "
+        "``on_delete`` / ``on_update`` raw, so the restored constraint carries "
+        "the word where the original carried the member.",
     ),
     "statements.ddl_table.ColumnGeneratedConstraint": (
-        "TypeError",
-        "CORE DEFECT: core's GeneratedColumnType is a plain Enum and the "
-        "constructor forces a member into storage (``storage_type or "
-        "VIRTUAL``), so serialization refuses every instance.",
+        "AssertionError",
+        "CORE DEFECT: core's GeneratedColumnType is a str enum now, so the "
+        "artifact carries 'VIRTUAL' -- but the constructor stores "
+        "``storage_type`` without normalising, so the restored constraint "
+        "carries the word where the original carried the member.",
     ),
     # --- A constructor that refuses its own artifact's word. ---------------
     # §10: the constructor accepts the serialized form and normalises it.
