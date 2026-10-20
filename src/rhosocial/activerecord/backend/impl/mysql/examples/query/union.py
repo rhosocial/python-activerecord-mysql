@@ -147,4 +147,5 @@ backend.disconnect()
 # 1. Use SetOperation with op='union' / op='union_all'; the dialect writes the
 #    SQL spelling and gates it behind its own capability probes
 # 2. UNION removes duplicates, UNION ALL keeps all rows
-# 3. Can add ORDER BY using query1.with_order_by()
+# 3. ORDER BY is a clause on the statement, not a setter on the query:
+#    QueryStatement(..., order_by=OrderByClause(dialect, [...]))
