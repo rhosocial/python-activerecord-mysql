@@ -52,7 +52,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_view import (
 from rhosocial.activerecord.backend.expression.statements.dql import QueryStatement
 from rhosocial.activerecord.backend.expression.transaction import (
     BeginTransactionStatement,
-    SetTransactionExpression,
+    SetTransactionStatement,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
@@ -202,8 +202,8 @@ PAIR_CASES = (
         b_error=r"NOT DEFERRABLE\b",
     ),
     PairCase(
-        "SetTransactionExpression.deferrable",
-        lambda d, **kw: SetTransactionExpression(d, **kw),
+        "SetTransactionStatement.deferrable",
+        lambda d, **kw: SetTransactionStatement(d, **kw),
         "deferrable",
         "not_deferrable",
         a_error=r"(?<!NOT )DEFERRABLE\b",
@@ -218,8 +218,8 @@ PAIR_CASES = (
         b_error=r"NO WAIT\b",
     ),
     PairCase(
-        "SetTransactionExpression.wait",
-        lambda d, **kw: SetTransactionExpression(d, **kw),
+        "SetTransactionStatement.wait",
+        lambda d, **kw: SetTransactionStatement(d, **kw),
         "wait",
         "no_wait",
         a_error=r"(?<!NO )WAIT\b",
@@ -523,9 +523,9 @@ class TestNewlyGatedMasterProbes:
         with pytest.raises(UnsupportedFeatureError, match=r"NO WAIT\b"):
             BeginTransactionStatement(dialect, no_wait=True).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"(?<!NO )WAIT\b"):
-            SetTransactionExpression(dialect, wait=True).to_sql()
+            SetTransactionStatement(dialect, wait=True).to_sql()
         with pytest.raises(UnsupportedFeatureError, match=r"NO WAIT\b"):
-            SetTransactionExpression(dialect, no_wait=True).to_sql()
+            SetTransactionStatement(dialect, no_wait=True).to_sql()
 
     def test_truncate_gate_renders_mysqls_own_form(self):
         """``supports_truncate()`` is True, and the formatter is MySQL's own."""
@@ -551,8 +551,8 @@ class TestGuardIsNotVacuous:
             "DropViewStatement.cascade",
             "BeginTransactionStatement.deferrable",
             "BeginTransactionStatement.wait",
-            "SetTransactionExpression.deferrable",
-            "SetTransactionExpression.wait",
+            "SetTransactionStatement.deferrable",
+            "SetTransactionStatement.wait",
             "TableConstraint.enforced",
             "TableConstraint.deferrable",
             "TableConstraint.initially_deferred",
