@@ -34,7 +34,7 @@ than inventing one.
 
 The tier-1 forms (NULL / booleans / numbers / strings / dates / times /
 datetimes) are the base's, reached through this dialect's backslash-doubling
-``_escape_sql_string``: measured on both servers as ``DEFAULT`` values
+``escape_sql_string``: measured on both servers as ``DEFAULT`` values
 accepted by ``CREATE TABLE`` (``TRUE`` / ``FALSE`` / ``42`` / ``1.5`` /
 ``1.25`` / ``'x''y'`` / ``'2026-10-17'`` / ``'10:30:00'`` /
 ``'2026-10-17 10:00:00'``), each reading back unchanged -- so none of them

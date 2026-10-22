@@ -20,7 +20,7 @@ from rhosocial.activerecord.backend.expression import (
     DropTableStatement,
     CreateTableStatement,
 )
-from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
+from rhosocial.activerecord.backend.expression import functions as F
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnDefaultConstraint,
@@ -91,7 +91,7 @@ columns = [
         name="created_at",
         data_type="TIMESTAMP",
         constraints=[
-            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, current_timestamp(dialect))),
+            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, F.current_timestamp(dialect))),
         ],
     ),
 ]
@@ -144,5 +144,5 @@ backend.disconnect()
 # 1. Use ColumnConstraint with is_auto_increment=True for AUTO_INCREMENT
 # 2. MySQL table options (engine/charset) are typed on MySQLCreateTableOptions
 # 3. IndexDefinition creates inline indexes within CREATE TABLE
-# 4. Use current_timestamp(dialect) for SQL niladic functions (no parentheses)
+# 4. Use F.current_timestamp(dialect) for SQL niladic functions (no parentheses)
 # 5. Use introspector.get_columns() to verify table structure

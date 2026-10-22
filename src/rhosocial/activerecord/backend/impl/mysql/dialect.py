@@ -181,6 +181,14 @@ if TYPE_CHECKING:
 
 
 class MySQLDialect(
+    # The bases below come in bundles: a backend mixin, then the core bundle
+    # it stands in for. The backend's answer has to come first -- a mixin
+    # placed after the class it overrides never wins -- so a new mixin goes
+    # immediately before the core mixin it overrides, and the pairing is read
+    # off the list. Two positions sit outside that pairing and are called out
+    # where they occur: a mixin that overrides a method ``SQLDialectBase``
+    # defines has to precede the base, and a mixin that subclasses a core
+    # mixin has to precede it too (C3: a subclass precedes its base).
     # MySQL's tier-2 value literals (bytes X'...' and the quoted UUID text)
     # override format_literal, and this is the one base that defines it, so
     # the mixin is placed ahead of SQLDialectBase: a mixin placed after the
@@ -457,7 +465,7 @@ class MySQLDialect(
 
         return MySQLSchemaDiffer()
 
-    def _escape_sql_string(self, value: str) -> str:
+    def escape_sql_string(self, value: str) -> str:
         """Escape string for MySQL with backslash support.
 
         MySQL default SQL mode (STRICT_TRANS_TABLES) treats backslash as an

@@ -89,10 +89,7 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
     Column,
     GroupByHavingClause,
 )
-from rhosocial.activerecord.backend.expression.functions import (  # noqa: E402
-    avg,
-    sum_,
-)
+from rhosocial.activerecord.backend.expression import functions as F  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -102,8 +99,8 @@ query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "product"),
-        sum_(dialect, Column(dialect, "quantity"), alias="total_qty"),
-        avg(dialect, Column(dialect, "price"), alias="avg_price"),
+        F.sum_(dialect, Column(dialect, "quantity"), alias="total_qty"),
+        F.avg(dialect, Column(dialect, "price"), alias="avg_price"),
     ],
     from_=Table(dialect, "sales"),
     group_by_having=GroupByHavingClause(
@@ -112,7 +109,7 @@ query = QueryStatement(
         having=ComparisonPredicate(
             dialect,
             ">",
-            sum_(dialect, Column(dialect, "quantity")),
+            F.sum_(dialect, Column(dialect, "quantity")),
             Literal(dialect, 10),
         ),
     ),

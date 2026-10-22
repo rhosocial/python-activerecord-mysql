@@ -334,6 +334,14 @@ class TestProtocolNonOverlap:
             assert len(members) > 0, f"Protocol {name} has no members defined"
 
         excluded_overlaps = {
+
+            # The CTAS bind-parameter probe: the backend's table protocol
+
+            # derives from the generic CTAS protocol, so both declare it.
+
+            ('CreateTableAsSupport', 'MySQLTableSupport'),
+
+            ('MySQLTableSupport', 'CreateTableAsSupport'),
             # Each pair below is a MySQL-specific protocol deliberately
             # restating part of a generic one, which is the whole point of a
             # backend protocol: MySQL's spelling and capability probes differ,
@@ -647,4 +655,44 @@ class TestProtocolMixinReverseCoverage:
         undeclared = mixin_own_methods - proto_methods
         assert not undeclared, (
             f"{mixin.__name__} implements these methods not declared in {protocol.__name__}: {undeclared}"
+        )
+
+
+class TestTheBackendOwnAnswersAreTheEffectiveOnes:
+    """A backend mixin's method must resolve to a backend class.
+
+    The other checks in this file are about the *declaration*: the mixin
+    declares the method, and the protocol declares it too. This one is
+    about the *resolution*. A core class that wins the MRO makes the
+    backend's implementation dead code, and the answer a caller gets is
+    core's rather than the backend's -- so the backend never says what it
+    means about itself, and nothing else in the suite notices: the
+    declaration is there either way.
+
+    A protocol class is a declaration rather than an implementation (its
+    body is ``...``), so a core class may legitimately precede it; only
+    the mixins are held to this.
+    """
+
+    def test_no_backend_method_is_shadowed_by_a_core_class(self):
+        mro = type(mysql_dialect.MySQLDialect()).__mro__
+        own = "rhosocial.activerecord.backend.impl.mysql"
+        shadowed = []
+        for klass in mro:
+            if not klass.__module__.startswith(own):
+                continue
+            if not klass.__name__.endswith("Mixin"):
+                continue
+            for name in vars(klass):
+                if not name.startswith(("format_", "supports_", "get_")):
+                    continue
+                if not callable(vars(klass)[name]):
+                    continue
+                winner = next((k for k in mro if name in k.__dict__), None)
+                if winner is None or winner.__module__.startswith(own):
+                    continue
+                shadowed.append(f"{klass.__name__}.{name} -> {winner.__name__}")
+        assert not shadowed, (
+            "a core class wins these backend methods, so the backend's "
+            f"implementation is dead code: {shadowed}"
         )

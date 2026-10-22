@@ -32,7 +32,7 @@ behind scenario ``mysql_97`` (192.168.1.3:14686, which answers
   / ``DEFAULT '2026-10-17 10:00:00'`` each read back as the same value.
 * Under the default ``sql_mode`` the backslash is an escape character
   (measured: the server reads ``'a\\b'`` as ``'a\\x08'``), which is why this
-  dialect's ``_escape_sql_string`` doubles backslashes for every inline
+  dialect's ``escape_sql_string`` doubles backslashes for every inline
   string tier-1 renders, and stops doubling under ``NO_BACKSLASH_ESCAPES``.
 
 The measurements are re-measured end to end against a running server by

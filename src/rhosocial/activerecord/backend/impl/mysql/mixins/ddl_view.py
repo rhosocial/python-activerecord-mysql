@@ -25,6 +25,15 @@ class MySQLViewMixin:
         """Whether TEMPORARY views are supported."""
         return True
 
+
+    def supports_create_view_bind_parameters(self) -> bool:
+        """MySQL accepts bind parameters in a view body.
+
+        Measured on 9.7: a view whose definition binds is accepted, because
+        MySQL's "parameters" are interpolated client-side and the value is
+        baked into the stored definition.
+        """
+        return True
     def supports_if_exists_view(self) -> bool:
         """Whether DROP VIEW IF EXISTS is supported."""
         return True
@@ -76,6 +85,8 @@ class MySQLViewMixin:
             parts.append(f"({cols})")
 
         query_sql, query_params = expr.query.to_sql()
+        if query_params and not self.supports_create_view_bind_parameters():
+            self._refuse_ddl_bind_parameters("CREATE VIEW with bound parameters")
         parts.append(f"AS {query_sql}")
 
         if expr.options and expr.options.check_option:

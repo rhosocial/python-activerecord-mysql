@@ -62,20 +62,20 @@ class MySQLDMLOperationMixin:
 
         field_parts = []
         if expr.options.fields_terminated_by is not None:
-            field_parts.append(f"TERMINATED BY '{self._escape_sql_string(expr.options.fields_terminated_by)}'")
+            field_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.options.fields_terminated_by)}'")
         if expr.options.fields_enclosed_by is not None:
-            field_parts.append(f"ENCLOSED BY '{self._escape_sql_string(expr.options.fields_enclosed_by)}'")
+            field_parts.append(f"ENCLOSED BY '{self.escape_sql_string(expr.options.fields_enclosed_by)}'")
         if expr.options.fields_escaped_by is not None:
-            field_parts.append(f"ESCAPED BY '{self._escape_sql_string(expr.options.fields_escaped_by)}'")
+            field_parts.append(f"ESCAPED BY '{self.escape_sql_string(expr.options.fields_escaped_by)}'")
         if field_parts:
             parts.append("FIELDS")
             parts.append(" ".join(field_parts))
 
         line_parts = []
         if expr.options.lines_starting_by is not None:
-            line_parts.append(f"STARTING BY '{self._escape_sql_string(expr.options.lines_starting_by)}'")
+            line_parts.append(f"STARTING BY '{self.escape_sql_string(expr.options.lines_starting_by)}'")
         if expr.options.lines_terminated_by is not None:
-            line_parts.append(f"TERMINATED BY '{self._escape_sql_string(expr.options.lines_terminated_by)}'")
+            line_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.options.lines_terminated_by)}'")
         if line_parts:
             parts.append("LINES")
             parts.append(" ".join(line_parts))

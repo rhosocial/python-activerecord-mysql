@@ -258,7 +258,7 @@ class MySQLJSONFunctionMixin:
             col_sql, col_params = self.format_identifier(str(expr.column)), ()
 
         if expr.operation in ("->", "->>"):
-            escaped_path = self._escape_sql_string(expr.path)
+            escaped_path = self.escape_sql_string(expr.path)
             sql = f"{col_sql}{expr.operation}'{escaped_path}'"
             params = col_params
         else:
@@ -287,7 +287,7 @@ class MySQLJSONFunctionMixin:
         else:
             col_sql, col_params = self.format_identifier(str(expr.column)), ()
 
-        escaped_path = self._escape_sql_string(expr.path)
+        escaped_path = self.escape_sql_string(expr.path)
 
         if expr.operation == "->":
             sql = f"JSON_EXTRACT({col_sql}, '{escaped_path}')"
@@ -314,6 +314,7 @@ class MySQLJSONFunctionMixin:
         node again.
         """
         from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
+        from rhosocial.activerecord.backend.expression.types import DataType
 
         expr.validate(strict=self.strict_validation)
 
@@ -323,7 +324,7 @@ class MySQLJSONFunctionMixin:
         # if it's a ToSQLProtocol expression, use to_sql() for parameterized
         # queries; otherwise raise to prevent SQL injection.
         if isinstance(expr.json_doc, str):
-            parts.append(f"'{self._escape_sql_string(expr.json_doc)}'")
+            parts.append(f"'{self.escape_sql_string(expr.json_doc)}'")
         elif isinstance(expr.json_doc, ToSQLProtocol):
             json_sql, _ = expr.json_doc.to_sql()
             parts.append(json_sql)
@@ -333,7 +334,7 @@ class MySQLJSONFunctionMixin:
             )
 
         parts.append(",")
-        escaped_path = self._escape_sql_string(expr.path)
+        escaped_path = self.escape_sql_string(expr.path)
         parts.append(f"'{escaped_path}'")
         parts.append(" COLUMNS (")
 
@@ -342,14 +343,17 @@ class MySQLJSONFunctionMixin:
             if col.ordinality:
                 column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
             elif col.exists:
-                escaped_col_path = self._escape_sql_string(col.path) if col.path else ""
-                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'")
+                escaped_col_path = self.escape_sql_string(col.path) if col.path else ""
+                column_type, _ = DataType.as_type(self, col.type).to_sql()
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {column_type} "
+                    f"EXISTS PATH '{escaped_col_path}'"
+                )
             else:
-                if not self._validate_data_type(col.type):
-                    raise ValueError(f"Invalid data type: {col.type}")
-                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                column_type, _ = DataType.as_type(self, col.type).to_sql()
+                col_def = f"{self.format_identifier(col.name)} {column_type}"
                 if col.path:
-                    escaped_col_path = self._escape_sql_string(col.path)
+                    escaped_col_path = self.escape_sql_string(col.path)
                     col_def += f" PATH '{escaped_col_path}'"
                 if col.error_handling:
                     valid_error_handling = {"NULL", "ERROR", "DEFAULT"}
@@ -359,23 +363,24 @@ class MySQLJSONFunctionMixin:
                             f"Invalid error_handling: {col.error_handling}. Must be one of {valid_error_handling}"
                         )
                     if error_handling_upper == "DEFAULT":
-                        escaped_default = self._escape_sql_string(str(col.default_value))
+                        escaped_default = self.escape_sql_string(str(col.default_value))
                         col_def += f" DEFAULT '{escaped_default}' ON ERROR"
                     else:
                         col_def += f" {error_handling_upper} ON ERROR"
                 column_parts.append(col_def)
 
         for nested in expr.nested_paths:
-            escaped_nested_path = self._escape_sql_string(nested.path)
+            escaped_nested_path = self.escape_sql_string(nested.path)
             nested_def = f"NESTED PATH '{escaped_nested_path}' COLUMNS ("
             nested_cols = []
             for col in nested.columns:
                 if col.ordinality:
                     nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
                 else:
-                    escaped_nested_col_path = self._escape_sql_string(col.path) if col.path else ""
+                    escaped_nested_col_path = self.escape_sql_string(col.path) if col.path else ""
+                    nested_type, _ = DataType.as_type(self, col.type).to_sql()
                     nested_cols.append(
-                        f"{self.format_identifier(col.name)} {col.type} PATH '{escaped_nested_col_path}'"
+                        f"{self.format_identifier(col.name)} {nested_type} PATH '{escaped_nested_col_path}'"
                     )
             nested_def += ", ".join(nested_cols) + ")"
             if nested.alias:

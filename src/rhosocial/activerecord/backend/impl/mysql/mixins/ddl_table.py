@@ -1,6 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py
 from typing import Any, List, TYPE_CHECKING, Tuple
-import re
 
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -23,11 +22,6 @@ if TYPE_CHECKING:
 class MySQLTableMixin:
     """MySQL table DDL implementation."""
 
-    @staticmethod
-    def _validate_data_type(data_type: str) -> bool:
-        """Validate data type string, allowing single quotes for MySQL ENUM types."""
-        return bool(re.fullmatch(r"[A-Za-z0-9\s\(\),\']+", data_type))
-
     def supports_if_not_exists_table(self) -> bool:
         """Whether CREATE TABLE IF NOT EXISTS is supported."""
         return True
@@ -36,6 +30,15 @@ class MySQLTableMixin:
         """Whether DROP TABLE IF EXISTS is supported."""
         return True
 
+
+    def supports_create_table_as_bind_parameters(self) -> bool:
+        """MySQL accepts bind parameters in a CTAS body.
+
+        Measured on 9.7: ``CREATE TABLE t AS SELECT %s FROM s`` is accepted
+        and the table is created. MySQL's "parameters" are interpolated
+        client-side, so the value is baked into the statement's text.
+        """
+        return True
     def supports_create_table_like(self) -> bool:
         return True
 

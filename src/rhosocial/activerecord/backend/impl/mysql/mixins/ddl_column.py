@@ -136,7 +136,7 @@ class MySQLDDLColumnMixin:
         if operation == "SET DEFAULT":
             new_value = action.new_value
             if isinstance(new_value, str):
-                escaped = self._escape_sql_string(new_value)
+                escaped = self.escape_sql_string(new_value)
                 return f"ALTER COLUMN {col_name} SET DEFAULT '{escaped}'", ()
             if new_value is None:
                 raise ValueError("SET DEFAULT requires a default value")

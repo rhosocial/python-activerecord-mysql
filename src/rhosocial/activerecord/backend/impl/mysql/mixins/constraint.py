@@ -538,7 +538,7 @@ class MySQLConstraintMixin:
                 "clause parses and is discarded (measured on 26.7.0: 1064).",
             )
 
-    def _format_constraint_enforcement(self, constraint: "ColumnConstraint") -> str:
+    def format_constraint_enforcement(self, constraint: "ColumnConstraint") -> str:
         """Render the enforcement trait behind this backend's narrowing.
 
         The shared private hook takes the production, so it is shared by the
@@ -550,7 +550,7 @@ class MySQLConstraintMixin:
         spelling when the branch has its own, earlier refusal to make.
         """
         self._require_constraint_enforcement(constraint)
-        return super()._format_constraint_enforcement(constraint)
+        return super().format_constraint_enforcement(constraint)
 
     # Constraint deferral (the rendering half; the probe is above)
 

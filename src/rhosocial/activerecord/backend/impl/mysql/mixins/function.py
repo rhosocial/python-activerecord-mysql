@@ -130,4 +130,8 @@ class MySQLFunctionMixin:
         defaults (``OCTET_LENGTH`` / ``BIT_LENGTH``) are spellings MySQL
         accepts as-is.
         """
-        return self._format_scalar_function("CHAR_LENGTH", expr)
+        operand_sql, operand_params = expr.operand.to_sql()
+        sql = f"CHAR_LENGTH({operand_sql})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, tuple(operand_params)

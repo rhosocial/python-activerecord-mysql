@@ -51,18 +51,54 @@ def test_mysql_format_column_definition_comment_string_escaping(dialect):
     assert "Comment with ''single quote''" in sql
 
 
-def test_mysql_escape_sql_string(dialect):
-    """Test MySQL inherits _escape_sql_string."""
-    result = dialect._escape_sql_string("Table's comment")
+def test_mysqlescape_sql_string(dialect):
+    """Test MySQL inherits escape_sql_string."""
+    result = dialect.escape_sql_string("Table's comment")
     assert result == "Table''s comment"
 
 
-def test_mysql_validate_data_type(dialect):
-    """Test MySQL inherits _validate_data_type."""
-    assert dialect._validate_data_type("VARCHAR(255)")
-    assert dialect._validate_data_type("INT")
-    assert dialect._validate_data_type("BIGINT")
-    assert not dialect._validate_data_type("INT; DROP TABLE users--")
+def test_mysql_has_no_type_name_rule_of_its_own(dialect):
+    """There is no per-backend character rule for a type name.
+
+    The framework does not decide what an engine accepts: a name is checked
+    by the grammar, which is about what a name may *be*, and whether the type
+    exists is MySQL's answer to give.
+    """
+    assert not hasattr(dialect, "_validate_data_type")
+
+
+def test_mysqla_type_position_refuses_a_payload(dialect):
+    """A type name is a name, and the grammar is what says so.
+
+    The backend has no character filter of its own any more: the type
+    position is guarded by the grammar, which is the framework's rule for
+    what a name may be, and the server decides whether the type exists.
+    """
+    from rhosocial.activerecord.backend.expression import Literal
+    from rhosocial.activerecord.backend.expression.statements import (
+        AlterColumnAction,
+    )
+    from rhosocial.activerecord.backend.expression.type_name import (
+        InvalidTypeNameError,
+    )
+    from rhosocial.activerecord.backend.expression.xml import (
+        XMLSerializeExpression,
+    )
+
+    # A name is a name: the position takes it.
+    XMLSerializeExpression(dialect, Literal(dialect, "x"), "TEXT")
+    AlterColumnAction(dialect, "c", "SET DATA TYPE", new_value="TEXT")
+
+    # A value that is not a name is refused, and refused before the
+    # statement is ever rendered.
+    with pytest.raises(InvalidTypeNameError):
+        XMLSerializeExpression(
+            dialect, Literal(dialect, "x"), "TEXT; DROP TABLE users--"
+        )
+    with pytest.raises(InvalidTypeNameError):
+        AlterColumnAction(
+            dialect, "c", "SET DATA TYPE", new_value="TEXT; DROP TABLE users--"
+        )
 
 
 def test_mysql_format_column_definition_data_type_validation(dialect):
@@ -168,53 +204,53 @@ def test_mysql_format_cast_expression_rejects_injection(dialect):
 
 
 class TestMySQLEscapeSqlStringBackslash:
-    """Tests for MySQL _escape_sql_string with backslash escaping."""
+    """Tests for MySQL escape_sql_string with backslash escaping."""
 
-    def test_escape_sql_string_backslash_escaped(self, dialect):
+    def testescape_sql_string_backslash_escaped(self, dialect):
         """Test backslash is properly escaped in MySQL."""
-        result = dialect._escape_sql_string("test\\value")
+        result = dialect.escape_sql_string("test\\value")
         assert "\\\\" in result
 
-    def test_escape_sql_string_backslash_and_quote(self, dialect):
+    def testescape_sql_string_backslash_and_quote(self, dialect):
         """Test both backslash and single quote are escaped."""
-        result = dialect._escape_sql_string("test\\'value")
+        result = dialect.escape_sql_string("test\\'value")
         assert "\\\\" in result
         assert "''" in result
 
-    def test_escape_sql_string_preserves_others(self, dialect):
+    def testescape_sql_string_preserves_others(self, dialect):
         """Test other characters are preserved."""
-        result = dialect._escape_sql_string('test"double"value')
+        result = dialect.escape_sql_string('test"double"value')
         assert 'test"double"value' in result
 
 
-def test_escape_sql_string_no_backslash_escapes_mode():
+def testescape_sql_string_no_backslash_escapes_mode():
     """Under NO_BACKSLASH_ESCAPES backslash is literal and NOT doubled."""
     from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
     d = MySQLDialect((8, 0, 0), sql_mode="NO_BACKSLASH_ESCAPES")
     assert d.no_backslash_escapes is True
     # Backslash preserved (literal), quotes still doubled
-    assert d._escape_sql_string(r"C:\path") == r"C:\path"
-    assert d._escape_sql_string("it's") == "it''s"
+    assert d.escape_sql_string(r"C:\path") == r"C:\path"
+    assert d.escape_sql_string("it's") == "it''s"
 
 
-def test_escape_sql_string_default_mode_doubles_backslash():
+def testescape_sql_string_default_mode_doubles_backslash():
     """Under default SQL mode backslash is doubled, quotes doubled."""
     from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
     d = MySQLDialect((8, 0, 0), sql_mode="STRICT_TRANS_TABLES")
     assert d.no_backslash_escapes is False
-    assert d._escape_sql_string(r"C:\path") == r"C:\\path"
-    assert d._escape_sql_string("it's") == "it''s"
+    assert d.escape_sql_string(r"C:\path") == r"C:\\path"
+    assert d.escape_sql_string("it's") == "it''s"
 
 
-def test_escape_sql_string_mode_whitelist_default():
+def testescape_sql_string_mode_whitelist_default():
     """Dialect defaults to STRICT_TRANS_TABLES (backslash escapes)."""
     from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
     d = MySQLDialect((8, 0, 0))
     assert d.no_backslash_escapes is False
-    assert d._escape_sql_string(r"C:\path") == r"C:\\path"
+    assert d.escape_sql_string(r"C:\path") == r"C:\\path"
 
 
 class TestMySQLJSONTableTypeValidation:
@@ -239,7 +275,15 @@ class TestMySQLJSONTableTypeValidation:
         assert "VARCHAR(255)" in sql
 
     def test_json_table_invalid_data_type_rejected(self, dialect):
-        """Test invalid data type in JSON_TABLE column is rejected."""
+        """A value that is not a type name is refused at the type position.
+
+        The refusal comes from the grammar, so it names the value rather than
+        the position.
+        """
+        from rhosocial.activerecord.backend.expression.type_name import (
+            InvalidTypeNameError,
+        )
+
         expr = MySQLJSONTableExpression(
             dialect=dialect,
             json_doc='{"data": "test"}',
@@ -253,7 +297,7 @@ class TestMySQLJSONTableTypeValidation:
             ],
         )
 
-        with pytest.raises(ValueError, match="Invalid data type"):
+        with pytest.raises(InvalidTypeNameError):
             dialect.format_mysql_json_table_expression(expr)
 
 

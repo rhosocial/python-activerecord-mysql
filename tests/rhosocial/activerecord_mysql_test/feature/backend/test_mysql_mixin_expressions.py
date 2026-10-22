@@ -1063,7 +1063,7 @@ class TestMySQLPartitionExpressionEdgeCases:
         mixin.version = (8, 0, 0)
         from unittest.mock import MagicMock
         mixin.format_identifier = MagicMock(side_effect=lambda x: f"`{x}`")
-        mixin._escape_sql_string = MagicMock(side_effect=lambda x: x.replace("'", "\\'"))
+        mixin.escape_sql_string = MagicMock(side_effect=lambda x: x.replace("'", "\\'"))
 
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionDefinition
         defn = MySQLPartitionDefinition(
