@@ -1041,13 +1041,6 @@ _NOT_RENDERED = {
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_table.ColumnGeneratedConstraint": (
-        "ValueError",
-        "The generic constructor supplies a plain string for the generated "
-        "expression, and the constraint refuses to render an expression slot "
-        "that cannot render. The class round-trips its enum through no "
-        "artifact either -- see _ROUNDTRIP_DEFECT.",
-    ),
     "statements.ddl_trigger.CreateTriggerStatement": (
         "AttributeError",
         "timing must be a TriggerTiming member; the generic constructor "
