@@ -16,7 +16,7 @@ The implementation:
 from typing import Optional, Tuple, TYPE_CHECKING
 
 from ..expression.show import (
-    ShowCreateTableExpression,
+    ShowCreateTableStatement,
     ShowCreateViewExpression,
     ShowColumnsExpression,
     ShowIndexExpression,
@@ -382,7 +382,7 @@ class MySQLShowFunctionality:
             ShowCreateTableResult with table name and CREATE statement,
             or None if table doesn't exist.
         """
-        expr = ShowCreateTableExpression(self.dialect, table_name, schema=schema)
+        expr = ShowCreateTableStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_create_table_result(result, table_name)
@@ -716,7 +716,7 @@ class AsyncMySQLShowFunctionality:
 
     async def create_table(self, table_name: str, schema: Optional[str] = None):
         """Async version of create_table."""
-        expr = ShowCreateTableExpression(self.dialect, table_name, schema=schema)
+        expr = ShowCreateTableStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_table_result(result, table_name)

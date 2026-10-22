@@ -54,7 +54,7 @@ class ShowExpression(BaseExpression):
     # overriding the `format_method` property (inherited from BaseExpression).
 
 
-class ShowCreateTableExpression(ShowExpression):
+class ShowCreateTableStatement(ShowExpression):
     """Expression for SHOW CREATE TABLE command."""
 
     def __init__(

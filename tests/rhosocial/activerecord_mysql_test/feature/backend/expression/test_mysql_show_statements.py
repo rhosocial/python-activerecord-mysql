@@ -26,7 +26,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.show import (
     ShowCharsetExpression,
     ShowCollationExpression,
     ShowColumnsExpression,
-    ShowCreateTableExpression,
+    ShowCreateTableStatement,
     ShowCreateTriggerExpression,
     ShowCreateViewExpression,
     ShowDatabasesExpression,
@@ -67,7 +67,7 @@ class TestConstructorOnly:
     @pytest.mark.parametrize(
         "build",
         [
-            lambda d: ShowCreateTableExpression(d, "t"),
+            lambda d: ShowCreateTableStatement(d, "t"),
             lambda d: ShowCreateViewExpression(d, "v"),
             lambda d: ShowColumnsExpression(d, "t", full=True, like_pattern="id%"),
             lambda d: ShowIndexExpression(d, "t"),
@@ -103,12 +103,12 @@ class TestShowCreate:
     """``SHOW CREATE ...`` names one object, database included."""
 
     def test_unqualified_table(self, dialect):
-        sql, params = ShowCreateTableExpression(dialect, "users").to_sql()
+        sql, params = ShowCreateTableStatement(dialect, "users").to_sql()
         assert sql == "SHOW CREATE TABLE `users`"
         assert params == ()
 
     def test_database_qualifies_the_table(self, dialect):
-        sql, _ = ShowCreateTableExpression(dialect, "users", schema="app").to_sql()
+        sql, _ = ShowCreateTableStatement(dialect, "users", schema="app").to_sql()
         assert sql == "SHOW CREATE TABLE `app`.`users`"
 
     def test_view(self, dialect):

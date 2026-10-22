@@ -24,7 +24,7 @@ from rhosocial.activerecord.backend.expression.objects import (
 
 if TYPE_CHECKING:
     from ..expression.show import (
-        ShowCreateTableExpression,
+        ShowCreateTableStatement,
         ShowCreateViewExpression,
         ShowColumnsExpression,
         ShowIndexExpression,
@@ -82,7 +82,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW CREATE Statements ==========
 
-    def format_show_create_table_expression(self, expr: "ShowCreateTableExpression") -> Tuple[str, tuple]:
+    def format_show_create_table_expression(self, expr: "ShowCreateTableStatement") -> Tuple[str, tuple]:
         """Format SHOW CREATE TABLE statement."""
         params = expr.get_params()
         table_name = params["table_name"]

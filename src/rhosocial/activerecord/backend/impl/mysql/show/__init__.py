@@ -19,7 +19,7 @@ Usage:
 
 from ..expression.show import (
     ShowExpression,
-    ShowCreateTableExpression,
+    ShowCreateTableStatement,
     ShowCreateViewExpression,
     ShowColumnsExpression,
     ShowIndexExpression,
@@ -49,7 +49,7 @@ from .backend_mixin import MySQLShowMixin, AsyncMySQLShowMixin
 __all__ = [
     # Expression classes
     "ShowExpression",
-    "ShowCreateTableExpression",
+    "ShowCreateTableStatement",
     "ShowCreateViewExpression",
     "ShowColumnsExpression",
     "ShowIndexExpression",
