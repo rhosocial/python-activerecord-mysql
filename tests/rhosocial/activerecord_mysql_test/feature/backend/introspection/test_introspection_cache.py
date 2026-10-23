@@ -77,7 +77,7 @@ class TestInvalidateIntrospectionCache:
         # Database cache should be cleared
         db_info2 = backend_with_tables.introspector.get_database_info()
         # Check internal cache was cleared for database scope
-        backend_with_tables.introspector.make_cache_key(IntrospectionScope.DATABASE)
+        backend_with_tables.introspector.cache.key(IntrospectionScope.DATABASE)
         # The new result should be cached now
         assert db_info2 is not None
 
@@ -126,13 +126,13 @@ class TestCacheExpiration:
     def test_cache_ttl(self, backend_with_tables):
         """Test that cache has TTL configured."""
         # Check that TTL is set
-        assert hasattr(backend_with_tables.introspector, "_cache_ttl")
-        assert backend_with_tables.introspector._cache_ttl > 0
+        assert hasattr(backend_with_tables.introspector.cache, "ttl")
+        assert backend_with_tables.introspector.cache.ttl > 0
 
     def test_expired_cache_not_returned(self, mysql_backend_single):
         """Test that expired cache entries are not returned."""
         # Set very short TTL
-        mysql_backend_single.introspector._cache_ttl = 0.01  # 10ms
+        mysql_backend_single.introspector.cache.ttl = 0.01  # 10ms
 
         # Get database info
         db_info1 = mysql_backend_single.introspector.get_database_info()
@@ -151,8 +151,8 @@ class TestCacheThreadSafety:
     """Tests for cache thread safety."""
 
     def test_cache_lock_exists(self, backend_with_tables):
-        """Test that cache lock exists."""
-        assert hasattr(backend_with_tables.introspector, "_cache_lock")
+        """Test that cache lock exists (owned by the cache component)."""
+        assert hasattr(backend_with_tables.introspector.cache, "_lock")
 
     @pytest.mark.skip(
         reason="MySQL connections are not thread-safe; concurrent DB access on a single connection is expected to fail"
@@ -198,7 +198,7 @@ class TestCacheKeys:
 
     def test_cache_key_generation(self, mysql_backend_single):
         """Test that cache keys are generated correctly."""
-        key = mysql_backend_single.introspector.make_cache_key(
+        key = mysql_backend_single.introspector.cache.key(
             IntrospectionScope.TABLE, "users", schema=mysql_backend_single.config.database
         )
 
@@ -207,7 +207,7 @@ class TestCacheKeys:
 
     def test_cache_key_with_extra(self, mysql_backend_single):
         """Test cache key with extra component."""
-        key = mysql_backend_single.introspector.make_cache_key(
+        key = mysql_backend_single.introspector.cache.key(
             IntrospectionScope.TABLE, schema=mysql_backend_single.config.database, extra="True"
         )
 
@@ -216,9 +216,9 @@ class TestCacheKeys:
 
     def test_cache_key_uniqueness(self, mysql_backend_single):
         """Test that different parameters produce different keys."""
-        key1 = mysql_backend_single.introspector.make_cache_key(IntrospectionScope.TABLE, "users")
-        key2 = mysql_backend_single.introspector.make_cache_key(IntrospectionScope.TABLE, "posts")
-        key3 = mysql_backend_single.introspector.make_cache_key(IntrospectionScope.COLUMN, "users")
+        key1 = mysql_backend_single.introspector.cache.key(IntrospectionScope.TABLE, "users")
+        key2 = mysql_backend_single.introspector.cache.key(IntrospectionScope.TABLE, "posts")
+        key3 = mysql_backend_single.introspector.cache.key(IntrospectionScope.COLUMN, "users")
 
         assert key1 != key2
         assert key1 != key3
