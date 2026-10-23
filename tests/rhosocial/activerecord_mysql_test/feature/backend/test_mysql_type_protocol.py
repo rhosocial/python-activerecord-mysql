@@ -1259,7 +1259,7 @@ class TestMediumIntWidth:
         ``SPELLINGS`` is narrowed rather than left inherited: taking
         :class:`IntegerType` would otherwise advertise ``integer`` / ``int``,
         which MySQL does not accept for this width, and
-        ``_check_spelling(data_type, MySQLMediumIntType)`` would then hold a
+        ``check_spelling(data_type, MySQLMediumIntType)`` would then hold a
         MEDIUMINT to a word it is not.
         """
         assert MySQLMediumIntType.SPELLINGS == ("mediumint",)

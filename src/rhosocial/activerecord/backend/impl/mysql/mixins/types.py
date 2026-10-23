@@ -177,7 +177,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         rendered word is MySQL's own canonical one, since ``TINYINT`` is what
         the server reports back from ``SHOW CREATE TABLE``.
         """
-        self._check_spelling(data_type, MySQLTinyIntType)
+        self.check_spelling(data_type, MySQLTinyIntType)
         return self._format_mysql_integer("TINYINT", data_type)
 
     def format_data_type_mysql_smallint(self, data_type: MySQLSmallIntType) -> Tuple[str, tuple]:
@@ -186,7 +186,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         ``SMALLINT`` and ``INT2`` are both MySQL words for the 2-byte type, so
         both are accepted and MySQL's own word is rendered.
         """
-        self._check_spelling(data_type, MySQLSmallIntType)
+        self.check_spelling(data_type, MySQLSmallIntType)
         return self._format_mysql_integer("SMALLINT", data_type)
 
     def format_data_type_mysql_mediumint(self, data_type: MySQLMediumIntType) -> Tuple[str, tuple]:
@@ -203,7 +203,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         no core 3-byte concept to render or inherit, which is why this is a
         ``mysql_``-namespaced class rather than a spelling of an existing one.
         """
-        self._check_spelling(data_type, MySQLMediumIntType)
+        self.check_spelling(data_type, MySQLMediumIntType)
         return self._format_mysql_integer("MEDIUMINT", data_type)
 
     def format_data_type_mysql_int(self, data_type: MySQLIntType) -> Tuple[str, tuple]:
@@ -215,7 +215,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         column carrying ``UNSIGNED`` / ``ZEROFILL`` stays distinguishable from a
         plain ``integer`` in a schema diff — the word ``INT`` is the same.
         """
-        self._check_spelling(data_type, MySQLIntType)
+        self.check_spelling(data_type, MySQLIntType)
         return self._format_mysql_integer("INT", data_type)
 
     def format_data_type_mysql_bigint(self, data_type: MySQLBigIntType) -> Tuple[str, tuple]:
@@ -225,7 +225,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         manual's own table lists ``INT8``), so both are accepted and MySQL's
         canonical word is rendered.
         """
-        self._check_spelling(data_type, MySQLBigIntType)
+        self.check_spelling(data_type, MySQLBigIntType)
         return self._format_mysql_integer("BIGINT", data_type)
 
     def format_data_type_mysql_tinyblob(self, data_type: MySQLTinyBlobType) -> Tuple[str, tuple]:
@@ -235,22 +235,22 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         size variants inherit the core ``BlobType`` spelling list, and MySQL
         writes ``BLOB``, not ``BYTEA``, in every one of them.
         """
-        self._check_spelling(data_type, ("blob",))
+        self.check_spelling(data_type, ("blob",))
         return "TINYBLOB", ()
 
     def format_data_type_mysql_blob(self, data_type: MySQLBlobType) -> Tuple[str, tuple]:
         """``BLOB`` — max 65,535 bytes. ``BYTEA`` refused; see ``mysql_tinyblob``."""
-        self._check_spelling(data_type, ("blob",))
+        self.check_spelling(data_type, ("blob",))
         return "BLOB", ()
 
     def format_data_type_mysql_mediumblob(self, data_type: MySQLMediumBlobType) -> Tuple[str, tuple]:
         """``MEDIUMBLOB`` — max 16,777,215 bytes. ``BYTEA`` refused."""
-        self._check_spelling(data_type, ("blob",))
+        self.check_spelling(data_type, ("blob",))
         return "MEDIUMBLOB", ()
 
     def format_data_type_mysql_longblob(self, data_type: MySQLLongBlobType) -> Tuple[str, tuple]:
         """``LONGBLOB`` — max 4,294,967,295 bytes. ``BYTEA`` refused."""
-        self._check_spelling(data_type, ("blob",))
+        self.check_spelling(data_type, ("blob",))
         return "LONGBLOB", ()
 
     def format_data_type_mysql_tinytext(self, data_type: MySQLTinyTextType) -> Tuple[str, tuple]:
@@ -260,22 +260,22 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         MySQL has no CLOB in any of them, so ``clob`` is refused here exactly
         as it is for the unbounded ``text``.
         """
-        self._check_spelling(data_type, ("text",))
+        self.check_spelling(data_type, ("text",))
         return "TINYTEXT", ()
 
     def format_data_type_mysql_text(self, data_type: MySQLTextType) -> Tuple[str, tuple]:
         """``TEXT`` — max 65,535 bytes. ``CLOB`` refused; see ``mysql_tinytext``."""
-        self._check_spelling(data_type, ("text",))
+        self.check_spelling(data_type, ("text",))
         return "TEXT", ()
 
     def format_data_type_mysql_mediumtext(self, data_type: MySQLMediumTextType) -> Tuple[str, tuple]:
         """``MEDIUMTEXT`` — max 16,777,215 bytes. ``CLOB`` refused."""
-        self._check_spelling(data_type, ("text",))
+        self.check_spelling(data_type, ("text",))
         return "MEDIUMTEXT", ()
 
     def format_data_type_mysql_longtext(self, data_type: MySQLLongTextType) -> Tuple[str, tuple]:
         """``LONGTEXT`` — max 4,294,967,295 bytes. ``CLOB`` refused."""
-        self._check_spelling(data_type, ("text",))
+        self.check_spelling(data_type, ("text",))
         return "LONGTEXT", ()
 
     def format_data_type_mysql_bit(self, data_type: MySQLBitType) -> Tuple[str, tuple]:
@@ -435,7 +435,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self._check_spelling(data_type, IntegerType)
+        self.check_spelling(data_type, IntegerType)
         self._check_unsigned(data_type)
         return (f"INT UNSIGNED" if data_type.unsigned else "INT"), ()
 
@@ -452,7 +452,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self._check_spelling(data_type, BigIntType)
+        self.check_spelling(data_type, BigIntType)
         self._check_unsigned(data_type)
         return ("BIGINT UNSIGNED" if data_type.unsigned else "BIGINT"), ()
 
@@ -469,7 +469,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self._check_spelling(data_type, SmallIntType)
+        self.check_spelling(data_type, SmallIntType)
         self._check_unsigned(data_type)
         return ("SMALLINT UNSIGNED" if data_type.unsigned else "SMALLINT"), ()
 
@@ -486,7 +486,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self._check_spelling(data_type, TinyIntType)
+        self.check_spelling(data_type, TinyIntType)
         self._check_unsigned(data_type)
         return ("TINYINT UNSIGNED" if data_type.unsigned else "TINYINT"), ()
 
@@ -508,7 +508,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         where the caller has no way to tell that from success.
         https://dev.mysql.com/doc/refman/8.4/en/string-type-syntax.html
         """
-        self._check_spelling(data_type, ("varchar",))
+        self.check_spelling(data_type, ("varchar",))
         if data_type.length is None:
             raise ValueError(
                 "MySQL's grammar is VARCHAR(M) with M mandatory, so a VarCharType "
@@ -527,7 +527,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         spelling list too: this framework treats a character set as a *field*,
         not as a type.)
         """
-        self._check_spelling(data_type, ("char",))
+        self.check_spelling(data_type, ("char",))
         return (f"CHAR({data_type.length})" if data_type.length is not None else "CHAR"), ()
 
     def format_data_type_text(self, data_type: TextType) -> Tuple[str, tuple]:
@@ -537,7 +537,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         still renders — a backend may write the concept under its own name but
         must not refuse the spelling every plain ``TextType(d)`` carries.
         """
-        self._check_spelling(data_type, ("text",))
+        self.check_spelling(data_type, ("text",))
         return "TEXT", ()
 
     def format_data_type_boolean(self, data_type: BooleanType) -> Tuple[str, tuple]:
@@ -549,7 +549,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         why :class:`MySQLBitType` is a separate concept: a BIT string is not a
         boolean even at width 1.
         """
-        self._check_spelling(data_type, BooleanType)
+        self.check_spelling(data_type, BooleanType)
         return "TINYINT(1)", ()
 
     def format_data_type_date(self, data_type: DateType) -> Tuple[str, tuple]:
@@ -665,7 +665,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         honoured rather than routed around.
         https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
         """
-        self._check_spelling(data_type, DoubleType)
+        self.check_spelling(data_type, DoubleType)
         self._check_unsigned(data_type)
         return ("DOUBLE UNSIGNED" if data_type.unsigned else "DOUBLE"), ()
 
@@ -703,7 +703,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         out of range is still a ``ValueError`` and is still refused before any
         attribute is appended.
         """
-        self._check_spelling(data_type, DecimalType)
+        self.check_spelling(data_type, DecimalType)
         if data_type.precision is not None and not 1 <= data_type.precision <= 65:
             raise ValueError(
                 f"MySQL DECIMAL precision must be between 1 and 65, "
@@ -742,7 +742,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         at all, so it is refused here. ``BLOB`` — the concept's default
         spelling, and the word MySQL writes — always renders.
         """
-        self._check_spelling(data_type, ("blob",))
+        self.check_spelling(data_type, ("blob",))
         return "BLOB", ()
 
     def format_data_type_custom(self, data_type: CustomType) -> Tuple[str, tuple]:

@@ -86,7 +86,7 @@ class MySQLViewMixin:
 
         query_sql, query_params = expr.query.to_sql()
         if query_params and not self.supports_create_view_bind_parameters():
-            self._refuse_ddl_bind_parameters("CREATE VIEW with bound parameters")
+            self.refuse_ddl_bind_parameters("CREATE VIEW with bound parameters")
         parts.append(f"AS {query_sql}")
 
         if expr.options and expr.options.check_option:
