@@ -13,11 +13,49 @@ if TYPE_CHECKING:
         ViewInfoQueryStatement,
         TriggerListQueryStatement,
     )
+    from ...expression.introspection import (
+        MySQLTableOptionsListQueryStatement,
+        MySQLTableOptionsInfoQueryStatement,
+        MySQLPartitionListQueryStatement,
+    )
 
 
 #: MySQL's own metadata databases. A caller asking for "user tables" does not
 #: mean these four, so they are excluded unless system objects were requested.
 SYSTEM_SCHEMAS = ("information_schema", "performance_schema", "mysql", "sys")
+
+#: The storage-options projection, shared by the list and the single-table
+#: form: one engine's facts about a table, in the order the catalogue reports
+#: them. ``DATA_LENGTH`` and ``INDEX_LENGTH`` are byte estimates for InnoDB.
+TABLE_OPTION_COLUMNS = (
+    "TABLE_SCHEMA",
+    "TABLE_NAME",
+    "ENGINE",
+    "ROW_FORMAT",
+    "TABLE_COLLATION",
+    "AUTO_INCREMENT",
+    "TABLE_COMMENT",
+    "CREATE_OPTIONS",
+    "DATA_LENGTH",
+    "INDEX_LENGTH",
+)
+
+#: The partition projection: one row per partition or subpartition, in the
+#: engine's ordinal order.
+PARTITION_COLUMNS = (
+    "TABLE_SCHEMA",
+    "TABLE_NAME",
+    "PARTITION_NAME",
+    "SUBPARTITION_NAME",
+    "PARTITION_METHOD",
+    "PARTITION_EXPRESSION",
+    "PARTITION_DESCRIPTION",
+    "PARTITION_ORDINAL_POSITION",
+    "SUBPARTITION_ORDINAL_POSITION",
+    "TABLE_ROWS",
+    "DATA_LENGTH",
+    "INDEX_LENGTH",
+)
 
 
 class MySQLIntrospectionMixin:
@@ -458,4 +496,108 @@ class MySQLIntrospectionMixin:
             ],
             conditions,
             [Column(self, "TRIGGER_NAME")],
+        )
+
+    def format_table_options_list_query_statement(
+        self, expr: "MySQLTableOptionsListQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the storage-options query for every base table.
+
+        ``DATA_LENGTH`` and ``INDEX_LENGTH`` are bytes for InnoDB estimates of
+        the clustered index, not exact sizes; the parser repeats the caveat
+        next to the numbers.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+
+        schema = expr.get_params().get("schema") or ""
+
+        return self._information_schema_query(
+            "TABLES",
+            [Column(self, name) for name in TABLE_OPTION_COLUMNS],
+            [
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)
+                ),
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "TABLE_TYPE"),
+                    Literal(self, "BASE TABLE", inline=True),
+                ),
+            ],
+            [Column(self, "TABLE_NAME")],
+        )
+
+    def format_table_options_info_query_statement(
+        self, expr: "MySQLTableOptionsInfoQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the storage-options query for one table."""
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema") or ""
+        table_name = params.get("table_name", "")
+
+        return self._information_schema_query(
+            "TABLES",
+            [Column(self, name) for name in TABLE_OPTION_COLUMNS],
+            [
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)
+                ),
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_NAME"), Literal(self, table_name)
+                ),
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "TABLE_TYPE"),
+                    Literal(self, "BASE TABLE", inline=True),
+                ),
+            ],
+        )
+
+    def format_partition_list_query_statement(
+        self, expr: "MySQLPartitionListQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the partition query for one table.
+
+        ``PARTITION_NAME IS NOT NULL`` drops the row a non-partitioned table
+        always has, so an empty answer means "not partitioned" and nothing
+        weaker than that.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema") or ""
+        table_name = params.get("table_name", "")
+
+        return self._information_schema_query(
+            "PARTITIONS",
+            [Column(self, name) for name in PARTITION_COLUMNS],
+            [
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)
+                ),
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_NAME"), Literal(self, table_name)
+                ),
+                Column(self, "PARTITION_NAME").is_not_null(),
+            ],
+            [
+                Column(self, "PARTITION_ORDINAL_POSITION"),
+                Column(self, "SUBPARTITION_ORDINAL_POSITION"),
+            ],
         )

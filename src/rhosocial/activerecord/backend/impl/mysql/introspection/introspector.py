@@ -17,6 +17,8 @@ Architecture:
 Key behaviours:
   - Queries information_schema.TABLES, COLUMNS, STATISTICS,
     KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS, VIEWS, TRIGGERS
+  - MySQL-only families: ``list_table_options`` / ``get_table_options``
+    (storage options from TABLES) and ``list_partitions`` (from PARTITIONS)
   - _parse_* methods are pure Python — shared by sync and async introspectors
 
 Design principle: Sync and Async are separate and cannot coexist.
@@ -25,7 +27,7 @@ Design principle: Sync and Async are separate and cannot coexist.
 """
 
 import copy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from rhosocial.activerecord.backend.introspection.base import (
     IntrospectorMixin,
@@ -53,6 +55,7 @@ from rhosocial.activerecord.backend.introspection.types import (
     IntrospectionScope,
 )
 from rhosocial.activerecord.backend.expression.types import DataType
+from .types import MySQLPartitionInfo, MySQLTableOptions
 from .show_introspector import (
     SyncShowIntrospector,
     AsyncShowIntrospector,
@@ -280,6 +283,91 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             for row in rows
         ]
 
+    # ------------------------------------------------------------------ #
+    # Table storage options and partitions — SQL generation
+    #
+    # Neither family has a scope of its own in IntrospectionScope, and
+    # neither is the same question as "what tables are there". Both are
+    # therefore asked in IntrospectionScope.TABLE and kept apart from the
+    # table list (and from each other) by a distinct ``extra`` namespace,
+    # which is exactly what ``extra`` exists for.
+    # ------------------------------------------------------------------ #
+
+    def _build_table_options_sql(self, schema: Optional[str]) -> Tuple[str, tuple]:
+        """The storage-options question, as a statement the dialect renders.
+
+        ``DATA_LENGTH`` and ``INDEX_LENGTH`` are reported in bytes; see
+        :class:`MySQLTableOptions` for the caveat about InnoDB estimates.
+        """
+        from ..expression.introspection import MySQLTableOptionsListQueryStatement
+
+        target_db = schema if schema is not None else self._get_default_schema()
+        return MySQLTableOptionsListQueryStatement(self.dialect, schema=target_db).to_sql()
+
+    def _build_table_options_lookup_sql(self, table_name: str, schema: Optional[str]) -> Tuple[str, tuple]:
+        """One table's storage options, rendered through the dialect."""
+        from ..expression.introspection import MySQLTableOptionsInfoQueryStatement
+
+        target_db = schema if schema is not None else self._get_default_schema()
+        return MySQLTableOptionsInfoQueryStatement(
+            self.dialect, table_name=table_name, schema=target_db
+        ).to_sql()
+
+    def _build_partition_list_sql(self, table_name: str, schema: Optional[str]) -> Tuple[str, tuple]:
+        """One table's partitions, rendered through the dialect.
+
+        Rows without a ``PARTITION_NAME`` describe a non-partitioned table
+        and are not partitions, so the predicate excludes them rather than
+        filtering after the fact: an empty result then means exactly "this
+        table is not partitioned".
+        """
+        from ..expression.introspection import MySQLPartitionListQueryStatement
+
+        target_db = schema if schema is not None else self._get_default_schema()
+        return MySQLPartitionListQueryStatement(
+            self.dialect, table_name=table_name, schema=target_db
+        ).to_sql()
+
+    # ------------------------------------------------------------------ #
+    # Table storage options and partitions — parsing
+    # ------------------------------------------------------------------ #
+
+    def _parse_table_options(self, rows: List[Dict[str, Any]]) -> List[MySQLTableOptions]:
+        return [
+            MySQLTableOptions(
+                schema=row.get("TABLE_SCHEMA", ""),
+                table_name=row["TABLE_NAME"],
+                engine=row.get("ENGINE"),
+                row_format=row.get("ROW_FORMAT"),
+                table_collation=row.get("TABLE_COLLATION"),
+                auto_increment=row.get("AUTO_INCREMENT"),
+                table_comment=row.get("TABLE_COMMENT"),
+                create_options=row.get("CREATE_OPTIONS"),
+                data_length=row.get("DATA_LENGTH"),
+                index_length=row.get("INDEX_LENGTH"),
+            )
+            for row in rows
+        ]
+
+    def _parse_partitions(self, rows: List[Dict[str, Any]]) -> List[MySQLPartitionInfo]:
+        return [
+            MySQLPartitionInfo(
+                schema=row.get("TABLE_SCHEMA", ""),
+                table_name=row.get("TABLE_NAME", ""),
+                partition_name=row.get("PARTITION_NAME"),
+                partition_method=row.get("PARTITION_METHOD"),
+                partition_expression=row.get("PARTITION_EXPRESSION"),
+                partition_description=row.get("PARTITION_DESCRIPTION"),
+                partition_ordinal_position=row.get("PARTITION_ORDINAL_POSITION"),
+                subpartition_name=row.get("SUBPARTITION_NAME"),
+                subpartition_ordinal_position=row.get("SUBPARTITION_ORDINAL_POSITION"),
+                table_rows=row.get("TABLE_ROWS"),
+                data_length=row.get("DATA_LENGTH"),
+                index_length=row.get("INDEX_LENGTH"),
+            )
+            for row in rows
+        ]
+
 
 class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
     """Synchronous introspector for MySQL backends.
@@ -341,6 +429,70 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
         self._cache.set(key, table)
         return table
 
+    # ------------------------------------------------------------------ #
+    # MySQL-specific: table storage options and partitions
+    # ------------------------------------------------------------------ #
+
+    def list_table_options(self, schema: Optional[str] = None) -> List[MySQLTableOptions]:
+        """List storage options for every base table in *schema*.
+
+        Answers from ``information_schema.TABLES``: engine, row format,
+        collation, auto-increment counter, comment, extra create options
+        and the server's data/index byte accounting.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE, schema=schema, extra="table_options"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self._build_table_options_sql(schema)
+        result = self._parse_table_options(self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
+    def get_table_options(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> Optional[MySQLTableOptions]:
+        """Return storage options for one base table, or ``None``.
+
+        ``None`` covers both "no such table" and "that name is a view":
+        a view has no storage engine, and reporting a half-empty record
+        as if it were a table would be worse than saying nothing.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE, table_name, schema=schema, extra="table_options"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self._build_table_options_lookup_sql(table_name, schema)
+        result = next(iter(self._parse_table_options(self._executor.execute(sql, params))), None)
+        if result is not None:
+            self._cache.set(key, result)
+        return result
+
+    def list_partitions(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[MySQLPartitionInfo]:
+        """List the partitions of one table, from ``information_schema.PARTITIONS``.
+
+        Returns an empty list for a table that is not partitioned.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE, table_name, schema=schema, extra="partitions"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self._build_partition_list_sql(table_name, schema)
+        result = self._parse_partitions(self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
 
 class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
     """Asynchronous introspector for MySQL backends.
@@ -401,3 +553,68 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
         table.foreign_keys = await self.list_foreign_keys(table_name, schema)
         self._cache.set(key, table)
         return table
+
+    # ------------------------------------------------------------------ #
+    # MySQL-specific: table storage options and partitions
+    # ------------------------------------------------------------------ #
+
+    async def list_table_options(self, schema: Optional[str] = None) -> List[MySQLTableOptions]:
+        """List storage options for every base table in *schema*.
+
+        Answers from ``information_schema.TABLES``: engine, row format,
+        collation, auto-increment counter, comment, extra create options
+        and the server's data/index byte accounting.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE, schema=schema, extra="table_options"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self._build_table_options_sql(schema)
+        result = self._parse_table_options(await self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
+    async def get_table_options(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> Optional[MySQLTableOptions]:
+        """Return storage options for one base table, or ``None``.
+
+        ``None`` covers both "no such table" and "that name is a view":
+        a view has no storage engine, and reporting a half-empty record
+        as if it were a table would be worse than saying nothing.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE, table_name, schema=schema, extra="table_options"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self._build_table_options_lookup_sql(table_name, schema)
+        rows = await self._executor.execute(sql, params)
+        result = next(iter(self._parse_table_options(rows)), None)
+        if result is not None:
+            self._cache.set(key, result)
+        return result
+
+    async def list_partitions(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[MySQLPartitionInfo]:
+        """List the partitions of one table, from ``information_schema.PARTITIONS``.
+
+        Returns an empty list for a table that is not partitioned.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE, table_name, schema=schema, extra="partitions"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self._build_partition_list_sql(table_name, schema)
+        result = self._parse_partitions(await self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
