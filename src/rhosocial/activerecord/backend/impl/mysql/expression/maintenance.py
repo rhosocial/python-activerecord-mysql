@@ -128,7 +128,7 @@ class MySQLTableMaintenanceExpression(BaseExpression):
                 )
 
 
-class MySQLAnalyzeTableExpression(MySQLTableMaintenanceExpression):
+class MySQLAnalyzeTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``ANALYZE TABLE``."""
 
     operation: str = "ANALYZE"
@@ -136,10 +136,10 @@ class MySQLAnalyzeTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_analyze_table_expression"
+        return "format_mysql_analyze_table_statement"
 
 
-class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
+class MySQLCheckTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``CHECK TABLE`` with optional modes."""
 
     operation: str = "CHECK"
@@ -161,11 +161,11 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_check_table_expression"
+        return "format_mysql_check_table_statement"
 
 
 
-class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
+class MySQLChecksumTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``CHECKSUM TABLE`` with optional mode."""
 
     operation: str = "CHECKSUM"
@@ -189,11 +189,11 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_checksum_table_expression"
+        return "format_mysql_checksum_table_statement"
 
 
 
-class MySQLOptimizeTableExpression(MySQLTableMaintenanceExpression):
+class MySQLOptimizeTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``OPTIMIZE TABLE``."""
 
     operation: str = "OPTIMIZE"
@@ -201,10 +201,10 @@ class MySQLOptimizeTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_optimize_table_expression"
+        return "format_mysql_optimize_table_statement"
 
 
-class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
+class MySQLRepairTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``REPAIR TABLE`` with optional modes."""
 
     operation: str = "REPAIR"
@@ -227,4 +227,4 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_repair_table_expression"
+        return "format_mysql_repair_table_statement"

@@ -9,7 +9,7 @@ Tests use the dialect mixin methods to generate SQL, validating our implementati
 import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    MySQLCreateSpatialIndexExpression,
+    MySQLCreateSpatialIndexStatement,
     MySQLSpatialLiteralExpression,
     MySQLSTAsGeoJSONExpression,
     MySQLSTAsTextExpression,
@@ -207,7 +207,7 @@ class TestMySQLSpatialTypeBackend:
 
     @requires_protocol(MySQLSpatialSupport, "supports_spatial_index")
     def test_format_create_spatial_index(self, mysql_backend):
-        """Test format_mysql_create_spatial_index_expression generates valid SQL."""
+        """Test format_mysql_create_spatial_index_statement generates valid SQL."""
         mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_spatial_idx (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -217,7 +217,7 @@ class TestMySQLSpatialTypeBackend:
         """)
 
         dialect = mysql_backend.dialect
-        index_sql, params = MySQLCreateSpatialIndexExpression(
+        index_sql, params = MySQLCreateSpatialIndexStatement(
             dialect, "idx_location", "test_spatial_idx", "location"
         ).to_sql()
 
@@ -341,7 +341,7 @@ class TestAsyncMySQLSpatialTypeBackend:
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport, "supports_spatial_index")
     async def test_async_format_create_spatial_index(self, async_mysql_backend):
-        """Test format_mysql_create_spatial_index_expression generates valid SQL (async)."""
+        """Test format_mysql_create_spatial_index_statement generates valid SQL (async)."""
         await async_mysql_backend.execute("""
             CREATE TEMPORARY TABLE test_async_idx (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -350,7 +350,7 @@ class TestAsyncMySQLSpatialTypeBackend:
         """)
 
         dialect = async_mysql_backend.dialect
-        index_sql, _ = MySQLCreateSpatialIndexExpression(
+        index_sql, _ = MySQLCreateSpatialIndexStatement(
             dialect, "idx_loc", "test_async_idx", "location"
         ).to_sql()
 

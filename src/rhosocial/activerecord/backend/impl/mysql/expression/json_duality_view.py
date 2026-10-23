@@ -80,7 +80,7 @@ class DualityObjectSpec:
     join_condition: Optional[str] = None
 
 
-class CreateJsonDualityViewExpression(BaseExpression):
+class CreateJsonDualityViewStatement(BaseExpression):
     """CREATE JSON RELATIONAL DUALITY VIEW expression (MySQL 9.7+).
 
     Attributes:
@@ -104,11 +104,11 @@ class CreateJsonDualityViewExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_json_duality_view_expression"
+        return "format_create_json_duality_view_statement"
 
 
 
-class DropJsonDualityViewExpression(BaseExpression):
+class DropJsonDualityViewStatement(BaseExpression):
     """DROP VIEW expression for JSON Duality Views.
 
     Uses standard DROP VIEW syntax since MySQL has no special DROP for duality views.
@@ -127,7 +127,7 @@ class DropJsonDualityViewExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_json_duality_view_expression"
+        return "format_drop_json_duality_view_statement"
 
 
 class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValue):

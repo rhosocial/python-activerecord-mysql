@@ -472,7 +472,7 @@ _UNBUILDABLE = {
     # RESET names its option through the enum the constructor normalises
     # through, so the generic guess ("x") is refused at construction rather
     # than at render time.
-    "admin.MySQLResetExpression":
+    "admin.MySQLResetStatement":
         "option must be a ResetOption member or its word; the constructor "
         "normalises through the enum and refuses \"x\" at construction.",
     "statements.ddl_alter.AlterConstraintAction":
@@ -614,7 +614,7 @@ _DECLARED_GAP = {
     ),
     # --- COMMENT ON is SQL-standard/PostgreSQL. ---------------------------
     "statements.ddl_comment.CommentOnStatement": (
-        "format_comment_statement",
+        "format_comment_on_statement",
         "COMMENT ON is SQL-standard/PostgreSQL. MySQL spells a table comment "
         "as a CREATE TABLE option and a column comment inline, which "
         "format_column_definition already renders.",
@@ -652,8 +652,8 @@ _DECLARED_GAP = {
         "XML functions are not in MySQL; no format_passing_clause.",
     ),
     "xml.XMLAggExpression": (
-        "format_xmlagg_expression",
-        "XML functions are not in MySQL; no format_xmlagg_expression.",
+        "format_xml_agg_expression",
+        "XML functions are not in MySQL; no format_xml_agg_expression.",
     ),
     # The four that used to be pinned in _UNBUILDABLE, because the harness read
     # their ``Sequence[X]`` parameter as the catalogue object Sequence and could
@@ -662,36 +662,36 @@ _DECLARED_GAP = {
     # exists. They were unreachable from the matrix before and are accounted for
     # here now, which is the outcome the _UNBUILDABLE rows asked for.
     "xml.XMLAttributesExpression": (
-        "format_xmlattributes_expression",
-        "XML functions are not in MySQL; no format_xmlattributes_expression. "
+        "format_xml_attributes_expression",
+        "XML functions are not in MySQL; no format_xml_attributes_expression. "
         "This row was in _UNBUILDABLE until testsuite stopped reading "
         "attributes: Sequence[XMLAttribute] as the catalogue object Sequence.",
     ),
     "xml.XMLConcatExpression": (
-        "format_xmlconcat_expression",
-        "XML functions are not in MySQL; no format_xmlconcat_expression. This "
+        "format_xml_concat_expression",
+        "XML functions are not in MySQL; no format_xml_concat_expression. This "
         "row was in _UNBUILDABLE until testsuite stopped reading parts: "
         "Sequence[BaseExpression] as the catalogue object Sequence.",
     ),
     "xml.XMLForestExpression": (
-        "format_xmlforest_expression",
-        "XML functions are not in MySQL; no format_xmlforest_expression. This "
+        "format_xml_forest_expression",
+        "XML functions are not in MySQL; no format_xml_forest_expression. This "
         "row was in _UNBUILDABLE until testsuite stopped reading items: "
         "Sequence[XMLForestItem] as the catalogue object Sequence.",
     ),
     "xml.XMLTableExpression": (
-        "format_xmltable_expression",
-        "XML functions are not in MySQL; no format_xmltable_expression. This "
+        "format_xml_table_expression",
+        "XML functions are not in MySQL; no format_xml_table_expression. This "
         "row was in _UNBUILDABLE until testsuite stopped reading columns: "
         "Sequence[XMLTableColumn] as the catalogue object Sequence.",
     ),
     "xml.XMLCommentExpression": (
-        "format_xmlcomment_expression",
-        "XML functions are not in MySQL; no format_xmlcomment_expression.",
+        "format_xml_comment_expression",
+        "XML functions are not in MySQL; no format_xml_comment_expression.",
     ),
     "xml.XMLElementExpression": (
-        "format_xmlelement_expression",
-        "XML functions are not in MySQL; no format_xmlelement_expression.",
+        "format_xml_element_expression",
+        "XML functions are not in MySQL; no format_xml_element_expression.",
     ),
     "xml.XMLExistsPredicate": (
         "format_xmlexists_predicate",
@@ -702,25 +702,25 @@ _DECLARED_GAP = {
         "XML functions are not in MySQL; no format_xmlpi_expression.",
     ),
     "xml.XMLParseExpression": (
-        "format_xmlparse_expression",
-        "XML functions are not in MySQL; no format_xmlparse_expression.",
+        "format_xml_parse_expression",
+        "XML functions are not in MySQL; no format_xml_parse_expression.",
     ),
     "xml.XMLQueryExpression": (
-        "format_xmlquery_expression",
-        "XML functions are not in MySQL; no format_xmlquery_expression.",
+        "format_xml_query_expression",
+        "XML functions are not in MySQL; no format_xml_query_expression.",
     ),
     "xml.XMLRootExpression": (
-        "format_xmlroot_expression",
-        "XML functions are not in MySQL; no format_xmlroot_expression.",
+        "format_xml_root_expression",
+        "XML functions are not in MySQL; no format_xml_root_expression.",
     ),
     "xml.XMLSerializeExpression": (
-        "format_xmlserialize_expression",
-        "XML functions are not in MySQL; no format_xmlserialize_expression.",
+        "format_xml_serialize_expression",
+        "XML functions are not in MySQL; no format_xml_serialize_expression.",
     ),
     # --- The standard spelling of what MySQL renders under its own node. ----
     # Both rows are the honest outcome of splitting one entry into two: this
-    # dialect renders CREATE/DROP FUNCTION through MySQLCreateFunctionExpression
-    # and MySQLDropFunctionExpression, whose contract is the stored routine MySQL
+    # dialect renders CREATE/DROP FUNCTION through MySQLCreateFunctionStatement
+    # and MySQLDropFunctionStatement, whose contract is the stored routine MySQL
     # actually has, and it names no entry for core's SQL/PSM nodes. Those two
     # used to reach the MySQL entry, which read ``expr.name`` off a node that
     # carries ``expr.function`` and raised AttributeError -- a claim of support
@@ -728,13 +728,13 @@ _DECLARED_GAP = {
     "statements.ddl_function.CreateFunctionStatement": (
         "format_create_function_statement",
         "MySQL models CREATE FUNCTION as a stored routine "
-        "(MySQLCreateFunctionExpression, entry format_mysql_create_function_expression); "
+        "(MySQLCreateFunctionStatement, entry format_mysql_create_function_statement); "
         "core's SQL/PSM node carries function/parameters/language, and this "
         "dialect declares no entry for that shape.",
     ),
     "statements.ddl_function.DropFunctionStatement": (
         "format_drop_function_statement",
-        "Same split as CreateFunctionStatement: MySQLDropFunctionExpression "
+        "Same split as CreateFunctionStatement: MySQLDropFunctionStatement "
         "renders DROP FUNCTION; core's node has no entry here.",
     ),
 }
@@ -758,27 +758,27 @@ _NOT_RENDERED = {
         "validate_collation_name refuses a collation it does not know. The "
         "refusal is the right answer to a wrong value.",
     ),
-    "routine.MySQLCallExpression": (
+    "routine.MySQLCallStatement": (
         "TypeError",
         "name must be a Procedure or Function object; the generic constructor "
         "supplies a string. Refusing is the object-kind guard working.",
     ),
-    "routine.MySQLCreateFunctionExpression": (
+    "routine.MySQLCreateFunctionStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
     ),
-    "routine.MySQLCreateProcedureExpression": (
+    "routine.MySQLCreateProcedureStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
     ),
-    "routine.MySQLDropFunctionExpression": (
+    "routine.MySQLDropFunctionStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
     ),
-    "routine.MySQLDropProcedureExpression": (
+    "routine.MySQLDropProcedureStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
@@ -851,22 +851,22 @@ _NOT_RENDERED = {
         "A window specification needs at least one of PARTITION BY / ORDER BY "
         "/ FRAME; the generic constructor supplies none.",
     ),
-    "admin.MySQLFlushExpression": (
+    "admin.MySQLFlushStatement": (
         "ValueError",
         "FLUSH needs at least one option; the generic constructor supplies an "
         "empty list.",
     ),
-    "admin.MySQLHandlerCloseExpression": (
+    "admin.MySQLHandlerCloseStatement": (
         "TypeError",
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    "admin.MySQLHandlerOpenExpression": (
+    "admin.MySQLHandlerOpenStatement": (
         "TypeError",
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    "admin.MySQLHandlerReadExpression": (
+    "admin.MySQLHandlerReadStatement": (
         "TypeError",
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
@@ -948,7 +948,7 @@ _NOT_RENDERED = {
         "Temporal options cannot be empty, and the generic constructor cannot "
         "know which one to pick.",
     ),
-    "json_duality_view.CreateJsonDualityViewExpression": (
+    "json_duality_view.CreateJsonDualityViewStatement": (
         "AttributeError",
         "The JSON duality view takes duality object specs; the generic "
         "constructor supplies strings.",
@@ -966,27 +966,27 @@ _NOT_RENDERED = {
         "subquery must be a duality object select spec; the generic "
         "constructor supplies a string.",
     ),
-    "maintenance.MySQLAnalyzeTableExpression": (
+    "maintenance.MySQLAnalyzeTableStatement": (
         "ValueError",
         "ANALYZE TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLCheckTableExpression": (
+    "maintenance.MySQLCheckTableStatement": (
         "ValueError",
         "CHECK TABLE needs at least one table; the generic constructor supplies "
         "an empty list.",
     ),
-    "maintenance.MySQLChecksumTableExpression": (
+    "maintenance.MySQLChecksumTableStatement": (
         "ValueError",
         "CHECKSUM TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLOptimizeTableExpression": (
+    "maintenance.MySQLOptimizeTableStatement": (
         "ValueError",
         "OPTIMIZE TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLRepairTableExpression": (
+    "maintenance.MySQLRepairTableStatement": (
         "ValueError",
         "REPAIR TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
@@ -1016,7 +1016,7 @@ _NOT_RENDERED = {
         "target_count must be below current_count; the generic constructor "
         "supplies 1 for both.",
     ),
-    "rename_table.MySQLRenameTableExpression": (
+    "rename_table.MySQLRenameTableStatement": (
         "ValueError",
         "renames must be a non-empty list of (old, new) Table pairs; the "
         "generic constructor supplies an empty list.",

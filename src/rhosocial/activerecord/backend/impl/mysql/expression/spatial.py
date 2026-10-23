@@ -252,7 +252,7 @@ class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValue):
         return "format_mysql_st_as_geo_json_expression"
 
 
-class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValue):
+class MySQLCreateSpatialIndexStatement(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL CREATE SPATIAL INDEX expression.
 
     Args:
@@ -281,7 +281,7 @@ class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValu
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_create_spatial_index_expression"
+        return "format_mysql_create_spatial_index_statement"
 
 
 __all__ = [
@@ -293,5 +293,5 @@ __all__ = [
     "MySQLSTGeomFromWKBExpression",
     "MySQLSTAsTextExpression",
     "MySQLSTAsGeoJSONExpression",
-    "MySQLCreateSpatialIndexExpression",
+    "MySQLCreateSpatialIndexStatement",
 ]

@@ -3,8 +3,8 @@
 Tests for MySQL JSON Duality View expression classes (MySQL 9.7+).
 
 Tests SQL generation for:
-- CreateJsonDualityViewExpression
-- DropJsonDualityViewExpression
+- CreateJsonDualityViewStatement
+- DropJsonDualityViewStatement
 - DualityObjectSpec with various tag combinations
 - Nested duality objects
 """
@@ -12,8 +12,8 @@ Tests SQL generation for:
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    CreateJsonDualityViewExpression,
-    DropJsonDualityViewExpression,
+    CreateJsonDualityViewStatement,
+    DropJsonDualityViewStatement,
     DualityObjectSpec,
     DualityColumnMapping,
     DualityNestedMapping,
@@ -55,7 +55,7 @@ class TestCreateJsonDualityViewExpression:
             from_table="users",
             from_alias="t",
         )
-        expr = CreateJsonDualityViewExpression(dialect_97, "users_dv", spec)
+        expr = CreateJsonDualityViewStatement(dialect_97, "users_dv", spec)
         sql, params = expr.to_sql()
 
         assert "CREATE JSON RELATIONAL DUALITY VIEW" in sql
@@ -76,7 +76,7 @@ class TestCreateJsonDualityViewExpression:
             ],
             from_table="orders",
         )
-        expr = CreateJsonDualityViewExpression(dialect_97, "orders_dv", spec)
+        expr = CreateJsonDualityViewStatement(dialect_97, "orders_dv", spec)
         sql, params = expr.to_sql()
 
         assert "WITH(INSERT,UPDATE,DELETE)" in sql
@@ -93,7 +93,7 @@ class TestCreateJsonDualityViewExpression:
             from_table="items",
             from_alias="t",
         )
-        expr = CreateJsonDualityViewExpression(dialect_97, "items_dv", spec)
+        expr = CreateJsonDualityViewStatement(dialect_97, "items_dv", spec)
         sql, _ = expr.to_sql()
 
         assert "WITH(INSERT)" in sql
@@ -107,7 +107,7 @@ class TestCreateJsonDualityViewExpression:
             from_table="products",
             from_alias="t",
         )
-        expr = CreateJsonDualityViewExpression(dialect_97, "products_dv", spec, replace=True)
+        expr = CreateJsonDualityViewStatement(dialect_97, "products_dv", spec, replace=True)
         sql, _ = expr.to_sql()
 
         assert "CREATE OR REPLACE JSON RELATIONAL DUALITY VIEW" in sql
@@ -133,7 +133,7 @@ class TestCreateJsonDualityViewExpression:
             from_table="orders",
             from_alias="o",
         )
-        expr = CreateJsonDualityViewExpression(dialect_97, "orders_full_dv", root_spec)
+        expr = CreateJsonDualityViewStatement(dialect_97, "orders_full_dv", root_spec)
         sql, params = expr.to_sql()
 
         assert "WITH(INSERT,UPDATE,DELETE)" in sql
@@ -149,14 +149,14 @@ class TestDropJsonDualityViewExpression:
     """Test DROP VIEW SQL generation for duality views."""
 
     def test_drop_view(self, dialect_97):
-        expr = DropJsonDualityViewExpression(dialect_97, "orders_dv")
+        expr = DropJsonDualityViewStatement(dialect_97, "orders_dv")
         sql, params = expr.to_sql()
 
         assert sql == "DROP VIEW `orders_dv`"
         assert params == ()
 
     def test_drop_view_if_exists(self, dialect_97):
-        expr = DropJsonDualityViewExpression(dialect_97, "orders_dv", if_exists=True)
+        expr = DropJsonDualityViewStatement(dialect_97, "orders_dv", if_exists=True)
         sql, params = expr.to_sql()
 
         assert sql == "DROP VIEW IF EXISTS `orders_dv`"

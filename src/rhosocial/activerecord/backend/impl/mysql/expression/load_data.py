@@ -2,7 +2,7 @@
 """
 MySQL-specific LOAD DATA expression.
 
-This module provides MySQLLoadDataExpression and LoadDataOptions for
+This module provides MySQLLoadDataStatement and LoadDataOptions for
 MySQL's LOAD DATA INFILE functionality.
 """
 
@@ -19,7 +19,7 @@ class LoadDataOptions(BaseExpression):
     """Options for LOAD DATA INFILE statement, as a node.
 
     A clause node rather than a plain dataclass: ``options`` is a
-    constructor parameter of :class:`MySQLLoadDataExpression`, and a
+    constructor parameter of :class:`MySQLLoadDataStatement`, and a
     parameter is either a language-neutral scalar or an expression
     instance (§10) -- those are the two forms an artifact can carry, and a
     dataclass is neither. Being a node is also what makes the bundle
@@ -90,11 +90,11 @@ class LoadDataOptions(BaseExpression):
         return "format_load_data_options"
 
 
-class MySQLLoadDataExpression(BaseExpression):
+class MySQLLoadDataStatement(BaseExpression):
     """MySQL LOAD DATA INFILE expression.
 
     Collects parameters for LOAD DATA [LOCAL] INFILE statement.
-    The actual SQL formatting is done by MySQLDialect.format_mysql_load_data_expression().
+    The actual SQL formatting is done by MySQLDialect.format_mysql_load_data_statement().
 
     Attributes:
         file_path: Path to the data file
@@ -154,4 +154,4 @@ class MySQLLoadDataExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_load_data_expression"
+        return "format_mysql_load_data_statement"

@@ -97,13 +97,13 @@ class MySQLVectorMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_mysql_create_vector_index_expression(self, expr) -> Tuple[str, tuple]:
-        """Format a :class:`MySQLCreateVectorIndexExpression` node."""
-        from ..expression.vector import MySQLCreateVectorIndexExpression
+    def format_mysql_create_vector_index_statement(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLCreateVectorIndexStatement` node."""
+        from ..expression.vector import MySQLCreateVectorIndexStatement
 
-        if not isinstance(expr, MySQLCreateVectorIndexExpression):
+        if not isinstance(expr, MySQLCreateVectorIndexStatement):
             raise TypeError(
-                f"format_mysql_create_vector_index_expression expects MySQLCreateVectorIndexExpression, "
+                f"format_mysql_create_vector_index_statement expects MySQLCreateVectorIndexStatement, "
                 f"got {type(expr).__name__}"
             )
 

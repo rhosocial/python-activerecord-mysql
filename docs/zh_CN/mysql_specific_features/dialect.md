@@ -207,7 +207,7 @@ MySQL 方言支持标准化的日期时间间隔表达式：
 ```python
 from rhosocial.activerecord.backend.expression.datetime import (
     ExtractExpression, DateTimeField, IntervalExpression, IntervalUnit,
-    DateTimeAddExpression, DateTimeSubtractExpression, DateTimeDiffExpression,
+    DatetimeAddExpression, DatetimeSubtractExpression, DatetimeDiffExpression,
 )
 
 # EXTRACT
@@ -219,17 +219,17 @@ interval = IntervalExpression(dialect, 7, IntervalUnit.DAY)
 # 生成: INTERVAL 7 DAY
 
 # 日期加法
-expr = DateTimeAddExpression(dialect, Column(dialect, "created_at"),
+expr = DatetimeAddExpression(dialect, Column(dialect, "created_at"),
                              IntervalExpression(dialect, 30, IntervalUnit.DAY))
 # 生成: DATE_ADD(`created_at`, INTERVAL 30 DAY)
 
 # 日期减法
-expr = DateTimeSubtractExpression(dialect, Column(dialect, "created_at"),
+expr = DatetimeSubtractExpression(dialect, Column(dialect, "created_at"),
                                   IntervalExpression(dialect, 7, IntervalUnit.DAY))
 # 生成: DATE_SUB(`created_at`, INTERVAL 7 DAY)
 
 # 日期差
-expr = DateTimeDiffExpression(dialect, DateTimeField.DAY,
+expr = DatetimeDiffExpression(dialect, DateTimeField.DAY,
                               Column(dialect, "start"), Column(dialect, "end"))
 # 生成: TIMESTAMPDIFF(DAY, `start`, `end`)
 ```
@@ -264,12 +264,12 @@ MySQL 9.7+ 支持 JSON 二象性视图（JSON Duality View）：
 
 ```python
 from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-    CreateJsonDualityViewExpression, DropJsonDualityViewExpression,
+    CreateJsonDualityViewStatement, DropJsonDualityViewStatement,
     DualityObjectSpec, DualityDMLTag, DualityColumnMapping,
 )
 
 # 创建 JSON 二象性视图
-create = CreateJsonDualityViewExpression(
+create = CreateJsonDualityViewStatement(
     dialect,
     view_name="user_details",
     root_spec=DualityObjectSpec(

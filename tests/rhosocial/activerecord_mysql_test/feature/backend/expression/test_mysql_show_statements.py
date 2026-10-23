@@ -22,29 +22,29 @@ import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression.show import (
-    ShowBinaryLogsExpression,
-    ShowCharsetExpression,
-    ShowCollationExpression,
-    ShowColumnsExpression,
+    ShowBinaryLogsStatement,
+    ShowCharsetStatement,
+    ShowCollationStatement,
+    ShowColumnsStatement,
     ShowCreateTableStatement,
-    ShowCreateTriggerExpression,
-    ShowCreateViewExpression,
-    ShowDatabasesExpression,
-    ShowEnginesExpression,
-    ShowErrorsExpression,
+    ShowCreateTriggerStatement,
+    ShowCreateViewStatement,
+    ShowDatabasesStatement,
+    ShowEnginesStatement,
+    ShowErrorsStatement,
     ShowExpression,
-    ShowGrantsExpression,
-    ShowIndexExpression,
-    ShowMasterStatusExpression,
-    ShowPluginsExpression,
-    ShowProcessListExpression,
-    ShowSlaveStatusExpression,
-    ShowStatusExpression,
-    ShowTableStatusExpression,
-    ShowTablesExpression,
-    ShowTriggersExpression,
-    ShowVariablesExpression,
-    ShowWarningsExpression,
+    ShowGrantsStatement,
+    ShowIndexStatement,
+    ShowMasterStatusStatement,
+    ShowPluginsStatement,
+    ShowProcessListStatement,
+    ShowSlaveStatusStatement,
+    ShowStatusStatement,
+    ShowTableStatusStatement,
+    ShowTablesStatement,
+    ShowTriggersStatement,
+    ShowVariablesStatement,
+    ShowWarningsStatement,
 )
 
 
@@ -68,27 +68,27 @@ class TestConstructorOnly:
         "build",
         [
             lambda d: ShowCreateTableStatement(d, "t"),
-            lambda d: ShowCreateViewExpression(d, "v"),
-            lambda d: ShowColumnsExpression(d, "t", full=True, like_pattern="id%"),
-            lambda d: ShowIndexExpression(d, "t"),
-            lambda d: ShowTablesExpression(d, full=True, like_pattern="t%"),
-            lambda d: ShowDatabasesExpression(d, like_pattern="a%"),
-            lambda d: ShowTableStatusExpression(d, like_pattern="t%"),
-            lambda d: ShowTriggersExpression(d, table_name="t"),
-            lambda d: ShowCreateTriggerExpression(d, "trg"),
-            lambda d: ShowVariablesExpression(d, like_pattern="max%"),
-            lambda d: ShowStatusExpression(d, like_pattern="Ssl_version", session=False),
-            lambda d: ShowProcessListExpression(d, full=True),
-            lambda d: ShowWarningsExpression(d, limit=3),
-            lambda d: ShowErrorsExpression(d, limit=3),
-            lambda d: ShowEnginesExpression(d),
-            lambda d: ShowCharsetExpression(d, like_pattern="utf%"),
-            lambda d: ShowCollationExpression(d, like_pattern="utf8%"),
-            lambda d: ShowGrantsExpression(d, user="root", host="localhost"),
-            lambda d: ShowPluginsExpression(d),
-            lambda d: ShowBinaryLogsExpression(d),
-            lambda d: ShowMasterStatusExpression(d),
-            lambda d: ShowSlaveStatusExpression(d),
+            lambda d: ShowCreateViewStatement(d, "v"),
+            lambda d: ShowColumnsStatement(d, "t", full=True, like_pattern="id%"),
+            lambda d: ShowIndexStatement(d, "t"),
+            lambda d: ShowTablesStatement(d, full=True, like_pattern="t%"),
+            lambda d: ShowDatabasesStatement(d, like_pattern="a%"),
+            lambda d: ShowTableStatusStatement(d, like_pattern="t%"),
+            lambda d: ShowTriggersStatement(d, table_name="t"),
+            lambda d: ShowCreateTriggerStatement(d, "trg"),
+            lambda d: ShowVariablesStatement(d, like_pattern="max%"),
+            lambda d: ShowStatusStatement(d, like_pattern="Ssl_version", session=False),
+            lambda d: ShowProcessListStatement(d, full=True),
+            lambda d: ShowWarningsStatement(d, limit=3),
+            lambda d: ShowErrorsStatement(d, limit=3),
+            lambda d: ShowEnginesStatement(d),
+            lambda d: ShowCharsetStatement(d, like_pattern="utf%"),
+            lambda d: ShowCollationStatement(d, like_pattern="utf8%"),
+            lambda d: ShowGrantsStatement(d, user="root", host="localhost"),
+            lambda d: ShowPluginsStatement(d),
+            lambda d: ShowBinaryLogsStatement(d),
+            lambda d: ShowMasterStatusStatement(d),
+            lambda d: ShowSlaveStatusStatement(d),
         ],
         ids=lambda build: build(MySQLDialect(version=(8, 0, 0))).__class__.__name__,
     )
@@ -112,11 +112,11 @@ class TestShowCreate:
         assert sql == "SHOW CREATE TABLE `app`.`users`"
 
     def test_view(self, dialect):
-        sql, _ = ShowCreateViewExpression(dialect, "v", schema="app").to_sql()
+        sql, _ = ShowCreateViewStatement(dialect, "v", schema="app").to_sql()
         assert sql == "SHOW CREATE VIEW `app`.`v`"
 
     def test_trigger(self, dialect):
-        sql, _ = ShowCreateTriggerExpression(dialect, "trg").to_sql()
+        sql, _ = ShowCreateTriggerStatement(dialect, "trg").to_sql()
         assert sql == "SHOW CREATE TRIGGER `trg`"
 
 
@@ -124,45 +124,45 @@ class TestShowColumnsAndIndex:
     """The pattern is bound; FULL and the verb are spelled, not parameterised."""
 
     def test_plain(self, dialect):
-        sql, params = ShowColumnsExpression(dialect, "users", schema="app").to_sql()
+        sql, params = ShowColumnsStatement(dialect, "users", schema="app").to_sql()
         assert sql == "SHOW COLUMNS FROM `app`.`users`"
         assert params == ()
 
     def test_full_and_like(self, dialect):
-        sql, params = ShowColumnsExpression(
+        sql, params = ShowColumnsStatement(
             dialect, "users", full=True, like_pattern="id%"
         ).to_sql()
         assert sql == "SHOW FULL COLUMNS FROM `users` LIKE %s"
         assert params == ("id%",)
 
     def test_index(self, dialect):
-        sql, params = ShowIndexExpression(dialect, "users", schema="app").to_sql()
+        sql, params = ShowIndexStatement(dialect, "users", schema="app").to_sql()
         assert sql == "SHOW INDEX FROM `app`.`users`"
         assert params == ()
 
 
 class TestShowTablesAndDatabases:
     def test_tables_full_like_and_schema(self, dialect):
-        sql, params = ShowTablesExpression(
+        sql, params = ShowTablesStatement(
             dialect, schema="app", full=True, like_pattern="u%"
         ).to_sql()
         assert sql == "SHOW FULL TABLES FROM `app` LIKE %s"
         assert params == ("u%",)
 
     def test_tables_without_filters(self, dialect):
-        assert ShowTablesExpression(dialect).to_sql() == ("SHOW TABLES", ())
+        assert ShowTablesStatement(dialect).to_sql() == ("SHOW TABLES", ())
 
     def test_databases_like(self, dialect):
-        assert ShowDatabasesExpression(dialect, like_pattern="a%").to_sql() == (
+        assert ShowDatabasesStatement(dialect, like_pattern="a%").to_sql() == (
             "SHOW DATABASES LIKE %s",
             ("a%",),
         )
 
     def test_databases_without_pattern(self, dialect):
-        assert ShowDatabasesExpression(dialect).to_sql() == ("SHOW DATABASES", ())
+        assert ShowDatabasesStatement(dialect).to_sql() == ("SHOW DATABASES", ())
 
     def test_table_status(self, dialect):
-        assert ShowTableStatusExpression(dialect, schema="app", like_pattern="u%").to_sql() == (
+        assert ShowTableStatusStatement(dialect, schema="app", like_pattern="u%").to_sql() == (
             "SHOW TABLE STATUS FROM `app` LIKE %s",
             ("u%",),
         )
@@ -172,24 +172,24 @@ class TestShowVariablesAndStatus:
     """Session is the default; the GLOBAL word is the difference."""
 
     def test_variables_session(self, dialect):
-        assert ShowVariablesExpression(dialect, like_pattern="max%").to_sql() == (
+        assert ShowVariablesStatement(dialect, like_pattern="max%").to_sql() == (
             "SHOW VARIABLES LIKE %s",
             ("max%",),
         )
 
     def test_variables_global(self, dialect):
-        assert ShowVariablesExpression(
+        assert ShowVariablesStatement(
             dialect, like_pattern="gtid_executed", session=False
         ).to_sql() == ("SHOW GLOBAL VARIABLES LIKE %s", ("gtid_executed",))
 
     def test_status_session(self, dialect):
-        assert ShowStatusExpression(dialect, like_pattern="Ssl_version").to_sql() == (
+        assert ShowStatusStatement(dialect, like_pattern="Ssl_version").to_sql() == (
             "SHOW STATUS LIKE %s",
             ("Ssl_version",),
         )
 
     def test_status_global(self, dialect):
-        assert ShowStatusExpression(dialect, like_pattern="Ssl_version", session=False).to_sql() == (
+        assert ShowStatusStatement(dialect, like_pattern="Ssl_version", session=False).to_sql() == (
             "SHOW GLOBAL STATUS LIKE %s",
             ("Ssl_version",),
         )
@@ -199,13 +199,13 @@ class TestShowTriggers:
     """``SHOW TRIGGERS`` filters by table through LIKE, not through a clause."""
 
     def test_all(self, dialect):
-        assert ShowTriggersExpression(dialect, schema="app").to_sql() == (
+        assert ShowTriggersStatement(dialect, schema="app").to_sql() == (
             "SHOW TRIGGERS FROM `app`",
             (),
         )
 
     def test_one_table(self, dialect):
-        assert ShowTriggersExpression(dialect, schema="app", table_name="users").to_sql() == (
+        assert ShowTriggersStatement(dialect, schema="app", table_name="users").to_sql() == (
             "SHOW TRIGGERS FROM `app` LIKE %s",
             ("users",),
         )
@@ -215,22 +215,22 @@ class TestLimitAndFull:
     """The count is a literal: the grammar takes a number, not a bind slot."""
 
     def test_processlist(self, dialect):
-        assert ShowProcessListExpression(dialect).to_sql() == ("SHOW PROCESSLIST", ())
+        assert ShowProcessListStatement(dialect).to_sql() == ("SHOW PROCESSLIST", ())
 
     def test_full_processlist(self, dialect):
-        assert ShowProcessListExpression(dialect, full=True).to_sql() == (
+        assert ShowProcessListStatement(dialect, full=True).to_sql() == (
             "SHOW FULL PROCESSLIST",
             (),
         )
 
     def test_warnings_limit_is_inline(self, dialect):
-        assert ShowWarningsExpression(dialect, limit=10).to_sql() == (
+        assert ShowWarningsStatement(dialect, limit=10).to_sql() == (
             "SHOW WARNINGS LIMIT 10",
             (),
         )
 
     def test_errors_limit_is_inline(self, dialect):
-        assert ShowErrorsExpression(dialect, limit=5).to_sql() == (
+        assert ShowErrorsStatement(dialect, limit=5).to_sql() == (
             "SHOW ERRORS LIMIT 5",
             (),
         )
@@ -242,11 +242,11 @@ class TestParameterless:
     @pytest.mark.parametrize(
         "node, expected",
         [
-            (ShowEnginesExpression, "SHOW ENGINES"),
-            (ShowPluginsExpression, "SHOW PLUGINS"),
-            (ShowBinaryLogsExpression, "SHOW BINARY LOGS"),
-            (ShowMasterStatusExpression, "SHOW MASTER STATUS"),
-            (ShowSlaveStatusExpression, "SHOW SLAVE STATUS"),
+            (ShowEnginesStatement, "SHOW ENGINES"),
+            (ShowPluginsStatement, "SHOW PLUGINS"),
+            (ShowBinaryLogsStatement, "SHOW BINARY LOGS"),
+            (ShowMasterStatusStatement, "SHOW MASTER STATUS"),
+            (ShowSlaveStatusStatement, "SHOW SLAVE STATUS"),
         ],
         ids=lambda value: getattr(value, "__name__", ""),
     )
@@ -256,16 +256,16 @@ class TestParameterless:
 
 class TestGrants:
     def test_current_account(self, dialect):
-        assert ShowGrantsExpression(dialect).to_sql() == ("SHOW GRANTS", ())
+        assert ShowGrantsStatement(dialect).to_sql() == ("SHOW GRANTS", ())
 
     def test_named_account(self, dialect):
-        assert ShowGrantsExpression(dialect, user="root", host="localhost").to_sql() == (
+        assert ShowGrantsStatement(dialect, user="root", host="localhost").to_sql() == (
             "SHOW GRANTS FOR %s@%s",
             ("root", "localhost"),
         )
 
     def test_user_without_host(self, dialect):
-        assert ShowGrantsExpression(dialect, user="root").to_sql() == (
+        assert ShowGrantsStatement(dialect, user="root").to_sql() == (
             "SHOW GRANTS FOR %s",
             ("root",),
         )
@@ -273,13 +273,13 @@ class TestGrants:
 
 class TestCharsetAndCollation:
     def test_charset(self, dialect):
-        assert ShowCharsetExpression(dialect, like_pattern="utf%").to_sql() == (
+        assert ShowCharsetStatement(dialect, like_pattern="utf%").to_sql() == (
             "SHOW CHARACTER SET LIKE %s",
             ("utf%",),
         )
 
     def test_collation(self, dialect):
-        assert ShowCollationExpression(dialect, like_pattern="utf8%").to_sql() == (
+        assert ShowCollationStatement(dialect, like_pattern="utf8%").to_sql() == (
             "SHOW COLLATION LIKE %s",
             ("utf8%",),
         )

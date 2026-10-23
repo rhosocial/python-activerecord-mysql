@@ -215,7 +215,7 @@ class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValue):
         return "format_mysql_vector_dim_expression"
 
 
-class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue):
+class MySQLCreateVectorIndexStatement(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL CREATE VECTOR INDEX expression.
 
     Args:
@@ -244,7 +244,7 @@ class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_create_vector_index_expression"
+        return "format_mysql_create_vector_index_statement"
 
 
 __all__ = [
@@ -255,5 +255,5 @@ __all__ = [
     "MySQLStringToVectorExpression",
     "MySQLVectorToStringExpression",
     "MySQLVectorDimExpression",
-    "MySQLCreateVectorIndexExpression",
+    "MySQLCreateVectorIndexStatement",
 ]

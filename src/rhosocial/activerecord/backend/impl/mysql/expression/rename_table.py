@@ -23,7 +23,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLRenameTableExpression(BaseExpression):
+class MySQLRenameTableStatement(BaseExpression):
     """Represent a MySQL ``RENAME TABLE ...`` atomic multi-table statement.
 
     Attributes:
@@ -78,4 +78,4 @@ class MySQLRenameTableExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_rename_table_expression"
+        return "format_mysql_rename_table_statement"

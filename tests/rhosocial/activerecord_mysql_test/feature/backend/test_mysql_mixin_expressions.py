@@ -37,7 +37,7 @@ from rhosocial.activerecord.backend.expression.objects import Function, Table, T
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
     LoadDataOptions,
-    MySQLLoadDataExpression,
+    MySQLLoadDataStatement,
 )
 from rhosocial.activerecord.backend.expression import (
     ForUpdateClause,
@@ -87,7 +87,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.vector import (
     MySQLVectorExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    MySQLCreateSpatialIndexExpression,
+    MySQLCreateSpatialIndexStatement,
     MySQLFindInSetExpression,
     MySQLFulltextIndexOptionsExpression,
     MySQLJSONArrayExpression,
@@ -119,7 +119,7 @@ class TestMySQLDMLOperationExpressions:
     def test_load_data_basic(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="/tmp/data.csv", table=Table(dialect, "users")
         )
         sql, params = expr.to_sql()
@@ -131,7 +131,7 @@ class TestMySQLDMLOperationExpressions:
     def test_load_data_qualified_database(self):
         """LOAD DATA can name a database it previously had no way to express."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "products", catalog_name="warehouse")
         )
         sql, _ = expr.to_sql()
@@ -140,7 +140,7 @@ class TestMySQLDMLOperationExpressions:
     def test_load_data_local_replace(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         options = LoadDataOptions(dialect, local=True, replace=True)
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "products"), options=options
         )
         sql, params = expr.to_sql()
@@ -149,7 +149,7 @@ class TestMySQLDMLOperationExpressions:
     def test_load_data_ignore(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         options = LoadDataOptions(dialect, local=True, ignore=True)
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "products"), options=options
         )
         sql, params = expr.to_sql()
@@ -168,7 +168,7 @@ class TestMySQLDMLOperationExpressions:
             ignore_lines=1,
             set_assignments={"created_at": "NOW()"},
         )
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="/tmp/import.csv", table=Table(dialect, "logs"), options=options
         )
         sql, params = expr.to_sql()
@@ -185,7 +185,7 @@ class TestMySQLDMLOperationExpressions:
     def test_load_data_validate_replaces_ignore_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         options = LoadDataOptions(dialect, replace=True, ignore=True)
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "t"), options=options
         )
         with pytest.raises(ValueError, match="Cannot use both REPLACE and IGNORE"):
@@ -193,7 +193,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_path_with_escape(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect, file_path="/path/with'quote.csv", table=Table(dialect, "t")
         )
         sql, params = expr.to_sql()
@@ -1126,7 +1126,7 @@ class TestMySQLSpatialExpressions:
 
     def test_create_spatial_index(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLCreateSpatialIndexExpression(dialect, "idx_spatial", "t", "geom")
+        expr = MySQLCreateSpatialIndexStatement(dialect, "idx_spatial", "t", "geom")
         sql, params = expr.to_sql()
         assert "CREATE SPATIAL INDEX" in sql
         assert "`idx_spatial`" in sql
@@ -1135,7 +1135,7 @@ class TestMySQLSpatialExpressions:
 
     def test_create_spatial_index_multi_column(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        expr = MySQLCreateSpatialIndexExpression(
+        expr = MySQLCreateSpatialIndexStatement(
             dialect, "idx_spatial", "t", "geom1, geom2"
         )
         sql, params = expr.to_sql()
@@ -1320,7 +1320,7 @@ class TestMySQLJsonDualityViewExpressions:
     def test_create_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            CreateJsonDualityViewExpression,
+            CreateJsonDualityViewStatement,
             DualityObjectSpec,
             DualityColumnMapping,
             DualityViewDMLTag,
@@ -1333,7 +1333,7 @@ class TestMySQLJsonDualityViewExpressions:
             ],
             tags=[DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE],
         )
-        expr = CreateJsonDualityViewExpression(
+        expr = CreateJsonDualityViewStatement(
             dialect=dialect, view_name="my_view", root_spec=spec
         )
         sql, params = expr.to_sql()
@@ -1342,7 +1342,7 @@ class TestMySQLJsonDualityViewExpressions:
     def test_create_or_replace_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            CreateJsonDualityViewExpression,
+            CreateJsonDualityViewStatement,
             DualityObjectSpec,
             DualityColumnMapping,
         )
@@ -1352,7 +1352,7 @@ class TestMySQLJsonDualityViewExpressions:
                 DualityColumnMapping(json_key="userId", column_expr="id"),
             ],
         )
-        expr = CreateJsonDualityViewExpression(
+        expr = CreateJsonDualityViewStatement(
             dialect=dialect, view_name="my_view", root_spec=spec, replace=True
         )
         sql, params = expr.to_sql()
@@ -1361,18 +1361,18 @@ class TestMySQLJsonDualityViewExpressions:
     def test_drop_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            DropJsonDualityViewExpression,
+            DropJsonDualityViewStatement,
         )
-        expr = DropJsonDualityViewExpression(dialect=dialect, view_name="my_view")
+        expr = DropJsonDualityViewStatement(dialect=dialect, view_name="my_view")
         sql, params = expr.to_sql()
         assert sql == "DROP VIEW `my_view`"
 
     def test_drop_duality_view_if_exists(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            DropJsonDualityViewExpression,
+            DropJsonDualityViewStatement,
         )
-        expr = DropJsonDualityViewExpression(
+        expr = DropJsonDualityViewStatement(
             dialect=dialect, view_name="my_view", if_exists=True
         )
         sql, params = expr.to_sql()
@@ -1381,7 +1381,7 @@ class TestMySQLJsonDualityViewExpressions:
     def test_duality_view_with_nested(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            CreateJsonDualityViewExpression,
+            CreateJsonDualityViewStatement,
             DualityColumnMapping,
             DualityNestedMapping,
             DualityObjectSpec,
@@ -1402,7 +1402,7 @@ class TestMySQLJsonDualityViewExpressions:
             ],
             nested=[nested],
         )
-        expr = CreateJsonDualityViewExpression(
+        expr = CreateJsonDualityViewStatement(
             dialect=dialect, view_name="user_view", root_spec=spec
         )
         sql, params = expr.to_sql()

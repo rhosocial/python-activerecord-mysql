@@ -4,14 +4,14 @@ from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.introspection.types import IntrospectionScope
     from rhosocial.activerecord.backend.expression.introspection import (
-        DatabaseInfoExpression,
-        TableListExpression,
-        ColumnInfoExpression,
-        IndexInfoExpression,
-        ForeignKeyExpression,
-        ViewListExpression,
-        ViewInfoExpression,
-        TriggerListExpression,
+        DatabaseInfoQueryStatement,
+        TableListQueryStatement,
+        ColumnInfoQueryStatement,
+        IndexInfoQueryStatement,
+        ForeignKeyQueryStatement,
+        ViewListQueryStatement,
+        ViewInfoQueryStatement,
+        TriggerListQueryStatement,
     )
 
 
@@ -144,7 +144,7 @@ class MySQLIntrospectionMixin:
             kwargs["order_by"] = OrderByClause(self, order_by)
         return QueryStatement(self, **kwargs).to_sql()
 
-    def format_database_info_query(self, expr: "DatabaseInfoExpression") -> Tuple[str, tuple]:
+    def format_database_info_query_statement(self, expr: "DatabaseInfoQueryStatement") -> Tuple[str, tuple]:
         """Format database information query."""
         from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
 
@@ -160,7 +160,7 @@ class MySQLIntrospectionMixin:
             [ComparisonPredicate(self, "eq", Column(self, "SCHEMA_NAME"), Literal(self, schema))],
         )
 
-    def format_table_list_query(self, expr: "TableListExpression") -> Tuple[str, tuple]:
+    def format_table_list_query_statement(self, expr: "TableListQueryStatement") -> Tuple[str, tuple]:
         """Format table list query."""
         from rhosocial.activerecord.backend.expression import (
             Column,
@@ -226,7 +226,7 @@ class MySQLIntrospectionMixin:
             conditions,
         )
 
-    def format_column_info_query(self, expr: "ColumnInfoExpression") -> Tuple[str, tuple]:
+    def format_column_info_query_statement(self, expr: "ColumnInfoQueryStatement") -> Tuple[str, tuple]:
         """Format column information query."""
         from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
 
@@ -259,7 +259,7 @@ class MySQLIntrospectionMixin:
             [Column(self, "ORDINAL_POSITION")],
         )
 
-    def format_index_info_query(self, expr: "IndexInfoExpression") -> Tuple[str, tuple]:
+    def format_index_info_query_statement(self, expr: "IndexInfoQueryStatement") -> Tuple[str, tuple]:
         """Format index information query."""
         from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
 
@@ -285,7 +285,7 @@ class MySQLIntrospectionMixin:
             [Column(self, "INDEX_NAME"), Column(self, "SEQ_IN_INDEX")],
         )
 
-    def format_foreign_key_query(self, expr: "ForeignKeyExpression") -> Tuple[str, tuple]:
+    def format_foreign_key_query_statement(self, expr: "ForeignKeyQueryStatement") -> Tuple[str, tuple]:
         """Format foreign key information query."""
         from rhosocial.activerecord.backend.expression import (
             Column,
@@ -364,7 +364,7 @@ class MySQLIntrospectionMixin:
             source=join,
         )
 
-    def format_view_list_query(self, expr: "ViewListExpression") -> Tuple[str, tuple]:
+    def format_view_list_query_statement(self, expr: "ViewListQueryStatement") -> Tuple[str, tuple]:
         """Format view list query."""
         from rhosocial.activerecord.backend.expression import (
             Column,
@@ -406,7 +406,7 @@ class MySQLIntrospectionMixin:
             [Column(self, "TABLE_NAME")],
         )
 
-    def format_view_info_query(self, expr: "ViewInfoExpression") -> Tuple[str, tuple]:
+    def format_view_info_query_statement(self, expr: "ViewInfoQueryStatement") -> Tuple[str, tuple]:
         """Format single view information query."""
         from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
 
@@ -428,7 +428,7 @@ class MySQLIntrospectionMixin:
             ],
         )
 
-    def format_trigger_list_query(self, expr: "TriggerListExpression") -> Tuple[str, tuple]:
+    def format_trigger_list_query_statement(self, expr: "TriggerListQueryStatement") -> Tuple[str, tuple]:
         """Format trigger list query."""
         from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
 

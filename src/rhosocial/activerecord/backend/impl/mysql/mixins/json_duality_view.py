@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-        CreateJsonDualityViewExpression,
-        DropJsonDualityViewExpression,
+        CreateJsonDualityViewStatement,
+        DropJsonDualityViewStatement,
     )
 
 
@@ -17,7 +17,7 @@ class MySQLJsonDualityViewMixin:
     def supports_json_duality_view_dml(self) -> bool:
         return self.version >= (9, 7, 0)
 
-    def format_create_json_duality_view_expression(self, expr: "CreateJsonDualityViewExpression") -> Tuple[str, tuple]:
+    def format_create_json_duality_view_statement(self, expr: "CreateJsonDualityViewStatement") -> Tuple[str, tuple]:
         """Format CREATE JSON RELATIONAL DUALITY VIEW statement."""
         parts = []
         if expr.replace:
@@ -32,7 +32,7 @@ class MySQLJsonDualityViewMixin:
 
         return " ".join(parts), ()
 
-    def format_drop_json_duality_view_expression(self, expr: "DropJsonDualityViewExpression") -> Tuple[str, tuple]:
+    def format_drop_json_duality_view_statement(self, expr: "DropJsonDualityViewStatement") -> Tuple[str, tuple]:
         """Format DROP VIEW for a JSON Duality View."""
         if expr.if_exists:
             return f"DROP VIEW IF EXISTS `{expr.view_name}`", ()

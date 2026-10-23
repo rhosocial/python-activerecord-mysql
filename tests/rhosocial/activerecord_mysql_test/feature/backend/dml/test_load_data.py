@@ -13,7 +13,7 @@ import pytest
 import pytest_asyncio
 
 from rhosocial.activerecord.backend.expression.objects import Table
-from rhosocial.activerecord.backend.impl.mysql.expression import MySQLLoadDataExpression, LoadDataOptions
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLLoadDataStatement, LoadDataOptions
 
 
 class TestMySQLLoadData:
@@ -39,8 +39,8 @@ class TestMySQLLoadData:
         assert mysql_backend.dialect.supports_load_data() is True
 
     def test_load_data_expression_basic(self, mysql_backend):
-        """Test basic MySQLLoadDataExpression generation."""
-        expr = MySQLLoadDataExpression(
+        """Test basic MySQLLoadDataStatement generation."""
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -54,7 +54,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_qualified_database(self, mysql_backend):
         """A database qualifier is expressible; a bare string could never carry one."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users", catalog_name="other_db"),
@@ -65,7 +65,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_local(self, mysql_backend):
         """Test LOAD DATA LOCAL expression."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -77,7 +77,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_fields_terminated(self, mysql_backend):
         """Test LOAD DATA with custom field terminator."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -89,7 +89,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_ignore_lines(self, mysql_backend):
         """Test LOAD DATA with IGNORE n LINES."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -101,7 +101,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_replace_mode(self, mysql_backend):
         """Test LOAD DATA with REPLACE mode."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -113,7 +113,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_ignore_mode(self, mysql_backend):
         """Test LOAD DATA with IGNORE mode."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -126,7 +126,7 @@ class TestMySQLLoadData:
 
     def test_load_data_replace_and_ignore_mutually_exclusive(self, mysql_backend):
         """Test that REPLACE and IGNORE are mutually exclusive."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -138,7 +138,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_with_columns(self, mysql_backend):
         """Test LOAD DATA with column list."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -150,7 +150,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_with_lines_terminated(self, mysql_backend):
         """Test LOAD DATA with custom line terminator."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -162,7 +162,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_character_set(self, mysql_backend):
         """Test LOAD DATA with character set."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -174,7 +174,7 @@ class TestMySQLLoadData:
 
     def test_load_data_expression_full_csv(self, mysql_backend):
         """Test full LOAD DATA expression for CSV import."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=mysql_backend.dialect,
             file_path="/tmp/data.csv",
             table=Table(mysql_backend.dialect, "users"),
@@ -218,7 +218,7 @@ class TestMySQLAsyncLoadData:
 
     async def test_load_data_expression_async(self, async_mysql_backend, test_table):
         """Test async LOAD DATA expression generation."""
-        expr = MySQLLoadDataExpression(
+        expr = MySQLLoadDataStatement(
             dialect=async_mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(async_mysql_backend.dialect, test_table),

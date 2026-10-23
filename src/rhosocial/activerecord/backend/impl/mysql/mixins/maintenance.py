@@ -6,11 +6,11 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.objects import RelationObject
     from rhosocial.activerecord.backend.impl.mysql.expression.maintenance import (
-        MySQLAnalyzeTableExpression,
-        MySQLCheckTableExpression,
-        MySQLChecksumTableExpression,
-        MySQLOptimizeTableExpression,
-        MySQLRepairTableExpression,
+        MySQLAnalyzeTableStatement,
+        MySQLCheckTableStatement,
+        MySQLChecksumTableStatement,
+        MySQLOptimizeTableStatement,
+        MySQLRepairTableStatement,
     )
 
 
@@ -73,37 +73,37 @@ class MySQLMaintenanceMixin:
 
         return " ".join(parts), ()
 
-    def format_mysql_analyze_table_expression(
+    def format_mysql_analyze_table_statement(
         self,
-        expr: "MySQLAnalyzeTableExpression",
+        expr: "MySQLAnalyzeTableStatement",
     ) -> Tuple[str, tuple]:
         """Format ``ANALYZE TABLE``."""
         return self._render_mysql_table_maintenance(expr)
 
-    def format_mysql_optimize_table_expression(
+    def format_mysql_optimize_table_statement(
         self,
-        expr: "MySQLOptimizeTableExpression",
+        expr: "MySQLOptimizeTableStatement",
     ) -> Tuple[str, tuple]:
         """Format ``OPTIMIZE TABLE``."""
         return self._render_mysql_table_maintenance(expr)
 
-    def format_mysql_check_table_expression(
+    def format_mysql_check_table_statement(
         self,
-        expr: "MySQLCheckTableExpression",
+        expr: "MySQLCheckTableStatement",
     ) -> Tuple[str, tuple]:
         """Format ``CHECK TABLE`` with its optional modes."""
         return self._render_mysql_table_maintenance(expr)
 
-    def format_mysql_checksum_table_expression(
+    def format_mysql_checksum_table_statement(
         self,
-        expr: "MySQLChecksumTableExpression",
+        expr: "MySQLChecksumTableStatement",
     ) -> Tuple[str, tuple]:
         """Format ``CHECKSUM TABLE`` with its optional mode."""
         return self._render_mysql_table_maintenance(expr)
 
-    def format_mysql_repair_table_expression(
+    def format_mysql_repair_table_statement(
         self,
-        expr: "MySQLRepairTableExpression",
+        expr: "MySQLRepairTableStatement",
     ) -> Tuple[str, tuple]:
         """Format ``REPAIR TABLE`` with its optional modes."""
         return self._render_mysql_table_maintenance(expr)

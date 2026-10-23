@@ -1,7 +1,7 @@
 # tests/providers/fixtures/_common.py
 """Shared helpers for the MySQL DDL expression fixtures.
 
-The MySQL backend's :meth:`format_storage_options` quotes string option
+The MySQL backend's :meth:`format_storage_options_expression` quotes string option
 values (``ENGINE='InnoDB'``), while the authoritative ``.sql`` schema files
 under ``tests/rhosocial/activerecord_mysql_test/feature/<feature>/schema/``
 use the unquoted storage form. :func:`to_mysql_ddl_sql` post-processes the

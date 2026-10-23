@@ -141,7 +141,7 @@ class MySQLTableMixin:
                 if isinstance(expr.storage_options, dict)
                 else expr.storage_options
             )
-            storage_sql, storage_params = self.format_storage_options(storage_expr)
+            storage_sql, storage_params = self.format_storage_options_expression(storage_expr)
             if storage_sql:
                 parts.append(storage_sql)
                 all_params.extend(storage_params)
@@ -329,7 +329,7 @@ class MySQLTableMixin:
             parts.append(f"USING {idx_def.type}")
         return " ".join(parts), ()
 
-    def format_storage_options(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
+    def format_storage_options_expression(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
         """Format core's table storage options (ENGINE, CHARSET, etc.)."""
         return self._render_storage_options(expr.options), ()
 

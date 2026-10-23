@@ -47,7 +47,7 @@ class _InspectableExpr(BaseExpression):
 
 class TestFlushBranches:
     def test_no_write_to_binlog_multi_options(self, dialect):
-        expr = mysql_expr.MySQLFlushExpression(
+        expr = mysql_expr.MySQLFlushStatement(
             dialect,
             [mysql_expr.FlushOption.PRIVILEGES, mysql_expr.FlushOption.LOGS],
             no_write_to_binlog=True,
@@ -56,14 +56,14 @@ class TestFlushBranches:
         assert sql == "FLUSH NO_WRITE_TO_BINLOG PRIVILEGES, LOGS"
 
     def test_empty_raises(self, dialect):
-        expr = mysql_expr.MySQLFlushExpression(dialect, [])
+        expr = mysql_expr.MySQLFlushStatement(dialect, [])
         with pytest.raises(ValueError, match="at least one option"):
             expr.to_sql()
 
     def test_non_strict_skips_validation(self, dialect):
         dialect.strict_validation = False
         try:
-            sql, _ = mysql_expr.MySQLFlushExpression(dialect, []).to_sql()
+            sql, _ = mysql_expr.MySQLFlushStatement(dialect, []).to_sql()
             assert sql == "FLUSH "
         finally:
             dialect.strict_validation = True
@@ -71,7 +71,7 @@ class TestFlushBranches:
 
 class TestCacheIndex:
     def test_cache_index_without_indexes(self, dialect):
-        expr = mysql_expr.MySQLCacheIndexExpression(
+        expr = mysql_expr.MySQLCacheIndexStatement(
             dialect,
             [{"table": Table(dialect, "t1")}, {"table": Table(dialect, "t2", catalog_name="db")}],
             "shared",
@@ -80,14 +80,14 @@ class TestCacheIndex:
         assert sql == "CACHE INDEX `t1`, `db`.`t2` IN `shared`"
 
     def test_cache_index_with_indexes(self, dialect):
-        expr = mysql_expr.MySQLCacheIndexExpression(
+        expr = mysql_expr.MySQLCacheIndexStatement(
             dialect, [{"table": Table(dialect, "t1"), "indexes": ["i1", "i2"]}], "shared"
         )
         sql, _ = expr.to_sql()
         assert sql == "CACHE INDEX `t1` INDEX (`i1`, `i2`) IN `shared`"
 
     def test_load_index_into_cache(self, dialect):
-        expr = mysql_expr.MySQLLoadIndexIntoCacheExpression(
+        expr = mysql_expr.MySQLLoadIndexIntoCacheStatement(
             dialect, [{"table": Table(dialect, "t1"), "indexes": ["i1"]}]
         )
         sql, _ = expr.to_sql()
@@ -96,24 +96,24 @@ class TestCacheIndex:
 
 class TestComponentPlugin:
     def test_install_component_multi(self, dialect):
-        expr = mysql_expr.MySQLInstallComponentExpression(dialect, ["comp1", "comp2"])
+        expr = mysql_expr.MySQLInstallComponentStatement(dialect, ["comp1", "comp2"])
         sql, _ = expr.to_sql()
         assert sql == "INSTALL COMPONENT 'comp1', 'comp2'"
 
     def test_uninstall_component_multi(self, dialect):
-        expr = mysql_expr.MySQLUninstallComponentExpression(dialect, ["comp1", "comp2"])
+        expr = mysql_expr.MySQLUninstallComponentStatement(dialect, ["comp1", "comp2"])
         sql, _ = expr.to_sql()
         assert sql == "UNINSTALL COMPONENT 'comp1', 'comp2'"
 
     def test_uninstall_plugin(self, dialect):
-        expr = mysql_expr.MySQLUninstallPluginExpression(dialect, "p")
+        expr = mysql_expr.MySQLUninstallPluginStatement(dialect, "p")
         sql, _ = expr.to_sql()
         assert sql == "UNINSTALL PLUGIN `p`"
 
 
 class TestClone:
     def test_clone_instance_from(self, dialect):
-        expr = mysql_expr.MySQLCloneExpression(
+        expr = mysql_expr.MySQLCloneStatement(
             dialect,
             from_user="root",
             from_host="donor.example.com",
@@ -127,46 +127,46 @@ class TestClone:
         )
 
     def test_clone_instance_default_port(self, dialect):
-        expr = mysql_expr.MySQLCloneExpression(dialect, from_user="u", from_host="h")
+        expr = mysql_expr.MySQLCloneStatement(dialect, from_user="u", from_host="h")
         sql, _ = expr.to_sql()
         assert sql == "CLONE INSTANCE FROM 'u'@'h' PORT = 3306"
 
     def test_clone_local(self, dialect):
-        expr = mysql_expr.MySQLCloneExpression(
+        expr = mysql_expr.MySQLCloneStatement(
             dialect, from_data_directory="/from", to_data_directory="/to"
         )
         sql, _ = expr.to_sql()
         assert sql == "CLONE LOCAL DATA DIRECTORY '/from' TO DATA DIRECTORY = '/to'"
 
     def test_clone_local_no_dest(self, dialect):
-        expr = mysql_expr.MySQLCloneExpression(dialect, from_data_directory="/from")
+        expr = mysql_expr.MySQLCloneStatement(dialect, from_data_directory="/from")
         sql, _ = expr.to_sql()
         assert sql == "CLONE LOCAL DATA DIRECTORY '/from'"
 
 
 class TestInstanceCommands:
     def test_restart(self, dialect):
-        sql, _ = mysql_expr.MySQLRestartExpression(dialect).to_sql()
+        sql, _ = mysql_expr.MySQLRestartStatement(dialect).to_sql()
         assert sql == "RESTART"
 
     def test_binlog(self, dialect):
-        sql, _ = mysql_expr.MySQLBinlogExpression(dialect, "ZWNvZGVk").to_sql()
+        sql, _ = mysql_expr.MySQLBinlogStatement(dialect, "ZWNvZGVk").to_sql()
         assert sql == "BINLOG 'ZWNvZGVk'"
 
 
 class TestHandler:
     def test_open_no_alias(self, dialect):
-        expr = mysql_expr.MySQLHandlerOpenExpression(dialect, Table(dialect, "t"))
+        expr = mysql_expr.MySQLHandlerOpenStatement(dialect, Table(dialect, "t"))
         sql, _ = expr.to_sql()
         assert sql == "HANDLER `t` OPEN"
 
     def test_open_alias(self, dialect):
-        expr = mysql_expr.MySQLHandlerOpenExpression(dialect, Table(dialect, "t"), alias="a")
+        expr = mysql_expr.MySQLHandlerOpenStatement(dialect, Table(dialect, "t"), alias="a")
         sql, _ = expr.to_sql()
         assert sql == "HANDLER `t` OPEN AS `a`"
 
     def test_read_first_no_extras(self, dialect):
-        expr = mysql_expr.MySQLHandlerReadExpression(
+        expr = mysql_expr.MySQLHandlerReadStatement(
             dialect, Table(dialect, "t"), mysql_expr.HandlerReadMode.FIRST
         )
         sql, params = expr.to_sql()
@@ -174,7 +174,7 @@ class TestHandler:
         assert params == ()
 
     def test_read_index_key_value(self, dialect):
-        expr = mysql_expr.MySQLHandlerReadExpression(
+        expr = mysql_expr.MySQLHandlerReadStatement(
             dialect,
             Table(dialect, "t"),
             mysql_expr.HandlerReadMode.NEXT,
@@ -188,7 +188,7 @@ class TestHandler:
     def test_read_where_limit_expr_key(self, dialect):
         where = _InspectableExpr("x > %s", (2,))
         key = _InspectableExpr("3 + 4", ())
-        expr = mysql_expr.MySQLHandlerReadExpression(
+        expr = mysql_expr.MySQLHandlerReadStatement(
             dialect,
             Table(dialect, "t", catalog_name="db"),
             mysql_expr.HandlerReadMode.LAST,
@@ -201,20 +201,20 @@ class TestHandler:
         assert params == (2,)
 
     def test_close(self, dialect):
-        expr = mysql_expr.MySQLHandlerCloseExpression(dialect, Table(dialect, "t", catalog_name="db"))
+        expr = mysql_expr.MySQLHandlerCloseStatement(dialect, Table(dialect, "t", catalog_name="db"))
         sql, _ = expr.to_sql()
         assert sql == "HANDLER `db`.`t` CLOSE"
 
 
 class TestDo:
     def test_plain_values(self, dialect):
-        expr = mysql_expr.MySQLDoExpression(dialect, [1, "x"])
+        expr = mysql_expr.MySQLDoStatement(dialect, [1, "x"])
         sql, params = expr.to_sql()
         assert sql == "DO %s, %s"
         assert params == (1, "x")
 
     def test_expression_values(self, dialect):
-        expr = mysql_expr.MySQLDoExpression(dialect, [_InspectableExpr("1 + 1", ())])
+        expr = mysql_expr.MySQLDoStatement(dialect, [_InspectableExpr("1 + 1", ())])
         sql, params = expr.to_sql()
         assert sql == "DO 1 + 1"
         assert params == ()
@@ -222,23 +222,23 @@ class TestDo:
 
 class TestKillShutdownHelp:
     def test_kill_query(self, dialect):
-        sql, _ = mysql_expr.MySQLKillExpression(
+        sql, _ = mysql_expr.MySQLKillStatement(
             dialect, 42, mysql_expr.KillTarget.QUERY
         ).to_sql()
         assert sql == "KILL QUERY 42"
 
     def test_shutdown(self, dialect):
-        sql, _ = mysql_expr.MySQLShutdownExpression(dialect).to_sql()
+        sql, _ = mysql_expr.MySQLShutdownStatement(dialect).to_sql()
         assert sql == "SHUTDOWN"
 
     def test_help(self, dialect):
-        sql, _ = mysql_expr.MySQLHelpExpression(dialect, "CREATE TABLE").to_sql()
+        sql, _ = mysql_expr.MySQLHelpStatement(dialect, "CREATE TABLE").to_sql()
         assert sql == "HELP 'CREATE TABLE'"
 
 
 class TestAccountManagement:
     def test_create_user(self, dialect):
-        expr = mysql_expr.MySQLCreateUserExpression(
+        expr = mysql_expr.MySQLCreateUserStatement(
             dialect,
             [mysql_expr.AccountSpec("alice"), mysql_expr.AccountSpec("bob", "%.example.com")],
             if_not_exists=True,
@@ -251,12 +251,12 @@ class TestAccountManagement:
         )
 
     def test_create_user_no_options(self, dialect):
-        expr = mysql_expr.MySQLCreateUserExpression(dialect, [mysql_expr.AccountSpec("u", "h")])
+        expr = mysql_expr.MySQLCreateUserStatement(dialect, [mysql_expr.AccountSpec("u", "h")])
         sql, _ = expr.to_sql()
         assert sql == "CREATE USER 'u'@'h'"
 
     def test_drop_user(self, dialect):
-        expr = mysql_expr.MySQLDropUserExpression(
+        expr = mysql_expr.MySQLDropUserStatement(
             dialect, [mysql_expr.AccountSpec("u", "h")], if_exists=True
         )
         sql, _ = expr.to_sql()
@@ -265,7 +265,7 @@ class TestAccountManagement:
 
 class TestGrantRevoke:
     def test_grant_with_columns_and_option(self, dialect):
-        expr = mysql_expr.MySQLGrantExpression(
+        expr = mysql_expr.MySQLGrantStatement(
             dialect,
             [
                 mysql_expr.GrantPrivilege("SELECT", ["c1", "c2"]),
@@ -281,14 +281,14 @@ class TestGrantRevoke:
         )
 
     def test_grant_default_object(self, dialect):
-        expr = mysql_expr.MySQLGrantExpression(
+        expr = mysql_expr.MySQLGrantStatement(
             dialect, [mysql_expr.GrantPrivilege("ALL PRIVILEGES")], [mysql_expr.AccountSpec("u")]
         )
         sql, _ = expr.to_sql()
         assert sql == "GRANT ALL PRIVILEGES ON *.* TO 'u'@'%'"
 
     def test_revoke_with_columns(self, dialect):
-        expr = mysql_expr.MySQLRevokeExpression(
+        expr = mysql_expr.MySQLRevokeStatement(
             dialect,
             [mysql_expr.GrantPrivilege("SELECT", ["c1"])],
             [mysql_expr.AccountSpec("u", "h")],
@@ -298,7 +298,7 @@ class TestGrantRevoke:
         assert sql == "REVOKE SELECT (`c1`) ON db.t FROM 'u'@'h'"
 
     def test_revoke_default_object(self, dialect):
-        expr = mysql_expr.MySQLRevokeExpression(
+        expr = mysql_expr.MySQLRevokeStatement(
             dialect, [mysql_expr.GrantPrivilege("SELECT")], [mysql_expr.AccountSpec("u")]
         )
         sql, _ = expr.to_sql()
@@ -405,22 +405,22 @@ class TestNonStrictValidation:
     """strict=False short-circuits validate() in each expression."""
 
     def test_flush(self, dialect):
-        mysql_expr.MySQLFlushExpression(dialect, []).validate(strict=False)
+        mysql_expr.MySQLFlushStatement(dialect, []).validate(strict=False)
 
     def test_load_xml(self, dialect):
         mysql_expr.MySQLLoadXMLStatement(dialect, 123, 456).validate(strict=False)
 
     def test_maintenance(self, dialect):
-        mysql_expr.MySQLAnalyzeTableExpression(dialect, []).validate(strict=False)
+        mysql_expr.MySQLAnalyzeTableStatement(dialect, []).validate(strict=False)
 
     def test_rename(self, dialect):
-        mysql_expr.MySQLRenameTableExpression(dialect, []).validate(strict=False)
+        mysql_expr.MySQLRenameTableStatement(dialect, []).validate(strict=False)
 
     def test_routine(self, dialect):
-        mysql_expr.MySQLCreateProcedureExpression(dialect, 123).validate(strict=False)
+        mysql_expr.MySQLCreateProcedureStatement(dialect, 123).validate(strict=False)
 
     def test_call(self, dialect):
-        mysql_expr.MySQLCallExpression(dialect, 123).validate(strict=False)
+        mysql_expr.MySQLCallStatement(dialect, 123).validate(strict=False)
 
     def test_table_statement(self, dialect):
         mysql_expr.MySQLTableStatement(dialect, 5).validate(strict=False)
@@ -433,14 +433,14 @@ class TestRoutineBranches:
     """Exercise stored-routine option and validation branches."""
 
     def test_create_procedure_without_body_and_2tx(self, dialect):
-        expr = mysql_expr.MySQLCreateProcedureExpression(
+        expr = mysql_expr.MySQLCreateProcedureStatement(
             dialect, Procedure(dialect, "sp", catalog_name="db"), params=[("x", "INT")]
         )
         sql, _ = expr.to_sql()
         assert sql == "CREATE PROCEDURE `db`.`sp` (`x` INT)"
 
     def test_create_function_all_options(self, dialect):
-        expr = mysql_expr.MySQLCreateFunctionExpression(
+        expr = mysql_expr.MySQLCreateFunctionStatement(
             dialect,
             Function(dialect, "fn", catalog_name="db"),
             returns="INT",
@@ -454,13 +454,13 @@ class TestRoutineBranches:
         )
 
     def test_drop_function_if_exists(self, dialect):
-        sql, _ = mysql_expr.MySQLDropFunctionExpression(
+        sql, _ = mysql_expr.MySQLDropFunctionStatement(
             dialect, Function(dialect, "fn"), if_exists=True
         ).to_sql()
         assert sql == "DROP FUNCTION IF EXISTS `fn`"
 
     def test_call_with_none_and_expr(self, dialect):
-        expr = mysql_expr.MySQLCallExpression(
+        expr = mysql_expr.MySQLCallStatement(
             dialect, Procedure(dialect, "sp", catalog_name="db"),
             [None, _InspectableExpr("NOW()", ())],
         )
@@ -470,8 +470,8 @@ class TestRoutineBranches:
 
     def test_routine_invalid_name(self, dialect):
         for cls, kw in (
-            (mysql_expr.MySQLCreateProcedureExpression, {"body": "x"}),
-            (mysql_expr.MySQLCallExpression, {}),
+            (mysql_expr.MySQLCreateProcedureStatement, {"body": "x"}),
+            (mysql_expr.MySQLCallStatement, {}),
         ):
             expr = cls(dialect, 123, **kw)
             with pytest.raises(TypeError):
@@ -485,7 +485,7 @@ class TestRoutineBranches:
         own ``validate``, and the formatter asks about the shared base class the
         two concrete kinds both derive from.
         """
-        expr = mysql_expr.MySQLCreateProcedureExpression(dialect, ("db", "sp"))
+        expr = mysql_expr.MySQLCreateProcedureStatement(dialect, ("db", "sp"))
         with pytest.raises(
             TypeError,
             match=r"must be a RoutineObject, got tuple",
@@ -493,7 +493,7 @@ class TestRoutineBranches:
             expr.to_sql()
 
     def test_call_tuple_form_is_refused(self, dialect):
-        expr = mysql_expr.MySQLCallExpression(dialect, ("db", "sp"))
+        expr = mysql_expr.MySQLCallStatement(dialect, ("db", "sp"))
         with pytest.raises(
             TypeError,
             match=r"must be a RoutineObject, got tuple",
@@ -502,7 +502,7 @@ class TestRoutineBranches:
 
     def test_routine_string_form_is_refused(self, dialect):
         """A bare string cannot say which database the routine lives in."""
-        expr = mysql_expr.MySQLCreateProcedureExpression(dialect, "sp")
+        expr = mysql_expr.MySQLCreateProcedureStatement(dialect, "sp")
         with pytest.raises(
             TypeError,
             match=r"must be a RoutineObject, got str",
@@ -523,7 +523,7 @@ class TestRoutineBranches:
         """
         loose = MySQLDialect()
         loose.strict_validation = False
-        expr = mysql_expr.MySQLCallExpression(loose, 123)
+        expr = mysql_expr.MySQLCallStatement(loose, 123)
         with pytest.raises(TypeError, match=r"must be a RoutineObject, got int"):
             expr.to_sql()
 
@@ -564,14 +564,14 @@ class TestTableStatementBranches:
 
 class TestMaintenanceBranches:
     def test_checksum_option(self, dialect):
-        expr = mysql_expr.MySQLChecksumTableExpression(
+        expr = mysql_expr.MySQLChecksumTableStatement(
             dialect, [Table(dialect, "t1")], option=mysql_expr.ChecksumTableOption.QUICK
         )
         sql, _ = expr.to_sql()
         assert sql == "CHECKSUM TABLE `t1` QUICK"
 
     def test_analyze_no_write_local_binlog(self, dialect):
-        expr = mysql_expr.MySQLAnalyzeTableExpression(
+        expr = mysql_expr.MySQLAnalyzeTableStatement(
             dialect,
             [Table(dialect, "t1")],
             no_write_to_binlog=mysql_expr.NoWriteToBinlogOption.NO_WRITE_TO_BINLOG,
@@ -581,25 +581,25 @@ class TestMaintenanceBranches:
 
     def test_qualified_tables(self, dialect):
         """The (schema, table) tuple is gone; an object carries the database."""
-        expr = mysql_expr.MySQLAnalyzeTableExpression(
+        expr = mysql_expr.MySQLAnalyzeTableStatement(
             dialect, [Table(dialect, "t1", catalog_name="app"), Table(dialect, "t2")]
         )
         sql, _ = expr.to_sql()
         assert sql == "ANALYZE TABLE `app`.`t1`, `t2`"
 
     def test_empty_tables(self, dialect):
-        expr = mysql_expr.MySQLAnalyzeTableExpression(dialect, [])
+        expr = mysql_expr.MySQLAnalyzeTableStatement(dialect, [])
         with pytest.raises(ValueError, match="at least one table"):
             expr.to_sql()
 
     def test_tuple_form_is_refused(self, dialect):
         """A 2-tuple used to be the only way to qualify a maintenance target."""
-        expr = mysql_expr.MySQLAnalyzeTableExpression(dialect, [("app", "t1")])
+        expr = mysql_expr.MySQLAnalyzeTableStatement(dialect, [("app", "t1")])
         with pytest.raises(TypeError, match="relation objects"):
             expr.to_sql()
 
     def test_bad_table_type(self, dialect):
-        expr = mysql_expr.MySQLAnalyzeTableExpression(dialect, [123])
+        expr = mysql_expr.MySQLAnalyzeTableStatement(dialect, [123])
         with pytest.raises(TypeError):
             expr.to_sql()
 
@@ -623,23 +623,23 @@ class _UnsupportedMaintenanceExpr(MySQLTableMaintenanceExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_analyze_table_expression"
+        return "format_mysql_analyze_table_statement"
 
 
 class TestRenameTableBranches:
     def test_invalid_pair(self, dialect):
-        expr = mysql_expr.MySQLRenameTableExpression(dialect, [(Table(dialect, "a"),)])
+        expr = mysql_expr.MySQLRenameTableStatement(dialect, [(Table(dialect, "a"),)])
         with pytest.raises(ValueError):
             expr.to_sql()
 
     def test_non_object_names(self, dialect):
-        expr = mysql_expr.MySQLRenameTableExpression(dialect, [(1, 2)])
+        expr = mysql_expr.MySQLRenameTableStatement(dialect, [(1, 2)])
         with pytest.raises(TypeError):
             expr.to_sql()
 
     def test_cross_database_rename(self, dialect):
         """A rename may now span databases, which a string pair could not."""
-        expr = mysql_expr.MySQLRenameTableExpression(
+        expr = mysql_expr.MySQLRenameTableStatement(
             dialect,
             [(Table(dialect, "t", catalog_name="old_db"), Table(dialect, "t", catalog_name="new_db"))],
         )
@@ -650,21 +650,21 @@ class TestRenameTableBranches:
 
 class TestRoutineParamBranches:
     def test_invalid_param_tuple(self, dialect):
-        expr = mysql_expr.MySQLCreateProcedureExpression(
+        expr = mysql_expr.MySQLCreateProcedureStatement(
             dialect, Procedure(dialect, "sp"), params=[("a", "x", "INT", "EXTRA")]
         )
         with pytest.raises(ValueError, match="Invalid parameter"):
             expr.to_sql()
 
     def test_two_tuple_param(self, dialect):
-        expr = mysql_expr.MySQLCreateProcedureExpression(
+        expr = mysql_expr.MySQLCreateProcedureStatement(
             dialect, Procedure(dialect, "sp"), params=[("x", "INT")]
         )
         sql, _ = expr.to_sql()
         assert sql == "CREATE PROCEDURE `sp` (`x` INT)"
 
     def test_plain_string_param(self, dialect):
-        expr = mysql_expr.MySQLCreateProcedureExpression(
+        expr = mysql_expr.MySQLCreateProcedureStatement(
             dialect, Procedure(dialect, "sp"), params=["IN p INT"]
         )
         sql, _ = expr.to_sql()

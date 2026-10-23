@@ -12,7 +12,7 @@ This module tests MySQL-specific spatial data type functionality including:
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    MySQLCreateSpatialIndexExpression,
+    MySQLCreateSpatialIndexStatement,
     MySQLSpatialLiteralExpression,
     MySQLSTAsGeoJSONExpression,
     MySQLSTAsTextExpression,
@@ -189,7 +189,7 @@ class TestSpatialTypeProtocol:
         """Test CREATE SPATIAL INDEX (MySQL 5.7+)."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = MySQLCreateSpatialIndexExpression(dialect, "idx_location", "places", "geom")
+        expr = MySQLCreateSpatialIndexStatement(dialect, "idx_location", "places", "geom")
         sql, params = expr.to_sql()
 
         assert "CREATE SPATIAL INDEX" in sql
@@ -203,7 +203,7 @@ class TestSpatialTypeProtocol:
         dialect = MySQLDialect(version=(5, 5, 0))
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
-            MySQLCreateSpatialIndexExpression(dialect, "idx_location", "places", "geom").to_sql()
+            MySQLCreateSpatialIndexStatement(dialect, "idx_location", "places", "geom").to_sql()
 
 
 class TestAsyncSpatialTypeProtocol:
@@ -248,7 +248,7 @@ class TestAsyncSpatialTypeProtocol:
         """Test async version of CREATE SPATIAL INDEX formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = MySQLCreateSpatialIndexExpression(dialect, "idx_geom", "table", "col")
+        expr = MySQLCreateSpatialIndexStatement(dialect, "idx_geom", "table", "col")
         sql, params = expr.to_sql()
 
         assert "CREATE SPATIAL INDEX" in sql

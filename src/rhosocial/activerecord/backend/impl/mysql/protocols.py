@@ -28,35 +28,35 @@ if TYPE_CHECKING:
         DropTriggerStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
-        MySQLCacheIndexExpression,
-        MySQLCloneExpression,
-        MySQLCreateUserExpression,
-        MySQLDoExpression,
-        MySQLDropUserExpression,
-        MySQLFlushExpression,
-        MySQLGrantExpression,
-        MySQLHelpExpression,
-        MySQLHandlerCloseExpression,
-        MySQLHandlerOpenExpression,
-        MySQLHandlerReadExpression,
-        MySQLInstallComponentExpression,
-        MySQLInstallPluginExpression,
-        MySQLKillExpression,
-        MySQLLoadIndexIntoCacheExpression,
-        MySQLResetExpression,
-        MySQLRestartExpression,
-        MySQLRevokeExpression,
-        MySQLShutdownExpression,
-        MySQLBinlogExpression,
-        MySQLUninstallComponentExpression,
-        MySQLUninstallPluginExpression,
+        MySQLCacheIndexStatement,
+        MySQLCloneStatement,
+        MySQLCreateUserStatement,
+        MySQLDoStatement,
+        MySQLDropUserStatement,
+        MySQLFlushStatement,
+        MySQLGrantStatement,
+        MySQLHelpStatement,
+        MySQLHandlerCloseStatement,
+        MySQLHandlerOpenStatement,
+        MySQLHandlerReadStatement,
+        MySQLInstallComponentStatement,
+        MySQLInstallPluginStatement,
+        MySQLKillStatement,
+        MySQLLoadIndexIntoCacheStatement,
+        MySQLResetStatement,
+        MySQLRestartStatement,
+        MySQLRevokeStatement,
+        MySQLShutdownStatement,
+        MySQLBinlogStatement,
+        MySQLUninstallComponentStatement,
+        MySQLUninstallPluginStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-        CreateJsonDualityViewExpression,
-        DropJsonDualityViewExpression,
+        CreateJsonDualityViewStatement,
+        DropJsonDualityViewStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
-        MySQLLoadDataExpression,
+        MySQLLoadDataStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
         MySQLLoadXMLStatement,
@@ -92,14 +92,14 @@ if TYPE_CHECKING:
         MySQLTruncatePartitionExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
-        MySQLRenameTableExpression,
+        MySQLRenameTableStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
-        MySQLCallExpression,
-        MySQLCreateFunctionExpression,
-        MySQLCreateProcedureExpression,
-        MySQLDropFunctionExpression,
-        MySQLDropProcedureExpression,
+        MySQLCallStatement,
+        MySQLCreateFunctionStatement,
+        MySQLCreateProcedureStatement,
+        MySQLDropFunctionStatement,
+        MySQLDropProcedureStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
         MySQLTableStatement,
@@ -173,11 +173,11 @@ class MySQLDMLOperationSupport(Protocol):
         """
         ...
 
-    def format_mysql_load_data_expression(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
+    def format_mysql_load_data_statement(self, expr: "MySQLLoadDataStatement") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement.
 
         Args:
-            expr: MySQLLoadDataExpression instance
+            expr: MySQLLoadDataStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -394,7 +394,7 @@ class MySQLTableSupport(TableObjectSupport, Protocol):
         """Format an inline INDEX definition inside CREATE TABLE."""
         ...
 
-    def format_storage_options(self, expr: Any) -> Tuple[str, tuple]:
+    def format_storage_options_expression(self, expr: Any) -> Tuple[str, tuple]:
         """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
         ...
 
@@ -1322,11 +1322,11 @@ class MySQLSpatialSupport(Protocol):
         """
         ...
 
-    def format_mysql_create_spatial_index_expression(self, expr: Any) -> Tuple[str, tuple]:
-        """Format a MySQLCreateSpatialIndexExpression node.
+    def format_mysql_create_spatial_index_statement(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLCreateSpatialIndexStatement node.
 
         Args:
-            expr: MySQLCreateSpatialIndexExpression instance
+            expr: MySQLCreateSpatialIndexStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -1447,11 +1447,11 @@ class MySQLVectorSupport(Protocol):
         """
         ...
 
-    def format_mysql_create_vector_index_expression(self, expr: Any) -> Tuple[str, tuple]:
-        """Format a MySQLCreateVectorIndexExpression node.
+    def format_mysql_create_vector_index_statement(self, expr: Any) -> Tuple[str, tuple]:
+        """Format a MySQLCreateVectorIndexStatement node.
 
         Args:
-            expr: MySQLCreateVectorIndexExpression instance
+            expr: MySQLCreateVectorIndexStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -1648,18 +1648,18 @@ class MySQLJsonDualityViewSupport(Protocol):
         """Whether DML on JSON Duality Views is supported (MySQL 9.7+)."""
         ...
 
-    def format_create_json_duality_view_expression(self, expr: "CreateJsonDualityViewExpression") -> Tuple[str, tuple]:
+    def format_create_json_duality_view_statement(self, expr: "CreateJsonDualityViewStatement") -> Tuple[str, tuple]:
         """Format CREATE JSON RELATIONAL DUALITY VIEW statement.
 
         Args:
-            expr: CreateJsonDualityViewExpression instance
+            expr: CreateJsonDualityViewStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_drop_json_duality_view_expression(self, expr: "DropJsonDualityViewExpression") -> Tuple[str, tuple]:
+    def format_drop_json_duality_view_statement(self, expr: "DropJsonDualityViewStatement") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for a JSON Duality View."""
         ...
 
@@ -1748,7 +1748,7 @@ class MySQLRenameTableSupport(Protocol):
         """
         ...
 
-    def format_mysql_rename_table_expression(self, expr: "MySQLRenameTableExpression") -> Tuple[str, tuple]:
+    def format_mysql_rename_table_statement(self, expr: "MySQLRenameTableStatement") -> Tuple[str, tuple]:
         """Format a MySQL RENAME TABLE statement."""
         ...
 
@@ -1814,23 +1814,23 @@ class MySQLMaintenanceSupport(Protocol):
         """Whether REPAIR TABLE is supported."""
         ...
 
-    def format_mysql_analyze_table_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_analyze_table_statement(self, expr) -> Tuple[str, tuple]:
         """Format ``ANALYZE TABLE``."""
         ...
 
-    def format_mysql_optimize_table_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_optimize_table_statement(self, expr) -> Tuple[str, tuple]:
         """Format ``OPTIMIZE TABLE``."""
         ...
 
-    def format_mysql_check_table_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_check_table_statement(self, expr) -> Tuple[str, tuple]:
         """Format ``CHECK TABLE`` with its optional modes."""
         ...
 
-    def format_mysql_checksum_table_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_checksum_table_statement(self, expr) -> Tuple[str, tuple]:
         """Format ``CHECKSUM TABLE`` with its optional mode."""
         ...
 
-    def format_mysql_repair_table_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_repair_table_statement(self, expr) -> Tuple[str, tuple]:
         """Format ``REPAIR TABLE`` with its optional modes."""
         ...
 
@@ -1860,23 +1860,23 @@ class MySQLRoutineSupport(Protocol):
         """Whether CALL is supported."""
         ...
 
-    def format_mysql_create_procedure_expression(self, expr: "MySQLCreateProcedureExpression") -> Tuple[str, tuple]:
+    def format_mysql_create_procedure_statement(self, expr: "MySQLCreateProcedureStatement") -> Tuple[str, tuple]:
         """Format CREATE PROCEDURE."""
         ...
 
-    def format_mysql_drop_procedure_expression(self, expr: "MySQLDropProcedureExpression") -> Tuple[str, tuple]:
+    def format_mysql_drop_procedure_statement(self, expr: "MySQLDropProcedureStatement") -> Tuple[str, tuple]:
         """Format DROP PROCEDURE."""
         ...
 
-    def format_mysql_create_function_expression(self, expr: "MySQLCreateFunctionExpression") -> Tuple[str, tuple]:
+    def format_mysql_create_function_statement(self, expr: "MySQLCreateFunctionStatement") -> Tuple[str, tuple]:
         """Format CREATE FUNCTION (stored function)."""
         ...
 
-    def format_mysql_drop_function_expression(self, expr: "MySQLDropFunctionExpression") -> Tuple[str, tuple]:
+    def format_mysql_drop_function_statement(self, expr: "MySQLDropFunctionStatement") -> Tuple[str, tuple]:
         """Format DROP FUNCTION."""
         ...
 
-    def format_mysql_call_expression(self, expr: "MySQLCallExpression") -> Tuple[str, tuple]:
+    def format_mysql_call_statement(self, expr: "MySQLCallStatement") -> Tuple[str, tuple]:
         """Format CALL."""
         ...
 
@@ -1918,131 +1918,131 @@ class MySQLAdminCommandSupport(Protocol):
     def supports_flush(self) -> bool:
         ...
 
-    def format_mysql_flush_expression(self, expr: "MySQLFlushExpression") -> Tuple[str, tuple]:
+    def format_mysql_flush_statement(self, expr: "MySQLFlushStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_reset(self) -> bool:
         ...
 
-    def format_mysql_reset_expression(self, expr: "MySQLResetExpression") -> Tuple[str, tuple]:
+    def format_mysql_reset_statement(self, expr: "MySQLResetStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_cache_index(self) -> bool:
         ...
 
-    def format_mysql_cache_index_expression(self, expr: "MySQLCacheIndexExpression") -> Tuple[str, tuple]:
+    def format_mysql_cache_index_statement(self, expr: "MySQLCacheIndexStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_load_index_into_cache(self) -> bool:
         ...
 
-    def format_mysql_load_index_into_cache_expression(
-        self, expr: "MySQLLoadIndexIntoCacheExpression"
+    def format_mysql_load_index_into_cache_statement(
+        self, expr: "MySQLLoadIndexIntoCacheStatement"
     ) -> Tuple[str, tuple]:
         ...
 
     def supports_install_component(self) -> bool:
         ...
 
-    def format_mysql_install_component_expression(self, expr: "MySQLInstallComponentExpression") -> Tuple[str, tuple]:
+    def format_mysql_install_component_statement(self, expr: "MySQLInstallComponentStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_uninstall_component(self) -> bool:
         ...
 
-    def format_mysql_uninstall_component_expression(
-        self, expr: "MySQLUninstallComponentExpression"
+    def format_mysql_uninstall_component_statement(
+        self, expr: "MySQLUninstallComponentStatement"
     ) -> Tuple[str, tuple]:
         ...
 
     def supports_install_plugin(self) -> bool:
         ...
 
-    def format_mysql_install_plugin_expression(self, expr: "MySQLInstallPluginExpression") -> Tuple[str, tuple]:
+    def format_mysql_install_plugin_statement(self, expr: "MySQLInstallPluginStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_uninstall_plugin(self) -> bool:
         ...
 
-    def format_mysql_uninstall_plugin_expression(self, expr: "MySQLUninstallPluginExpression") -> Tuple[str, tuple]:
+    def format_mysql_uninstall_plugin_statement(self, expr: "MySQLUninstallPluginStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_clone(self) -> bool:
         ...
 
-    def format_mysql_clone_expression(self, expr: "MySQLCloneExpression") -> Tuple[str, tuple]:
+    def format_mysql_clone_statement(self, expr: "MySQLCloneStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_restart(self) -> bool:
         ...
 
-    def format_mysql_restart_expression(self, expr: "MySQLRestartExpression") -> Tuple[str, tuple]:
+    def format_mysql_restart_statement(self, expr: "MySQLRestartStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_binlog(self) -> bool:
         ...
 
-    def format_mysql_binlog_expression(self, expr: "MySQLBinlogExpression") -> Tuple[str, tuple]:
+    def format_mysql_binlog_statement(self, expr: "MySQLBinlogStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_handler(self) -> bool:
         ...
 
-    def format_mysql_handler_open_expression(self, expr: "MySQLHandlerOpenExpression") -> Tuple[str, tuple]:
+    def format_mysql_handler_open_statement(self, expr: "MySQLHandlerOpenStatement") -> Tuple[str, tuple]:
         ...
 
-    def format_mysql_handler_read_expression(self, expr: "MySQLHandlerReadExpression") -> Tuple[str, tuple]:
+    def format_mysql_handler_read_statement(self, expr: "MySQLHandlerReadStatement") -> Tuple[str, tuple]:
         ...
 
-    def format_mysql_handler_close_expression(self, expr: "MySQLHandlerCloseExpression") -> Tuple[str, tuple]:
+    def format_mysql_handler_close_statement(self, expr: "MySQLHandlerCloseStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_do(self) -> bool:
         ...
 
-    def format_mysql_do_expression(self, expr: "MySQLDoExpression") -> Tuple[str, tuple]:
+    def format_mysql_do_statement(self, expr: "MySQLDoStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_kill(self) -> bool:
         ...
 
-    def format_mysql_kill_expression(self, expr: "MySQLKillExpression") -> Tuple[str, tuple]:
+    def format_mysql_kill_statement(self, expr: "MySQLKillStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_shutdown(self) -> bool:
         ...
 
-    def format_mysql_shutdown_expression(self, expr: "MySQLShutdownExpression") -> Tuple[str, tuple]:
+    def format_mysql_shutdown_statement(self, expr: "MySQLShutdownStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_help(self) -> bool:
         ...
 
-    def format_mysql_help_expression(self, expr: "MySQLHelpExpression") -> Tuple[str, tuple]:
+    def format_mysql_help_statement(self, expr: "MySQLHelpStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_create_user(self) -> bool:
         ...
 
-    def format_mysql_create_user_expression(self, expr: "MySQLCreateUserExpression") -> Tuple[str, tuple]:
+    def format_mysql_create_user_statement(self, expr: "MySQLCreateUserStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_drop_user(self) -> bool:
         ...
 
-    def format_mysql_drop_user_expression(self, expr: "MySQLDropUserExpression") -> Tuple[str, tuple]:
+    def format_mysql_drop_user_statement(self, expr: "MySQLDropUserStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_grant(self) -> bool:
         ...
 
-    def format_mysql_grant_expression(self, expr: "MySQLGrantExpression") -> Tuple[str, tuple]:
+    def format_mysql_grant_statement(self, expr: "MySQLGrantStatement") -> Tuple[str, tuple]:
         ...
 
     def supports_revoke(self) -> bool:
         ...
 
-    def format_mysql_revoke_expression(self, expr: "MySQLRevokeExpression") -> Tuple[str, tuple]:
+    def format_mysql_revoke_statement(self, expr: "MySQLRevokeStatement") -> Tuple[str, tuple]:
         ...
 
 

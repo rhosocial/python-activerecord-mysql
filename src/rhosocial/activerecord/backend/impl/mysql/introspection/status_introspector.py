@@ -164,27 +164,27 @@ class MySQLStatusIntrospectorMixin:
 
     def _show_variables(self, like: Optional[str] = None, session: bool = True) -> Tuple[str, tuple]:
         """``SHOW [GLOBAL] VARIABLES [LIKE ...]`` as a node."""
-        from ..expression.show import ShowVariablesExpression
+        from ..expression.show import ShowVariablesStatement
 
-        return ShowVariablesExpression(self._dialect, like_pattern=like, session=session).to_sql()
+        return ShowVariablesStatement(self._dialect, like_pattern=like, session=session).to_sql()
 
     def _show_status(self, like: Optional[str] = None, session: bool = True) -> Tuple[str, tuple]:
         """``SHOW [GLOBAL] STATUS [LIKE ...]`` as a node."""
-        from ..expression.show import ShowStatusExpression
+        from ..expression.show import ShowStatusStatement
 
-        return ShowStatusExpression(self._dialect, like_pattern=like, session=session).to_sql()
+        return ShowStatusStatement(self._dialect, like_pattern=like, session=session).to_sql()
 
     def _show_processlist(self, full: bool = False) -> Tuple[str, tuple]:
         """``SHOW [FULL] PROCESSLIST`` as a node."""
-        from ..expression.show import ShowProcessListExpression
+        from ..expression.show import ShowProcessListStatement
 
-        return ShowProcessListExpression(self._dialect, full=full).to_sql()
+        return ShowProcessListStatement(self._dialect, full=full).to_sql()
 
     def _show_binary_logs(self) -> Tuple[str, tuple]:
         """``SHOW BINARY LOGS`` as a node."""
-        from ..expression.show import ShowBinaryLogsExpression
+        from ..expression.show import ShowBinaryLogsStatement
 
-        return ShowBinaryLogsExpression(self._dialect).to_sql()
+        return ShowBinaryLogsStatement(self._dialect).to_sql()
 
     def _show_master_status(self) -> Tuple[str, tuple]:
         """``SHOW MASTER STATUS`` as a node.
@@ -192,15 +192,15 @@ class MySQLStatusIntrospectorMixin:
         Servers from 8.4 answer through ``performance_schema.log_status``
         instead; the caller picks by version, and this is the older branch.
         """
-        from ..expression.show import ShowMasterStatusExpression
+        from ..expression.show import ShowMasterStatusStatement
 
-        return ShowMasterStatusExpression(self._dialect).to_sql()
+        return ShowMasterStatusStatement(self._dialect).to_sql()
 
     def _show_slave_status(self) -> Tuple[str, tuple]:
         """``SHOW SLAVE STATUS`` as a node (the branch for servers below 8.4)."""
-        from ..expression.show import ShowSlaveStatusExpression
+        from ..expression.show import ShowSlaveStatusStatement
 
-        return ShowSlaveStatusExpression(self._dialect).to_sql()
+        return ShowSlaveStatusStatement(self._dialect).to_sql()
 
     def _version_query(self) -> Tuple[str, tuple]:
         """``SELECT VERSION()`` -- the server's own version string.

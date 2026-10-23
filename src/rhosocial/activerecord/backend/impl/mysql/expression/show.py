@@ -70,10 +70,10 @@ class ShowCreateTableStatement(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_create_table_expression"
+        return "format_show_create_table_statement"
 
 
-class ShowCreateViewExpression(ShowExpression):
+class ShowCreateViewStatement(ShowExpression):
     """Expression for SHOW CREATE VIEW command."""
 
     def __init__(
@@ -89,10 +89,10 @@ class ShowCreateViewExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_create_view_expression"
+        return "format_show_create_view_statement"
 
 
-class ShowColumnsExpression(ShowExpression):
+class ShowColumnsStatement(ShowExpression):
     """Expression for SHOW [FULL] COLUMNS command."""
 
     def __init__(
@@ -112,10 +112,10 @@ class ShowColumnsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_columns_expression"
+        return "format_show_columns_statement"
 
 
-class ShowIndexExpression(ShowExpression):
+class ShowIndexStatement(ShowExpression):
     """Expression for SHOW INDEX command."""
 
     def __init__(
@@ -131,10 +131,10 @@ class ShowIndexExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_index_expression"
+        return "format_show_index_statement"
 
 
-class ShowTablesExpression(ShowExpression):
+class ShowTablesStatement(ShowExpression):
     """Expression for SHOW [FULL] TABLES command."""
 
     def __init__(
@@ -152,10 +152,10 @@ class ShowTablesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_tables_expression"
+        return "format_show_tables_statement"
 
 
-class ShowDatabasesExpression(ShowExpression):
+class ShowDatabasesStatement(ShowExpression):
     """Expression for SHOW DATABASES command."""
 
     def __init__(
@@ -170,10 +170,10 @@ class ShowDatabasesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_databases_expression"
+        return "format_show_databases_statement"
 
 
-class ShowTableStatusExpression(ShowExpression):
+class ShowTableStatusStatement(ShowExpression):
     """Expression for SHOW TABLE STATUS command."""
 
     def __init__(
@@ -189,10 +189,10 @@ class ShowTableStatusExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_table_status_expression"
+        return "format_show_table_status_statement"
 
 
-class ShowTriggersExpression(ShowExpression):
+class ShowTriggersStatement(ShowExpression):
     """Expression for SHOW TRIGGERS command."""
 
     def __init__(
@@ -208,10 +208,10 @@ class ShowTriggersExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_triggers_expression"
+        return "format_show_triggers_statement"
 
 
-class ShowCreateTriggerExpression(ShowExpression):
+class ShowCreateTriggerStatement(ShowExpression):
     """Expression for SHOW CREATE TRIGGER command."""
 
     def __init__(
@@ -227,10 +227,10 @@ class ShowCreateTriggerExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_create_trigger_expression"
+        return "format_show_create_trigger_statement"
 
 
-class ShowVariablesExpression(ShowExpression):
+class ShowVariablesStatement(ShowExpression):
     """Expression for SHOW [GLOBAL] VARIABLES command."""
 
     def __init__(
@@ -247,10 +247,10 @@ class ShowVariablesExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_variables_expression"
+        return "format_show_variables_statement"
 
 
-class ShowStatusExpression(ShowExpression):
+class ShowStatusStatement(ShowExpression):
     """Expression for SHOW [GLOBAL] STATUS command."""
 
     def __init__(
@@ -267,10 +267,10 @@ class ShowStatusExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_status_expression"
+        return "format_show_status_statement"
 
 
-class ShowProcessListExpression(ShowExpression):
+class ShowProcessListStatement(ShowExpression):
     """Expression for SHOW [FULL] PROCESSLIST command."""
 
     def __init__(
@@ -285,10 +285,10 @@ class ShowProcessListExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_process_list_expression"
+        return "format_show_process_list_statement"
 
 
-class ShowWarningsExpression(ShowExpression):
+class ShowWarningsStatement(ShowExpression):
     """Expression for SHOW WARNINGS command."""
 
     def __init__(
@@ -303,10 +303,10 @@ class ShowWarningsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_warnings_expression"
+        return "format_show_warnings_statement"
 
 
-class ShowErrorsExpression(ShowExpression):
+class ShowErrorsStatement(ShowExpression):
     """Expression for SHOW ERRORS command."""
 
     def __init__(
@@ -321,19 +321,19 @@ class ShowErrorsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_errors_expression"
+        return "format_show_errors_statement"
 
 
-class ShowEnginesExpression(ShowExpression):
+class ShowEnginesStatement(ShowExpression):
     """Expression for SHOW ENGINES command."""
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_engines_expression"
+        return "format_show_engines_statement"
 
 
-class ShowCharsetExpression(ShowExpression):
+class ShowCharsetStatement(ShowExpression):
     """Expression for SHOW CHARACTER SET command."""
 
     def __init__(
@@ -348,10 +348,10 @@ class ShowCharsetExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_charset_expression"
+        return "format_show_charset_statement"
 
 
-class ShowCollationExpression(ShowExpression):
+class ShowCollationStatement(ShowExpression):
     """Expression for SHOW COLLATION command."""
 
     def __init__(
@@ -366,10 +366,10 @@ class ShowCollationExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_collation_expression"
+        return "format_show_collation_statement"
 
 
-class ShowGrantsExpression(ShowExpression):
+class ShowGrantsStatement(ShowExpression):
     """Expression for SHOW GRANTS command."""
 
     def __init__(
@@ -386,19 +386,19 @@ class ShowGrantsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_grants_expression"
+        return "format_show_grants_statement"
 
 
-class ShowPluginsExpression(ShowExpression):
+class ShowPluginsStatement(ShowExpression):
     """Expression for SHOW PLUGINS command."""
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_plugins_expression"
+        return "format_show_plugins_statement"
 
 
-class ShowBinaryLogsExpression(ShowExpression):
+class ShowBinaryLogsStatement(ShowExpression):
     """Expression for SHOW BINARY LOGS command.
 
     Its own node rather than a flag on another one: the command takes no
@@ -409,10 +409,10 @@ class ShowBinaryLogsExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_binary_logs_expression"
+        return "format_show_binary_logs_statement"
 
 
-class ShowMasterStatusExpression(ShowExpression):
+class ShowMasterStatusStatement(ShowExpression):
     """Expression for SHOW MASTER STATUS command.
 
     MySQL 8.4 removed this command in favour of
@@ -423,10 +423,10 @@ class ShowMasterStatusExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_master_status_expression"
+        return "format_show_master_status_statement"
 
 
-class ShowSlaveStatusExpression(ShowExpression):
+class ShowSlaveStatusStatement(ShowExpression):
     """Expression for SHOW SLAVE STATUS command.
 
     MySQL 8.0.22 added ``SHOW REPLICA STATUS`` as the preferred spelling and
@@ -439,4 +439,4 @@ class ShowSlaveStatusExpression(ShowExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_show_slave_status_expression"
+        return "format_show_slave_status_statement"

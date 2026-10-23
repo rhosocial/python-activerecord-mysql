@@ -126,13 +126,13 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_create_spatial_index_expression(self, expr) -> Tuple[str, tuple]:
-        """Format a :class:`MySQLCreateSpatialIndexExpression` node."""
-        from ..expression.spatial import MySQLCreateSpatialIndexExpression
+    def format_mysql_create_spatial_index_statement(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLCreateSpatialIndexStatement` node."""
+        from ..expression.spatial import MySQLCreateSpatialIndexStatement
 
-        if not isinstance(expr, MySQLCreateSpatialIndexExpression):
+        if not isinstance(expr, MySQLCreateSpatialIndexStatement):
             raise TypeError(
-                f"format_mysql_create_spatial_index_expression expects MySQLCreateSpatialIndexExpression, "
+                f"format_mysql_create_spatial_index_statement expects MySQLCreateSpatialIndexStatement, "
                 f"got {type(expr).__name__}"
             )
 

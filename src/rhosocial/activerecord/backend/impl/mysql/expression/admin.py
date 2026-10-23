@@ -90,7 +90,7 @@ class HandlerReadMode(str, Enum):
     LAST = "LAST"
 
 
-class MySQLFlushExpression(BaseExpression):
+class MySQLFlushStatement(BaseExpression):
     """Represent ``FLUSH`` with one or more options."""
 
     def __init__(
@@ -116,11 +116,11 @@ class MySQLFlushExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_flush_expression"
+        return "format_mysql_flush_statement"
 
 
 
-class MySQLResetExpression(BaseExpression):
+class MySQLResetStatement(BaseExpression):
     """Represent ``RESET`` with one option."""
 
     def __init__(
@@ -137,11 +137,11 @@ class MySQLResetExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_reset_expression"
+        return "format_mysql_reset_statement"
 
 
 
-class MySQLCacheIndexExpression(BaseExpression):
+class MySQLCacheIndexStatement(BaseExpression):
     """Represent ``CACHE INDEX ... IN key_cache``."""
 
     def __init__(
@@ -167,11 +167,11 @@ class MySQLCacheIndexExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_cache_index_expression"
+        return "format_mysql_cache_index_statement"
 
 
 
-class MySQLLoadIndexIntoCacheExpression(BaseExpression):
+class MySQLLoadIndexIntoCacheStatement(BaseExpression):
     """Represent ``LOAD INDEX INTO CACHE``."""
 
     def __init__(
@@ -194,11 +194,11 @@ class MySQLLoadIndexIntoCacheExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_load_index_into_cache_expression"
+        return "format_mysql_load_index_into_cache_statement"
 
 
 
-class MySQLInstallComponentExpression(BaseExpression):
+class MySQLInstallComponentStatement(BaseExpression):
     """Represent ``INSTALL COMPONENT 'name' [, 'name' ...]``."""
 
     def __init__(
@@ -212,11 +212,11 @@ class MySQLInstallComponentExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_install_component_expression"
+        return "format_mysql_install_component_statement"
 
 
 
-class MySQLUninstallComponentExpression(BaseExpression):
+class MySQLUninstallComponentStatement(BaseExpression):
     """Represent ``UNINSTALL COMPONENT 'name' [, 'name' ...]``."""
 
     def __init__(
@@ -230,11 +230,11 @@ class MySQLUninstallComponentExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_uninstall_component_expression"
+        return "format_mysql_uninstall_component_statement"
 
 
 
-class MySQLInstallPluginExpression(BaseExpression):
+class MySQLInstallPluginStatement(BaseExpression):
     """Represent ``INSTALL PLUGIN name SONAME 'library.so'``."""
 
     def __init__(
@@ -250,11 +250,11 @@ class MySQLInstallPluginExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_install_plugin_expression"
+        return "format_mysql_install_plugin_statement"
 
 
 
-class MySQLUninstallPluginExpression(BaseExpression):
+class MySQLUninstallPluginStatement(BaseExpression):
     """Represent ``UNINSTALL PLUGIN name``."""
 
     def __init__(
@@ -268,11 +268,11 @@ class MySQLUninstallPluginExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_uninstall_plugin_expression"
+        return "format_mysql_uninstall_plugin_statement"
 
 
 
-class MySQLCloneExpression(BaseExpression):
+class MySQLCloneStatement(BaseExpression):
     """Represent ``CLONE INSTANCE FROM ...``.
 
     Attributes:
@@ -304,11 +304,11 @@ class MySQLCloneExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_clone_expression"
+        return "format_mysql_clone_statement"
 
 
 
-class MySQLRestartExpression(BaseExpression):
+class MySQLRestartStatement(BaseExpression):
     """Represent the ``RESTART`` server statement."""
 
     def __init__(
@@ -320,11 +320,11 @@ class MySQLRestartExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_restart_expression"
+        return "format_mysql_restart_statement"
 
 
 
-class MySQLBinlogExpression(BaseExpression):
+class MySQLBinlogStatement(BaseExpression):
     """Represent ``BINLOG 'base64_encoded_event'``."""
 
     def __init__(
@@ -338,11 +338,11 @@ class MySQLBinlogExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_binlog_expression"
+        return "format_mysql_binlog_statement"
 
 
 
-class MySQLHandlerOpenExpression(BaseExpression):
+class MySQLHandlerOpenStatement(BaseExpression):
     """Represent ``HANDLER table OPEN [AS alias]``.
 
     ``table`` is a
@@ -363,11 +363,11 @@ class MySQLHandlerOpenExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_handler_open_expression"
+        return "format_mysql_handler_open_statement"
 
 
 
-class MySQLHandlerReadExpression(BaseExpression):
+class MySQLHandlerReadStatement(BaseExpression):
     """Represent ``HANDLER table READ {FIRST | NEXT}`` and variants.
 
     ``table`` is a
@@ -396,11 +396,11 @@ class MySQLHandlerReadExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_handler_read_expression"
+        return "format_mysql_handler_read_statement"
 
 
 
-class MySQLHandlerCloseExpression(BaseExpression):
+class MySQLHandlerCloseStatement(BaseExpression):
     """Represent ``HANDLER table CLOSE``.
 
     ``table`` is a
@@ -418,11 +418,11 @@ class MySQLHandlerCloseExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_handler_close_expression"
+        return "format_mysql_handler_close_statement"
 
 
 
-class MySQLDoExpression(BaseExpression):
+class MySQLDoStatement(BaseExpression):
     """Represent ``DO expr [, expr ...]``."""
 
     def __init__(
@@ -436,11 +436,11 @@ class MySQLDoExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_do_expression"
+        return "format_mysql_do_statement"
 
 
 
-class MySQLKillExpression(BaseExpression):
+class MySQLKillStatement(BaseExpression):
     """Represent ``KILL [CONNECTION | QUERY] processlist_id``."""
 
     def __init__(
@@ -460,11 +460,11 @@ class MySQLKillExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_kill_expression"
+        return "format_mysql_kill_statement"
 
 
 
-class MySQLShutdownExpression(BaseExpression):
+class MySQLShutdownStatement(BaseExpression):
     """Represent the ``SHUTDOWN`` statement."""
 
     def __init__(
@@ -476,11 +476,11 @@ class MySQLShutdownExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_shutdown_expression"
+        return "format_mysql_shutdown_statement"
 
 
 
-class MySQLHelpExpression(BaseExpression):
+class MySQLHelpStatement(BaseExpression):
     """Represent ``HELP 'topic'``."""
 
     def __init__(
@@ -494,7 +494,7 @@ class MySQLHelpExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_help_expression"
+        return "format_mysql_help_statement"
 
 
 
@@ -509,7 +509,7 @@ class AccountSpec:
         return f"AccountSpec(user={self.user!r}, host={self.host!r})"
 
 
-class MySQLCreateUserExpression(BaseExpression):
+class MySQLCreateUserStatement(BaseExpression):
     """Represent ``CREATE USER [IF NOT EXISTS] 'user'@'host' [IDENTIFIED BY ...]``."""
 
     def __init__(
@@ -528,11 +528,11 @@ class MySQLCreateUserExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_create_user_expression"
+        return "format_mysql_create_user_statement"
 
 
 
-class MySQLDropUserExpression(BaseExpression):
+class MySQLDropUserStatement(BaseExpression):
     """Represent ``DROP USER [IF EXISTS] 'user'@'host' [, ...]``."""
 
     def __init__(
@@ -549,7 +549,7 @@ class MySQLDropUserExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_drop_user_expression"
+        return "format_mysql_drop_user_statement"
 
 
 
@@ -569,7 +569,7 @@ class GrantPrivilege:
         return f"GrantPrivilege(privilege={self.privilege!r}, columns={self.columns!r})"
 
 
-class MySQLGrantExpression(BaseExpression):
+class MySQLGrantStatement(BaseExpression):
     """Represent ``GRANT priv_list ON object TO account_list``."""
 
     def __init__(
@@ -590,11 +590,11 @@ class MySQLGrantExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_grant_expression"
+        return "format_mysql_grant_statement"
 
 
 
-class MySQLRevokeExpression(BaseExpression):
+class MySQLRevokeStatement(BaseExpression):
     """Represent ``REVOKE priv_list ON object FROM account_list``."""
 
     def __init__(
@@ -613,4 +613,4 @@ class MySQLRevokeExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_mysql_revoke_expression"
+        return "format_mysql_revoke_statement"

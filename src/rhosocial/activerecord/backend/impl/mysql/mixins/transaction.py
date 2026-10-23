@@ -114,7 +114,7 @@ class MySQLTransactionMixin:
         """MySQL supports savepoints."""
         return True
 
-    def format_set_transaction(self, expr: "SetTransactionStatement") -> Tuple[str, tuple]:
+    def format_set_transaction_statement(self, expr: "SetTransactionStatement") -> Tuple[str, tuple]:
         """Format SET TRANSACTION statement for MySQL."""
         from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
 

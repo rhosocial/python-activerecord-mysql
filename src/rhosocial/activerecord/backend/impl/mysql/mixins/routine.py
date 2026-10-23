@@ -7,11 +7,11 @@ from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
-        MySQLCallExpression,
-        MySQLCreateProcedureExpression,
-        MySQLDropProcedureExpression,
-        MySQLCreateFunctionExpression,
-        MySQLDropFunctionExpression,
+        MySQLCallStatement,
+        MySQLCreateProcedureStatement,
+        MySQLDropProcedureStatement,
+        MySQLCreateFunctionStatement,
+        MySQLDropFunctionStatement,
     )
 
 
@@ -43,9 +43,9 @@ class MySQLRoutineMixin:
     def supports_call(self) -> bool:
         return True
 
-    def format_mysql_create_procedure_expression(
+    def format_mysql_create_procedure_statement(
         self,
-        expr: "MySQLCreateProcedureExpression",
+        expr: "MySQLCreateProcedureStatement",
     ) -> Tuple[str, tuple]:
         """Format ``CREATE PROCEDURE name(params) body``.
 
@@ -55,7 +55,7 @@ class MySQLRoutineMixin:
                 ``strict_validation`` and can be switched off; a name of the
                 wrong kind must not depend on a rendering strictness flag.
         """
-        require_kind(expr.name, RoutineObject, "MySQLCreateProcedureExpression.name")
+        require_kind(expr.name, RoutineObject, "MySQLCreateProcedureStatement.name")
         expr.validate(strict=self.strict_validation)
         parts = ["CREATE PROCEDURE", expr.name.to_sql()[0]]
         params = ", ".join(self._format_param(p) for p in expr.params)
@@ -64,16 +64,16 @@ class MySQLRoutineMixin:
             parts.append(expr.body)
         return " ".join(parts), ()
 
-    def format_mysql_drop_procedure_expression(
+    def format_mysql_drop_procedure_statement(
         self,
-        expr: "MySQLDropProcedureExpression",
+        expr: "MySQLDropProcedureStatement",
     ) -> Tuple[str, tuple]:
         """Format ``DROP PROCEDURE [IF EXISTS] name``.
 
         Raises:
             TypeError: ``expr.name`` is not a routine object.
         """
-        require_kind(expr.name, RoutineObject, "MySQLDropProcedureExpression.name")
+        require_kind(expr.name, RoutineObject, "MySQLDropProcedureStatement.name")
         expr.validate(strict=self.strict_validation)
         parts = ["DROP PROCEDURE"]
         if expr.if_exists:
@@ -81,13 +81,13 @@ class MySQLRoutineMixin:
         parts.append(expr.name.to_sql()[0])
         return " ".join(parts), ()
 
-    def format_mysql_create_function_expression(
+    def format_mysql_create_function_statement(
         self,
-        expr: "MySQLCreateFunctionExpression",
+        expr: "MySQLCreateFunctionStatement",
     ) -> Tuple[str, tuple]:
         """Format ``CREATE FUNCTION name(params) RETURNS type body``.
 
-        This is the entry :class:`MySQLCreateFunctionExpression` names. It is
+        This is the entry :class:`MySQLCreateFunctionStatement` names. It is
         deliberately not an override of core's
         ``format_create_function_statement``: that node carries
         ``function``/``parameters``/``language`` where this one carries
@@ -98,7 +98,7 @@ class MySQLRoutineMixin:
         Raises:
             TypeError: ``expr.name`` is not a routine object.
         """
-        require_kind(expr.name, RoutineObject, "MySQLCreateFunctionExpression.name")
+        require_kind(expr.name, RoutineObject, "MySQLCreateFunctionStatement.name")
         expr.validate(strict=self.strict_validation)
         parts = ["CREATE FUNCTION", expr.name.to_sql()[0]]
         params = ", ".join(self._format_param(p) for p in expr.params)
@@ -110,19 +110,19 @@ class MySQLRoutineMixin:
             parts.append(expr.body)
         return " ".join(parts), ()
 
-    def format_mysql_drop_function_expression(
+    def format_mysql_drop_function_statement(
         self,
-        expr: "MySQLDropFunctionExpression",
+        expr: "MySQLDropFunctionStatement",
     ) -> Tuple[str, tuple]:
         """Format ``DROP FUNCTION [IF EXISTS] name`` (stored function).
 
-        The entry :class:`MySQLDropFunctionExpression` names, for the reason
-        given on :meth:`format_mysql_create_function_expression`.
+        The entry :class:`MySQLDropFunctionStatement` names, for the reason
+        given on :meth:`format_mysql_create_function_statement`.
 
         Raises:
             TypeError: ``expr.name`` is not a routine object.
         """
-        require_kind(expr.name, RoutineObject, "MySQLDropFunctionExpression.name")
+        require_kind(expr.name, RoutineObject, "MySQLDropFunctionStatement.name")
         expr.validate(strict=self.strict_validation)
         parts = ["DROP FUNCTION"]
         if expr.if_exists:
@@ -130,13 +130,13 @@ class MySQLRoutineMixin:
         parts.append(expr.name.to_sql()[0])
         return " ".join(parts), ()
 
-    def format_mysql_call_expression(self, expr: "MySQLCallExpression") -> Tuple[str, tuple]:
+    def format_mysql_call_statement(self, expr: "MySQLCallStatement") -> Tuple[str, tuple]:
         """Format ``CALL name([args])``.
 
         Raises:
             TypeError: ``expr.name`` is not a routine object.
         """
-        require_kind(expr.name, RoutineObject, "MySQLCallExpression.name")
+        require_kind(expr.name, RoutineObject, "MySQLCallStatement.name")
         expr.validate(strict=self.strict_validation)
         params = []
         arg_parts = []

@@ -10,7 +10,7 @@ from .object_kind import require_kind
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
-        MySQLLoadDataExpression,
+        MySQLLoadDataStatement,
     )
 
 
@@ -26,7 +26,7 @@ class MySQLDMLOperationMixin:
     def supports_load_data(self) -> bool:
         return True
 
-    def format_mysql_load_data_expression(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
+    def format_mysql_load_data_statement(self, expr: "MySQLLoadDataStatement") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement.
 
         Raises:
@@ -34,7 +34,7 @@ class MySQLDMLOperationMixin:
                 wrong kind there would render a statement loading into whatever
                 object's name was supplied.
         """
-        require_kind(expr.table, Table, "MySQLLoadDataExpression.table")
+        require_kind(expr.table, Table, "MySQLLoadDataStatement.table")
         expr.validate(strict=self.strict_validation)
 
         all_params: List[Any] = []
