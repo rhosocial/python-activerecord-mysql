@@ -83,6 +83,13 @@ class MySQLIntrospectionMixin:
     MySQL supports all introspection features via information_schema.
     """
 
+    def supports_table_options_introspection(self) -> bool:
+        """MySQL answers for a table's storage options from ``information_schema.TABLES``.
+
+        The capability for the ``introspect table-options`` family: engine, row
+        format, collation and the byte estimates the same view already reports."""
+        return True
+
     # ========== Capability Detection ==========
 
     def supports_introspection(self) -> bool:

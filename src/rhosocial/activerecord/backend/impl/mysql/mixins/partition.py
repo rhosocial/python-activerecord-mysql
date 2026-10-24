@@ -72,6 +72,14 @@ class MySQLPartitionMixin:
 
     def supports_subpartitioning(self) -> bool:
         """MySQL supports ``SUBPARTITION BY {HASH|KEY}`` since 5.1."""
+
+    def supports_partition_introspection(self) -> bool:
+        """MySQL answers for a table's partitions from ``information_schema.PARTITIONS``.
+
+        The capability for the ``introspect partitions`` family. An empty answer
+        means the table is not partitioned, which is a different statement from
+        "this engine has no partitions" -- hence the switch."""
+        return True
         return True
 
     def supports_range_columns_partitioning(self) -> bool:
