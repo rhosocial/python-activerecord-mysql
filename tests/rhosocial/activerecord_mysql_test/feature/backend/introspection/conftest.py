@@ -11,6 +11,15 @@ import pytest_asyncio
 
 
 # SQL script for creating test tables
+#
+# The DROP list is ordered by dependency and runs before every CREATE, so a
+# previous run that failed *during* setup leaves nothing that would make this
+# one fail. That case is real: a fixture generator that raises before its
+# ``yield`` never reaches its teardown, so a server touched by an earlier
+# failure keeps the tables -- and the next setup then dies on MySQL's
+# "tablespace exists" (error 1813), which is about the InnoDB space rather
+# than about the row in the dictionary. Dropping first makes setup idempotent,
+# which is what keeps that from ever starting.
 _TABLES_SQL = """
     SET FOREIGN_KEY_CHECKS = 0;
     DROP TABLE IF EXISTS post_tags;
