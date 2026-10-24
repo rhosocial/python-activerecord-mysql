@@ -32,7 +32,7 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect <TYPE> [NAME] [OP
 | Option | Default | Description |
 | :--- | :--- | :--- |
 | `-o, --output` | `table` | `table` (rich), `json`, `csv`, `tsv`. |
-| `--schema` | the connected database | The database to read. MySQL's only namespace level above a table. |
+| `--database` | required (env: `MYSQL_DATABASE`) | The database to connect to **and** the database to read. MySQL has one namespace level and calls it a database, so there is no second flag: the run connects to a database and asks about that database. |
 | `--include-system` | off | Include system tables. |
 | `--host`, `--port`, `--database`, `--user`, `--password` | env or defaults | Connection. `MYSQL_*` env vars are honoured, and arguments override them. |
 | `--charset` | _None_ | Connection charset. |
@@ -47,9 +47,13 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect <TYPE> [NAME] [OP
 *   **Read-only.** `introspect` never writes. It does not create, drop, or
     alter anything, so it is safe to run against a database whose schema
     matters.
-*   **The database is explicit.** `--schema` names the database to read, rather
-    than relying on the connection's default — which differs between clients
-    and is the usual reason two tools disagree about what a table looks like.
+*   **There is no namespace flag, and that is deliberate.** MySQL has one
+    namespace level and calls it a database — `CREATE SCHEMA` is a synonym for
+    `CREATE DATABASE`, and nothing sits inside a database under a further name.
+    So `--database` is the whole answer: the run connects to a database and
+    asks about that database. There is no `--schema`, and it has not been left
+    as an alias, so a caller cannot end up asking about a level that does not
+    exist here.
 *   **`data_length` and `index_length` are estimates.** InnoDB reports
     approximate byte sizes for the clustered index, not exact file sizes. They
     are printed as reported; the caveat travels with the number.

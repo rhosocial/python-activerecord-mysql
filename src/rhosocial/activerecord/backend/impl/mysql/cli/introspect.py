@@ -1,5 +1,15 @@
 # src/rhosocial/activerecord/backend/impl/mysql/cli/introspect.py
-"""introspect subcommand - Database introspection."""
+"""introspect subcommand - Database introspection.
+
+There is no namespace flag here, and that is deliberate. MySQL has exactly one
+namespace level and calls it a *database* -- ``CREATE SCHEMA`` is a synonym for
+``CREATE DATABASE`` and nothing sits inside a database under a further name. So
+``--database``, which the connection already takes, is the whole answer: the run
+connects to a database and asks about that database. An earlier version accepted
+``--schema`` as well, which named the same thing under a word MySQL does not use;
+it is gone rather than aliased, so a caller cannot quietly end up asking about a
+different level than the one it is connected to.
+"""
 
 import argparse
 import asyncio
@@ -100,11 +110,6 @@ def create_parser(subparsers):
         help="Table/view name (required for some types)",
     )
     parser.add_argument(
-        "--schema",
-        default=None,
-        help="Schema name (for databases that support schemas)",
-    )
-    parser.add_argument(
         "--include-system",
         action="store_true",
         help="Include system tables in output",
@@ -169,12 +174,12 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
         introspector = backend.introspector
 
         if args.type == "tables":
-            tables = introspector.list_tables(schema=args.schema, include_system=args.include_system)
+            tables = introspector.list_tables(schema=None, include_system=args.include_system)
             data = _serialize_for_output(tables)
             provider.display_results(data, title="Tables")
 
         elif args.type == "views":
-            views = introspector.list_views(schema=args.schema)
+            views = introspector.list_views(schema=None)
             data = _serialize_for_output(views)
             provider.display_results(data, title="Views")
 
@@ -182,7 +187,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'table' introspection", file=sys.stderr)
                 sys.exit(1)
-            info = introspector.get_table_info(args.name, schema=args.schema)
+            info = introspector.get_table_info(args.name, schema=None)
             if info:
                 provider.display_results(_serialize_for_output(info.columns), title=f"Columns of {args.name}")
                 if info.indexes:
@@ -199,7 +204,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'columns' introspection", file=sys.stderr)
                 sys.exit(1)
-            columns = introspector.list_columns(args.name, schema=args.schema)
+            columns = introspector.list_columns(args.name, schema=None)
             data = _serialize_for_output(columns)
             provider.display_results(data, title=f"Columns of {args.name}")
 
@@ -207,7 +212,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'indexes' introspection", file=sys.stderr)
                 sys.exit(1)
-            indexes = introspector.list_indexes(args.name, schema=args.schema)
+            indexes = introspector.list_indexes(args.name, schema=None)
             data = _serialize_for_output(indexes)
             provider.display_results(data, title=f"Indexes of {args.name}")
 
@@ -215,18 +220,18 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'foreign-keys' introspection", file=sys.stderr)
                 sys.exit(1)
-            fks = introspector.list_foreign_keys(args.name, schema=args.schema)
+            fks = introspector.list_foreign_keys(args.name, schema=None)
             data = _serialize_for_output(fks)
             provider.display_results(data, title=f"Foreign Keys of {args.name}")
 
         elif args.type == "triggers":
-            triggers = introspector.list_triggers(table_name=args.name, schema=args.schema)
+            triggers = introspector.list_triggers(table_name=args.name, schema=None)
             data = _serialize_for_output(triggers)
             provider.display_results(data, title="Triggers")
 
         elif args.type == "table-options":
             if args.name:
-                options = introspector.get_table_options(args.name, schema=args.schema)
+                options = introspector.get_table_options(args.name, schema=None)
                 if options is None:
                     print(f"Error: Table '{args.name}' not found", file=sys.stderr)
                     sys.exit(1)
@@ -234,7 +239,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
                     _serialize_for_output([options]), title=f"Table options of {args.name}"
                 )
             else:
-                options = introspector.list_table_options(schema=args.schema)
+                options = introspector.list_table_options(schema=None)
                 provider.display_results(
                     _serialize_for_output(options), title="Table options"
                 )
@@ -243,7 +248,7 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'partitions' introspection", file=sys.stderr)
                 sys.exit(1)
-            partitions = introspector.list_partitions(args.name, schema=args.schema)
+            partitions = introspector.list_partitions(args.name, schema=None)
             provider.display_results(
                 _serialize_for_output(partitions), title=f"Partitions of {args.name}"
             )
@@ -275,12 +280,12 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
         introspector = backend.introspector
 
         if args.type == "tables":
-            tables = await introspector.list_tables(schema=args.schema, include_system=args.include_system)
+            tables = await introspector.list_tables(schema=None, include_system=args.include_system)
             data = _serialize_for_output(tables)
             provider.display_results(data, title="Tables")
 
         elif args.type == "views":
-            views = await introspector.list_views(schema=args.schema)
+            views = await introspector.list_views(schema=None)
             data = _serialize_for_output(views)
             provider.display_results(data, title="Views")
 
@@ -288,7 +293,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'table' introspection", file=sys.stderr)
                 sys.exit(1)
-            info = await introspector.get_table_info(args.name, schema=args.schema)
+            info = await introspector.get_table_info(args.name, schema=None)
             if info:
                 provider.display_results(_serialize_for_output(info.columns), title=f"Columns of {args.name}")
                 if info.indexes:
@@ -305,7 +310,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'columns' introspection", file=sys.stderr)
                 sys.exit(1)
-            columns = await introspector.list_columns(args.name, schema=args.schema)
+            columns = await introspector.list_columns(args.name, schema=None)
             data = _serialize_for_output(columns)
             provider.display_results(data, title=f"Columns of {args.name}")
 
@@ -313,7 +318,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'indexes' introspection", file=sys.stderr)
                 sys.exit(1)
-            indexes = await introspector.list_indexes(args.name, schema=args.schema)
+            indexes = await introspector.list_indexes(args.name, schema=None)
             data = _serialize_for_output(indexes)
             provider.display_results(data, title=f"Indexes of {args.name}")
 
@@ -321,18 +326,18 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'foreign-keys' introspection", file=sys.stderr)
                 sys.exit(1)
-            fks = await introspector.list_foreign_keys(args.name, schema=args.schema)
+            fks = await introspector.list_foreign_keys(args.name, schema=None)
             data = _serialize_for_output(fks)
             provider.display_results(data, title=f"Foreign Keys of {args.name}")
 
         elif args.type == "triggers":
-            triggers = await introspector.list_triggers(table_name=args.name, schema=args.schema)
+            triggers = await introspector.list_triggers(table_name=args.name, schema=None)
             data = _serialize_for_output(triggers)
             provider.display_results(data, title="Triggers")
 
         elif args.type == "table-options":
             if args.name:
-                options = await introspector.get_table_options(args.name, schema=args.schema)
+                options = await introspector.get_table_options(args.name, schema=None)
                 if options is None:
                     print(f"Error: Table '{args.name}' not found", file=sys.stderr)
                     sys.exit(1)
@@ -340,7 +345,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
                     _serialize_for_output([options]), title=f"Table options of {args.name}"
                 )
             else:
-                options = await introspector.list_table_options(schema=args.schema)
+                options = await introspector.list_table_options(schema=None)
                 provider.display_results(
                     _serialize_for_output(options), title="Table options"
                 )
@@ -349,7 +354,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             if not args.name:
                 print("Error: Table name is required for 'partitions' introspection", file=sys.stderr)
                 sys.exit(1)
-            partitions = await introspector.list_partitions(args.name, schema=args.schema)
+            partitions = await introspector.list_partitions(args.name, schema=None)
             provider.display_results(
                 _serialize_for_output(partitions), title=f"Partitions of {args.name}"
             )
