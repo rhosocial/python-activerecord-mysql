@@ -27,7 +27,14 @@ Design principle: Sync and Async are separate and cannot coexist.
 """
 
 import copy
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ..expression.introspection import (
+        MySQLPartitionListQueryStatement,
+        MySQLTableOptionsInfoQueryStatement,
+        MySQLTableOptionsListQueryStatement,
+    )
 
 from rhosocial.activerecord.backend.introspection.base import (
     IntrospectorMixin,
@@ -285,17 +292,23 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         ]
 
     # ------------------------------------------------------------------ #
-    # Table storage options and partitions — SQL generation
+    # Table storage options and partitions — statement factories
     #
     # Neither family has a scope of its own in IntrospectionScope, and
     # neither is the same question as "what tables are there". Both are
     # therefore asked in IntrospectionScope.TABLE and kept apart from the
     # table list (and from each other) by a distinct ``extra`` namespace,
     # which is exactly what ``extra`` exists for.
+    #
+    # Each factory returns a statement object and renders nothing: the
+    # dialect's ``format_*_query_statement`` decides the SQL, so nothing
+    # here spells it and no helper is private.
     # ------------------------------------------------------------------ #
 
-    def _build_table_options_sql(self, schema: Optional[str]) -> Tuple[str, tuple]:
-        """The storage-options question, as a statement the dialect renders.
+    def table_options_list_statement(
+        self, *, schema: Optional[str]
+    ) -> "MySQLTableOptionsListQueryStatement":
+        """Return the statement that lists every base table's storage options.
 
         ``DATA_LENGTH`` and ``INDEX_LENGTH`` are reported in bytes; see
         :class:`MySQLTableOptions` for the caveat about InnoDB estimates.
@@ -303,19 +316,23 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         from ..expression.introspection import MySQLTableOptionsListQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
-        return MySQLTableOptionsListQueryStatement(self.dialect, schema=target_db).to_sql()
+        return MySQLTableOptionsListQueryStatement(self.dialect, schema=target_db)
 
-    def _build_table_options_lookup_sql(self, table_name: str, schema: Optional[str]) -> Tuple[str, tuple]:
-        """One table's storage options, rendered through the dialect."""
+    def table_options_info_statement(
+        self, *, table_name: str, schema: Optional[str]
+    ) -> "MySQLTableOptionsInfoQueryStatement":
+        """Return the statement that reads one base table's storage options."""
         from ..expression.introspection import MySQLTableOptionsInfoQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLTableOptionsInfoQueryStatement(
             self.dialect, table_name=table_name, schema=target_db
-        ).to_sql()
+        )
 
-    def _build_partition_list_sql(self, table_name: str, schema: Optional[str]) -> Tuple[str, tuple]:
-        """One table's partitions, rendered through the dialect.
+    def partition_list_statement(
+        self, *, table_name: str, schema: Optional[str]
+    ) -> "MySQLPartitionListQueryStatement":
+        """Return the statement that lists one table's partitions.
 
         Rows without a ``PARTITION_NAME`` describe a non-partitioned table
         and are not partitions, so the predicate excludes them rather than
@@ -327,7 +344,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         target_db = schema if schema is not None else self.default_schema
         return MySQLPartitionListQueryStatement(
             self.dialect, table_name=table_name, schema=target_db
-        ).to_sql()
+        )
 
     # ------------------------------------------------------------------ #
     # Table storage options and partitions — parsing
@@ -448,7 +465,7 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
         if cached is not None:
             return cached
 
-        sql, params = self._build_table_options_sql(schema)
+        sql, params = self.table_options_list_statement(schema=schema).to_sql()
         result = self.parse_table_options(self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
@@ -469,7 +486,7 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
         if cached is not None:
             return cached
 
-        sql, params = self._build_table_options_lookup_sql(table_name, schema)
+        sql, params = self.table_options_info_statement(table_name=table_name, schema=schema).to_sql()
         result = next(iter(self.parse_table_options(self._executor.execute(sql, params))), None)
         if result is not None:
             self._cache.set(key, result)
@@ -489,7 +506,7 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
         if cached is not None:
             return cached
 
-        sql, params = self._build_partition_list_sql(table_name, schema)
+        sql, params = self.partition_list_statement(table_name=table_name, schema=schema).to_sql()
         result = self.parse_partitions(self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
@@ -573,7 +590,7 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
         if cached is not None:
             return cached
 
-        sql, params = self._build_table_options_sql(schema)
+        sql, params = self.table_options_list_statement(schema=schema).to_sql()
         result = self.parse_table_options(await self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
@@ -594,7 +611,7 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
         if cached is not None:
             return cached
 
-        sql, params = self._build_table_options_lookup_sql(table_name, schema)
+        sql, params = self.table_options_info_statement(table_name=table_name, schema=schema).to_sql()
         rows = await self._executor.execute(sql, params)
         result = next(iter(self.parse_table_options(rows)), None)
         if result is not None:
@@ -615,7 +632,7 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
         if cached is not None:
             return cached
 
-        sql, params = self._build_partition_list_sql(table_name, schema)
+        sql, params = self.partition_list_statement(table_name=table_name, schema=schema).to_sql()
         result = self.parse_partitions(await self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
