@@ -12,14 +12,14 @@ Architecture:
   - SQL generation: Delegated to MySQLIntrospectionMixin.format_*_query()
     methods in the Dialect layer via Expression.to_sql()
   - Query execution: Handled by IntrospectorExecutor
-  - Result parsing: _parse_* methods in this module (pure Python, no I/O)
+  - Result parsing: parse_* methods in this module (pure Python, no I/O)
 
 Key behaviours:
   - Queries information_schema.TABLES, COLUMNS, STATISTICS,
     KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS, VIEWS, TRIGGERS
   - MySQL-only families: ``list_table_options`` / ``get_table_options``
     (storage options from TABLES) and ``list_partitions`` (from PARTITIONS)
-  - _parse_* methods are pure Python — shared by sync and async introspectors
+  - parse_* methods are pure Python — shared by sync and async introspectors
 
 Design principle: Sync and Async are separate and cannot coexist.
 - SyncMySQLIntrospector: for synchronous backends
@@ -73,13 +73,14 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     from this mixin to share:
     - Default schema handling
     - MySQL version detection
-    - _parse_* implementations
+    - parse_* implementations
 
     SQL generation is delegated to the Dialect layer via Expression.to_sql()
     which calls MySQLIntrospectionMixin.format_*_query() methods.
     """
 
-    def _get_default_schema(self) -> str:
+    @property
+    def default_schema(self) -> str:
         """Return the MySQL database name from the backend config."""
         if hasattr(self._backend, "config") and hasattr(self._backend.config, "database"):
             return self._backend.config.database or ""
@@ -93,10 +94,10 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     # Parse methods — pure Python, no I/O
     # ------------------------------------------------------------------ #
 
-    def _parse_database_info(self, rows: List[Dict[str, Any]]) -> IntrospectionDatabaseInfo:
+    def parse_database_info(self, rows: List[Dict[str, Any]]) -> IntrospectionDatabaseInfo:
         version = self._get_version()
         version_str = ".".join(str(v) for v in version)
-        db_name = self._get_default_schema()
+        db_name = self.default_schema
 
         db_row = rows[0] if rows else {}
 
@@ -109,8 +110,8 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             collation=db_row.get("DEFAULT_COLLATION_NAME"),
         )
 
-    def _parse_tables(self, rows: List[Dict[str, Any]], schema: Optional[str]) -> List[IntrospectionTableInfo]:
-        target_db = schema if schema is not None else self._get_default_schema()
+    def parse_tables(self, rows: List[Dict[str, Any]], schema: Optional[str]) -> List[IntrospectionTableInfo]:
+        target_db = schema if schema is not None else self.default_schema
         table_type_map = {
             "BASE TABLE": TableType.BASE_TABLE,
             "VIEW": TableType.VIEW,
@@ -134,7 +135,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             )
         return tables
 
-    def _parse_columns(
+    def parse_columns(
         self,
         rows: List[Dict[str, Any]],
         table_name: str,
@@ -169,7 +170,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             )
         return columns
 
-    def _parse_indexes(
+    def parse_indexes(
         self,
         rows: List[Dict[str, Any]],
         table_name: str,
@@ -205,7 +206,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             )
         return list(index_map.values())
 
-    def _parse_foreign_keys(
+    def parse_foreign_keys(
         self,
         rows: List[Dict[str, Any]],
         table_name: str,
@@ -241,7 +242,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             fk_map[fk_name].referenced_columns.append(row.get("REFERENCED_COLUMN_NAME", ""))
         return list(fk_map.values())
 
-    def _parse_views(self, rows: List[Dict[str, Any]], schema: str) -> List[IntrospectionViewInfo]:
+    def parse_views(self, rows: List[Dict[str, Any]], schema: str) -> List[IntrospectionViewInfo]:
         return [
             IntrospectionViewInfo(
                 name=row.get("TABLE_NAME", row.get("VIEW_NAME", "")),
@@ -253,7 +254,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             for row in rows
         ]
 
-    def _parse_view_info(
+    def parse_view_info(
         self,
         rows: List[Dict[str, Any]],
         view_name: str,
@@ -270,7 +271,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             is_updatable=row.get("IS_UPDATABLE") == "YES",
         )
 
-    def _parse_triggers(self, rows: List[Dict[str, Any]], schema: str) -> List[IntrospectionTriggerInfo]:
+    def parse_triggers(self, rows: List[Dict[str, Any]], schema: str) -> List[IntrospectionTriggerInfo]:
         return [
             IntrospectionTriggerInfo(
                 name=row.get("TRIGGER_NAME", ""),
@@ -301,14 +302,14 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         """
         from ..expression.introspection import MySQLTableOptionsListQueryStatement
 
-        target_db = schema if schema is not None else self._get_default_schema()
+        target_db = schema if schema is not None else self.default_schema
         return MySQLTableOptionsListQueryStatement(self.dialect, schema=target_db).to_sql()
 
     def _build_table_options_lookup_sql(self, table_name: str, schema: Optional[str]) -> Tuple[str, tuple]:
         """One table's storage options, rendered through the dialect."""
         from ..expression.introspection import MySQLTableOptionsInfoQueryStatement
 
-        target_db = schema if schema is not None else self._get_default_schema()
+        target_db = schema if schema is not None else self.default_schema
         return MySQLTableOptionsInfoQueryStatement(
             self.dialect, table_name=table_name, schema=target_db
         ).to_sql()
@@ -323,7 +324,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         """
         from ..expression.introspection import MySQLPartitionListQueryStatement
 
-        target_db = schema if schema is not None else self._get_default_schema()
+        target_db = schema if schema is not None else self.default_schema
         return MySQLPartitionListQueryStatement(
             self.dialect, table_name=table_name, schema=target_db
         ).to_sql()
@@ -332,7 +333,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     # Table storage options and partitions — parsing
     # ------------------------------------------------------------------ #
 
-    def _parse_table_options(self, rows: List[Dict[str, Any]]) -> List[MySQLTableOptions]:
+    def parse_table_options(self, rows: List[Dict[str, Any]]) -> List[MySQLTableOptions]:
         return [
             MySQLTableOptions(
                 schema=row.get("TABLE_SCHEMA", ""),
@@ -349,7 +350,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             for row in rows
         ]
 
-    def _parse_partitions(self, rows: List[Dict[str, Any]]) -> List[MySQLPartitionInfo]:
+    def parse_partitions(self, rows: List[Dict[str, Any]]) -> List[MySQLPartitionInfo]:
         return [
             MySQLPartitionInfo(
                 schema=row.get("TABLE_SCHEMA", ""),
@@ -448,7 +449,7 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
             return cached
 
         sql, params = self._build_table_options_sql(schema)
-        result = self._parse_table_options(self._executor.execute(sql, params))
+        result = self.parse_table_options(self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
 
@@ -469,7 +470,7 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
             return cached
 
         sql, params = self._build_table_options_lookup_sql(table_name, schema)
-        result = next(iter(self._parse_table_options(self._executor.execute(sql, params))), None)
+        result = next(iter(self.parse_table_options(self._executor.execute(sql, params))), None)
         if result is not None:
             self._cache.set(key, result)
         return result
@@ -489,7 +490,7 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
             return cached
 
         sql, params = self._build_partition_list_sql(table_name, schema)
-        result = self._parse_partitions(self._executor.execute(sql, params))
+        result = self.parse_partitions(self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
 
@@ -573,7 +574,7 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
             return cached
 
         sql, params = self._build_table_options_sql(schema)
-        result = self._parse_table_options(await self._executor.execute(sql, params))
+        result = self.parse_table_options(await self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
 
@@ -595,7 +596,7 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
 
         sql, params = self._build_table_options_lookup_sql(table_name, schema)
         rows = await self._executor.execute(sql, params)
-        result = next(iter(self._parse_table_options(rows)), None)
+        result = next(iter(self.parse_table_options(rows)), None)
         if result is not None:
             self._cache.set(key, result)
         return result
@@ -615,6 +616,6 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
             return cached
 
         sql, params = self._build_partition_list_sql(table_name, schema)
-        result = self._parse_partitions(await self._executor.execute(sql, params))
+        result = self.parse_partitions(await self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result

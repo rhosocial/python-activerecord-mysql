@@ -226,18 +226,18 @@ class TestMySQLStatusIntrospectorMixin:
     """Tests for MySQLStatusIntrospectorMixin helper methods."""
 
     def test_parse_variable_value_int(self, mysql_backend):
-        """Test _parse_variable_value handles integers."""
+        """Test parse_variable_value handles integers."""
         status = mysql_backend.introspector.status
 
-        result = status._parse_variable_value("42")
+        result = status.parse_variable_value("42")
         assert result == 42
         assert isinstance(result, int)
 
     def test_parse_variable_value_str(self, mysql_backend):
-        """Test _parse_variable_value preserves non-integer strings."""
+        """Test parse_variable_value preserves non-integer strings."""
         status = mysql_backend.introspector.status
 
-        result = status._parse_variable_value("utf8mb4")
+        result = status.parse_variable_value("utf8mb4")
         assert result == "utf8mb4"
         assert isinstance(result, str)
 
@@ -507,19 +507,19 @@ class TestAsyncMySQLStatusIntrospectorMixin:
 
     @pytest.mark.asyncio
     async def test_parse_variable_value_int(self, async_mysql_backend):
-        """Test _parse_variable_value handles integers."""
+        """Test parse_variable_value handles integers."""
         status = async_mysql_backend.introspector.status
 
-        result = status._parse_variable_value("42")
+        result = status.parse_variable_value("42")
         assert result == 42
         assert isinstance(result, int)
 
     @pytest.mark.asyncio
     async def test_parse_variable_value_str(self, async_mysql_backend):
-        """Test _parse_variable_value preserves non-integer strings."""
+        """Test parse_variable_value preserves non-integer strings."""
         status = async_mysql_backend.introspector.status
 
-        result = status._parse_variable_value("utf8mb4")
+        result = status.parse_variable_value("utf8mb4")
         assert result == "utf8mb4"
         assert isinstance(result, str)
 

@@ -377,7 +377,7 @@ class MySQLStatusIntrospectorMixin:
         return QueryStatement(dialect, **kwargs).to_sql()
 
 
-    def _parse_variable_value(self, value: Any) -> Any:
+    def parse_variable_value(self, value: Any) -> Any:
         """Parse variable value to appropriate Python type."""
         if value is None:
             return None
@@ -390,7 +390,7 @@ class MySQLStatusIntrospectorMixin:
                 return value
         return value
 
-    def _parse_version_string(self, version_str: str) -> tuple:
+    def parse_version_string(self, version_str: str) -> tuple:
         """Parse MySQL version string to (major, minor, patch) tuple.
 
         Examples:
@@ -422,7 +422,7 @@ class MySQLStatusIntrospectorMixin:
         Returns:
             True if version >= major.minor
         """
-        parsed = self._parse_version_string(version_str)
+        parsed = self.parse_version_string(version_str)
         return parsed >= (major, minor, 0)
 
     def _create_status_item(
@@ -437,7 +437,7 @@ class MySQLStatusIntrospectorMixin:
         """Create a StatusItem with parsed value."""
         return StatusItem(
             name=name,
-            value=self._parse_variable_value(value),
+            value=self.parse_variable_value(value),
             category=category,
             description=description,
             unit=unit,
@@ -607,11 +607,11 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             var_dict[var.variable_name] = var.value
 
         return ConnectionInfo(
-            active_count=self._parse_variable_value(status_dict.get("Threads_connected")),
-            max_connections=self._parse_variable_value(var_dict.get("max_connections")),
-            idle_count=self._parse_variable_value(status_dict.get("Threads_cached")),
+            active_count=self.parse_variable_value(status_dict.get("Threads_connected")),
+            max_connections=self.parse_variable_value(var_dict.get("max_connections")),
+            idle_count=self.parse_variable_value(status_dict.get("Threads_cached")),
             extra={
-                "threads_running": self._parse_variable_value(status_dict.get("Threads_running")),
+                "threads_running": self.parse_variable_value(status_dict.get("Threads_running")),
             },
         )
 
@@ -632,10 +632,10 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
             pass
 
         return StorageInfo(
-            total_size_bytes=self._parse_variable_value(total_size),
+            total_size_bytes=self.parse_variable_value(total_size),
             extra={
                 "datadir": var_dict.get("datadir"),
-                "innodb_buffer_pool_size": self._parse_variable_value(var_dict.get("innodb_buffer_pool_size")),
+                "innodb_buffer_pool_size": self.parse_variable_value(var_dict.get("innodb_buffer_pool_size")),
             },
         )
 
@@ -753,19 +753,19 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "Innodb_buffer_pool_pages_total":
-                        innodb.buffer_pool_pages_total = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_total = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_pages_data":
-                        innodb.buffer_pool_pages_data = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_data = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_pages_dirty":
-                        innodb.buffer_pool_pages_dirty = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_dirty = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_pages_free":
-                        innodb.buffer_pool_pages_free = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_free = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_read_requests":
-                        innodb.buffer_pool_read_requests = self._parse_variable_value(value)
+                        innodb.buffer_pool_read_requests = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_reads":
-                        innodb.buffer_pool_reads = self._parse_variable_value(value)
+                        innodb.buffer_pool_reads = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_wait_free":
-                        innodb.buffer_pool_wait_free = self._parse_variable_value(value)
+                        innodb.buffer_pool_wait_free = self.parse_variable_value(value)
         except Exception:
             pass
         # Get InnoDB variables
@@ -776,15 +776,15 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "innodb_buffer_pool_size":
-                        innodb.buffer_pool_size = self._parse_variable_value(value)
+                        innodb.buffer_pool_size = self.parse_variable_value(value)
                     elif key == "innodb_buffer_pool_instances":
-                        innodb.buffer_pool_instances = self._parse_variable_value(value)
+                        innodb.buffer_pool_instances = self.parse_variable_value(value)
                     elif key == "innodb_log_file_size":
-                        innodb.log_file_size = self._parse_variable_value(value)
+                        innodb.log_file_size = self.parse_variable_value(value)
                     elif key == "innodb_log_buffer_size":
-                        innodb.log_buffer_size = self._parse_variable_value(value)
+                        innodb.log_buffer_size = self.parse_variable_value(value)
                     elif key == "innodb_lock_wait_timeout":
-                        innodb.lock_wait_timeout = self._parse_variable_value(value)
+                        innodb.lock_wait_timeout = self.parse_variable_value(value)
         except Exception:
             pass
         # Get InnoDB row lock status
@@ -795,9 +795,9 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "Innodb_row_lock_time":
-                        innodb.row_lock_time = self._parse_variable_value(value)
+                        innodb.row_lock_time = self.parse_variable_value(value)
                     elif key == "Innodb_row_lock_waits":
-                        innodb.row_lock_waits = self._parse_variable_value(value)
+                        innodb.row_lock_waits = self.parse_variable_value(value)
                     elif key == "Innodb_row_lock_time_avg":
                         # Calculate average
                         total_lock_time = innodb.row_lock_time or 0
@@ -805,23 +805,23 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                         avg_time = total_lock_time / lock_waits if lock_waits > 0 else 0
                         innodb.row_lock_time_avg = round(avg_time, 2)
                     elif key == "Innodb_rows_read":
-                        innodb.rows_read = self._parse_variable_value(value)
+                        innodb.rows_read = self.parse_variable_value(value)
                     elif key == "Innodb_rows_inserted":
-                        innodb.rows_inserted = self._parse_variable_value(value)
+                        innodb.rows_inserted = self.parse_variable_value(value)
                     elif key == "Innodb_rows_updated":
-                        innodb.rows_updated = self._parse_variable_value(value)
+                        innodb.rows_updated = self.parse_variable_value(value)
                     elif key == "Innodb_rows_deleted":
-                        innodb.rows_deleted = self._parse_variable_value(value)
+                        innodb.rows_deleted = self.parse_variable_value(value)
                     elif key == "Innodb_data_reads":
-                        innodb.data_reads = self._parse_variable_value(value)
+                        innodb.data_reads = self.parse_variable_value(value)
                     elif key == "Innodb_data_writes":
-                        innodb.data_writes = self._parse_variable_value(value)
+                        innodb.data_writes = self.parse_variable_value(value)
                     elif key == "Innodb_os_log_fsyncs":
-                        innodb.os_fsyncs = self._parse_variable_value(value)
+                        innodb.os_fsyncs = self.parse_variable_value(value)
                     elif key == "Innodb_os_file_reads":
-                        innodb.os_file_reads = self._parse_variable_value(value)
+                        innodb.os_file_reads = self.parse_variable_value(value)
                     elif key == "Innodb_os_file_writes":
-                        innodb.os_file_writes = self._parse_variable_value(value)
+                        innodb.os_file_writes = self.parse_variable_value(value)
         except Exception:
             pass
         return innodb
@@ -856,7 +856,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                             # Get file size from the File_size column if available
                             file_size = row.get("File_size")
                             if file_size:
-                                total_size += self._parse_variable_value(file_size)
+                                total_size += self.parse_variable_value(file_size)
                     binary_log.log_files = log_files
                     binary_log.log_size_bytes = total_size
             except Exception:
@@ -878,7 +878,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self.parse_variable_value(row.get("Position"))
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
@@ -886,7 +886,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self.parse_variable_value(row.get("Position"))
             except Exception:
                 pass
         # Get GTID info
@@ -959,7 +959,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     elif key == "log_slow_admin_statements":
                         slow_query.log_slow_admin_statements = str(value).lower() in ("on", "1")
                     elif key == "min_examined_row_limit":
-                        slow_query.min_examined_row_limit = self._parse_variable_value(value)
+                        slow_query.min_examined_row_limit = self.parse_variable_value(value)
         except Exception:
             pass
         # Get slow query count
@@ -970,7 +970,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "Slow_queries":
-                        slow_query.slow_queries_count = self._parse_variable_value(value)
+                        slow_query.slow_queries_count = self.parse_variable_value(value)
         except Exception:
             pass
         return slow_query
@@ -985,7 +985,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                 for row in result.data:
                     key = row.get("Variable_name")
                     if key == "server_id":
-                        repl_info.server_id = self._parse_variable_value(row.get("Value"))
+                        repl_info.server_id = self.parse_variable_value(row.get("Value"))
         except Exception:
             pass
         # Check if this is a master
@@ -1019,7 +1019,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                         master_info = ReplicationMasterInfo()
                         row = result.data[0]
                         master_info.binary_log_file = row.get("File")
-                        master_info.binary_log_position = self._parse_variable_value(row.get("Position"))
+                        master_info.binary_log_position = self.parse_variable_value(row.get("Position"))
                         repl_info.master_info = master_info
                 else:
                     # MySQL < 9.0: use SHOW MASTER STATUS
@@ -1029,7 +1029,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                         master_info = ReplicationMasterInfo()
                         row = result.data[0]
                         master_info.binary_log_file = row.get("File")
-                        master_info.binary_log_position = self._parse_variable_value(row.get("Position"))
+                        master_info.binary_log_position = self.parse_variable_value(row.get("Position"))
                         # Parse comma-separated list
                         do_db = row.get("Binlog_Do_DB", "")
                         if do_db:
@@ -1070,22 +1070,22 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
                     slave_info = ReplicationSlaveInfo()
                     row = result.data[0]
                     slave_info.master_host = row.get("Master_Host")
-                    slave_info.master_port = self._parse_variable_value(row.get("Master_Port"))
+                    slave_info.master_port = self.parse_variable_value(row.get("Master_Port"))
                     slave_info.master_user = row.get("Master_User")
                     slave_info.slave_io_running = row.get("Slave_IO_Running")
                     slave_info.slave_sql_running = row.get("Slave_SQL_Running")
-                    slave_info.seconds_behind_master = self._parse_variable_value(row.get("Seconds_Behind_Master"))
+                    slave_info.seconds_behind_master = self.parse_variable_value(row.get("Seconds_Behind_Master"))
                     slave_info.master_log_file = row.get("Master_Log_File")
-                    slave_info.read_master_log_pos = self._parse_variable_value(row.get("Read_Master_Log_Pos"))
+                    slave_info.read_master_log_pos = self.parse_variable_value(row.get("Read_Master_Log_Pos"))
                     slave_info.relay_master_log_file = row.get("Relay_Master_Log_File")
                     slave_info.slave_io_state = row.get("Slave_IO_State")
-                    slave_info.last_io_errno = self._parse_variable_value(row.get("Last_IO_Errno"))
+                    slave_info.last_io_errno = self.parse_variable_value(row.get("Last_IO_Errno"))
                     slave_info.last_io_error = row.get("Last_IO_Error")
-                    slave_info.last_sql_errno = self._parse_variable_value(row.get("Last_SQL_Errno"))
+                    slave_info.last_sql_errno = self.parse_variable_value(row.get("Last_SQL_Errno"))
                     slave_info.last_sql_error = row.get("Last_SQL_Error")
                     slave_info.relay_log_file = row.get("Relay_Log_File")
-                    slave_info.relay_log_pos = self._parse_variable_value(row.get("Relay_Log_Pos"))
-                    slave_info.exec_master_log_pos = self._parse_variable_value(row.get("Exec_Master_Log_Pos"))
+                    slave_info.relay_log_pos = self.parse_variable_value(row.get("Relay_Log_Pos"))
+                    slave_info.exec_master_log_pos = self.parse_variable_value(row.get("Exec_Master_Log_Pos"))
                     repl_info.slave_info = slave_info
         except Exception:
             pass
@@ -1216,11 +1216,11 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             var_dict[var.variable_name] = var.value
 
         return ConnectionInfo(
-            active_count=self._parse_variable_value(status_dict.get("Threads_connected")),
-            max_connections=self._parse_variable_value(var_dict.get("max_connections")),
-            idle_count=self._parse_variable_value(status_dict.get("Threads_cached")),
+            active_count=self.parse_variable_value(status_dict.get("Threads_connected")),
+            max_connections=self.parse_variable_value(var_dict.get("max_connections")),
+            idle_count=self.parse_variable_value(status_dict.get("Threads_cached")),
             extra={
-                "threads_running": self._parse_variable_value(status_dict.get("Threads_running")),
+                "threads_running": self.parse_variable_value(status_dict.get("Threads_running")),
             },
         )
 
@@ -1240,10 +1240,10 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             pass
 
         return StorageInfo(
-            total_size_bytes=self._parse_variable_value(total_size),
+            total_size_bytes=self.parse_variable_value(total_size),
             extra={
                 "datadir": var_dict.get("datadir"),
-                "innodb_buffer_pool_size": self._parse_variable_value(var_dict.get("innodb_buffer_pool_size")),
+                "innodb_buffer_pool_size": self.parse_variable_value(var_dict.get("innodb_buffer_pool_size")),
             },
         )
 
@@ -1359,19 +1359,19 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "Innodb_buffer_pool_pages_total":
-                        innodb.buffer_pool_pages_total = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_total = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_pages_data":
-                        innodb.buffer_pool_pages_data = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_data = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_pages_dirty":
-                        innodb.buffer_pool_pages_dirty = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_dirty = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_pages_free":
-                        innodb.buffer_pool_pages_free = self._parse_variable_value(value)
+                        innodb.buffer_pool_pages_free = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_read_requests":
-                        innodb.buffer_pool_read_requests = self._parse_variable_value(value)
+                        innodb.buffer_pool_read_requests = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_reads":
-                        innodb.buffer_pool_reads = self._parse_variable_value(value)
+                        innodb.buffer_pool_reads = self.parse_variable_value(value)
                     elif key == "Innodb_buffer_pool_wait_free":
-                        innodb.buffer_pool_wait_free = self._parse_variable_value(value)
+                        innodb.buffer_pool_wait_free = self.parse_variable_value(value)
         except Exception:
             pass
         # Get InnoDB variables
@@ -1382,15 +1382,15 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "innodb_buffer_pool_size":
-                        innodb.buffer_pool_size = self._parse_variable_value(value)
+                        innodb.buffer_pool_size = self.parse_variable_value(value)
                     elif key == "innodb_buffer_pool_instances":
-                        innodb.buffer_pool_instances = self._parse_variable_value(value)
+                        innodb.buffer_pool_instances = self.parse_variable_value(value)
                     elif key == "innodb_log_file_size":
-                        innodb.log_file_size = self._parse_variable_value(value)
+                        innodb.log_file_size = self.parse_variable_value(value)
                     elif key == "innodb_log_buffer_size":
-                        innodb.log_buffer_size = self._parse_variable_value(value)
+                        innodb.log_buffer_size = self.parse_variable_value(value)
                     elif key == "innodb_lock_wait_timeout":
-                        innodb.lock_wait_timeout = self._parse_variable_value(value)
+                        innodb.lock_wait_timeout = self.parse_variable_value(value)
         except Exception:
             pass
         # Get InnoDB row lock status
@@ -1401,32 +1401,32 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                     key = row.get("Variable_name")
                     value = row.get("Value")
                     if key == "Innodb_row_lock_time":
-                        innodb.row_lock_time = self._parse_variable_value(value)
+                        innodb.row_lock_time = self.parse_variable_value(value)
                     elif key == "Innodb_row_lock_waits":
-                        innodb.row_lock_waits = self._parse_variable_value(value)
+                        innodb.row_lock_waits = self.parse_variable_value(value)
                     elif key == "Innodb_row_lock_time_avg":
                         total_lock_time = innodb.row_lock_time or 0
                         lock_waits = innodb.row_lock_waits or 1
                         avg_time = total_lock_time / lock_waits if lock_waits > 0 else 0
                         innodb.row_lock_time_avg = round(avg_time, 2)
                     elif key == "Innodb_rows_read":
-                        innodb.rows_read = self._parse_variable_value(value)
+                        innodb.rows_read = self.parse_variable_value(value)
                     elif key == "Innodb_rows_inserted":
-                        innodb.rows_inserted = self._parse_variable_value(value)
+                        innodb.rows_inserted = self.parse_variable_value(value)
                     elif key == "Innodb_rows_updated":
-                        innodb.rows_updated = self._parse_variable_value(value)
+                        innodb.rows_updated = self.parse_variable_value(value)
                     elif key == "Innodb_rows_deleted":
-                        innodb.rows_deleted = self._parse_variable_value(value)
+                        innodb.rows_deleted = self.parse_variable_value(value)
                     elif key == "Innodb_data_reads":
-                        innodb.data_reads = self._parse_variable_value(value)
+                        innodb.data_reads = self.parse_variable_value(value)
                     elif key == "Innodb_data_writes":
-                        innodb.data_writes = self._parse_variable_value(value)
+                        innodb.data_writes = self.parse_variable_value(value)
                     elif key == "Innodb_os_log_fsyncs":
-                        innodb.os_fsyncs = self._parse_variable_value(value)
+                        innodb.os_fsyncs = self.parse_variable_value(value)
                     elif key == "Innodb_os_file_reads":
-                        innodb.os_file_reads = self._parse_variable_value(value)
+                        innodb.os_file_reads = self.parse_variable_value(value)
                     elif key == "Innodb_os_file_writes":
-                        innodb.os_file_writes = self._parse_variable_value(value)
+                        innodb.os_file_writes = self.parse_variable_value(value)
         except Exception:
             pass
         return innodb
@@ -1460,7 +1460,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                             log_files.append(log_file)
                             file_size = row.get("File_size")
                             if file_size:
-                                total_size += self._parse_variable_value(file_size)
+                                total_size += self.parse_variable_value(file_size)
                     binary_log.log_files = log_files
                     binary_log.log_size_bytes = total_size
             except Exception:
@@ -1482,7 +1482,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self.parse_variable_value(row.get("Position"))
                         binary_log.gtid_executed = row.get("Gtid")
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
@@ -1490,7 +1490,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                     if result and result.data:
                         row = result.data[0]
                         binary_log.current_log_file = row.get("File")
-                        binary_log.current_log_position = self._parse_variable_value(row.get("Position"))
+                        binary_log.current_log_position = self.parse_variable_value(row.get("Position"))
             except Exception:
                 pass
         # Get GTID info
@@ -1565,7 +1565,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                 for row in result.data:
                     value = row.get("Value")
                     if value:
-                        slow_query.slow_queries_count = self._parse_variable_value(value)
+                        slow_query.slow_queries_count = self.parse_variable_value(value)
         except Exception:
             pass
         return slow_query
@@ -1602,7 +1602,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                         repl.is_master = True
                         row = result.data[0]
                         repl.master_log_file = row.get("File")
-                        repl.master_log_position = self._parse_variable_value(row.get("Position"))
+                        repl.master_log_position = self.parse_variable_value(row.get("Position"))
                 else:
                     # MySQL < 8.4: use SHOW MASTER STATUS
                     result = await self._backend.execute(*self._show_master_status())
@@ -1610,7 +1610,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                         repl.is_master = True
                         row = result.data[0]
                         repl.master_log_file = row.get("File")
-                        repl.master_log_position = self._parse_variable_value(row.get("Position"))
+                        repl.master_log_position = self.parse_variable_value(row.get("Position"))
             except Exception:
                 pass
         # Check if server is configured as slave
@@ -1632,7 +1632,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
                     repl.slave_master_host = row.get("Master_Host")
                     repl.slave_master_port = row.get("Master_Port")
                     repl.slave_relay_log_file = row.get("Relay_Log_File")
-                    repl.slave_relay_log_pos = self._parse_variable_value(row.get("Relay_Log_Pos"))
+                    repl.slave_relay_log_pos = self.parse_variable_value(row.get("Relay_Log_Pos"))
                     repl.slave_last_error = row.get("Last_Error")
         except Exception:
             pass
