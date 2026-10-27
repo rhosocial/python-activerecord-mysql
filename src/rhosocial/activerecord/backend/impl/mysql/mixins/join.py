@@ -4,7 +4,7 @@ class MySQLJoinMixin:
 
     def supports_lateral_join(self) -> bool:
         """Whether LATERAL joins are supported."""
-        return self.version >= (8, 0, 14)
+        return self.version_at_least((8, 0, 14))
 
     def supports_right_join(self) -> bool:
         """RIGHT JOIN is supported."""

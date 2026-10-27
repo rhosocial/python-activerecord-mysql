@@ -7,7 +7,7 @@ class MySQLFullTextSearchMixin:
 
     def supports_fulltext_index(self) -> bool:
         """Whether FULLTEXT index is supported (MySQL 5.6+ InnoDB)."""
-        return self.version >= (5, 6, 0)
+        return self.version_at_least((5, 6, 0))
 
     def supports_fulltext_search(self) -> bool:
         """Whether full-text search (MATCH ... AGAINST) is supported.
@@ -20,7 +20,7 @@ class MySQLFullTextSearchMixin:
         return self.supports_fulltext_index()
 
     def supports_fulltext_parser(self) -> bool:
-        return self.version >= (5, 1, 0)
+        return self.version_at_least((5, 1, 0))
 
     def supports_fulltext_query_expansion(self) -> bool:
         return True

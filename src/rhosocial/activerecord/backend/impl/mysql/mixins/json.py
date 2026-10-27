@@ -40,7 +40,7 @@ class MySQLJSONFunctionMixin:
     }
 
     def supports_json_type(self) -> bool:
-        return self.version >= (5, 7, 8)
+        return self.version_at_least((5, 7, 8))
 
     def supports_json_path(self) -> bool:
         """Whether a JSON path can be read on this server.
@@ -50,18 +50,18 @@ class MySQLJSONFunctionMixin:
         perfectly well and has no JSON column type, so gating on the type
         would refuse queries it answers.
         """
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_json_merge_patch(self) -> bool:
-        return self.version >= (8, 0, 3)
+        return self.version_at_least((8, 0, 3))
 
     def supports_json_table(self) -> bool:
-        return self.version >= (8, 0, 4)
+        return self.version_at_least((8, 0, 4))
 
     def supports_json_function(self, function_name: str) -> bool:
         if function_name in self._JSON_FUNCTION_VERSIONS:
-            return self.version >= self._JSON_FUNCTION_VERSIONS[function_name]
-        return self.version >= (5, 7, 8)
+            return self.version_at_least(self._JSON_FUNCTION_VERSIONS[function_name])
+        return self.version_at_least((5, 7, 8))
 
     def format_mysql_json_extract_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONExtractExpression` node."""

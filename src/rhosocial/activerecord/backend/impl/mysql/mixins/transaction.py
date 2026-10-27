@@ -51,7 +51,7 @@ class MySQLTransactionMixin:
 
     def supports_transaction_mode(self) -> bool:
         """MySQL supports READ ONLY transactions (5.6.5+)."""
-        return self.version >= (5, 6, 5)
+        return self.version_at_least((5, 6, 5))
 
     def supports_isolation_level_in_begin(self) -> bool:
         """MySQL does not support isolation level in START TRANSACTION."""
@@ -59,7 +59,7 @@ class MySQLTransactionMixin:
 
     def supports_read_only_transaction(self) -> bool:
         """MySQL supports READ ONLY transactions (5.6.5+)."""
-        return self.version >= (5, 6, 5)
+        return self.version_at_least((5, 6, 5))
 
     def supports_deferrable_transaction(self) -> bool:
         """MySQL does not support DEFERRABLE mode."""

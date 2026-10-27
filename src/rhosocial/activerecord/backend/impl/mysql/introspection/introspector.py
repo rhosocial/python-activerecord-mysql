@@ -79,7 +79,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     Both SyncMySQLIntrospector and AsyncMySQLIntrospector inherit
     from this mixin to share:
     - Default schema handling
-    - MySQL version detection
+    - The version a database record reports (``server_version``)
     - parse_* implementations
 
     SQL generation is delegated to the Dialect layer via Expression.to_sql()
@@ -93,25 +93,33 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             return self._backend.config.database or ""
         return ""
 
-    def _get_version(self) -> tuple:
-        """Return the MySQL server version tuple from the backend."""
-        return getattr(self._backend, "_version", (8, 0, 0))
-
     # ------------------------------------------------------------------ #
     # Parse methods — pure Python, no I/O
     # ------------------------------------------------------------------ #
 
     def parse_database_info(self, rows: List[Dict[str, Any]]) -> IntrospectionDatabaseInfo:
-        version = self._get_version()
-        version_str = ".".join(str(v) for v in version)
-        db_name = self.default_schema
+        """Turn the schema row into a database record.
 
+        The version comes from :attr:`server_version`, not from the strict
+        ``dialect.version`` or a backend private: a parser has no connection
+        to ask, and refusing to describe a database until
+        ``introspect_and_adapt()`` has run would make the answer depend on a
+        step the caller did not need. An unresolved version is reported as
+        the literal ``"unknown"`` with ``(0, 0, 0)`` -- distinguishable from
+        a server that really is 0.0.0 -- rather than a fabricated ``8.0.0``.
+
+        ``encoding`` and ``collation`` are the two columns the statement
+        selects. ``table_count`` and ``size_bytes`` are not among them: they
+        live in ``information_schema.TABLES``, so they stay ``None`` rather
+        than being guessed here.
+        """
+        version = self.server_version
         db_row = rows[0] if rows else {}
 
         return IntrospectionDatabaseInfo(
-            name=db_name,
-            version=version_str,
-            version_tuple=version,
+            name=self.default_schema,
+            version=".".join(str(part) for part in version) if version else "unknown",
+            version_tuple=tuple(version) if version else (0, 0, 0),
             vendor="MySQL",
             encoding=db_row.get("DEFAULT_CHARACTER_SET_NAME"),
             collation=db_row.get("DEFAULT_COLLATION_NAME"),

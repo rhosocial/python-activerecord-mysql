@@ -12,11 +12,11 @@ class MySQLSetOperationMixin:
 
     def supports_intersect(self) -> bool:
         """INTERSECT is supported since MySQL 8.0.31."""
-        return self.version >= (8, 0, 31)
+        return self.version_at_least((8, 0, 31))
 
     def supports_except(self) -> bool:
         """EXCEPT is supported since MySQL 8.0.31."""
-        return self.version >= (8, 0, 31)
+        return self.version_at_least((8, 0, 31))
 
     def supports_set_operation_order_by(self) -> bool:
         """Set operations support ORDER BY."""

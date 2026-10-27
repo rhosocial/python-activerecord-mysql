@@ -22,11 +22,11 @@ class MySQLTableStatementMixin:
 
     def supports_table_statement(self) -> bool:
         """MySQL 8.0.19+ supports the TABLE statement."""
-        return getattr(self, "version", None) is not None and self.version >= (8, 0, 19)
+        return self.version_at_least((8, 0, 19))
 
     def supports_values_table_constructor(self) -> bool:
         """MySQL 8.0.19+ supports VALUES as a table value constructor."""
-        return getattr(self, "version", None) is not None and self.version >= (8, 0, 19)
+        return self.version_at_least((8, 0, 19))
 
     def format_mysql_table_statement(self, expr: "MySQLTableStatement") -> Tuple[str, tuple]:
         """Format ``TABLE <table> [ORDER BY ...] [LIMIT ...]``.

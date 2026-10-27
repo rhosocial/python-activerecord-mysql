@@ -8,7 +8,7 @@ class MySQLExplainMixin:
 
     def supports_explain_analyze(self) -> bool:
         """Whether EXPLAIN ANALYZE is supported."""
-        return self.version >= (8, 0, 18)
+        return self.version_at_least((8, 0, 18))
 
     def supports_explain_format(self, format_type: str) -> bool:
         """Check if specific EXPLAIN format is supported."""
@@ -16,9 +16,9 @@ class MySQLExplainMixin:
         if format_type_upper == "TEXT":
             return True
         elif format_type_upper == "JSON":
-            return self.version >= (5, 6, 5)
+            return self.version_at_least((5, 6, 5))
         elif format_type_upper == "TREE":
-            return self.version >= (8, 0, 16)
+            return self.version_at_least((8, 0, 16))
         else:
             return False
 

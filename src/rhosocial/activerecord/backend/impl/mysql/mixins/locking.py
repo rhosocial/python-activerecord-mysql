@@ -6,13 +6,13 @@ class MySQLLockingMixin:
     """MySQL row-level locking mixin."""
 
     def supports_for_share(self) -> bool:
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))
 
     def supports_for_update_nowait(self) -> bool:
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))
 
     def supports_for_update_skip_locked(self) -> bool:
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))
 
     def format_for_update_clause(self, clause) -> Tuple[str, tuple]:
         """Format MySQL-specific FOR UPDATE / FOR SHARE clause.

@@ -169,6 +169,12 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
     """Handle introspect subcommand synchronously."""
     try:
         backend.connect()
+        # Connect alone leaves the dialect unadapted. Everything below -- the
+        # database record's version, and any statement gated on a capability
+        # -- then has no version to answer from, so the run would report
+        # "unknown" at best and fail on a capability probe at worst. The
+        # SQLite CLI adapts after connecting for the same reason.
+        backend.introspect_and_adapt()
 
         introspector = backend.introspector
 
@@ -258,6 +264,7 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
     """Handle introspect subcommand asynchronously."""
     try:
         await backend.connect()
+        await backend.introspect_and_adapt()
 
         introspector = backend.introspector
 

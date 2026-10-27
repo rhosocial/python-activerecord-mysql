@@ -12,28 +12,28 @@ class MySQLSpatialMixin:
         }
         if type_name.upper() not in valid_types:
             return False
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_spatial_index(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_geojson(self) -> bool:
-        return self.version >= (5, 7, 5)
+        return self.version_at_least((5, 7, 5))
 
     def supports_geometry_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_point_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_curve_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_surface_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_geometry_collection_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def format_mysql_spatial_literal_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLSpatialLiteralExpression` node."""

@@ -12,10 +12,10 @@ class MySQLJsonDualityViewMixin:
     """MySQL JSON Duality View implementation (MySQL 9.7+)."""
 
     def supports_json_duality_view(self) -> bool:
-        return self.version >= (9, 7, 0)
+        return self.version_at_least((9, 7, 0))
 
     def supports_json_duality_view_dml(self) -> bool:
-        return self.version >= (9, 7, 0)
+        return self.version_at_least((9, 7, 0))
 
     def format_create_json_duality_view_statement(self, expr: "CreateJsonDualityViewStatement") -> Tuple[str, tuple]:
         """Format CREATE JSON RELATIONAL DUALITY VIEW statement."""

@@ -514,7 +514,7 @@ class MySQLDialect(
 
     def supports_json_arrow_operators(self) -> bool:
         """Check if MySQL version supports -> and ->> operators."""
-        return self.version >= (5, 7, 9)
+        return self.version_at_least((5, 7, 9))
 
     def supports_upsert(self) -> bool:
         """Whether UPSERT (ON DUPLICATE KEY UPDATE) is supported."""

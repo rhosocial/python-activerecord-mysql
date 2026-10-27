@@ -8,10 +8,10 @@ class MySQLVectorMixin:
     MAX_VECTOR_DIMENSION = 16384
 
     def supports_vector_type(self) -> bool:
-        return self.version >= (9, 0, 0)
+        return self.version_at_least((9, 0, 0))
 
     def supports_vector_index(self) -> bool:
-        return self.version >= (9, 0, 1)
+        return self.version_at_least((9, 0, 1))
 
     def get_max_vector_dimension(self) -> int:
         return self.MAX_VECTOR_DIMENSION

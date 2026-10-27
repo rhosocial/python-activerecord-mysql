@@ -138,7 +138,7 @@ class MySQLPartitionMixin:
         5.6) reject it as a syntax error. See MySQL 5.7 release notes for
         "InnoDB online DDL" support of EXCHANGE PARTITION WITH VALIDATION.
         """
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_exchange_partition_without_validation(self) -> bool:
         """Whether ``EXCHANGE PARTITION ... WITHOUT VALIDATION`` is accepted.

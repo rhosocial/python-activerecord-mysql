@@ -84,15 +84,15 @@ class MySQLConstraintMixin:
 
     def supports_invisible_index(self) -> bool:
         """Whether INVISIBLE indexes are supported."""
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))
 
     def supports_descending_index(self) -> bool:
         """Whether descending indexes are supported."""
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))
 
     def supports_functional_index(self) -> bool:
         """Whether functional (expression) indexes are supported."""
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))
 
     # Basic constraint types (SQL-86/SQL-92)
 
@@ -202,7 +202,7 @@ class MySQLConstraintMixin:
         Below 8.0.16 the clause parses and is discarded, so the probe is
         version-gated rather than a flat ``True``.
         """
-        return self.version >= (8, 0, 16)
+        return self.version_at_least((8, 0, 16))
 
     def supports_add_constraint(self) -> bool:
         """Whether ``ALTER TABLE ADD CONSTRAINT`` is supported.
@@ -396,7 +396,7 @@ class MySQLConstraintMixin:
         MariaDB 13.1 has no ``ALTER CONSTRAINT`` at all and rejects
         ``[NOT] ENFORCED`` on every path, so this ``True`` is MySQL only.
         """
-        return self.version >= (8, 0, 16)
+        return self.version_at_least((8, 0, 16))
 
     def format_alter_constraint_action(
         self, action: "AlterConstraintAction"
@@ -491,7 +491,7 @@ class MySQLConstraintMixin:
         MariaDB 13.1 rejects ``[NOT] ENFORCED`` outright on every path, so this
         ``True`` is MySQL only.
         """
-        return self.version >= (8, 0, 16)
+        return self.version_at_least((8, 0, 16))
 
     def _require_constraint_enforcement(self, constraint) -> None:
         """Narrow the ENFORCABLE kinds to CHECK for this server.

@@ -100,17 +100,27 @@ class MySQLFunctionMixin:
         return result
 
     def _is_mysql_function_supported(self, func_name: str) -> bool:
-        """Check if a MySQL-specific function is supported based on version."""
+        """Check if a MySQL-specific function is supported based on version.
+
+        This is a capability check, so it answers before adaptation rather
+        than raising: a name with no version bound is available on every
+        server, and a version-bounded one is not claimed until a version is
+        known. ``supports_functions()`` reports the result as-is.
+        """
         version_range = self._MYSQL_FUNCTION_VERSIONS.get(func_name)
         if version_range is None:
             return True
 
-        min_version, max_version = version_range
-
-        if min_version is not None and self.version < min_version:
+        version = self.version_or_none
+        if version is None:
             return False
 
-        if max_version is not None and self.version > max_version:
+        min_version, max_version = version_range
+
+        if min_version is not None and version < min_version:
+            return False
+
+        if max_version is not None and version > max_version:
             return False
 
         return True
