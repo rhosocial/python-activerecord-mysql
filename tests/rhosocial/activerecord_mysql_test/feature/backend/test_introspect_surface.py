@@ -10,6 +10,7 @@ answer rather than an error.
 
 import argparse
 import inspect
+from typing import Optional
 
 import pytest
 
@@ -20,7 +21,7 @@ from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 class _Args:
     """The two attributes the rules look at, and nothing else."""
 
-    def __init__(self, type_: str, name: str | None = None) -> None:
+    def __init__(self, type_: str, name: Optional[str] = None) -> None:
         self.type = type_
         self.name = name
 
@@ -108,7 +109,7 @@ class TestTheCapabilityGate:
 class TestTheViewsBranch:
     """``views NAME`` answers for one view, and says so when there is no such view."""
 
-    def _args(self, name: str | None) -> argparse.Namespace:
+    def _args(self, name: Optional[str]) -> argparse.Namespace:
         return argparse.Namespace(
             output="json",
             rich_ascii=False,
