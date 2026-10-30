@@ -213,11 +213,15 @@ def _validate_name(args) -> None:
     if rule is None:
         return
     if rule == "required" and not args.name:
+        # The same code a missing ``--database`` gets: an incomplete
+        # invocation, not a request this backend refuses. 2 is reserved for
+        # the two things the CLI newly declines to do -- answer for a family
+        # the server cannot, and accept a NAME the type has no use for.
         print(
             f"Error: Table name is required for '{args.type}' introspection",
             file=sys.stderr,
         )
-        sys.exit(2)
+        sys.exit(1)
     if rule == "forbidden" and args.name:
         print(
             f"Error: '{args.type}' introspection answers for the whole database "

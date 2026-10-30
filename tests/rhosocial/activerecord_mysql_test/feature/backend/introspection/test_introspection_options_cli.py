@@ -113,5 +113,5 @@ class TestPartitionsCommand:
         with pytest.raises(SystemExit) as excinfo:
             main(_cli_args(backend_with_tables, "partitions"))
 
-        assert excinfo.value.code == 2
+        assert excinfo.value.code == 1
         assert "required" in capsys.readouterr().err

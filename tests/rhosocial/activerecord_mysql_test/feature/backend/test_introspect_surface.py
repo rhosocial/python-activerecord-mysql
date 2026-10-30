@@ -67,10 +67,15 @@ class TestTheNameRule:
 
     @pytest.mark.parametrize("type_", ["columns", "indexes", "foreign-keys", "partitions"])
     def test_a_required_name_must_be_given(self, type_, capsys):
+        """A missing required NAME is an incomplete invocation, not a refusal.
+
+        It exits 1 like a missing ``--database``; 2 is reserved for a request
+        this command declines to serve.
+        """
         with pytest.raises(SystemExit) as excinfo:
             introspect_cli._validate_name(_Args(type_))
 
-        assert excinfo.value.code == 2
+        assert excinfo.value.code == 1
         assert "required" in capsys.readouterr().err
 
     @pytest.mark.parametrize("type_", ["views", "triggers", "table-options"])
