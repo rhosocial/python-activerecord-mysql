@@ -14,18 +14,29 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect <TYPE> [NAME] [OP
 | Type | Reads | Notes |
 | :--- | :--- | :--- |
 | `tables` | `information_schema.tables` | Base tables. `--include-system` adds MySQL's own metadata databases. |
-| `views` | `information_schema.views` | Views, with their definitions. |
-| `table` | several | One table by name, with its columns, indexes and foreign keys filled in. |
+| `views` | `information_schema.views` | Views, with their definitions. `NAME` narrows it to one view. |
 | `columns` | `information_schema.columns` | One table's columns: name, type, nullability, default. |
 | `indexes` | `information_schema.statistics` | One table's indexes, including the primary key. |
 | `foreign-keys` | `information_schema.key_column_usage` | One table's constraints and the columns each side names. |
 | `triggers` | `information_schema.triggers` | Triggers, optionally narrowed to one table. |
-| `table-options` | `information_schema.tables` | The storage facts about a table: engine, row format, collation, auto-increment, comment, and the byte sizes `information_schema` reports. |
+| `table-options` | `information_schema.tables` | The storage facts about a table: engine, row format, collation, auto-increment, comment, and the byte sizes `information_schema` reports. `NAME` narrows it to one table. |
 | `partitions` | `information_schema.partitions` | One table's partitions and subpartitions, in the engine's own order. An empty answer means the table is not partitioned. |
 | `database` | `information_schema.schemata`, `variables` | Server version, charset, and the databases visible to this role. |
 
-`NAME` is required for `table`, `columns`, `indexes`, `foreign-keys` and
-`partitions`. The list types take no name.
+### What `NAME` means
+
+`NAME` is one argument with three possible meanings, decided by the type:
+
+| Meaning | Types |
+| :--- | :--- |
+| A **table**, required | `columns`, `indexes`, `foreign-keys`, `partitions` |
+| The **object itself**, optional — given, it answers for that one object and exits 1 if there is no such object | `views`, `triggers`, `table-options` |
+| **Refused** — the type answers for the whole database | `tables`, `database` |
+
+A `NAME` a type cannot use is an error (exit 2), never a silently ignored
+argument: a run that prints the whole catalogue while the caller believes it
+asked about one object is the worst of the possible answers.
+
 
 ## Options
 
@@ -60,16 +71,27 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect <TYPE> [NAME] [OP
 *   **One question per invocation.** A CLI process is one connection that
     opens, answers, and closes — there is no cache carried between runs, so
     the answer reflects the server as it is *now*.
+*   **`introspector.show` is reachable from the library only, not from here.**
+    Its nineteen methods (`create_table`, `variables`, `status`, `processlist`,
+    `grants`, `engines`, …) are the raw `SHOW` verbs. Most of them are not
+    catalogue metadata at all — `variables` is server configuration, `status`
+    is running counters, `processlist` is current activity, `warnings` and
+    `errors` are this session's leftovers — and the `create_*` ones return DDL
+    text where `columns`, `views` and `triggers` already give the structured
+    answer to the same question. `introspect` asks *what the database holds*;
+    a second door onto the same facts would only raise the question of which
+    one is authoritative.
 
 ## Examples
 
 ```bash
 # Storage facts and partitions for the order tables
 python -m rhosocial.activerecord.backend.impl.mysql introspect table-options --database shop
+python -m rhosocial.activerecord.backend.impl.mysql introspect table-options orders --database shop
 python -m rhosocial.activerecord.backend.impl.mysql introspect partitions orders --database shop -o json
 
-# One table in full
-python -m rhosocial.activerecord.backend.impl.mysql introspect table orders --database shop
+# One view, with its definition
+python -m rhosocial.activerecord.backend.impl.mysql introspect views orders_v --database shop
 
 # A script asks the question and reads the answer
 export MYSQL_HOST=localhost MYSQL_DATABASE=shop MYSQL_USER=root MYSQL_PASSWORD=secret
