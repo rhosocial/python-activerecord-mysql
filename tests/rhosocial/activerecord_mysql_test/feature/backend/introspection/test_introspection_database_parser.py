@@ -126,3 +126,37 @@ class TestParseTables:
         tables = _introspector().parse_tables(rows, schema="archive")
 
         assert tables[0].schema == "archive"
+
+    def test_storage_split_is_reported_and_summed(self):
+        """The three storage slots answer three questions, so all are filled.
+
+        ``DATA_LENGTH`` and ``INDEX_LENGTH`` are the server's own byte
+        accounting, reported as it said them; ``size_bytes`` is their sum, so
+        a table with no index is not reported as smaller than its rows.
+        """
+        rows = [
+            {
+                "TABLE_NAME": "users",
+                "TABLE_TYPE": "BASE TABLE",
+                "TABLE_ROWS": 3,
+                "DATA_LENGTH": 16384,
+                "INDEX_LENGTH": 0,
+            }
+        ]
+
+        table = _introspector().parse_tables(rows, schema=None)[0]
+
+        assert table.row_count == 3
+        assert table.data_size_bytes == 16384
+        assert table.index_size_bytes == 0
+        assert table.size_bytes == 16384
+
+    def test_a_table_with_no_bytes_reports_none_rather_than_zero(self):
+        """No rows reported is not the same as zero bytes reported."""
+        rows = [{"TABLE_NAME": "empty_view", "TABLE_TYPE": "VIEW"}]
+
+        table = _introspector().parse_tables(rows, schema=None)[0]
+
+        assert table.data_size_bytes is None
+        assert table.index_size_bytes is None
+        assert table.size_bytes is None

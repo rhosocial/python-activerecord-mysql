@@ -126,6 +126,16 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         )
 
     def parse_tables(self, rows: List[Dict[str, Any]], schema: Optional[str]) -> List[IntrospectionTableInfo]:
+        """Turn the catalogue rows into table records, storage split included.
+
+        The three storage slots answer different questions and are all filled
+        from the server's own accounting: ``data_size_bytes`` is what the rows
+        occupy, ``index_size_bytes`` what the indexes occupy, and
+        ``size_bytes`` their sum -- ``None`` when the server reports neither,
+        which is an answer rather than a fabricated 0. ``MySQLTableOptions``
+        carries the same two numbers beside the engine and row format, with
+        the caveat about InnoDB estimates.
+        """
         target_db = schema if schema is not None else self.default_schema
         table_type_map = {
             "BASE TABLE": TableType.BASE_TABLE,
@@ -135,6 +145,12 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         tables = []
         for row in rows:
             t_type = table_type_map.get(row.get("TABLE_TYPE", "BASE TABLE"), TableType.BASE_TABLE)
+            data_length = row.get("DATA_LENGTH")
+            index_length = row.get("INDEX_LENGTH")
+            if data_length is None and index_length is None:
+                total_length = None
+            else:
+                total_length = (data_length or 0) + (index_length or 0)
             tables.append(
                 IntrospectionTableInfo(
                     name=row["TABLE_NAME"],
@@ -142,7 +158,9 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
                     table_type=t_type,
                     comment=row.get("TABLE_COMMENT"),
                     row_count=row.get("TABLE_ROWS"),
-                    size_bytes=row.get("DATA_LENGTH"),
+                    size_bytes=total_length,
+                    data_size_bytes=data_length,
+                    index_size_bytes=index_length,
                     auto_increment=row.get("AUTO_INCREMENT"),
                     create_time=str(row["CREATE_TIME"]) if row.get("CREATE_TIME") else None,
                     update_time=str(row["UPDATE_TIME"]) if row.get("UPDATE_TIME") else None,

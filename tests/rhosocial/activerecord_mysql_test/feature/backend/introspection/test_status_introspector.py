@@ -17,10 +17,14 @@ from rhosocial.activerecord.backend.introspection.status import (
     UserInfo,
     ConnectionInfo,
     StorageInfo,
-    InnoDBInfo,
+)
+
+from rhosocial.activerecord.backend.impl.mysql.introspection.status_types import (
     BinaryLogInfo,
-    SlowQueryInfo,
+    InnoDBInfo,
     MySQLReplicationInfo,
+    MySQLServerOverview,
+    SlowQueryInfo,
 )
 
 
@@ -33,6 +37,9 @@ class TestSyncMySQLStatusIntrospector:
 
         overview = status.get_overview()
 
+        # MySQL's own overview subclass, while the core's signature and shape
+        # stay the cross-dialect entry point.
+        assert isinstance(overview, MySQLServerOverview)
         assert isinstance(overview, ServerOverview)
         assert overview.server_vendor == "MySQL"
         assert overview.server_version is not None
@@ -333,6 +340,7 @@ class TestAsyncMySQLStatusIntrospector:
 
         overview = await status.get_overview()
 
+        assert isinstance(overview, MySQLServerOverview)
         assert isinstance(overview, ServerOverview)
         assert overview.server_vendor == "MySQL"
         assert overview.server_version is not None

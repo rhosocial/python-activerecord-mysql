@@ -353,6 +353,22 @@ def _display_status_rich(status, verbose: int = 0):
         console.print(perf_table)
         console.print()
 
+    # Storage section
+    if status.storage.total_size_bytes is not None:
+        console.print("[bold green]Storage[/bold green]")
+        storage_table = Table(show_header=True, header_style="bold")
+        storage_table.add_column("Metric")
+        storage_table.add_column("Value")
+
+        storage_table.add_row("Total Size", _format_size(status.storage.total_size_bytes))
+        if status.storage.data_size_bytes is not None:
+            storage_table.add_row("Data Size", _format_size(status.storage.data_size_bytes))
+        if status.storage.index_size_bytes is not None:
+            storage_table.add_row("Index Size", _format_size(status.storage.index_size_bytes))
+
+        console.print(storage_table)
+        console.print()
+
     # Databases section
     if status.databases:
         console.print("[bold green]Databases[/bold green]")

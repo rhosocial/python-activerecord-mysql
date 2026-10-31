@@ -90,6 +90,17 @@ class MySQLIntrospectionMixin:
         format, collation and the byte estimates the same view already reports."""
         return True
 
+    def supports_table_storage_introspection(self) -> bool:
+        """MySQL answers the per-table storage slots from the same TABLES view.
+
+        ``information_schema.TABLES`` reports ``TABLE_ROWS``, ``DATA_LENGTH`` and
+        ``INDEX_LENGTH`` per table, so the narrow slots of
+        :class:`~rhosocial.activerecord.backend.introspection.types.IntrospectionTableInfo`
+        -- ``size_bytes``, ``row_count`` and the data/index split -- are all
+        answerable. The bytes are the server's own accounting, an estimate for
+        InnoDB rather than an exact sum of row sizes."""
+        return True
+
     # ========== Capability Detection ==========
 
     def supports_introspection(self) -> bool:
@@ -263,7 +274,11 @@ class MySQLIntrospectionMixin:
                 Column(self, "TABLE_TYPE"),
                 Column(self, "TABLE_COMMENT"),
                 Column(self, "TABLE_ROWS"),
+                # The storage split rides the same query that already reported
+                # the row count and the data bytes: MySQL's storage is
+                # row-plus-index shaped, so one projection answers both.
                 Column(self, "DATA_LENGTH"),
+                Column(self, "INDEX_LENGTH"),
                 Column(self, "AUTO_INCREMENT"),
                 Column(self, "CREATE_TIME"),
                 Column(self, "UPDATE_TIME"),

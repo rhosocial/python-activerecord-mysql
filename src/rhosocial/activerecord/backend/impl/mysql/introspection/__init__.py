@@ -11,6 +11,9 @@ Provides:
   AsyncMySQLStatusIntrospector -- asynchronous MySQL status introspector
   MySQLTableOptions       — storage options of one table
   MySQLPartitionInfo      — one partition (or subpartition) of one table
+  MySQLServerOverview     — MySQL's overview subclass, carrying its own families
+  InnoDBInfo / BinaryLogInfo / SlowQueryInfo — MySQL's own status families
+  ReplicationSlaveInfo / ReplicationMasterInfo / MySQLReplicationInfo
 """
 
 from .introspector import (
@@ -26,6 +29,15 @@ from .status_introspector import (
     SyncMySQLStatusIntrospector,
     AsyncMySQLStatusIntrospector,
 )
+from .status_types import (
+    BinaryLogInfo,
+    InnoDBInfo,
+    MySQLReplicationInfo,
+    MySQLServerOverview,
+    ReplicationMasterInfo,
+    ReplicationSlaveInfo,
+    SlowQueryInfo,
+)
 
 __all__ = [
     "SyncMySQLIntrospector",
@@ -36,4 +48,11 @@ __all__ = [
     "AsyncMySQLStatusIntrospector",
     "MySQLTableOptions",
     "MySQLPartitionInfo",
+    "MySQLServerOverview",
+    "InnoDBInfo",
+    "BinaryLogInfo",
+    "SlowQueryInfo",
+    "ReplicationSlaveInfo",
+    "ReplicationMasterInfo",
+    "MySQLReplicationInfo",
 ]
