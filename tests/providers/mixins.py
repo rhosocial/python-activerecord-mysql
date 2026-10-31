@@ -137,7 +137,7 @@ class MixinsSyncProvider(MixinsProviderBase, IMixinsSyncProvider):
     def _setup_model(self, model_class: Type[ActiveRecord], scenario_name: str, table_name: str) -> Type[ActiveRecord]:
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression
+        from rhosocial.activerecord.backend.expression import DropTableStatement
         from providers.fixtures.mixins import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -150,7 +150,7 @@ class MixinsSyncProvider(MixinsProviderBase, IMixinsSyncProvider):
         try:
             backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
             try:
-                drop_expr = DropTableExpression(
+                drop_expr = DropTableStatement(
                     dialect=backend_instance.dialect,
                     table=Table(backend_instance.dialect, table_name),
                     if_exists=True,
@@ -222,7 +222,7 @@ class MixinsAsyncProvider(MixinsProviderBase, IMixinsAsyncProvider):
         from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
         from rhosocial.activerecord.backend.options import ExecutionOptions
         from rhosocial.activerecord.backend.schema import StatementType
-        from rhosocial.activerecord.backend.expression import DropTableExpression
+        from rhosocial.activerecord.backend.expression import DropTableStatement
         from providers.fixtures.mixins import TABLE_EXPRESSIONS
         from providers.fixtures._common import to_mysql_ddl_sql
 
@@ -235,7 +235,7 @@ class MixinsAsyncProvider(MixinsProviderBase, IMixinsAsyncProvider):
         try:
             await backend_instance.execute("SET FOREIGN_KEY_CHECKS = 0")
             try:
-                drop_expr = DropTableExpression(
+                drop_expr = DropTableStatement(
                     dialect=backend_instance.dialect,
                     table=Table(backend_instance.dialect, table_name),
                     if_exists=True,

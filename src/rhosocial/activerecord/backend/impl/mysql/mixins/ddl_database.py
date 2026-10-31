@@ -11,9 +11,9 @@ from .object_kind import require_kind
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_database import (
-        AlterDatabaseExpression,
-        CreateDatabaseExpression,
-        DropDatabaseExpression,
+        AlterDatabaseStatement,
+        CreateDatabaseStatement,
+        DropDatabaseStatement,
     )
 
 
@@ -50,7 +50,7 @@ class MySQLDatabaseMixin:
         return True
 
     def format_create_database_statement(
-        self, expr: CreateDatabaseExpression
+        self, expr: CreateDatabaseStatement
     ) -> Tuple[str, tuple]:
         """Format ``CREATE DATABASE``.
 
@@ -61,7 +61,7 @@ class MySQLDatabaseMixin:
                 database's -- ``CREATE DATABASE `users``` is a well-formed
                 statement addressing something else.
         """
-        require_kind(expr.database, Database, "CreateDatabaseExpression.database")
+        require_kind(expr.database, Database, "CreateDatabaseStatement.database")
         parts = ["CREATE DATABASE"]
         if expr.if_not_exists:
             parts.append("IF NOT EXISTS")
@@ -73,7 +73,7 @@ class MySQLDatabaseMixin:
         return " ".join(parts), ()
 
     def format_drop_database_statement(
-        self, expr: DropDatabaseExpression
+        self, expr: DropDatabaseStatement
     ) -> Tuple[str, tuple]:
         """Format ``DROP DATABASE``.
 
@@ -81,7 +81,7 @@ class MySQLDatabaseMixin:
             TypeError: ``expr.database`` is not a Database; another object kind
                 would be named as the database's.
         """
-        require_kind(expr.database, Database, "DropDatabaseExpression.database")
+        require_kind(expr.database, Database, "DropDatabaseStatement.database")
         parts = ["DROP DATABASE"]
         if expr.if_exists:
             parts.append("IF EXISTS")
@@ -89,7 +89,7 @@ class MySQLDatabaseMixin:
         return " ".join(parts), ()
 
     def format_alter_database_statement(
-        self, expr: AlterDatabaseExpression
+        self, expr: AlterDatabaseStatement
     ) -> Tuple[str, tuple]:
         """Format ``ALTER DATABASE``.
 
@@ -99,7 +99,7 @@ class MySQLDatabaseMixin:
         """
         from rhosocial.activerecord.backend.expression.statements.ddl_database import AlterDatabaseAction
 
-        require_kind(expr.database, Database, "AlterDatabaseExpression.database")
+        require_kind(expr.database, Database, "AlterDatabaseStatement.database")
         parts = ["ALTER DATABASE"]
         parts.append(expr.database.to_sql()[0])
         if expr.action == AlterDatabaseAction.CHARACTER_SET:

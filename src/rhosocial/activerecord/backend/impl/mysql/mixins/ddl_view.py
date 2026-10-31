@@ -25,6 +25,15 @@ class MySQLViewMixin:
         """Whether TEMPORARY views are supported."""
         return True
 
+
+    def supports_create_view_bind_parameters(self) -> bool:
+        """MySQL accepts bind parameters in a view body.
+
+        Measured on 9.7: a view whose definition binds is accepted, because
+        MySQL's "parameters" are interpolated client-side and the value is
+        baked into the stored definition.
+        """
+        return True
     def supports_if_exists_view(self) -> bool:
         """Whether DROP VIEW IF EXISTS is supported."""
         return True
@@ -50,7 +59,7 @@ class MySQLViewMixin:
         """
         return False
 
-    def format_create_view_statement(self, expr: "CreateViewExpression") -> Tuple[str, tuple]:
+    def format_create_view_statement(self, expr: "CreateViewStatement") -> Tuple[str, tuple]:
         """Format CREATE VIEW statement for MySQL.
 
         Raises:
@@ -59,7 +68,7 @@ class MySQLViewMixin:
                 which is a well-formed statement creating a view over something
                 the caller never named.
         """
-        require_kind(expr.view, View, "CreateViewExpression.view")
+        require_kind(expr.view, View, "CreateViewStatement.view")
         parts = ["CREATE"]
 
         if expr.temporary:
@@ -76,6 +85,8 @@ class MySQLViewMixin:
             parts.append(f"({cols})")
 
         query_sql, query_params = expr.query.to_sql()
+        if query_params and not self.supports_create_view_bind_parameters():
+            self.refuse_ddl_bind_parameters("CREATE VIEW with bound parameters")
         parts.append(f"AS {query_sql}")
 
         if expr.options and expr.options.check_option:
@@ -90,7 +101,7 @@ class MySQLViewMixin:
 
         return " ".join(parts), query_params
 
-    def format_drop_view_statement(self, expr: "DropViewExpression") -> Tuple[str, tuple]:
+    def format_drop_view_statement(self, expr: "DropViewStatement") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for MySQL.
 
         The CASCADE / RESTRICT pair is consumed here: MySQL does not provide
@@ -104,7 +115,7 @@ class MySQLViewMixin:
             UnsupportedFeatureError: If the dialect does not accept the
                 requested behavior keyword.
         """
-        require_kind(expr.view, View, "DropViewExpression.view")
+        require_kind(expr.view, View, "DropViewStatement.view")
         if expr.cascade and not self.supports_cascade_view():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
             raise UnsupportedFeatureError(

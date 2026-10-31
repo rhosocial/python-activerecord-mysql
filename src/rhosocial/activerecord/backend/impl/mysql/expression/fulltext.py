@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL FULLTEXT index options expression for CREATE TABLE / ALTER TABLE.
 
     Args:
@@ -45,7 +45,7 @@ class MySQLFulltextIndexOptionsExpression(AliasableMixin, ComparisonMixin, SQLVa
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_fulltext_index_options"
+        return "format_mysql_fulltext_index_options_expression"
 
 
 __all__ = [

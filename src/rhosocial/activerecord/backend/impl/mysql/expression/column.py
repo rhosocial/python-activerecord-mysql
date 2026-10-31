@@ -34,16 +34,22 @@ __all__ = [
 ]
 
 
-class MySQLColumnFormat(Enum):
+class MySQLColumnFormat(str, Enum):
     """MySQL NDB ``COLUMN_FORMAT`` values."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     FIXED = "FIXED"
     DYNAMIC = "DYNAMIC"
     DEFAULT = "DEFAULT"
 
 
-class MySQLColumnStorage(Enum):
+class MySQLColumnStorage(str, Enum):
     """MySQL NDB ``STORAGE`` values."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     DISK = "DISK"
     MEMORY = "MEMORY"

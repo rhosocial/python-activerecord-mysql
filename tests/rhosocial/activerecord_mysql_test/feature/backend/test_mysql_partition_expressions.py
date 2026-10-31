@@ -449,7 +449,7 @@ def test_subpartition_by_linear_hash(dialect):
         count=2,
     )
 
-    sql, params = dialect.format_subpartition_by(sub)
+    sql, params = dialect.format_mysql_subpartition_clause(sub)
 
     assert "SUBPARTITION BY LINEAR HASH" in sql
     assert "`id`" in sql
@@ -466,7 +466,7 @@ def test_subpartition_by_linear_key(dialect):
         count=4,
     )
 
-    sql, params = dialect.format_subpartition_by(sub)
+    sql, params = dialect.format_mysql_subpartition_clause(sub)
 
     assert "SUBPARTITION BY LINEAR KEY" in sql
     assert "`id`" in sql
@@ -499,10 +499,21 @@ def test_subpartition_definition_rejects_empty_name(dialect):
         MySQLSubpartitionDefinition(name="")
 
 
-def test_subpartition_clause_rejects_invalid_strategy(dialect):
-    """Subpartition clause should reject non-MySQLSubpartitionStrategy values."""
-    with pytest.raises(TypeError, match="must be a MySQLSubpartitionStrategy"):
-        MySQLSubpartitionClause(dialect, strategy="HASH")  # type: ignore[arg-type]
+def test_subpartition_clause_accepts_strategy_word(dialect):
+    """The word the artifact carries is a valid entry, and storage is the member.
+
+    The constructor used to refuse the plain word outright, which made the
+    serialized form of its own parameter unreadable (§10: the entry accepts
+    the member or the word it spells, and stores the member).
+    """
+    clause = MySQLSubpartitionClause(dialect, strategy="HASH")  # type: ignore[arg-type]
+    assert clause.strategy is MySQLSubpartitionStrategy.HASH
+
+
+def test_subpartition_clause_rejects_unknown_strategy_word(dialect):
+    """A word the vocabulary does not name is refused, naming the word."""
+    with pytest.raises(ValueError, match="INVALID"):
+        MySQLSubpartitionClause(dialect, strategy="INVALID")  # type: ignore[arg-type]
 
 
 def test_subpartition_clause_rejects_invalid_count(dialect):

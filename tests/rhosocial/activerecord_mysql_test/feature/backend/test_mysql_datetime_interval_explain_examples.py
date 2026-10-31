@@ -9,7 +9,7 @@ from rhosocial.activerecord.backend.expression import (
     ComparisonPredicate,
     Literal,
     LogicalPredicate,
-    QueryExpression,
+    QueryStatement,
 )
 from rhosocial.activerecord.backend.expression.functions import (
     date_add,
@@ -114,7 +114,7 @@ def _category_created_filter(dialect):
 
 
 def _datetime_expression_query(dialect):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[
             Column(dialect, "id"),
@@ -138,7 +138,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
     def test_created_at_range_uses_datetime_index(self, temporal_indexed_backend):
         dialect = temporal_indexed_backend.dialect
         result = temporal_indexed_backend.explain(
-            QueryExpression(
+            QueryStatement(
                 dialect,
                 select=[Column(dialect, "id"), Column(dialect, "created_at")],
                 from_=Table(dialect, "explain_temporal_events"),
@@ -160,7 +160,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
     def test_category_created_range_uses_composite_datetime_index(self, temporal_indexed_backend):
         dialect = temporal_indexed_backend.dialect
         result = temporal_indexed_backend.explain(
-            QueryExpression(
+            QueryStatement(
                 dialect,
                 select=[
                     Column(dialect, "id"),
@@ -180,7 +180,7 @@ class TestSyncMySQLDateTimeIntervalExplainExamples:
     def test_covering_datetime_index_query_is_detected(self, temporal_indexed_backend):
         dialect = temporal_indexed_backend.dialect
         result = temporal_indexed_backend.explain(
-            QueryExpression(
+            QueryStatement(
                 dialect,
                 select=[Column(dialect, "category"), Column(dialect, "created_at")],
                 from_=Table(dialect, "explain_temporal_events"),
@@ -221,7 +221,7 @@ class TestAsyncMySQLDateTimeIntervalExplainExamples:
     async def test_category_created_range_uses_composite_datetime_index(self, async_temporal_indexed_backend):
         dialect = async_temporal_indexed_backend.dialect
         result = await async_temporal_indexed_backend.explain(
-            QueryExpression(
+            QueryStatement(
                 dialect,
                 select=[
                     Column(dialect, "id"),

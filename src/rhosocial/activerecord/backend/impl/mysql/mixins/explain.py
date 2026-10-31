@@ -1,4 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/explain.py
+from enum import Enum
 from typing import Tuple
 
 
@@ -7,7 +8,7 @@ class MySQLExplainMixin:
 
     def supports_explain_analyze(self) -> bool:
         """Whether EXPLAIN ANALYZE is supported."""
-        return self.version >= (8, 0, 18)
+        return self.version_at_least((8, 0, 18))
 
     def supports_explain_format(self, format_type: str) -> bool:
         """Check if specific EXPLAIN format is supported."""
@@ -15,13 +16,13 @@ class MySQLExplainMixin:
         if format_type_upper == "TEXT":
             return True
         elif format_type_upper == "JSON":
-            return self.version >= (5, 6, 5)
+            return self.version_at_least((5, 6, 5))
         elif format_type_upper == "TREE":
-            return self.version >= (8, 0, 16)
+            return self.version_at_least((8, 0, 16))
         else:
             return False
 
-    def format_explain_statement(self, explain_expr: "ExplainExpression") -> tuple:
+    def format_explain_statement(self, explain_expr: "ExplainStatement") -> tuple:
         """Build the MySQL EXPLAIN SQL string and return (sql, params)."""
         from rhosocial.activerecord.backend.expression.statements import ExplainType
 
@@ -37,7 +38,11 @@ class MySQLExplainMixin:
                 parts.append("ANALYZE")
 
             if options.format is not None:
-                fmt_name = options.format.name if hasattr(options.format, "name") else str(options.format)
+                # ``format`` is the enum member or the word it spells; asking
+                # the value whether it carries a ``name`` cannot tell the two
+                # apart from anything else.
+                fmt = options.format
+                fmt_name = fmt.value if isinstance(fmt, Enum) else str(fmt)
                 parts.append(f"FORMAT={fmt_name.upper()}")
             elif options.type is not None and options.type == ExplainType.QUERY_PLAN:
                 pass

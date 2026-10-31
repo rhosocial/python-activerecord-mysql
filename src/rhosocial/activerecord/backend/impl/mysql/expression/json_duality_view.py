@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import BaseExpression, SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -22,8 +22,11 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class DualityViewDMLTag(Enum):
+class DualityViewDMLTag(str, Enum):
     """DML permission tags for JSON_DUALITY_OBJECT."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     INSERT = "INSERT"
     UPDATE = "UPDATE"
@@ -77,7 +80,7 @@ class DualityObjectSpec:
     join_condition: Optional[str] = None
 
 
-class CreateJsonDualityViewExpression(BaseExpression):
+class CreateJsonDualityViewStatement(BaseExpression):
     """CREATE JSON RELATIONAL DUALITY VIEW expression (MySQL 9.7+).
 
     Attributes:
@@ -105,7 +108,7 @@ class CreateJsonDualityViewExpression(BaseExpression):
 
 
 
-class DropJsonDualityViewExpression(BaseExpression):
+class DropJsonDualityViewStatement(BaseExpression):
     """DROP VIEW expression for JSON Duality Views.
 
     Uses standard DROP VIEW syntax since MySQL has no special DROP for duality views.
@@ -127,7 +130,7 @@ class DropJsonDualityViewExpression(BaseExpression):
         return "format_drop_json_duality_view_statement"
 
 
-class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Duality Object SELECT expression.
 
     Wraps a DualityObjectSpec for SELECT JSON_DUALITY_OBJECT(...) FROM table.
@@ -152,10 +155,10 @@ class MySQLDualityObjectSelectExpression(AliasableMixin, ComparisonMixin, SQLVal
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_duality_object_select"
+        return "format_mysql_duality_object_select_expression"
 
 
-class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Duality Object body expression.
 
     Wraps a DualityObjectSpec for JSON_DUALITY_OBJECT( ... ).
@@ -180,10 +183,10 @@ class MySQLDualityObjectBodyExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_duality_object_body"
+        return "format_mysql_duality_object_body_expression"
 
 
-class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL nested duality expression.
 
     Wraps a DualityNestedMapping for nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)).
@@ -208,5 +211,5 @@ class MySQLNestedDualityExpression(AliasableMixin, ComparisonMixin, SQLValueExpr
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_nested_duality"
+        return "format_mysql_nested_duality_expression"
 

@@ -7,8 +7,8 @@ from .object_kind import require_kind
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
-        CreateTriggerExpression,
-        DropTriggerExpression,
+        CreateTriggerStatement,
+        DropTriggerStatement,
     )
 
 
@@ -17,15 +17,15 @@ class MySQLTriggerMixin:
 
     def supports_trigger(self) -> bool:
         """MySQL supports triggers since 5.0.2."""
-        return self.version >= (5, 0, 2)
+        return self.version_at_least((5, 0, 2))
 
     def supports_create_trigger(self) -> bool:
         """MySQL supports CREATE TRIGGER since 5.0.2."""
-        return self.version >= (5, 0, 2)
+        return self.version_at_least((5, 0, 2))
 
     def supports_drop_trigger(self) -> bool:
         """MySQL supports DROP TRIGGER since 5.0.2."""
-        return self.version >= (5, 0, 2)
+        return self.version_at_least((5, 0, 2))
 
     def supports_instead_of_trigger(self) -> bool:
         """MySQL does NOT support INSTEAD OF triggers."""
@@ -45,9 +45,9 @@ class MySQLTriggerMixin:
 
     def supports_trigger_if_not_exists(self) -> bool:
         """MySQL 5.7+ supports IF NOT EXISTS."""
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
-    def format_create_trigger_statement(self, expr: "CreateTriggerExpression") -> Tuple[str, tuple]:
+    def format_create_trigger_statement(self, expr: "CreateTriggerStatement") -> Tuple[str, tuple]:
         """Format CREATE TRIGGER statement (MySQL syntax).
 
         Raises:
@@ -59,11 +59,11 @@ class MySQLTriggerMixin:
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        require_kind(expr.trigger, Trigger, "CreateTriggerExpression.trigger")
-        require_kind(expr.table, Table, "CreateTriggerExpression.table")
+        require_kind(expr.trigger, Trigger, "CreateTriggerStatement.trigger")
+        require_kind(expr.table, Table, "CreateTriggerStatement.table")
         if expr.function is not None:
             require_kind(
-                expr.function, Function, "CreateTriggerExpression.function"
+                expr.function, Function, "CreateTriggerStatement.function"
             )
         if not self.supports_trigger():
             raise UnsupportedFeatureError(self.name, "triggers")
@@ -109,7 +109,7 @@ class MySQLTriggerMixin:
 
         return " ".join(parts), ()
 
-    def format_drop_trigger_statement(self, expr: "DropTriggerExpression") -> Tuple[str, tuple]:
+    def format_drop_trigger_statement(self, expr: "DropTriggerStatement") -> Tuple[str, tuple]:
         """Format DROP TRIGGER statement (MySQL syntax).
 
         Raises:
@@ -117,7 +117,7 @@ class MySQLTriggerMixin:
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        require_kind(expr.trigger, Trigger, "DropTriggerExpression.trigger")
+        require_kind(expr.trigger, Trigger, "DropTriggerStatement.trigger")
         if not self.supports_trigger():
             raise UnsupportedFeatureError(self.name, "triggers")
 

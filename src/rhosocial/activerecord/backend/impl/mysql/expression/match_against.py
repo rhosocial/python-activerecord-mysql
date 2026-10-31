@@ -7,7 +7,7 @@ This module provides MySQLMatchAgainstExpression for MySQL's full-text search fu
 
 from typing import TYPE_CHECKING, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -28,7 +28,7 @@ class MatchAgainstMode:
 class MySQLMatchAgainstExpression(
     AliasableMixin,
     ComparisonMixin,
-    SQLValueExpression,
+    SQLValue,
 ):
     """MySQL MATCH...AGAINST expression.
 
@@ -75,7 +75,7 @@ class MySQLMatchAgainstExpression(
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_match_against"
+        return "format_mysql_match_against_expression"
 
 
 __all__ = [

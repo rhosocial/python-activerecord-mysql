@@ -28,8 +28,11 @@ __all__ = [
 ]
 
 
-class MySQLRowFormat(Enum):
+class MySQLRowFormat(str, Enum):
     """MySQL ``ROW_FORMAT`` table option values."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     DEFAULT = "DEFAULT"
     DYNAMIC = "DYNAMIC"

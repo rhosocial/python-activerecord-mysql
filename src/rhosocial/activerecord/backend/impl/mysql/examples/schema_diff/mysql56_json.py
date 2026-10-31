@@ -33,8 +33,9 @@ backend.introspect_and_adapt()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableExpression, CreateTableExpression, ColumnDefinition,
-    ColumnConstraint, ColumnConstraintType,
+    DropTableStatement, CreateTableStatement, ColumnDefinition,
+ ColumnConstraint,
+    ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
     IntegerType, JsonType,
@@ -43,20 +44,20 @@ from rhosocial.activerecord.backend.impl.mysql.expression.types import (  # noqa
     MySQLLongTextType,
 )
 
-expr = DropTableExpression(dialect, Table(dialect, "documents56"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "documents56"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, Table(dialect, "documents57"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "documents57"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 
 # Simulate MySQL 5.6: store JSON as TEXT
-expr = CreateTableExpression(
+expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "documents56"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
-                ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
-                ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
             ]),
         ColumnDefinition(dialect, "data", MySQLLongTextType(dialect)),
     ]
@@ -64,12 +65,12 @@ expr = CreateTableExpression(
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 # Simulate MySQL 5.7+: native JSON column
-expr = CreateTableExpression(
+expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "documents57"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
-                ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
-                ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
             ]),
         ColumnDefinition(dialect, "data", JsonType(dialect)),
     ]
@@ -103,10 +104,10 @@ for tbl_name in ("documents56", "documents57"):
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-expr = DropTableExpression(dialect, Table(dialect, "documents56"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "documents56"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, Table(dialect, "documents57"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "documents57"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

@@ -8,8 +8,8 @@ against an actual MySQL 9.7+ database.
 
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.expression import (
-    CreateJsonDualityViewExpression,
-    DropJsonDualityViewExpression,
+    CreateJsonDualityViewStatement,
+    DropJsonDualityViewStatement,
     DualityObjectSpec,
     DualityColumnMapping,
     DualityViewDMLTag,
@@ -42,7 +42,7 @@ def _product_spec(*columns, tags=()):
 
 
 def _create_products_view(backend, spec, *, replace=False):
-    expr = CreateJsonDualityViewExpression(
+    expr = CreateJsonDualityViewStatement(
         backend.dialect,
         "products_dv",
         spec,
@@ -163,7 +163,7 @@ class TestJsonDualityViewDDL:
         backend = duality_backend
         _create_products_view(backend, _product_spec("_id"))
 
-        drop_expr = DropJsonDualityViewExpression(backend.dialect, "products_dv")
+        drop_expr = DropJsonDualityViewStatement(backend.dialect, "products_dv")
         backend.execute(*drop_expr.to_sql(), options=ExecutionOptions(stmt_type=StatementType.DDL))
 
         result = _select_products_view_metadata(backend)

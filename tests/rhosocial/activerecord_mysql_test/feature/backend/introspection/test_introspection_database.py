@@ -8,17 +8,17 @@ for retrieving database metadata.
 
 import pytest
 
-from rhosocial.activerecord.backend.introspection.types import DatabaseInfo
+from rhosocial.activerecord.backend.introspection.types import IntrospectionDatabaseInfo
 
 
 class TestDatabaseInfo:
     """Tests for database information introspection."""
 
     def test_get_database_info(self, mysql_backend):
-        """Test get_database_info returns valid DatabaseInfo."""
+        """Test get_database_info returns valid IntrospectionDatabaseInfo."""
         db_info = mysql_backend.introspector.get_database_info()
 
-        assert isinstance(db_info, DatabaseInfo)
+        assert isinstance(db_info, IntrospectionDatabaseInfo)
         assert db_info.name is not None
         assert db_info.vendor == "MySQL"
         assert db_info.version is not None
@@ -135,10 +135,10 @@ class TestAsyncDatabaseInfo:
 
     @pytest.mark.asyncio
     async def test_async_get_database_info(self, async_mysql_backend):
-        """Test async get_database_info returns valid DatabaseInfo."""
+        """Test async get_database_info returns valid IntrospectionDatabaseInfo."""
         db_info = await async_mysql_backend.introspector.get_database_info()
 
-        assert isinstance(db_info, DatabaseInfo)
+        assert isinstance(db_info, IntrospectionDatabaseInfo)
         assert db_info.name is not None
         assert db_info.vendor == "MySQL"
 

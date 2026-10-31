@@ -4,34 +4,34 @@
 MySQL Transaction Behavior:
 - Isolation level must be set BEFORE START TRANSACTION using SET TRANSACTION
 - START TRANSACTION can include READ ONLY / READ WRITE modes
-- The dialect's format_begin_transaction() only returns START TRANSACTION
-- SetTransactionExpression is used for isolation level settings
+- The dialect's format_begin_transaction_statement() only returns START TRANSACTION
+- SetTransactionStatement is used for isolation level settings
 """
 
 import pytest
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.transaction import (
-    BeginTransactionExpression,
-    CommitTransactionExpression,
-    RollbackTransactionExpression,
-    SavepointExpression,
-    ReleaseSavepointExpression,
-    SetTransactionExpression,
+    BeginTransactionStatement,
+    CommitStatement,
+    RollbackStatement,
+    SavepointStatement,
+    ReleaseSavepointStatement,
+    SetTransactionStatement,
 )
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 
 
 class TestMySQLBeginTransactionExpression:
-    """Tests for MySQL BeginTransactionExpression.
+    """Tests for MySQL BeginTransactionStatement.
 
     Note: MySQL does not support isolation level in START TRANSACTION.
     The dialect's supports_isolation_level_in_begin() returns False.
-    Use SetTransactionExpression to set isolation level before START TRANSACTION.
+    Use SetTransactionStatement to set isolation level before START TRANSACTION.
     """
 
     def test_basic_begin(self, mysql_dialect):
         """Test basic START TRANSACTION."""
-        expr = BeginTransactionExpression(mysql_dialect)
+        expr = BeginTransactionStatement(mysql_dialect)
         sql, params = expr.to_sql()
         assert sql == "START TRANSACTION"
         assert params == ()
@@ -40,11 +40,11 @@ class TestMySQLBeginTransactionExpression:
         """Test that isolation level is NOT included in START TRANSACTION.
 
         MySQL requires SET TRANSACTION ISOLATION LEVEL to be executed
-        separately before START TRANSACTION. The dialect's format_begin_transaction()
+        separately before START TRANSACTION. The dialect's format_begin_transaction_statement()
         only returns the START TRANSACTION statement.
         """
-        expr = BeginTransactionExpression(mysql_dialect)
-        expr.isolation_level(IsolationLevel.SERIALIZABLE)
+        expr = BeginTransactionStatement(mysql_dialect)
+        expr.with_isolation_level(IsolationLevel.SERIALIZABLE)
         sql, params = expr.to_sql()
         # MySQL dialect does NOT include isolation level in START TRANSACTION
         assert sql == "START TRANSACTION"
@@ -54,7 +54,7 @@ class TestMySQLBeginTransactionExpression:
 
     def test_begin_read_only(self, mysql_dialect):
         """Test START TRANSACTION READ ONLY."""
-        expr = BeginTransactionExpression(mysql_dialect)
+        expr = BeginTransactionStatement(mysql_dialect)
         expr.read_only()
         sql, params = expr.to_sql()
         assert sql == "START TRANSACTION READ ONLY"
@@ -62,7 +62,7 @@ class TestMySQLBeginTransactionExpression:
 
     def test_begin_read_write(self, mysql_dialect):
         """Test START TRANSACTION READ WRITE."""
-        expr = BeginTransactionExpression(mysql_dialect)
+        expr = BeginTransactionStatement(mysql_dialect)
         expr.read_write()
         sql, params = expr.to_sql()
         assert sql == "START TRANSACTION"
@@ -72,11 +72,11 @@ class TestMySQLBeginTransactionExpression:
         """Test START TRANSACTION with isolation level and READ ONLY.
 
         The isolation level is ignored by the dialect in START TRANSACTION.
-        Use SetTransactionExpression for isolation level, then BeginTransactionExpression
+        Use SetTransactionStatement for isolation level, then BeginTransactionStatement
         for READ ONLY mode.
         """
-        expr = BeginTransactionExpression(mysql_dialect)
-        expr.isolation_level(IsolationLevel.READ_COMMITTED).read_only()
+        expr = BeginTransactionStatement(mysql_dialect)
+        expr.with_isolation_level(IsolationLevel.READ_COMMITTED).read_only()
         sql, params = expr.to_sql()
         # Only READ ONLY mode is included, isolation level is NOT
         assert sql == "START TRANSACTION READ ONLY"
@@ -96,8 +96,8 @@ class TestMySQLBeginTransactionExpression:
 
         MySQL requires separate SET TRANSACTION ISOLATION LEVEL statement.
         """
-        expr = BeginTransactionExpression(mysql_dialect)
-        expr.isolation_level(level)
+        expr = BeginTransactionStatement(mysql_dialect)
+        expr.with_isolation_level(level)
         sql, params = expr.to_sql()
         # MySQL dialect does NOT include isolation level
         assert sql == "START TRANSACTION"
@@ -105,7 +105,7 @@ class TestMySQLBeginTransactionExpression:
 
 
 class TestMySQLSetTransactionExpression:
-    """Tests for MySQL SetTransactionExpression.
+    """Tests for MySQL SetTransactionStatement.
 
     MySQL uses SET TRANSACTION ISOLATION LEVEL before START TRANSACTION
     to set the isolation level for the next transaction.
@@ -113,8 +113,8 @@ class TestMySQLSetTransactionExpression:
 
     def test_set_isolation_level(self, mysql_dialect):
         """Test SET TRANSACTION ISOLATION LEVEL."""
-        expr = SetTransactionExpression(mysql_dialect)
-        expr.isolation_level(IsolationLevel.SERIALIZABLE)
+        expr = SetTransactionStatement(mysql_dialect)
+        expr.with_isolation_level(IsolationLevel.SERIALIZABLE)
         sql, params = expr.to_sql()
         assert sql == "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
         assert params == ()
@@ -130,15 +130,15 @@ class TestMySQLSetTransactionExpression:
     )
     def test_all_isolation_levels(self, mysql_dialect, level, expected_name):
         """Test all isolation levels in SET TRANSACTION."""
-        expr = SetTransactionExpression(mysql_dialect)
-        expr.isolation_level(level)
+        expr = SetTransactionStatement(mysql_dialect)
+        expr.with_isolation_level(level)
         sql, params = expr.to_sql()
         assert expected_name in sql
         assert params == ()
 
     def test_set_read_only(self, mysql_dialect):
         """Test SET TRANSACTION READ ONLY."""
-        expr = SetTransactionExpression(mysql_dialect)
+        expr = SetTransactionStatement(mysql_dialect)
         expr.read_only()
         sql, params = expr.to_sql()
         assert sql == "SET TRANSACTION READ ONLY"
@@ -146,7 +146,7 @@ class TestMySQLSetTransactionExpression:
 
     def test_set_read_write(self, mysql_dialect):
         """Test SET TRANSACTION READ WRITE."""
-        expr = SetTransactionExpression(mysql_dialect)
+        expr = SetTransactionStatement(mysql_dialect)
         expr.read_write()
         sql, params = expr.to_sql()
         assert sql == "SET TRANSACTION READ WRITE"
@@ -158,21 +158,21 @@ class TestMySQLCommitRollback:
 
     def test_commit(self, mysql_dialect):
         """Test COMMIT statement."""
-        expr = CommitTransactionExpression(mysql_dialect)
+        expr = CommitStatement(mysql_dialect)
         sql, params = expr.to_sql()
         assert sql == "COMMIT"
         assert params == ()
 
     def test_rollback(self, mysql_dialect):
         """Test ROLLBACK statement."""
-        expr = RollbackTransactionExpression(mysql_dialect)
+        expr = RollbackStatement(mysql_dialect)
         sql, params = expr.to_sql()
         assert sql == "ROLLBACK"
         assert params == ()
 
     def test_rollback_to_savepoint(self, mysql_dialect):
         """Test ROLLBACK TO SAVEPOINT statement."""
-        expr = RollbackTransactionExpression(mysql_dialect)
+        expr = RollbackStatement(mysql_dialect)
         expr.to_savepoint("my_savepoint")
         sql, params = expr.to_sql()
         assert "ROLLBACK" in sql
@@ -185,7 +185,7 @@ class TestMySQLSavepoint:
 
     def test_savepoint(self, mysql_dialect):
         """Test SAVEPOINT statement."""
-        expr = SavepointExpression(mysql_dialect, "my_savepoint")
+        expr = SavepointStatement(mysql_dialect, "my_savepoint")
         sql, params = expr.to_sql()
         assert "SAVEPOINT" in sql
         assert "my_savepoint" in sql
@@ -193,7 +193,7 @@ class TestMySQLSavepoint:
 
     def test_release_savepoint(self, mysql_dialect):
         """Test RELEASE SAVEPOINT statement."""
-        expr = ReleaseSavepointExpression(mysql_dialect, "my_savepoint")
+        expr = ReleaseSavepointStatement(mysql_dialect, "my_savepoint")
         sql, params = expr.to_sql()
         assert "RELEASE SAVEPOINT" in sql
         assert "my_savepoint" in sql
@@ -238,7 +238,7 @@ class TestMySQLTransactionWait:
 
     @pytest.mark.parametrize("spelling", ["wait", "no_wait"])
     def test_begin_refuses_wait_by_name(self, mysql_dialect, spelling):
-        expr = BeginTransactionExpression(mysql_dialect, **{spelling: True})
+        expr = BeginTransactionStatement(mysql_dialect, **{spelling: True})
         with pytest.raises(UnsupportedFeatureError) as exc_info:
             expr.to_sql()
         expected = "NO WAIT" if spelling == "no_wait" else "WAIT"
@@ -249,7 +249,7 @@ class TestMySQLTransactionWait:
 
     @pytest.mark.parametrize("spelling", ["wait", "no_wait"])
     def test_set_refuses_wait_by_name(self, mysql_dialect, spelling):
-        expr = SetTransactionExpression(mysql_dialect, **{spelling: True})
+        expr = SetTransactionStatement(mysql_dialect, **{spelling: True})
         with pytest.raises(UnsupportedFeatureError) as exc_info:
             expr.to_sql()
         expected = "NO WAIT" if spelling == "no_wait" else "WAIT"
@@ -259,7 +259,7 @@ class TestMySQLTransactionWait:
             assert "NO WAIT" not in message, message
 
     def test_neither_spelling_renders_neither_token(self, mysql_dialect):
-        begin, _ = BeginTransactionExpression(mysql_dialect).to_sql()
-        set_tx, _ = SetTransactionExpression(mysql_dialect).to_sql()
+        begin, _ = BeginTransactionStatement(mysql_dialect).to_sql()
+        set_tx, _ = SetTransactionStatement(mysql_dialect).to_sql()
         assert begin == "START TRANSACTION"
         assert set_tx == "SET TRANSACTION"

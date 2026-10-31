@@ -51,7 +51,7 @@ class MySQLTransactionMixin:
 
     def supports_transaction_mode(self) -> bool:
         """MySQL supports READ ONLY transactions (5.6.5+)."""
-        return self.version >= (5, 6, 5)
+        return self.version_at_least((5, 6, 5))
 
     def supports_isolation_level_in_begin(self) -> bool:
         """MySQL does not support isolation level in START TRANSACTION."""
@@ -59,7 +59,7 @@ class MySQLTransactionMixin:
 
     def supports_read_only_transaction(self) -> bool:
         """MySQL supports READ ONLY transactions (5.6.5+)."""
-        return self.version >= (5, 6, 5)
+        return self.version_at_least((5, 6, 5))
 
     def supports_deferrable_transaction(self) -> bool:
         """MySQL does not support DEFERRABLE mode."""
@@ -114,7 +114,7 @@ class MySQLTransactionMixin:
         """MySQL supports savepoints."""
         return True
 
-    def format_set_transaction(self, expr: "SetTransactionExpression") -> Tuple[str, tuple]:
+    def format_set_transaction_statement(self, expr: "SetTransactionStatement") -> Tuple[str, tuple]:
         """Format SET TRANSACTION statement for MySQL."""
         from rhosocial.activerecord.backend.transaction import IsolationLevel, TransactionMode
 
@@ -153,7 +153,7 @@ class MySQLTransactionMixin:
 
         return f"SET TRANSACTION {' '.join(parts)}", ()
 
-    def format_begin_transaction(self, expr: "BeginTransactionExpression") -> Tuple[str, tuple]:
+    def format_begin_transaction_statement(self, expr: "BeginTransactionStatement") -> Tuple[str, tuple]:
         """Format START TRANSACTION statement for MySQL."""
         from rhosocial.activerecord.backend.transaction import TransactionMode
 

@@ -956,12 +956,15 @@ class TestIntegerVariantParams:
     def test_unsigned_is_type_checked(self, dialect):
         """``unsigned`` becomes a type modifier in the rendered DDL.
 
-        The core integer class accepts only a real ``bool``, so
-        ``unsigned="yes"`` is an error rather than a truthy string reaching
-        ``BIGINT yes UNSIGNED``.
+        The refusal is the **formatter's**, because only the backend that has
+        to render the flag knows whether it can honour it. The expression
+        collects ``unsigned`` verbatim -- a truthy string must never reach
+        ``BIGINT yes UNSIGNED``, and saying so is not optional.
         """
+        declared = MySQLBigIntType(dialect, unsigned="yes")
+        assert declared.unsigned == "yes"
         with pytest.raises(TypeError, match="unsigned must be a bool"):
-            MySQLBigIntType(dialect, unsigned="yes")
+            dialect.format_data_type(declared)
 
     @pytest.mark.parametrize(
         "cls,base",
@@ -1075,11 +1078,17 @@ class TestNumericSignednessIsHonoured:
     def test_unsigned_is_type_checked(self, dialect, klass, kwargs, signed_sql,
                                      unsigned_sql):
         """It becomes a type modifier in the rendered DDL, so ``1`` is not a
-        truthy ``True`` and ``"yes"`` is not a spelling of one."""
-        with pytest.raises(TypeError, match="unsigned must be a bool"):
-            klass(dialect, unsigned=1, **kwargs)
-        with pytest.raises(TypeError, match="unsigned must be a bool"):
-            klass(dialect, unsigned="yes", **kwargs)
+        truthy ``True`` and ``"yes"`` is not a spelling of one.
+
+        Construction collects and rendering judges, so each case is asserted
+        twice: the declaration keeps the value it was handed, and the dialect
+        names it rather than rendering a signed column for it.
+        """
+        for wrong in (1, "yes"):
+            declared = klass(dialect, unsigned=wrong, **kwargs)
+            assert declared.unsigned == wrong
+            with pytest.raises(TypeError, match="unsigned must be a bool"):
+                dialect.format_data_type(declared)
 
     @pytest.mark.parametrize("klass,kwargs,signed_sql,unsigned_sql", CASES,
                              ids=IDS)
@@ -1250,7 +1259,7 @@ class TestMediumIntWidth:
         ``SPELLINGS`` is narrowed rather than left inherited: taking
         :class:`IntegerType` would otherwise advertise ``integer`` / ``int``,
         which MySQL does not accept for this width, and
-        ``_check_spelling(data_type, MySQLMediumIntType)`` would then hold a
+        ``check_spelling(data_type, MySQLMediumIntType)`` would then hold a
         MEDIUMINT to a word it is not.
         """
         assert MySQLMediumIntType.SPELLINGS == ("mediumint",)
@@ -1259,11 +1268,18 @@ class TestMediumIntWidth:
         assert MySQLMediumIntType(dialect=None).spelling == "mediumint"
 
     def test_unsigned_is_handled_like_its_siblings(self, dialect):
-        """Same field, same type check, same place in identity."""
+        """Same field, same place in identity, same refusal.
+
+        The shape check belongs to the formatter that has to honour the flag,
+        so it fires on ``format_data_type`` rather than on construction -- which
+        is what the other widths in this file are already asserting.
+        """
         assert MySQLMediumIntType.PARAMETERS == ("unsigned", "zerofill")
         assert MySQLMediumIntType(dialect).identity() == (False, False)
+        declared = MySQLMediumIntType(dialect, unsigned="yes")
+        assert declared.unsigned == "yes"
         with pytest.raises(TypeError, match="unsigned must be a bool"):
-            MySQLMediumIntType(dialect, unsigned="yes")
+            dialect.format_data_type(declared)
 
 
 class TestCastTargets:
@@ -1565,6 +1581,11 @@ class TestParseRoundTripSweep:
         "TimeTzType": "TimeType",
         "TimestampTzType": "TimestampType",
         "JsonBType": "JsonType",
+        # The core's generic enum renders ``ENUM('x')`` the same way MySQL
+        # does, but the server's declaration also carries a charset and a
+        # collation, so the parse answers the backend's own class -- which
+        # carries those two fields -- and it re-renders the identical string.
+        "EnumType": "MySQLEnumType",
     }
 
     #: CAST targets, not column types: ``CAST(x AS SIGNED)`` is the only
@@ -1593,7 +1614,10 @@ class TestParseRoundTripSweep:
         return registry
 
     def test_every_rendered_type_parses_back_coherently(self, dialect, registry):
-        from rhosocial.activerecord.testsuite.utils.parse_contract import (
+        # The sweep is vendored beside the matrix (the testsuite deleted its
+        # shared harness with round-trip coverage moving to each backend);
+        # make_instance is the same function the matrix registers with.
+        from expression_roundtrip_harness import (
             parse_roundtrip_failures,
         )
 

@@ -24,25 +24,28 @@ from rhosocial.activerecord.backend.expression.objects import (
 
 if TYPE_CHECKING:
     from ..expression.show import (
-        ShowCreateTableExpression,
-        ShowCreateViewExpression,
-        ShowColumnsExpression,
-        ShowIndexExpression,
-        ShowTablesExpression,
-        ShowDatabasesExpression,
-        ShowTableStatusExpression,
-        ShowTriggersExpression,
-        ShowCreateTriggerExpression,
-        ShowVariablesExpression,
-        ShowStatusExpression,
-        ShowProcessListExpression,
-        ShowWarningsExpression,
-        ShowErrorsExpression,
-        ShowEnginesExpression,
-        ShowCharsetExpression,
-        ShowCollationExpression,
-        ShowGrantsExpression,
-        ShowPluginsExpression,
+        ShowCreateTableStatement,
+        ShowCreateViewStatement,
+        ShowColumnsStatement,
+        ShowIndexStatement,
+        ShowTablesStatement,
+        ShowDatabasesStatement,
+        ShowTableStatusStatement,
+        ShowTriggersStatement,
+        ShowCreateTriggerStatement,
+        ShowVariablesStatement,
+        ShowStatusStatement,
+        ShowProcessListStatement,
+        ShowWarningsStatement,
+        ShowErrorsStatement,
+        ShowEnginesStatement,
+        ShowCharsetStatement,
+        ShowCollationStatement,
+        ShowGrantsStatement,
+        ShowPluginsStatement,
+        ShowBinaryLogsStatement,
+        ShowMasterStatusStatement,
+        ShowSlaveStatusStatement,
     )
 
 
@@ -79,7 +82,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW CREATE Statements ==========
 
-    def format_show_create_table(self, expr: "ShowCreateTableExpression") -> Tuple[str, tuple]:
+    def format_show_create_table_statement(self, expr: "ShowCreateTableStatement") -> Tuple[str, tuple]:
         """Format SHOW CREATE TABLE statement."""
         params = expr.get_params()
         table_name = params["table_name"]
@@ -87,7 +90,7 @@ class MySQLShowDialectMixin:
 
         return f"SHOW CREATE TABLE {self._format_show_target(table_name, schema, Table)}", ()
 
-    def format_show_create_view(self, expr: "ShowCreateViewExpression") -> Tuple[str, tuple]:
+    def format_show_create_view_statement(self, expr: "ShowCreateViewStatement") -> Tuple[str, tuple]:
         """Format SHOW CREATE VIEW statement."""
         params = expr.get_params()
         view_name = params["view_name"]
@@ -95,7 +98,7 @@ class MySQLShowDialectMixin:
 
         return f"SHOW CREATE VIEW {self._format_show_target(view_name, schema, View)}", ()
 
-    def format_show_create_trigger(self, expr: "ShowCreateTriggerExpression") -> Tuple[str, tuple]:
+    def format_show_create_trigger_statement(self, expr: "ShowCreateTriggerStatement") -> Tuple[str, tuple]:
         """Format SHOW CREATE TRIGGER statement."""
         params = expr.get_params()
         trigger_name = params["trigger_name"]
@@ -105,7 +108,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW COLUMNS/INDEX ==========
 
-    def format_show_columns(self, expr: "ShowColumnsExpression") -> Tuple[str, tuple]:
+    def format_show_columns_statement(self, expr: "ShowColumnsStatement") -> Tuple[str, tuple]:
         """Format SHOW [FULL] COLUMNS statement."""
         params = expr.get_params()
         table_name = params["table_name"]
@@ -126,7 +129,7 @@ class MySQLShowDialectMixin:
 
         return " ".join(parts), sql_params
 
-    def format_show_index(self, expr: "ShowIndexExpression") -> Tuple[str, tuple]:
+    def format_show_index_statement(self, expr: "ShowIndexStatement") -> Tuple[str, tuple]:
         """Format SHOW INDEX statement."""
         params = expr.get_params()
         table_name = params["table_name"]
@@ -136,7 +139,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW TABLES/DATABASES ==========
 
-    def format_show_tables(self, expr: "ShowTablesExpression") -> Tuple[str, tuple]:
+    def format_show_tables_statement(self, expr: "ShowTablesStatement") -> Tuple[str, tuple]:
         """Format SHOW [FULL] TABLES statement."""
         params = expr.get_params()
         schema = params.get("schema")
@@ -157,7 +160,7 @@ class MySQLShowDialectMixin:
 
         return " ".join(parts), sql_params
 
-    def format_show_databases(self, expr: "ShowDatabasesExpression") -> Tuple[str, tuple]:
+    def format_show_databases_statement(self, expr: "ShowDatabasesStatement") -> Tuple[str, tuple]:
         """Format SHOW DATABASES statement."""
         params = expr.get_params()
         like_pattern = params.get("like_pattern")
@@ -166,7 +169,7 @@ class MySQLShowDialectMixin:
             return f"SHOW DATABASES LIKE {self.p()}", (like_pattern,)
         return "SHOW DATABASES", ()
 
-    def format_show_table_status(self, expr: "ShowTableStatusExpression") -> Tuple[str, tuple]:
+    def format_show_table_status_statement(self, expr: "ShowTableStatusStatement") -> Tuple[str, tuple]:
         """Format SHOW TABLE STATUS statement."""
         params = expr.get_params()
         schema = params.get("schema")
@@ -185,7 +188,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW TRIGGERS ==========
 
-    def format_show_triggers(self, expr: "ShowTriggersExpression") -> Tuple[str, tuple]:
+    def format_show_triggers_statement(self, expr: "ShowTriggersStatement") -> Tuple[str, tuple]:
         """Format SHOW TRIGGERS statement."""
         params = expr.get_params()
         schema = params.get("schema")
@@ -204,7 +207,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW VARIABLES/STATUS ==========
 
-    def format_show_variables(self, expr: "ShowVariablesExpression") -> Tuple[str, tuple]:
+    def format_show_variables_statement(self, expr: "ShowVariablesStatement") -> Tuple[str, tuple]:
         """Format SHOW VARIABLES statement."""
         params = expr.get_params()
         session = params.get("session", True)
@@ -222,7 +225,7 @@ class MySQLShowDialectMixin:
 
         return " ".join(parts), sql_params
 
-    def format_show_status(self, expr: "ShowStatusExpression") -> Tuple[str, tuple]:
+    def format_show_status_statement(self, expr: "ShowStatusStatement") -> Tuple[str, tuple]:
         """Format SHOW STATUS statement."""
         params = expr.get_params()
         session = params.get("session", True)
@@ -242,7 +245,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW PROCESSLIST/WARNINGS/ERRORS ==========
 
-    def format_show_processlist(self, expr: "ShowProcessListExpression") -> Tuple[str, tuple]:
+    def format_show_process_list_statement(self, expr: "ShowProcessListStatement") -> Tuple[str, tuple]:
         """Format SHOW PROCESSLIST statement."""
         params = expr.get_params()
         full = params.get("full", False)
@@ -251,7 +254,7 @@ class MySQLShowDialectMixin:
             return "SHOW FULL PROCESSLIST", ()
         return "SHOW PROCESSLIST", ()
 
-    def format_show_warnings(self, expr: "ShowWarningsExpression") -> Tuple[str, tuple]:
+    def format_show_warnings_statement(self, expr: "ShowWarningsStatement") -> Tuple[str, tuple]:
         """Format SHOW WARNINGS statement."""
         params = expr.get_params()
         limit = params.get("limit")
@@ -260,7 +263,7 @@ class MySQLShowDialectMixin:
             return f"SHOW WARNINGS LIMIT {limit}", ()
         return "SHOW WARNINGS", ()
 
-    def format_show_errors(self, expr: "ShowErrorsExpression") -> Tuple[str, tuple]:
+    def format_show_errors_statement(self, expr: "ShowErrorsStatement") -> Tuple[str, tuple]:
         """Format SHOW ERRORS statement."""
         params = expr.get_params()
         limit = params.get("limit")
@@ -271,11 +274,11 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW ENGINES/CHARSET/COLLATION ==========
 
-    def format_show_engines(self, expr: "ShowEnginesExpression") -> Tuple[str, tuple]:
+    def format_show_engines_statement(self, expr: "ShowEnginesStatement") -> Tuple[str, tuple]:
         """Format SHOW ENGINES statement."""
         return "SHOW ENGINES", ()
 
-    def format_show_charset(self, expr: "ShowCharsetExpression") -> Tuple[str, tuple]:
+    def format_show_charset_statement(self, expr: "ShowCharsetStatement") -> Tuple[str, tuple]:
         """Format SHOW CHARACTER SET statement."""
         params = expr.get_params()
         like_pattern = params.get("like_pattern")
@@ -284,7 +287,7 @@ class MySQLShowDialectMixin:
             return f"SHOW CHARACTER SET LIKE {self.p()}", (like_pattern,)
         return "SHOW CHARACTER SET", ()
 
-    def format_show_collation(self, expr: "ShowCollationExpression") -> Tuple[str, tuple]:
+    def format_show_collation_statement(self, expr: "ShowCollationStatement") -> Tuple[str, tuple]:
         """Format SHOW COLLATION statement."""
         params = expr.get_params()
         like_pattern = params.get("like_pattern")
@@ -295,7 +298,7 @@ class MySQLShowDialectMixin:
 
     # ========== SHOW GRANTS/PLUGINS ==========
 
-    def format_show_grants(self, expr: "ShowGrantsExpression") -> Tuple[str, tuple]:
+    def format_show_grants_statement(self, expr: "ShowGrantsStatement") -> Tuple[str, tuple]:
         """Format SHOW GRANTS statement."""
         params = expr.get_params()
         user = params.get("user")
@@ -307,6 +310,29 @@ class MySQLShowDialectMixin:
             return f"SHOW GRANTS FOR {self.p()}", (user,)
         return "SHOW GRANTS", ()
 
-    def format_show_plugins(self, expr: "ShowPluginsExpression") -> Tuple[str, tuple]:
+    def format_show_plugins_statement(self, expr: "ShowPluginsStatement") -> Tuple[str, tuple]:
         """Format SHOW PLUGINS statement."""
         return "SHOW PLUGINS", ()
+
+    # ========== SHOW BINARY LOGS / REPLICATION STATUS ==========
+    #
+    # Each of these is a whole command with no parameters, so each has its own
+    # node and its own entry: a boolean on a neighbouring node would say "this
+    # is a different command" with something other than the class, which is what
+    # the class is for.
+
+    def format_show_binary_logs_statement(self, expr: "ShowBinaryLogsStatement") -> Tuple[str, tuple]:
+        """Format SHOW BINARY LOGS statement."""
+        return "SHOW BINARY LOGS", ()
+
+    def format_show_master_status_statement(
+        self, expr: "ShowMasterStatusStatement"
+    ) -> Tuple[str, tuple]:
+        """Format SHOW MASTER STATUS statement."""
+        return "SHOW MASTER STATUS", ()
+
+    def format_show_slave_status_statement(
+        self, expr: "ShowSlaveStatusStatement"
+    ) -> Tuple[str, tuple]:
+        """Format SHOW SLAVE STATUS statement."""
+        return "SHOW SLAVE STATUS", ()

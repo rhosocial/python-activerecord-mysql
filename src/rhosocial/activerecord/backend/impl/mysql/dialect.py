@@ -37,8 +37,6 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TransactionControlSupport,
     SQLFunctionSupport,
     DataTypeSupport,
-    # Column Class Support Protocol
-    ColumnTypeSupport,
     TypeObjectSupport,
     CreateTypeSupport,
     AlterTypeSupport,
@@ -170,6 +168,7 @@ from .mixins import (
     MySQLGeneratedColumnMixin,
     MySQLFunctionMixin,
     MySQLColumnTypeMixin,
+    MySQLLiteralValueMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -177,11 +176,25 @@ from .show.dialect import MySQLShowDialectMixin
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
-        InsertExpression,
+        InsertStatement,
     )
 
 
 class MySQLDialect(
+    # The bases below come in bundles: a backend mixin, then the core bundle
+    # it stands in for. The backend's answer has to come first -- a mixin
+    # placed after the class it overrides never wins -- so a new mixin goes
+    # immediately before the core mixin it overrides, and the pairing is read
+    # off the list. Two positions sit outside that pairing and are called out
+    # where they occur: a mixin that overrides a method ``SQLDialectBase``
+    # defines has to precede the base, and a mixin that subclasses a core
+    # mixin has to precede it too (C3: a subclass precedes its base).
+    # MySQL's tier-2 value literals (bytes X'...' and the quoted UUID text)
+    # override format_literal, and this is the one base that defines it, so
+    # the mixin is placed ahead of SQLDialectBase: a mixin placed after the
+    # class it overrides never wins. Everything else about this mixin is the
+    # base's own tiering, which super() reaches.
+    MySQLLiteralValueMixin,
     SQLDialectBase,
     # MySQL's own namespace rules first, and before NamespaceMixin for the C3
     # reason: MySQLNamespaceMixin overrides supports_catalog,
@@ -452,7 +465,7 @@ class MySQLDialect(
 
         return MySQLSchemaDiffer()
 
-    def _escape_sql_string(self, value: str) -> str:
+    def escape_sql_string(self, value: str) -> str:
         """Escape string for MySQL with backslash support.
 
         MySQL default SQL mode (STRICT_TRANS_TABLES) treats backslash as an
@@ -501,7 +514,7 @@ class MySQLDialect(
 
     def supports_json_arrow_operators(self) -> bool:
         """Check if MySQL version supports -> and ->> operators."""
-        return self.version >= (5, 7, 9)
+        return self.version_at_least((5, 7, 9))
 
     def supports_upsert(self) -> bool:
         """Whether UPSERT (ON DUPLICATE KEY UPDATE) is supported."""
@@ -527,7 +540,7 @@ class MySQLDialect(
         """MySQL's ON DUPLICATE KEY UPDATE allows only a single clause."""
         return False
 
-    def format_insert_statement(self, expr: "InsertExpression") -> Tuple[str, tuple]:
+    def format_insert_statement(self, expr: "InsertStatement") -> Tuple[str, tuple]:
         """Format INSERT statement with MySQL-specific options.
 
         Extends the base implementation to support the typed flags on
@@ -535,8 +548,14 @@ class MySQLDialect(
         - ``ignore=True`` → ``INSERT IGNORE``
         - ``replace=True`` → ``REPLACE INTO``
 
+        The flags are this backend's own derived-node contract, so they are
+        read off ``MySQLInsertExpression`` by type; a plain core
+        ``InsertStatement`` spells neither and renders a plain ``INSERT``.
+        Their mutual-exclusion rules are enforced by the derived node's
+        constructor, not here.
+
         Args:
-            expr: InsertExpression instance
+            expr: InsertStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -548,24 +567,19 @@ class MySQLDialect(
                 Sequence in the INTO slot renders through its own formatter --
                 a well-formed INSERT writing to something the caller never
                 named.
-            ValueError: If both 'ignore' and 'replace' are specified, or if
-                       'replace' is used with 'on_conflict'
         """
         # Perform strict parameter validation
         if self.strict_validation:
             expr.validate(strict=True)
 
-        require_kind(expr.into, Table, "InsertExpression.into")
+        require_kind(expr.into, Table, "InsertStatement.into")
 
-        # Check for conflicting options
-        is_replace = getattr(expr, "replace", False)
-        is_ignore = getattr(expr, "ignore", False)
+        is_replace = is_ignore = False
+        from .expression.dml import MySQLInsertExpression
 
-        if is_replace and is_ignore:
-            raise ValueError("Cannot use both 'replace' and 'ignore' options together")
-
-        if is_replace and expr.on_conflict:
-            raise ValueError("REPLACE INTO does not support ON CONFLICT clause")
+        if isinstance(expr, MySQLInsertExpression):
+            is_replace = expr.replace
+            is_ignore = expr.ignore
 
         all_params: List[Any] = []
         table_sql, table_params = expr.into.to_sql()
@@ -592,16 +606,13 @@ class MySQLDialect(
         if isinstance(expr.source, DefaultValuesSource):
             parts.append("DEFAULT VALUES")
         elif isinstance(expr.source, ValuesSource):
-            all_rows_sql = []
-            for row in expr.source.values_list:
-                row_sql, row_params = [], []
-                for val in row:
-                    s, p = val.to_sql()
-                    row_sql.append(s)
-                    row_params.extend(p)
-                all_rows_sql.append(f"({', '.join(row_sql)})")
-                all_params.extend(row_params)
-            parts.append("VALUES " + ", ".join(all_rows_sql))
+            # A cell is either an expression or a bare host value, and the
+            # base formatter owns that judgement in one place -- the local
+            # loop this used to be wrote ``val.to_sql()`` per cell and could
+            # not accept a bare value at all.
+            values_sql, values_params = self.format_insert_values_source(expr.source)
+            parts.append(values_sql)
+            all_params.extend(values_params)
         elif isinstance(expr.source, SelectSource):
             s_sql, s_params = expr.source.select_query.to_sql()
             parts.append(s_sql)

@@ -1,6 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table_statement.py
 from typing import List, TYPE_CHECKING, Tuple
 
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
 from .object_kind import require_kind
@@ -21,13 +22,13 @@ class MySQLTableStatementMixin:
 
     def supports_table_statement(self) -> bool:
         """MySQL 8.0.19+ supports the TABLE statement."""
-        return getattr(self, "version", None) is not None and self.version >= (8, 0, 19)
+        return self.version_at_least((8, 0, 19))
 
     def supports_values_table_constructor(self) -> bool:
         """MySQL 8.0.19+ supports VALUES as a table value constructor."""
-        return getattr(self, "version", None) is not None and self.version >= (8, 0, 19)
+        return self.version_at_least((8, 0, 19))
 
-    def format_table_statement(self, expr: "MySQLTableStatement") -> Tuple[str, tuple]:
+    def format_mysql_table_statement(self, expr: "MySQLTableStatement") -> Tuple[str, tuple]:
         """Format ``TABLE <table> [ORDER BY ...] [LIMIT ...]``.
 
         The table is a schema object, so it renders itself and
@@ -43,7 +44,7 @@ class MySQLTableStatementMixin:
         parts.extend(self._format_statement_clauses(expr))
         return " ".join(part for part in parts if part), ()
 
-    def format_values_statement(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
+    def format_mysql_values_expression(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
         """Format ``VALUES ROW(...), ... [ORDER BY ...] [LIMIT ...]``."""
         expr.validate(strict=self.strict_validation)
         params = []
@@ -51,7 +52,11 @@ class MySQLTableStatementMixin:
         for row in expr.rows:
             cell_parts = []
             for value in row:
-                if hasattr(value, "to_sql"):
+                # A cell is a host value or an expression instance (§10, and
+                # the rule that binds: can the driver bind it?). Asking the
+                # object whether it happens to answer to ``to_sql`` cannot tell
+                # a value that renders from a value that does not.
+                if isinstance(value, BaseExpression):
                     sql, p = value.to_sql()
                     cell_parts.append(sql)
                     params.extend(p)

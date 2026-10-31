@@ -5,8 +5,8 @@ from rhosocial.activerecord.backend.expression import bases
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.advanced_functions import (
-        JSONDocumentExpression,
-        JSONTextExpression,
+        JSONDocumentValue,
+        JSONTextValue,
     )
 
     #: What the two formatters below accept. Core used to have one class for
@@ -14,8 +14,8 @@ if TYPE_CHECKING:
     #: ``->`` and ``->>`` from these same two methods, so the parameter is a
     #: union rather than either class alone.
     #:
-    #: The union is spelled out even though ``JSONTextExpression`` subclasses
-    #: ``JSONDocumentExpression`` and a checker would collapse it. That
+    #: The union is spelled out even though ``JSONTextValue`` subclasses
+    #: ``JSONDocumentValue`` and a checker would collapse it. That
     #: inheritance exists so a text access keeps the accessors that let a path
     #: chain continue; it is not a claim that ``->>`` yields a document.
     #:
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     #: ``->`` and ``->>`` had a result type worth naming a class after. A
     #: non-arrow operation says nothing about what comes back, so no class
     #: asserts anything for it and the ``operation`` field alone decides.
-    JSONPathNode = Union["JSONDocumentExpression", "JSONTextExpression"]
+    JSONPathNode = Union["JSONDocumentValue", "JSONTextValue"]
 
 
 class MySQLJSONFunctionMixin:
@@ -40,7 +40,7 @@ class MySQLJSONFunctionMixin:
     }
 
     def supports_json_type(self) -> bool:
-        return self.version >= (5, 7, 8)
+        return self.version_at_least((5, 7, 8))
 
     def supports_json_path(self) -> bool:
         """Whether a JSON path can be read on this server.
@@ -50,20 +50,20 @@ class MySQLJSONFunctionMixin:
         perfectly well and has no JSON column type, so gating on the type
         would refuse queries it answers.
         """
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_json_merge_patch(self) -> bool:
-        return self.version >= (8, 0, 3)
+        return self.version_at_least((8, 0, 3))
 
     def supports_json_table(self) -> bool:
-        return self.version >= (8, 0, 4)
+        return self.version_at_least((8, 0, 4))
 
     def supports_json_function(self, function_name: str) -> bool:
         if function_name in self._JSON_FUNCTION_VERSIONS:
-            return self.version >= self._JSON_FUNCTION_VERSIONS[function_name]
-        return self.version >= (5, 7, 8)
+            return self.version_at_least(self._JSON_FUNCTION_VERSIONS[function_name])
+        return self.version_at_least((5, 7, 8))
 
-    def format_json_extract(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_extract_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONExtractExpression` node."""
         sql, params = self._format_json_extract_parts(expr.json_column, expr.path)
         if expr.alias:
@@ -80,7 +80,7 @@ class MySQLJSONFunctionMixin:
         path_placeholders = ", ".join([self.p() for _ in all_paths])
         return f"JSON_EXTRACT({json_doc}, {path_placeholders})", tuple(all_paths)
 
-    def format_json_unquote(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_unquote_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLJSONUnquoteExpression or a raw JSON value string."""
         from ..expression.json import MySQLJSONUnquoteExpression
 
@@ -96,7 +96,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_json_object(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_object_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONObjectExpression` node."""
         sql, params = self._format_json_object_parts(expr.pairs)
         if expr.alias:
@@ -119,7 +119,7 @@ class MySQLJSONFunctionMixin:
 
         return f"JSON_OBJECT({', '.join(parts)})", tuple(params)
 
-    def format_json_array(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_array_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONArrayExpression` node."""
         sql, params = self._format_json_array_parts(expr.values)
         if expr.alias:
@@ -133,7 +133,7 @@ class MySQLJSONFunctionMixin:
         placeholders = ", ".join([self.p() for _ in values])
         return f"JSON_ARRAY({placeholders})", tuple(values)
 
-    def format_json_contains(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_contains_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONContainsExpression` node."""
         sql, params = self._format_json_contains_parts(expr.json_column, expr.value, expr.path)
         if expr.alias:
@@ -146,13 +146,13 @@ class MySQLJSONFunctionMixin:
             return f"JSON_CONTAINS({target}, {self.p()}, {self.p()})", (candidate, path)
         return f"JSON_CONTAINS({target}, {self.p()})", (candidate,)
 
-    def format_json_set(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_set_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSetExpression` node."""
         from ..expression.json import MySQLJSONSetExpression
 
         if not isinstance(expr, MySQLJSONSetExpression):
             raise TypeError(
-                f"format_json_set expects MySQLJSONSetExpression, got {type(expr).__name__}"
+                f"format_mysql_json_set_expression expects MySQLJSONSetExpression, got {type(expr).__name__}"
             )
 
         all_pairs = [(expr.path, expr.value)] + (expr.path_value_pairs or [])
@@ -167,13 +167,13 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, tuple(params)
 
-    def format_json_remove(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_remove_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONRemoveExpression` node."""
         from ..expression.json import MySQLJSONRemoveExpression
 
         if not isinstance(expr, MySQLJSONRemoveExpression):
             raise TypeError(
-                f"format_json_remove expects MySQLJSONRemoveExpression, got {type(expr).__name__}"
+                f"format_mysql_json_remove_expression expects MySQLJSONRemoveExpression, got {type(expr).__name__}"
             )
 
         all_paths = [expr.path] + (expr.paths or [])
@@ -183,7 +183,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, tuple(all_paths)
 
-    def format_json_type(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_type_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLJSONTypeExpression or a raw JSON value string."""
         from ..expression.json import MySQLJSONTypeExpression
 
@@ -199,7 +199,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_json_valid(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_valid_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLJSONValidExpression or a raw JSON value string."""
         from ..expression.json import MySQLJSONValidExpression
 
@@ -215,13 +215,13 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_json_search(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_search_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSearchExpression` node."""
         from ..expression.json import MySQLJSONSearchExpression
 
         if not isinstance(expr, MySQLJSONSearchExpression):
             raise TypeError(
-                f"format_json_search expects MySQLJSONSearchExpression, got {type(expr).__name__}"
+                f"format_mysql_json_search_expression expects MySQLJSONSearchExpression, got {type(expr).__name__}"
             )
 
         one_or_all = "'all'" if expr.all else "'one'"
@@ -245,8 +245,8 @@ class MySQLJSONFunctionMixin:
         1. The JSON path as a string literal, not a parameter placeholder
         2. No parentheses around the expression
 
-        Takes either JSON path node -- :class:`JSONDocumentExpression` for
-        ``->``, :class:`JSONTextExpression` for ``->>`` -- and tells them apart
+        Takes either JSON path node -- :class:`JSONDocumentValue` for
+        ``->``, :class:`JSONTextValue` for ``->>`` -- and tells them apart
         by ``expr.operation``, not by class, so which one the caller built does
         not change the SQL. Any other operation is emitted as an infix
         comparison with the path bound; see :class:`JSONPathNode` for why that
@@ -258,7 +258,7 @@ class MySQLJSONFunctionMixin:
             col_sql, col_params = self.format_identifier(str(expr.column)), ()
 
         if expr.operation in ("->", "->>"):
-            escaped_path = self._escape_sql_string(expr.path)
+            escaped_path = self.escape_sql_string(expr.path)
             sql = f"{col_sql}{expr.operation}'{escaped_path}'"
             params = col_params
         else:
@@ -287,7 +287,7 @@ class MySQLJSONFunctionMixin:
         else:
             col_sql, col_params = self.format_identifier(str(expr.column)), ()
 
-        escaped_path = self._escape_sql_string(expr.path)
+        escaped_path = self.escape_sql_string(expr.path)
 
         if expr.operation == "->":
             sql = f"JSON_EXTRACT({col_sql}, '{escaped_path}')"
@@ -304,9 +304,17 @@ class MySQLJSONFunctionMixin:
 
         return sql, params
 
-    def format_json_table_expression(self, expr) -> Tuple[str, tuple]:
-        """Format JSON_TABLE expression with safe literal escaping."""
+    def format_mysql_json_table_expression(self, expr) -> Tuple[str, tuple]:
+        """Format :class:`MySQLJSONTableExpression` with safe literal escaping.
+
+        The entry the MySQL node names. It is not an override of core's
+        ``format_json_table_expression``: core's ``JSONTableExpression``
+        carries a different shape, and one entry reading the other raised
+        ``AttributeError`` for half of the pair. Core's entry renders core's
+        node again.
+        """
         from rhosocial.activerecord.backend.expression.bases import ToSQLProtocol
+        from rhosocial.activerecord.backend.expression.types import DataType
 
         expr.validate(strict=self.strict_validation)
 
@@ -316,7 +324,7 @@ class MySQLJSONFunctionMixin:
         # if it's a ToSQLProtocol expression, use to_sql() for parameterized
         # queries; otherwise raise to prevent SQL injection.
         if isinstance(expr.json_doc, str):
-            parts.append(f"'{self._escape_sql_string(expr.json_doc)}'")
+            parts.append(f"'{self.escape_sql_string(expr.json_doc)}'")
         elif isinstance(expr.json_doc, ToSQLProtocol):
             json_sql, _ = expr.json_doc.to_sql()
             parts.append(json_sql)
@@ -326,7 +334,7 @@ class MySQLJSONFunctionMixin:
             )
 
         parts.append(",")
-        escaped_path = self._escape_sql_string(expr.path)
+        escaped_path = self.escape_sql_string(expr.path)
         parts.append(f"'{escaped_path}'")
         parts.append(" COLUMNS (")
 
@@ -335,14 +343,17 @@ class MySQLJSONFunctionMixin:
             if col.ordinality:
                 column_parts.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
             elif col.exists:
-                escaped_col_path = self._escape_sql_string(col.path) if col.path else ""
-                column_parts.append(f"{self.format_identifier(col.name)} {col.type} EXISTS PATH '{escaped_col_path}'")
+                escaped_col_path = self.escape_sql_string(col.path) if col.path else ""
+                column_type, _ = DataType.as_type(self, col.type).to_sql()
+                column_parts.append(
+                    f"{self.format_identifier(col.name)} {column_type} "
+                    f"EXISTS PATH '{escaped_col_path}'"
+                )
             else:
-                if not self._validate_data_type(col.type):
-                    raise ValueError(f"Invalid data type: {col.type}")
-                col_def = f"{self.format_identifier(col.name)} {col.type}"
+                column_type, _ = DataType.as_type(self, col.type).to_sql()
+                col_def = f"{self.format_identifier(col.name)} {column_type}"
                 if col.path:
-                    escaped_col_path = self._escape_sql_string(col.path)
+                    escaped_col_path = self.escape_sql_string(col.path)
                     col_def += f" PATH '{escaped_col_path}'"
                 if col.error_handling:
                     valid_error_handling = {"NULL", "ERROR", "DEFAULT"}
@@ -352,23 +363,24 @@ class MySQLJSONFunctionMixin:
                             f"Invalid error_handling: {col.error_handling}. Must be one of {valid_error_handling}"
                         )
                     if error_handling_upper == "DEFAULT":
-                        escaped_default = self._escape_sql_string(str(col.default_value))
+                        escaped_default = self.escape_sql_string(str(col.default_value))
                         col_def += f" DEFAULT '{escaped_default}' ON ERROR"
                     else:
                         col_def += f" {error_handling_upper} ON ERROR"
                 column_parts.append(col_def)
 
         for nested in expr.nested_paths:
-            escaped_nested_path = self._escape_sql_string(nested.path)
+            escaped_nested_path = self.escape_sql_string(nested.path)
             nested_def = f"NESTED PATH '{escaped_nested_path}' COLUMNS ("
             nested_cols = []
             for col in nested.columns:
                 if col.ordinality:
                     nested_cols.append(f"{self.format_identifier(col.name)} FOR ORDINALITY")
                 else:
-                    escaped_nested_col_path = self._escape_sql_string(col.path) if col.path else ""
+                    escaped_nested_col_path = self.escape_sql_string(col.path) if col.path else ""
+                    nested_type, _ = DataType.as_type(self, col.type).to_sql()
                     nested_cols.append(
-                        f"{self.format_identifier(col.name)} {col.type} PATH '{escaped_nested_col_path}'"
+                        f"{self.format_identifier(col.name)} {nested_type} PATH '{escaped_nested_col_path}'"
                     )
             nested_def += ", ".join(nested_cols) + ")"
             if nested.alias:

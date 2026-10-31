@@ -12,36 +12,37 @@ class MySQLSpatialMixin:
         }
         if type_name.upper() not in valid_types:
             return False
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_spatial_index(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_geojson(self) -> bool:
-        return self.version >= (5, 7, 5)
+        return self.version_at_least((5, 7, 5))
 
     def supports_geometry_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_point_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_curve_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_surface_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_geometry_collection_type(self) -> bool:
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
-    def format_spatial_literal(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_spatial_literal_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLSpatialLiteralExpression` node."""
         from ..expression.spatial import MySQLSpatialLiteralExpression
 
         if not isinstance(expr, MySQLSpatialLiteralExpression):
             raise TypeError(
-                f"format_spatial_literal expects MySQLSpatialLiteralExpression, got {type(expr).__name__}"
+                "format_mysql_spatial_literal_expression expects "
+                f"MySQLSpatialLiteralExpression, got {type(expr).__name__}"
             )
 
         sql, params = self._format_spatial_literal_parts(expr.wkt, expr.srid)
@@ -55,7 +56,7 @@ class MySQLSpatialMixin:
             return f"ST_GeomFromText({self.p()}, {self.p()})", (wkt, srid)
         return f"ST_GeomFromText({self.p()})", (wkt,)
 
-    def format_st_geom_from_text(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_geom_from_text_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLSTGeomFromTextExpression or a raw WKT string."""
         from ..expression.spatial import MySQLSTGeomFromTextExpression
 
@@ -70,13 +71,14 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_st_geom_from_wkb(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_geom_from_wkb_expression(self, expr) -> Tuple[str, tuple]:
         """Format a :class:`MySQLSTGeomFromWKBExpression` node."""
         from ..expression.spatial import MySQLSTGeomFromWKBExpression
 
         if not isinstance(expr, MySQLSTGeomFromWKBExpression):
             raise TypeError(
-                f"format_st_geom_from_wkb expects MySQLSTGeomFromWKBExpression, got {type(expr).__name__}"
+                "format_mysql_st_geom_from_wkb_expression expects "
+                f"MySQLSTGeomFromWKBExpression, got {type(expr).__name__}"
             )
 
         if expr.srid is not None:
@@ -89,7 +91,7 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, params
 
-    def format_st_as_text(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_as_text_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLSTAsTextExpression or a raw geometry reference."""
         from ..expression.spatial import MySQLSTAsTextExpression
 
@@ -105,7 +107,7 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_st_as_geojson(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_as_geo_json_expression(self, expr) -> Tuple[str, tuple]:
         """Format MySQLSTAsGeoJSONExpression or a raw geometry reference."""
         from ..expression.spatial import MySQLSTAsGeoJSONExpression
 
@@ -124,13 +126,13 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_create_spatial_index(self, expr) -> Tuple[str, tuple]:
-        """Format a :class:`MySQLCreateSpatialIndexExpression` node."""
-        from ..expression.spatial import MySQLCreateSpatialIndexExpression
+    def format_mysql_create_spatial_index_statement(self, expr) -> Tuple[str, tuple]:
+        """Format a :class:`MySQLCreateSpatialIndexStatement` node."""
+        from ..expression.spatial import MySQLCreateSpatialIndexStatement
 
-        if not isinstance(expr, MySQLCreateSpatialIndexExpression):
+        if not isinstance(expr, MySQLCreateSpatialIndexStatement):
             raise TypeError(
-                f"format_create_spatial_index expects MySQLCreateSpatialIndexExpression, "
+                f"format_mysql_create_spatial_index_statement expects MySQLCreateSpatialIndexStatement, "
                 f"got {type(expr).__name__}"
             )
 
@@ -144,19 +146,19 @@ class MySQLSpatialMixin:
             (),
         )
 
-    def format_st_distance(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_distance_expression(self, expr) -> Tuple[str, tuple]:
         sql = f"ST_Distance({expr.geom1}, {expr.geom2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_st_within(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_within_expression(self, expr) -> Tuple[str, tuple]:
         sql = f"ST_Within({expr.geom1}, {expr.geom2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_st_contains(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_contains_expression(self, expr) -> Tuple[str, tuple]:
         sql = f"ST_Contains({expr.geom1}, {expr.geom2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"

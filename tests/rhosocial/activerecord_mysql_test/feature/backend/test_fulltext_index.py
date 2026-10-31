@@ -11,10 +11,10 @@ This module tests MySQL-specific FULLTEXT index functionality including:
 import pytest
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.expression.statements import (
-    CreateFulltextIndexExpression,
+    CreateFulltextIndexStatement,
 )
 from rhosocial.activerecord.backend.expression.statements.fulltext_match import (
-    FulltextMatchExpression,
+    FulltextMatch,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLMatchAgainstExpression
 from rhosocial.activerecord.backend.expression.objects import Index, Table
@@ -38,7 +38,7 @@ class TestFullTextProtocol:
         assert dialect_80.supports_fulltext_index()
 
     def test_format_match_against(self):
-        """Test format_match_against method."""
+        """Test format_mysql_match_against_expression method."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
         expr = MySQLMatchAgainstExpression(
@@ -96,7 +96,7 @@ class TestFullTextProtocol:
         """Test MATCH ... AGAINST with natural language mode."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = FulltextMatchExpression(dialect, columns=["title", "content"], search_term="database system")
+        expr = FulltextMatch(dialect, columns=["title", "content"], search_term="database system")
         sql, params = dialect.format_fulltext_match(expr)
 
         assert "MATCH(`title`, `content`)" in sql
@@ -108,7 +108,7 @@ class TestFullTextProtocol:
         """Test MATCH ... AGAINST with boolean mode."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = FulltextMatchExpression(dialect, columns=["title", "content"], search_term="+database +system", mode="BOOLEAN")
+        expr = FulltextMatch(dialect, columns=["title", "content"], search_term="+database +system", mode="BOOLEAN")
         sql, params = dialect.format_fulltext_match(expr)
 
         assert "MATCH(`title`, `content`)" in sql
@@ -120,7 +120,7 @@ class TestFullTextProtocol:
         """Test MATCH ... AGAINST with query expansion."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = FulltextMatchExpression(dialect, columns=["content"], search_term="database", mode="QUERY EXPANSION")
+        expr = FulltextMatch(dialect, columns=["content"], search_term="database", mode="QUERY EXPANSION")
         sql, params = dialect.format_fulltext_match(expr)
 
         assert "MATCH(`content`)" in sql
@@ -132,7 +132,7 @@ class TestFullTextProtocol:
         """Test CREATE FULLTEXT INDEX statement formatting."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = CreateFulltextIndexExpression(
+        expr = CreateFulltextIndexStatement(
             dialect=dialect, index=Index(dialect, "idx_content"), table=Table(dialect, "articles"), columns=["title", "content"]
         )
         sql, params = expr.to_sql()
@@ -147,7 +147,7 @@ class TestFullTextProtocol:
         """Test CREATE FULLTEXT INDEX with parser plugin."""
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = CreateFulltextIndexExpression(
+        expr = CreateFulltextIndexStatement(
             dialect=dialect, index=Index(dialect, "idx_content"), table=Table(dialect, "articles"), columns=["content"], parser="ngram"
         )
         sql, params = expr.to_sql()
@@ -161,11 +161,11 @@ class TestFullTextProtocol:
         dialect = MySQLDialect(version=(5, 5, 0))
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
-            expr = FulltextMatchExpression(dialect, columns=["title"], search_term="test")
+            expr = FulltextMatch(dialect, columns=["title"], search_term="test")
             dialect.format_fulltext_match(expr)
 
         with pytest.raises(Exception):  # UnsupportedFeatureError  # noqa: B017
-            expr = CreateFulltextIndexExpression(
+            expr = CreateFulltextIndexStatement(
                 dialect=dialect, index=Index(dialect, "idx_test"), table=Table(dialect, "test_table"), columns=["content"]
             )
             expr.to_sql()

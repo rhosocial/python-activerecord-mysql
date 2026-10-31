@@ -73,17 +73,17 @@ class MySQLRoutineExpression(BaseExpression):
             )
 
 
-class MySQLCreateProcedureExpression(MySQLRoutineExpression):
+class MySQLCreateProcedureStatement(MySQLRoutineExpression):
     """Represent ``CREATE PROCEDURE``."""
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_procedure_statement"
+        return "format_mysql_create_procedure_statement"
 
 
 
-class MySQLDropProcedureExpression(MySQLRoutineExpression):
+class MySQLDropProcedureStatement(MySQLRoutineExpression):
     """Represent ``DROP PROCEDURE [IF EXISTS]``."""
 
     def __init__(
@@ -99,11 +99,11 @@ class MySQLDropProcedureExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_procedure_statement"
+        return "format_mysql_drop_procedure_statement"
 
 
 
-class MySQLCreateFunctionExpression(MySQLRoutineExpression):
+class MySQLCreateFunctionStatement(MySQLRoutineExpression):
     """Represent ``CREATE FUNCTION`` (stored function)."""
 
     def __init__(
@@ -128,11 +128,11 @@ class MySQLCreateFunctionExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_function_statement"
+        return "format_mysql_create_function_statement"
 
 
 
-class MySQLDropFunctionExpression(MySQLRoutineExpression):
+class MySQLDropFunctionStatement(MySQLRoutineExpression):
     """Represent ``DROP FUNCTION [IF EXISTS]`` (stored function)."""
 
     def __init__(
@@ -148,11 +148,11 @@ class MySQLDropFunctionExpression(MySQLRoutineExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_function_statement"
+        return "format_mysql_drop_function_statement"
 
 
 
-class MySQLCallExpression(BaseExpression):
+class MySQLCallStatement(BaseExpression):
     """Represent ``CALL procedure_name([args])``.
 
     Attributes:
@@ -190,4 +190,4 @@ class MySQLCallExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_call_statement"
+        return "format_mysql_call_statement"

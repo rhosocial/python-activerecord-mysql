@@ -7,7 +7,7 @@ object renders itself: a ``Table`` has its own ``format_table_object``, a
 name work without this dialect assembling a prefix, and it is also why a wrong
 kind used to render quietly.
 
-``CreateDatabaseExpression(dialect, Table(dialect, "users"))`` reached
+``CreateDatabaseStatement(dialect, Table(dialect, "users"))`` reached
 ``format_database_object`` -- the ``Table``'s own method -- and produced
 ``CREATE DATABASE `users```: well-formed SQL naming something other than what
 the caller asked for. No error, no warning, and a statement the server would
@@ -23,7 +23,7 @@ not finished yet. Rendering is the earliest point at which the dialect is known
 The message is deliberately identical in shape to core's, which writes the same
 check out inline:
 
-    CreateDatabaseExpression.database must be a Database, got Table
+    CreateDatabaseStatement.database must be a Database, got Table
 
 Matching the wording means a caller who reads one dialect's error can read
 every dialect's, and a test may assert on it without knowing which dialect

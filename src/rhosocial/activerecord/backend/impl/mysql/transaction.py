@@ -25,7 +25,7 @@ class MySQLTransactionManager(MySQLTransactionMixin, TransactionManager):
     START TRANSACTION when a specific isolation level is needed. This class
     overrides _do_begin() to handle this sequencing.
 
-    The format_begin_transaction() in MySQLDialect returns only "START TRANSACTION",
+    The format_begin_transaction_statement() in MySQLDialect returns only "START TRANSACTION",
     while this class handles the SET TRANSACTION step separately.
 
     Non-I/O methods (isolation_level, _build_set_isolation_sql, _ISOLATION_LEVELS)

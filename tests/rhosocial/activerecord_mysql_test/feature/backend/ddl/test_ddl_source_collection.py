@@ -8,13 +8,13 @@ except ImportError:
 from rhosocial.activerecord.backend.expression.core import Column, Literal
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnDefinition,
-    CreateTableExpression,
-    GeneratedColumnExpression,
+    ColumnGeneratedConstraint,
+    CreateTableStatement,
     GeneratedColumnType,
     IndexDefinition,
     StorageOptionsExpression,
     TableConstraint,
-    TableConstraintType,
+    TablePrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.types import IntegerType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -42,7 +42,14 @@ from rhosocial.activerecord.base import (
     UseIndex,
     UseSqlType,
 )
-from rhosocial.activerecord.backend.expression.statements import ColumnConstraintType
+from rhosocial.activerecord.backend.expression.statements import (
+    ColumnDefaultConstraint,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
+    ColumnUniqueConstraint,
+    TableForeignKeyConstraint,
+    TableUniqueConstraint,
+)
 from rhosocial.activerecord.model import ActiveRecord, AsyncActiveRecord
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -51,14 +58,16 @@ DIALECT = MySQLDialect((8, 0, 36))
 SQL_TYPE = MySQLIntType(unsigned=True)
 FALLBACK_SQL_TYPE = MySQLLongTextType()
 SQL_TYPE_MARKER = UseSqlType(SQL_TYPE, FALLBACK_SQL_TYPE)
-DEFAULT_VALUE = Literal(DIALECT, "new", inline_literals=True)
+# A DEFAULT takes no bind parameter: the value clause marks the literal
+# inline itself, so a plain Literal is the value here.
+DEFAULT_VALUE = Literal(DIALECT, "new")
 DEFAULT_CONSTRAINT = UseConstraint(
-    ColumnConstraintType.DEFAULT,
+    ColumnDefaultConstraint,
     name="df_status_default",
-    default_value=DEFAULT_VALUE,
+    value=DEFAULT_VALUE,
 )
 UNIQUE_CONSTRAINT = UseConstraint(
-    ColumnConstraintType.UNIQUE,
+    ColumnUniqueConstraint,
     name="uq_status",
 )
 COLLATION = CollationAttribute(name="utf8mb4_0900_ai_ci")
@@ -75,7 +84,7 @@ FIRST_INDEX = UseIndex(
     tablespace="innodb_index",
 )
 SECOND_INDEX = UseIndex("idx_display_label_suffix", type="BTREE")
-GENERATED = GeneratedColumnExpression(
+GENERATED = ColumnGeneratedConstraint(
     DIALECT,
     Column(DIALECT, "order_id"),
     GeneratedColumnType.STORED,
@@ -95,17 +104,15 @@ SECOND_COLUMN_OPTION = MySQLColumnOptions(
 TABLE_CONSTRAINTS = [
     TableConstraint(
         DIALECT,
-        TableConstraintType.FOREIGN_KEY,
+        branch=TableForeignKeyConstraint(
+            DIALECT, ["tenant_id"], (Table(DIALECT, "tenant"), ["id"])
+        ),
         name="fk_order_tenant",
-        columns=["tenant_id"],
-        foreign_key_table=Table(DIALECT, "tenant"),
-        foreign_key_columns=["id"],
     ),
     TableConstraint(
         DIALECT,
-        TableConstraintType.UNIQUE,
+        branch=TableUniqueConstraint(DIALECT, ["tenant_id", "order_id"]),
         name="uq_order_pair",
-        columns=["tenant_id", "order_id"],
     ),
 ]
 TABLE_INDEXES = [
@@ -277,11 +284,11 @@ def test_field_markers_preserve_declared_objects_and_order():
     constraints = SyncDDLSource.column_constraints("status")
     assert constraints[0] is DEFAULT_CONSTRAINT.constraint
     assert constraints[1] is UNIQUE_CONSTRAINT.constraint
-    assert constraints[0].default_value is DEFAULT_VALUE
-    assert [item.constraint_type for item in constraints] == [
-        ColumnConstraintType.DEFAULT,
-        ColumnConstraintType.UNIQUE,
-        ColumnConstraintType.NOT_NULL,
+    assert constraints[0].branch.value is DEFAULT_VALUE
+    assert [type(item.branch) for item in constraints] == [
+        ColumnDefaultConstraint,
+        ColumnUniqueConstraint,
+        ColumnNotNullConstraint,
     ]
 
     attributes = SyncDDLSource.column_attributes("status")
@@ -335,18 +342,18 @@ def test_primary_keys_use_physical_column_names_and_declaration_order():
     }
 
     for field in ("tenant_id", "order_id"):
-        constraint_types = [
-            item.constraint_type for item in SyncDDLSource.column_constraints(field)
+        constraint_kinds = [
+            type(item.branch) for item in SyncDDLSource.column_constraints(field)
         ]
-        assert ColumnConstraintType.PRIMARY_KEY not in constraint_types
-        assert ColumnConstraintType.NOT_NULL in constraint_types
+        assert ColumnPrimaryKeyConstraint not in constraint_kinds
+        assert ColumnNotNullConstraint in constraint_kinds
 
     single_types = [
-        item.constraint_type for item in SyncSingleKey.column_constraints("record_id")
+        type(item.branch) for item in SyncSingleKey.column_constraints("record_id")
     ]
     assert single_types == [
-        ColumnConstraintType.PRIMARY_KEY,
-        ColumnConstraintType.NOT_NULL,
+        ColumnPrimaryKeyConstraint,
+        ColumnNotNullConstraint,
     ]
     assert SyncSingleKey.columns_name() == {"record_id": "record_pk"}
     assert SyncSingleKey.column_data_type("record_id") is SINGLE_SQL_TYPE_MARKER
@@ -359,12 +366,12 @@ def test_table_declarations_preserve_identity_order_and_composite_primary_key():
     assert constraints is not TABLE_CONSTRAINTS
     assert constraints[0] is TABLE_CONSTRAINTS[0]
     assert constraints[1] is TABLE_CONSTRAINTS[1]
-    assert [item.constraint_type for item in constraints] == [
-        TableConstraintType.FOREIGN_KEY,
-        TableConstraintType.UNIQUE,
-        TableConstraintType.PRIMARY_KEY,
+    assert [type(item.branch) for item in constraints] == [
+        TableForeignKeyConstraint,
+        TableUniqueConstraint,
+        TablePrimaryKeyConstraint,
     ]
-    assert constraints[2].columns == ["tenant_key", "order_key"]
+    assert constraints[2].branch.columns == ["tenant_key", "order_key"]
     assert len(TABLE_CONSTRAINTS) == 2
 
     indexes = SyncDDLSource.table_indexes()
@@ -385,7 +392,7 @@ def test_table_declarations_preserve_identity_order_and_composite_primary_key():
 
 def test_collected_table_options_render_with_mysql_dialect():
     table_options = SyncDDLSource.table_options()
-    expression = CreateTableExpression(
+    expression = CreateTableStatement(
         DIALECT,
         Table(DIALECT, "ddl_source_orders"),
         [ColumnDefinition(DIALECT, "id", IntegerType(DIALECT))],
@@ -445,8 +452,8 @@ def test_sync_and_async_sources_collect_the_same_declarations():
     async_constraints = AsyncDDLSource.column_constraints("status")
     assert sync_constraints[0] is async_constraints[0]
     assert sync_constraints[1] is async_constraints[1]
-    assert [item.constraint_type for item in async_constraints] == [
-        item.constraint_type for item in sync_constraints
+    assert [type(item.branch) for item in async_constraints] == [
+        type(item.branch) for item in sync_constraints
     ]
 
     sync_indexes = SyncDDLSource.column_indexes("label")
@@ -467,12 +474,12 @@ def test_sync_and_async_sources_collect_the_same_declarations():
     async_table_constraints = AsyncDDLSource.table_constraints()
     assert sync_table_constraints[0] is async_table_constraints[0]
     assert sync_table_constraints[1] is async_table_constraints[1]
-    assert async_table_constraints[2].columns == ["tenant_key", "order_key"]
+    assert async_table_constraints[2].branch.columns == ["tenant_key", "order_key"]
 
     for model in (SyncSingleKey, AsyncSingleKey):
-        assert [item.constraint_type for item in model.column_constraints("record_id")] == [
-            ColumnConstraintType.PRIMARY_KEY,
-            ColumnConstraintType.NOT_NULL,
+        assert [type(item.branch) for item in model.column_constraints("record_id")] == [
+            ColumnPrimaryKeyConstraint,
+            ColumnNotNullConstraint,
         ]
         assert model.column_name("record_id") == "record_pk"
         assert model.column_data_type("record_id") is SINGLE_SQL_TYPE_MARKER

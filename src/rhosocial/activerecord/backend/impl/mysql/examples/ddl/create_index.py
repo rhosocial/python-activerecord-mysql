@@ -8,11 +8,12 @@ Create an index on an existing table.
 import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableExpression, DropTableExpression
+from rhosocial.activerecord.backend.expression import CreateTableStatement, DropTableStatement
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
 config = MySQLConnectionConfig(
@@ -28,11 +29,11 @@ backend.connect()
 dialect = backend.dialect
 
 # Drop table first for clean setup
-drop = DropTableExpression(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
+drop = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "products"),
     columns=[
@@ -40,8 +41,8 @@ create_table = CreateTableExpression(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition("name", "VARCHAR(100)"),
@@ -56,18 +57,18 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
-from rhosocial.activerecord.backend.expression import CreateIndexExpression, DropIndexExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression import CreateIndexStatement, DropIndexStatement  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Index, Table
 
 # Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
 try:
-    drop_idx = DropIndexExpression(dialect=dialect, index=Index(dialect, "idx_category_price"))
+    drop_idx = DropIndexStatement(dialect=dialect, index=Index(dialect, "idx_category_price"))
     sql, params = drop_idx.to_sql()
     backend.execute(sql, params)
 except Exception:
     pass
 
-create_idx = CreateIndexExpression(
+create_idx = CreateIndexStatement(
     dialect=dialect,
     index=Index(dialect, "idx_category_price"),
     table=Table(dialect, "products"),

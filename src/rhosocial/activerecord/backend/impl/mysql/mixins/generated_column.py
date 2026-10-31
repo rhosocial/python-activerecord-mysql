@@ -4,7 +4,7 @@ class MySQLGeneratedColumnMixin:
 
     def supports_generated_column(self) -> bool:
         """Whether generated (computed) columns are supported."""
-        return self.version >= (5, 7, 0)
+        return self.version_at_least((5, 7, 0))
 
     def supports_auto_increment_column(self) -> bool:
         """Whether the parameterless ``AUTO_INCREMENT`` column marker is supported.
@@ -33,4 +33,4 @@ class MySQLGeneratedColumnMixin:
 
     def supports_default_column_value_expression(self) -> bool:
         """Whether DEFAULT column values can use expressions."""
-        return self.version >= (8, 0, 0)
+        return self.version_at_least((8, 0, 0))

@@ -21,16 +21,22 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class NoWriteToBinlogOption(Enum):
+class NoWriteToBinlogOption(str, Enum):
     """NO_WRITE_TO_BINLOG / LOCAL synonym selector."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     NONE = ""
     NO_WRITE_TO_BINLOG = "NO_WRITE_TO_BINLOG"
     LOCAL = "LOCAL"
 
 
-class CheckTableOption(Enum):
+class CheckTableOption(str, Enum):
     """CHECK TABLE optional modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     FOR_UPGRADE = "FOR UPGRADE"
     QUICK = "QUICK"
@@ -40,15 +46,21 @@ class CheckTableOption(Enum):
     CHANGED = "CHANGED"
 
 
-class ChecksumTableOption(Enum):
+class ChecksumTableOption(str, Enum):
     """CHECKSUM TABLE optional modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     QUICK = "QUICK"
     EXTENDED = "EXTENDED"
 
 
-class RepairTableOption(Enum):
+class RepairTableOption(str, Enum):
     """REPAIR TABLE optional modes."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     QUICK = "QUICK"
     EXTENDED = "EXTENDED"
@@ -57,6 +69,10 @@ class RepairTableOption(Enum):
 
 class MySQLTableMaintenanceExpression(BaseExpression):
     """Base class for whole-table maintenance statements.
+
+    Not a node: it declares no ``format_method``, so it has no kind, cannot be
+    named in an artifact and never reaches the registry (§9: an abstract base
+    is not a node). The five subclasses below each name their own entry.
 
     Attributes:
         operation: Statement keyword (ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR).
@@ -80,7 +96,12 @@ class MySQLTableMaintenanceExpression(BaseExpression):
     ):
         super().__init__(dialect)
         self.tables: List[RelationObject] = list(tables)
-        self.no_write_to_binlog: NoWriteToBinlogOption = no_write_to_binlog
+        # The member or the word it spells (§10: wide entry, normalised
+        # storage): an artifact carries the word, and the formatter reads
+        # ``.value``, which only the member has.
+        self.no_write_to_binlog: NoWriteToBinlogOption = NoWriteToBinlogOption(
+            no_write_to_binlog
+        )
 
     def validate(self, strict: bool = True) -> None:
         """Validate table list.
@@ -106,20 +127,19 @@ class MySQLTableMaintenanceExpression(BaseExpression):
                     f"Table(self.dialect, 'users', catalog_name='app') to qualify the name"
                 )
 
-    @property
-    def format_method(self) -> str:
-        """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
 
-
-
-class MySQLAnalyzeTableExpression(MySQLTableMaintenanceExpression):
+class MySQLAnalyzeTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``ANALYZE TABLE``."""
 
     operation: str = "ANALYZE"
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_analyze_table_statement"
 
-class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
+
+class MySQLCheckTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``CHECK TABLE`` with optional modes."""
 
     operation: str = "CHECK"
@@ -136,16 +156,16 @@ class MySQLCheckTableExpression(MySQLTableMaintenanceExpression):
             tables,
             no_write_to_binlog=NoWriteToBinlogOption.NONE,
         )
-        self.options: List[CheckTableOption] = list(options or [])
+        self.options: List[CheckTableOption] = [CheckTableOption(o) for o in (options or [])]
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
+        return "format_mysql_check_table_statement"
 
 
 
-class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
+class MySQLChecksumTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``CHECKSUM TABLE`` with optional mode."""
 
     operation: str = "CHECKSUM"
@@ -162,22 +182,29 @@ class MySQLChecksumTableExpression(MySQLTableMaintenanceExpression):
             tables,
             no_write_to_binlog=NoWriteToBinlogOption.NONE,
         )
-        self.option: Optional[ChecksumTableOption] = option
+        self.option: Optional[ChecksumTableOption] = (
+            ChecksumTableOption(option) if option is not None else None
+        )
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
+        return "format_mysql_checksum_table_statement"
 
 
 
-class MySQLOptimizeTableExpression(MySQLTableMaintenanceExpression):
+class MySQLOptimizeTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``OPTIMIZE TABLE``."""
 
     operation: str = "OPTIMIZE"
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_optimize_table_statement"
 
-class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
+
+class MySQLRepairTableStatement(MySQLTableMaintenanceExpression):
     """Represent ``REPAIR TABLE`` with optional modes."""
 
     operation: str = "REPAIR"
@@ -195,9 +222,9 @@ class MySQLRepairTableExpression(MySQLTableMaintenanceExpression):
             tables,
             no_write_to_binlog=no_write_to_binlog,
         )
-        self.options: List[RepairTableOption] = list(options or [])
+        self.options: List[RepairTableOption] = [RepairTableOption(o) for o in (options or [])]
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_table_maintenance_statement"
+        return "format_mysql_repair_table_statement"

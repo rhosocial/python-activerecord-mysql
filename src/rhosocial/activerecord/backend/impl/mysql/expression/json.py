@@ -17,7 +17,7 @@ This module provides expression classes for MySQL JSON functions:
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_EXTRACT expression.
 
     Extracts a value from a JSON document using a path.
@@ -52,10 +52,10 @@ class MySQLJSONExtractExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_extract"
+        return "format_mysql_json_extract_expression"
 
 
-class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
+class MySQLJSONObjectExpression(AliasableMixin, SQLValue):
     """MySQL JSON_OBJECT expression.
 
     Creates a JSON object from key-value pairs.
@@ -63,7 +63,16 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
     Example:
         >>> expr = MySQLJSONObjectExpression(dialect, {'name': 'Alice', 'age': 30})
         OR
-        >>> expr = MySQLJSONObjectExpression(dialect, ('name', 'Alice'), ('age', 30))
+        >>> expr = MySQLJSONObjectExpression(dialect, [('name', 'Alice'), ('age', 30)])
+
+    ``data`` is the one parameter the pairs come from: a mapping, or an
+    iterable of ``(key, value)`` pairs. The class used to also accept the
+    pairs as ``**kwargs`` -- ``name="Alice"`` -- but a parameter whose
+    identity depends on how many extras arrived has no artifact spelling
+    (§4.11.4): the deserializer matches parameters by name, and a reader
+    would have to be told which names happened to arrive. The mapping and
+    the pair list are the two shapes that name every member, so they are
+    the two the constructor takes.
     """
 
     def __init__(
@@ -72,20 +81,10 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
         data: Any = None,
         *,
         alias: Optional[str] = None,
-        **kwargs: Any,
     ):
         super().__init__(dialect)
-        self.data = data  # keep raw for get_params() introspection
-        self.kwargs: Dict[str, Any] = dict(kwargs)
-        if data is not None and kwargs:
-            pairs = self._convert_to_pairs(data) + self._convert_to_pairs(kwargs)
-        elif data is not None:
-            pairs = self._convert_to_pairs(data)
-        elif kwargs:
-            pairs = self._convert_to_pairs(kwargs)
-        else:
-            pairs = []
-        self.pairs = pairs
+        self.data = data
+        self.pairs = self._convert_to_pairs(data) if data is not None else []
         self.alias = alias
 
     def _convert_to_pairs(self, data: Any) -> List[tuple]:
@@ -97,10 +96,10 @@ class MySQLJSONObjectExpression(AliasableMixin, SQLValueExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_object"
+        return "format_mysql_json_object_expression"
 
 
-class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
+class MySQLJSONArrayExpression(AliasableMixin, SQLValue):
     """MySQL JSON_ARRAY expression.
 
     Creates a JSON array from values.
@@ -143,10 +142,10 @@ class MySQLJSONArrayExpression(AliasableMixin, SQLValueExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_array"
+        return "format_mysql_json_array_expression"
 
 
-class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_CONTAINS expression.
 
     Checks if a JSON document contains a specific value.
@@ -173,10 +172,10 @@ class MySQLJSONContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpre
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_contains"
+        return "format_mysql_json_contains_expression"
 
 
-class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_UNQUOTE expression.
 
     Removes quotes from a JSON-quoted string.
@@ -201,10 +200,10 @@ class MySQLJSONUnquoteExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_unquote"
+        return "format_mysql_json_unquote_expression"
 
 
-class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_SET expression.
 
     Inserts or updates values in a JSON document.
@@ -238,10 +237,10 @@ class MySQLJSONSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_set"
+        return "format_mysql_json_set_expression"
 
 
-class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_REMOVE expression.
 
     Removes data from a JSON document.
@@ -272,10 +271,10 @@ class MySQLJSONRemoveExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_remove"
+        return "format_mysql_json_remove_expression"
 
 
-class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_TYPE expression.
 
     Returns the type of a JSON value.
@@ -300,10 +299,10 @@ class MySQLJSONTypeExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_type"
+        return "format_mysql_json_type_expression"
 
 
-class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_VALID expression.
 
     Checks whether a value is valid JSON.
@@ -328,10 +327,10 @@ class MySQLJSONValidExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_valid"
+        return "format_mysql_json_valid_expression"
 
 
-class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL JSON_SEARCH expression.
 
     Searches a JSON document for a string and returns the path.
@@ -365,7 +364,7 @@ class MySQLJSONSearchExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_json_search"
+        return "format_mysql_json_search_expression"
 
 
 __all__ = [

@@ -18,8 +18,11 @@ from rhosocial.activerecord.backend.expression.statements import (
 from rhosocial.activerecord.backend.expression.objects import Table
 
 
-class MySQLPartitionStrategy(Enum):
+class MySQLPartitionStrategy(str, Enum):
     """MySQL table partitioning strategies supported by MySQLPartitionMixin."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     RANGE = "RANGE"
     RANGE_COLUMNS = "RANGE COLUMNS"
@@ -31,12 +34,15 @@ class MySQLPartitionStrategy(Enum):
     LINEAR_KEY = "LINEAR KEY"
 
 
-class MySQLSubpartitionStrategy(Enum):
+class MySQLSubpartitionStrategy(str, Enum):
     """MySQL subpartitioning strategies.
 
     MySQL restricts subpartitioning to HASH and KEY (and their LINEAR
     variants) only. RANGE and LIST cannot be used for subpartitioning.
     """
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     HASH = "HASH"
     KEY = "KEY"
@@ -107,7 +113,7 @@ class MySQLSubpartitionClause(BaseExpression):
     override the template for each parent partition.
 
     Raises:
-        TypeError: if strategy is not a MySQLSubpartitionStrategy.
+        ValueError: if strategy is not a MySQLSubpartitionStrategy word.
         ValueError: if count is provided but is not a positive integer.
     """
 
@@ -121,14 +127,14 @@ class MySQLSubpartitionClause(BaseExpression):
         definitions: Optional[Sequence[MySQLSubpartitionDefinition]] = None,
     ):
         super().__init__(dialect)
-        if not isinstance(strategy, MySQLSubpartitionStrategy):
-            raise TypeError(
-                "strategy must be a MySQLSubpartitionStrategy value, "
-                f"got {type(strategy).__name__}"
-            )
+        # The member or the word it spells (§10: wide entry, normalised
+        # storage): an artifact carries the word, and the formatter reads
+        # ``.value``, which only the member has. A word this enum does not
+        # name is refused here, where the caller can still see which
+        # strategy was meant.
+        self.strategy = MySQLSubpartitionStrategy(strategy)
         if count is not None and (not isinstance(count, int) or count <= 0):
             raise ValueError("count must be a positive integer when provided")
-        self.strategy = strategy
         self.expression = expression
         self.count = count
         self.definitions = list(definitions) if definitions else None
@@ -136,7 +142,7 @@ class MySQLSubpartitionClause(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_subpartition_by"
+        return "format_mysql_subpartition_clause"
 
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -152,7 +158,7 @@ class MySQLPartitionMaxValue(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_value"
+        return "format_mysql_partition_max_value"
 
 
 
@@ -176,7 +182,7 @@ class MySQLPartitionValue(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_value"
+        return "format_mysql_partition_value"
 
 
 
@@ -255,6 +261,11 @@ class MySQLPartitionByRange(MySQLPartitionClause):
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_partition_by_range"
+
 
 class MySQLPartitionByRangeColumns(MySQLPartitionClause):
     """MySQL PARTITION BY RANGE COLUMNS expression.
@@ -278,6 +289,11 @@ class MySQLPartitionByRangeColumns(MySQLPartitionClause):
             raise TypeError("subpartition_by must be a MySQLSubpartitionClause")
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_partition_by_range_columns"
 
 
 class MySQLPartitionByList(MySQLPartitionClause):
@@ -303,6 +319,11 @@ class MySQLPartitionByList(MySQLPartitionClause):
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_partition_by_list"
+
 
 class MySQLPartitionByListColumns(MySQLPartitionClause):
     """MySQL PARTITION BY LIST COLUMNS expression.
@@ -327,6 +348,11 @@ class MySQLPartitionByListColumns(MySQLPartitionClause):
         self.partitions = list(partitions or [])
         self.subpartition_by = subpartition_by
 
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_partition_by_list_columns"
+
 
 class MySQLPartitionByHash(MySQLPartitionClause):
     """MySQL PARTITION BY HASH expression."""
@@ -343,6 +369,11 @@ class MySQLPartitionByHash(MySQLPartitionClause):
         super().__init__(dialect, method, keys)
         self.partitions_count = partitions_count
         self.linear = linear
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_partition_by_hash"
 
 
 class MySQLPartitionByKey(MySQLPartitionClause):
@@ -371,6 +402,11 @@ class MySQLPartitionByKey(MySQLPartitionClause):
             self.keys = list(keys) if keys else []
         self.partitions_count = partitions_count
         self.linear = linear
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_partition_by_key"
 
 
 class MySQLPartitionTableExpression(BaseExpression):
@@ -430,7 +466,7 @@ class MySQLAddPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_add_partition_statement"
+        return "format_mysql_add_partition_expression"
 
 
 
@@ -444,7 +480,7 @@ class MySQLDropPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_partition_statement"
+        return "format_mysql_drop_partition_expression"
 
 
 
@@ -458,7 +494,7 @@ class MySQLTruncatePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_truncate_partition_statement"
+        return "format_mysql_truncate_partition_expression"
 
 
 
@@ -479,7 +515,7 @@ class MySQLReorganizePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_reorganize_partition_statement"
+        return "format_mysql_reorganize_partition_expression"
 
 
 
@@ -523,7 +559,7 @@ class MySQLExchangePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_exchange_partition_statement"
+        return "format_mysql_exchange_partition_expression"
 
 
 
@@ -536,7 +572,7 @@ class MySQLRemovePartitioningExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_remove_partitioning_statement"
+        return "format_mysql_remove_partitioning_expression"
 
 
 
@@ -552,7 +588,7 @@ class MySQLCoalescePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_coalesce_partition_statement"
+        return "format_mysql_coalesce_partition_expression"
 
 
 
@@ -566,7 +602,7 @@ class MySQLAnalyzePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_analyze_partition_statement"
+        return "format_mysql_analyze_partition_expression"
 
 
 
@@ -580,7 +616,7 @@ class MySQLCheckPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_check_partition_statement"
+        return "format_mysql_check_partition_expression"
 
 
 
@@ -594,7 +630,7 @@ class MySQLOptimizePartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_optimize_partition_statement"
+        return "format_mysql_optimize_partition_expression"
 
 
 
@@ -608,7 +644,7 @@ class MySQLRebuildPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_rebuild_partition_statement"
+        return "format_mysql_rebuild_partition_expression"
 
 
 
@@ -622,7 +658,7 @@ class MySQLRepairPartitionExpression(MySQLPartitionTableExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_repair_partition_statement"
+        return "format_mysql_repair_partition_expression"
 
 
 
@@ -631,7 +667,7 @@ class MySQLGetPartitionsExpression(BaseExpression):
 
     Generates a SELECT statement retrieving partition name, method,
     expression, description, and storage statistics for the given table.
-    Delegates SQL generation to the dialect's ``format_get_partitions_expression``.
+    Delegates SQL generation to the dialect's ``format_mysql_get_partitions_expression``.
 
     ``table_name`` stays a plain string here, and is matched against the
     ``TABLE_NAME`` *column* rather than used to name a relation: this is a
@@ -651,5 +687,5 @@ class MySQLGetPartitionsExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_get_partitions_expression"
+        return "format_mysql_get_partitions_expression"
 

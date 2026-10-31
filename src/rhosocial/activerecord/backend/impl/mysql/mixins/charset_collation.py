@@ -14,7 +14,7 @@ from enum import Enum
 from typing import FrozenSet, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.expression.collation import CollateExpression
+    from rhosocial.activerecord.backend.expression.collation import CollateFunction
 
 __all__ = [
     "MySQLCharset",
@@ -24,8 +24,11 @@ __all__ = [
 ]
 
 
-class MySQLCharset(Enum):
+class MySQLCharset(str, Enum):
     """MySQL character sets for table/column ``CHARACTER SET``."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     ARMSCII8 = "armscii8"
     ASCII = "ascii"
@@ -71,8 +74,11 @@ class MySQLCharset(Enum):
     UTF32 = "utf32"
 
 
-class MySQLStorageEngine(Enum):
+class MySQLStorageEngine(str, Enum):
     """Built-in MySQL storage engines for ``ENGINE=<name>``."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     INNODB = "InnoDB"
     MYISAM = "MyISAM"
@@ -89,8 +95,11 @@ class MySQLStorageEngine(Enum):
     TEMPORARY = "TEMPORARY"
 
 
-class MySQLCollation(Enum):
+class MySQLCollation(str, Enum):
     """MySQL collations for expression-level COLLATE."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     # Built-in pseudo collation
     BINARY = "binary"
@@ -407,13 +416,29 @@ class MySQLCharsetCollationMixin:
         """MySQL supports expression-level COLLATE."""
         return True
 
-    def validate_collation_name(self, expr: "CollateExpression") -> str:
-        """Validate a ``CollateExpression`` and return its collation SQL."""
+    def validate_collation_name(self, expr: "CollateFunction") -> str:
+        """Validate a ``CollateFunction`` and return its collation SQL.
+
+        The node's options bag is gone: core made schema qualification the
+        one named parameter, so there is no ``collation_options`` to read any
+        more (the old read raised ``AttributeError`` from inside the
+        renderer). MySQL's ``COLLATE`` grammar takes a single collation
+        identifier -- a schema-qualified request is not a spelling this
+        server parses, so it is refused by name here rather than silently
+        dropped.
+        """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        if expr.collation_options:
-            unsupported = ", ".join(sorted(expr.collation_options))
-            raise UnsupportedFeatureError(self.name, f"COLLATE options: {unsupported}")
+        if expr.schema is not None:
+            raise UnsupportedFeatureError(
+                self.name,
+                "COLLATE schema qualification",
+                suggestion=(
+                    "MySQL's COLLATE takes a single collation name, e.g. "
+                    "COLLATE utf8mb4_bin; a schema-qualified collation is "
+                    "not part of this server's grammar"
+                ),
+            )
         return self.validate_collation_by_name(expr.collation_name)
 
     # --- charset ---------------------------------------------------------

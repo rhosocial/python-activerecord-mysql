@@ -7,28 +7,30 @@ from typing import Any, List, Optional, Sequence
 import pytest
 
 from rhosocial.activerecord.backend.expression import (
+    AllColumnsWildcard,
     Column,
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
+    ColumnNotNullConstraint,
     ComparisonPredicate,
-    CreateTableExpression,
-    DropTableExpression,
+    CountFunction,
+    CreateTableStatement,
+    DropTableStatement,
     FunctionCall,
     IndexDefinition,
-    InsertExpression,
+    InsertStatement,
     Literal,
     LogicalPredicate,
     OrderByClause,
-    QueryExpression,
+    QueryStatement,
+    RowCountWildcard,
     TableConstraint,
-    TableConstraintType,
+    TablePrimaryKeyConstraint,
     ValuesSource,
-    WildcardExpression,
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.show import ShowCreateTableExpression
+from rhosocial.activerecord.backend.impl.mysql.show import ShowCreateTableStatement
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLAddPartitionExpression,
     MySQLCoalescePartitionExpression,
@@ -53,7 +55,7 @@ PARTITION_TABLE = "ar_mysql_partition_events"
 
 
 def _drop_table_expression(dialect):
-    return DropTableExpression(dialect=dialect, table=Table(dialect, PARTITION_TABLE), if_exists=True)
+    return DropTableStatement(dialect=dialect, table=Table(dialect, PARTITION_TABLE), if_exists=True)
 
 
 def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDefinition]:
@@ -70,12 +72,12 @@ def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDef
 
 
 def _create_partitioned_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, PARTITION_TABLE),
         columns=[
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ],
         indexes=[
@@ -91,7 +93,7 @@ def _create_partitioned_table_expression(dialect):
 
 
 def _insert_events_expression(dialect, rows):
-    return InsertExpression(
+    return InsertStatement(
         dialect=dialect,
         into=Table(dialect, PARTITION_TABLE),
         columns=["id", "created_at", "payload"],
@@ -103,7 +105,7 @@ def _insert_events_expression(dialect, rows):
 
 
 def _select_payloads_expression(dialect):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[Column(dialect, "payload")],
         from_=Table(dialect, PARTITION_TABLE),
@@ -112,7 +114,7 @@ def _select_payloads_expression(dialect):
 
 
 def _select_payload_by_id_expression(dialect, row_id):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[Column(dialect, "payload")],
         from_=Table(dialect, PARTITION_TABLE),
@@ -123,7 +125,7 @@ def _select_payload_by_id_expression(dialect, row_id):
 def _partition_names_expression(dialect, table_name=None):
     table_name = table_name or PARTITION_TABLE
     partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[Column(dialect, "PARTITION_NAME", alias="name")],
         from_=partitions,
@@ -144,7 +146,7 @@ def _partition_names_expression(dialect, table_name=None):
 
 def _partition_metadata_expression(dialect):
     partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[
             Column(dialect, "PARTITION_NAME", alias="name"),
@@ -262,12 +264,12 @@ def _assert_base_partition_metadata(rows):
 
 
 def _show_create_table_sql(backend):
-    row = backend.fetch_one(*ShowCreateTableExpression(backend.dialect, PARTITION_TABLE).to_sql())
+    row = backend.fetch_one(*ShowCreateTableStatement(backend.dialect, PARTITION_TABLE).to_sql())
     return row.get("Create Table") or row.get("create table")
 
 
 async def _async_show_create_table_sql(backend):
-    row = await backend.fetch_one(*ShowCreateTableExpression(backend.dialect, PARTITION_TABLE).to_sql())
+    row = await backend.fetch_one(*ShowCreateTableStatement(backend.dialect, PARTITION_TABLE).to_sql())
     return row.get("Create Table") or row.get("create table")
 
 
@@ -294,14 +296,14 @@ NEGATIVE_HASH_TABLE = "ar_mysql_partition_negative_hash"
 
 def _base_columns_without_pk(dialect):
     return [
-        ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "shard_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "shard_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
         ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
     ]
 
 
 def _create_nonpartitioned_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, NEGATIVE_TABLE),
         columns=_base_columns_without_pk(dialect),
@@ -309,7 +311,7 @@ def _create_nonpartitioned_table_expression(dialect):
 
 
 def _create_negative_partitioned_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, NEGATIVE_PARTITIONED_TABLE),
         columns=_base_columns_without_pk(dialect),
@@ -325,7 +327,7 @@ def _create_negative_partitioned_table_expression(dialect):
 
 
 def _create_negative_hash_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, NEGATIVE_HASH_TABLE),
         columns=_base_columns_without_pk(dialect),
@@ -376,15 +378,15 @@ PRODUCTION_PARTITIONS = (
 
 
 def _drop_named_table_expression(dialect, table_name: str):
-    return DropTableExpression(dialect=dialect, table=Table(dialect, table_name), if_exists=True)
+    return DropTableStatement(dialect=dialect, table=Table(dialect, table_name), if_exists=True)
 
 
 def _production_columns(dialect):
     return [
-        ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "created_at", DateTimeType(dialect, 6), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "created_at", DateTimeType(dialect, 6), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
     ]
 
 
@@ -398,10 +400,9 @@ def _production_indexes(dialect):
 def _production_table_constraints(dialect):
     return [
         TableConstraint(
-            dialect,
-            TableConstraintType.PRIMARY_KEY,
-            columns=["id", "created_at"],
-        ),
+    dialect,
+    branch=TablePrimaryKeyConstraint(dialect, ["id", "created_at"])
+),
     ]
 
 
@@ -413,7 +414,7 @@ def _partition_definition(dialect, name: str, upper_bound: str):
 
 
 def _create_production_partitioned_table_expression(dialect, partitions):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, PRODUCTION_PARTITION_TABLE),
         columns=_production_columns(dialect),
@@ -431,7 +432,7 @@ def _create_production_partitioned_table_expression(dialect, partitions):
 
 
 def _create_production_archive_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, PRODUCTION_ARCHIVE_TABLE),
         columns=_production_columns(dialect),
@@ -441,7 +442,7 @@ def _create_production_archive_table_expression(dialect):
 
 
 def _create_production_maxvalue_partitioned_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, PRODUCTION_MAXVALUE_TABLE),
         columns=_production_columns(dialect),
@@ -462,7 +463,7 @@ def _create_production_maxvalue_partitioned_table_expression(dialect):
 
 
 def _insert_production_events_into_expression(dialect, table_name: str, rows):
-    return InsertExpression(
+    return InsertStatement(
         dialect=dialect,
         into=Table(dialect, table_name),
         columns=["id", "created_at", "tenant_id", "payload"],
@@ -499,7 +500,7 @@ def _select_production_payloads_from_expression(
             ),
             predicate,
         )
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[Column(dialect, "payload")],
         from_=Table(dialect, table_name),
@@ -519,24 +520,24 @@ def _select_production_payloads_expression(dialect, start, end, *, tenant_id: Op
 
 
 def _select_production_count_expression(dialect):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
+        select=[CountFunction(dialect, RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, PRODUCTION_PARTITION_TABLE),
     )
 
 
 def _select_archive_count_expression(dialect):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
+        select=[CountFunction(dialect, RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, PRODUCTION_ARCHIVE_TABLE),
     )
 
 
 def _partition_metadata_expression_for_table(dialect, table_name: str):
     partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[
             Column(dialect, "PARTITION_NAME", alias="name"),
@@ -597,9 +598,9 @@ def _reorganize_maxvalue_partition_expression(dialect):
 
 
 def _production_range_query_for_table_expression(dialect, table_name: str, start, end, *, tenant_id: int):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
-        select=[WildcardExpression(dialect)],
+        select=[AllColumnsWildcard(dialect)],
         from_=Table(dialect, table_name),
         where=LogicalPredicate(
             dialect,
@@ -1226,15 +1227,15 @@ SUBPARTITION_TABLE = "ar_mysql_partition_subpart"
 
 def _subpartition_columns(dialect):
     return [
-        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "region", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "region", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
         ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
     ]
 
 
 def _create_subpartitioned_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, SUBPARTITION_TABLE),
         columns=_subpartition_columns(dialect),
@@ -1276,7 +1277,7 @@ async def _async_create_subpartitioned_table(backend):
 def _subpartition_metadata(backend):
     partitions = Table(dialect=backend.dialect, name="PARTITIONS", catalog_name="information_schema")
     return backend.fetch_all(
-        *QueryExpression(
+        *QueryStatement(
             dialect=backend.dialect,
             select=[
                 Column(backend.dialect, "PARTITION_NAME", alias="name"),
@@ -1316,7 +1317,7 @@ def _subpartition_metadata(backend):
 async def _async_subpartition_metadata(backend):
     partitions = Table(dialect=backend.dialect, name="PARTITIONS", catalog_name="information_schema")
     return await backend.fetch_all(
-        *QueryExpression(
+        *QueryStatement(
             dialect=backend.dialect,
             select=[
                 Column(backend.dialect, "PARTITION_NAME", alias="name"),
@@ -1378,7 +1379,7 @@ class TestMySQLSubpartitionOperations:
         """Rows inserted into a subpartitioned table should be queryable through the parent."""
         _create_subpartitioned_table(mysql_backend)
         try:
-            insert = InsertExpression(
+            insert = InsertStatement(
                 dialect=mysql_backend.dialect,
                 into=Table(mysql_backend.dialect, SUBPARTITION_TABLE),
                 columns=["id", "created_at", "region", "payload"],
@@ -1396,7 +1397,7 @@ class TestMySQLSubpartitionOperations:
             )
             mysql_backend.execute(*insert.to_sql())
 
-            query = QueryExpression(
+            query = QueryStatement(
                 dialect=mysql_backend.dialect,
                 select=[Column(mysql_backend.dialect, "payload")],
                 from_=Table(mysql_backend.dialect, SUBPARTITION_TABLE),
@@ -1430,7 +1431,7 @@ class TestAsyncMySQLSubpartitionOperations:
         """Rows inserted into subpartitioned table should be queryable (async)."""
         await _async_create_subpartitioned_table(async_mysql_backend)
         try:
-            insert = InsertExpression(
+            insert = InsertStatement(
                 dialect=async_mysql_backend.dialect,
                 into=Table(async_mysql_backend.dialect, SUBPARTITION_TABLE),
                 columns=["id", "created_at", "region", "payload"],
@@ -1445,7 +1446,7 @@ class TestAsyncMySQLSubpartitionOperations:
                 ),
             )
             await async_mysql_backend.execute(*insert.to_sql())
-            query = QueryExpression(
+            query = QueryStatement(
                 dialect=async_mysql_backend.dialect,
                 select=[Column(async_mysql_backend.dialect, "payload")],
                 from_=Table(async_mysql_backend.dialect, SUBPARTITION_TABLE),

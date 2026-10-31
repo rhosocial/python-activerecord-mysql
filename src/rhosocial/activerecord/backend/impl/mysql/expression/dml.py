@@ -3,19 +3,25 @@
 
 from typing import TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression.statements import InsertExpression
+from rhosocial.activerecord.backend.expression.statements import InsertStatement
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLInsertExpression(InsertExpression):
+class MySQLInsertExpression(InsertStatement):
     """A MySQL INSERT statement extending the generic one.
 
     MySQL supports ``REPLACE INTO`` and ``INSERT IGNORE`` which have no direct
     generic equivalent and different semantics from other backends. The flags
     live here as typed fields and are rendered by the MySQL
-    ``format_insert_statement`` override.
+    ``format_insert_statement`` override, which reads them off this class --
+    a plain :class:`InsertStatement` spells neither and renders a plain
+    ``INSERT``.
+
+    The mutual-exclusion rules are enforced here, where the node is built,
+    rather than on every render: an invalid combination is a construction
+    error, not a render-time surprise.
     """
 
     def __init__(
@@ -38,6 +44,10 @@ class MySQLInsertExpression(InsertExpression):
             on_conflict=on_conflict,
             returning=returning,
         )
+        if replace and ignore:
+            raise ValueError("Cannot use both 'replace' and 'ignore' options together")
+        if replace and self.on_conflict:
+            raise ValueError("REPLACE INTO does not support ON CONFLICT clause")
         self.replace = replace
         self.ignore = ignore
 

@@ -13,6 +13,15 @@ sixteen, so a column named `16` could not be read at all.
 import pytest
 
 from rhosocial.activerecord.backend.expression import Column, Literal, NumericColumn
+from rhosocial.activerecord.backend.expression.functions.math import (
+    CeilFunction,
+    FloorFunction,
+    ModuloFunction,
+    PowerFunction,
+    RoundFunction,
+    SquareRootFunction,
+    TruncateFunction,
+)
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.functions.math_enhanced import (
     round_,
@@ -35,9 +44,13 @@ class TestMySQLMathEnhancedFunctions:
     def test_round__default(self, mysql_dialect: MySQLDialect):
         """Test round_() with default precision."""
         result = round_(mysql_dialect, Column(mysql_dialect, "value"))
-        sql, _ = result.to_sql()
+        assert isinstance(result, RoundFunction)
+        sql, params = result.to_sql()
         assert "ROUND(" in sql
         assert "`value`" in sql
+        # The factory's signature keeps precision=0 meaning "write the
+        # scale operand", so the default renders with a bound zero as before.
+        assert params == (0,)
 
     def test_round__with_precision(self, mysql_dialect: MySQLDialect):
         """Test round_() with precision."""
@@ -53,12 +66,18 @@ class TestMySQLMathEnhancedFunctions:
         assert "`price`" not in sql
 
     def test_pow(self, mysql_dialect: MySQLDialect):
-        """Test pow() function."""
+        """Test pow() function.
+
+        The classed entry point spells POWER -- the standard name. POW is the
+        MySQL synonym and answered the same value; the classed node carries
+        the standard spelling.
+        """
         result = pow(
             mysql_dialect, Column(mysql_dialect, "base"), Literal(mysql_dialect, 2)
         )
+        assert isinstance(result, PowerFunction)
         sql, _ = result.to_sql()
-        assert "POW(" in sql
+        assert "POWER(" in sql
 
     def test_pow_both_columns(self, mysql_dialect: MySQLDialect):
         """Test pow() with both column references."""
@@ -67,20 +86,23 @@ class TestMySQLMathEnhancedFunctions:
             Column(mysql_dialect, "x"),
             NumericColumn(mysql_dialect, "y"),
         )
+        assert isinstance(result, PowerFunction)
         sql, _ = result.to_sql()
-        assert "POW(" in sql
+        assert "POWER(" in sql
 
     def test_power(self, mysql_dialect: MySQLDialect):
         """Test power() function (alias for POW)."""
         result = power(
             mysql_dialect, Literal(mysql_dialect, 2), Literal(mysql_dialect, 3)
         )
+        assert isinstance(result, PowerFunction)
         sql, _ = result.to_sql()
         assert "POWER(" in sql
 
     def test_sqrt(self, mysql_dialect: MySQLDialect):
         """Test sqrt() function."""
         result = sqrt(mysql_dialect, Column(mysql_dialect, "value"))
+        assert isinstance(result, SquareRootFunction)
         sql, _ = result.to_sql()
         assert "SQRT(" in sql
         assert "`value`" in sql
@@ -96,6 +118,7 @@ class TestMySQLMathEnhancedFunctions:
         result = mod(
             mysql_dialect, Column(mysql_dialect, "total"), Literal(mysql_dialect, 10)
         )
+        assert isinstance(result, ModuloFunction)
         sql, _ = result.to_sql()
         assert "MOD(" in sql
 
@@ -112,6 +135,7 @@ class TestMySQLMathEnhancedFunctions:
     def test_ceil(self, mysql_dialect: MySQLDialect):
         """Test ceil() function."""
         result = ceil(mysql_dialect, Column(mysql_dialect, "value"))
+        assert isinstance(result, CeilFunction)
         sql, _ = result.to_sql()
         assert "CEIL(" in sql
         assert "`value`" in sql
@@ -125,6 +149,7 @@ class TestMySQLMathEnhancedFunctions:
     def test_floor(self, mysql_dialect: MySQLDialect):
         """Test floor() function."""
         result = floor(mysql_dialect, Column(mysql_dialect, "value"))
+        assert isinstance(result, FloorFunction)
         sql, _ = result.to_sql()
         assert "FLOOR(" in sql
         assert "`value`" in sql
@@ -138,6 +163,7 @@ class TestMySQLMathEnhancedFunctions:
     def test_trunc(self, mysql_dialect: MySQLDialect):
         """Test trunc() function (becomes TRUNCATE in MySQL)."""
         result = trunc(mysql_dialect, Column(mysql_dialect, "value"))
+        assert isinstance(result, TruncateFunction)
         sql, _ = result.to_sql()
         assert "TRUNCATE(" in sql
         assert "`value`" in sql
@@ -276,7 +302,7 @@ class TestMySQLMathEnhancedFunctions:
             mysql_dialect, Column(mysql_dialect, "base"), NumericColumn(mysql_dialect, "2")
         )
         sql, params = result.to_sql()
-        assert "POW(" in sql
+        assert "POWER(" in sql
         assert "`2`" in sql
         assert 2 not in params
 
@@ -333,8 +359,12 @@ class TestMySQLMathEnhancedFunctions:
     def test_bare_string_is_rejected_not_guessed(self, mysql_dialect: MySQLDialect):
         """A bare string used to be parsed into a number or a column, silently.
 
-        The factory no longer decides what an argument meant: an argument that
-        is not an expression fails to render instead of quietly becoming one.
+        The factory no longer decides what an argument meant: an argument
+        that is not an expression is refused where the call happens, with
+        the factory named -- it used to surface as an ``AttributeError``
+        from inside the renderer, and the classed nodes' own operand lift
+        would have *parsed* a numeric-looking string back into the number
+        it spells, the exact guessing this refuses.
         """
-        with pytest.raises(AttributeError):
-            sqrt(mysql_dialect, "16").to_sql()
+        with pytest.raises(TypeError, match="sqrt takes an expression"):
+            sqrt(mysql_dialect, "16")

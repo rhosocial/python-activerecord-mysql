@@ -17,7 +17,7 @@ Note: Vector support requires MySQL 9.0+
 
 from typing import TYPE_CHECKING, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
+class MySQLVectorExpression(AliasableMixin, SQLValue):
     """MySQL vector literal expression.
 
     Creates a vector value from array string.
@@ -50,10 +50,10 @@ class MySQLVectorExpression(AliasableMixin, SQLValueExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_vector_literal"
+        return "format_mysql_vector_expression"
 
 
-class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Euclidean distance expression.
 
     Example:
@@ -76,10 +76,10 @@ class MySQLDistanceEuclideanExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_distance_euclidean"
+        return "format_mysql_distance_euclidean_expression"
 
 
-class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Cosine distance expression.
 
     Example:
@@ -102,10 +102,10 @@ class MySQLDistanceCosineExpression(AliasableMixin, ComparisonMixin, SQLValueExp
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_distance_cosine"
+        return "format_mysql_distance_cosine_expression"
 
 
-class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL Dot product distance expression.
 
     Example:
@@ -128,10 +128,10 @@ class MySQLDistanceDotExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_distance_dot"
+        return "format_mysql_distance_dot_expression"
 
 
-class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL STRING_TO_VECTOR expression.
 
     Converts a string representation to a VECTOR value.
@@ -156,10 +156,10 @@ class MySQLStringToVectorExpression(AliasableMixin, ComparisonMixin, SQLValueExp
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_string_to_vector"
+        return "format_mysql_string_to_vector_expression"
 
 
-class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL VECTOR_TO_STRING expression.
 
     Converts a VECTOR value to its string representation.
@@ -184,10 +184,10 @@ class MySQLVectorToStringExpression(AliasableMixin, ComparisonMixin, SQLValueExp
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_vector_to_string"
+        return "format_mysql_vector_to_string_expression"
 
 
-class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL VECTOR_DIM expression.
 
     Returns the dimension of a VECTOR value.
@@ -212,10 +212,10 @@ class MySQLVectorDimExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_vector_dim"
+        return "format_mysql_vector_dim_expression"
 
 
-class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLCreateVectorIndexStatement(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL CREATE VECTOR INDEX expression.
 
     Args:
@@ -244,7 +244,7 @@ class MySQLCreateVectorIndexExpression(AliasableMixin, ComparisonMixin, SQLValue
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_vector_index"
+        return "format_mysql_create_vector_index_statement"
 
 
 __all__ = [
@@ -255,5 +255,5 @@ __all__ = [
     "MySQLStringToVectorExpression",
     "MySQLVectorToStringExpression",
     "MySQLVectorDimExpression",
-    "MySQLCreateVectorIndexExpression",
+    "MySQLCreateVectorIndexStatement",
 ]

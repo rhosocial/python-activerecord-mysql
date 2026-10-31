@@ -1,8 +1,8 @@
 """
-DELETE using DeleteExpression - MySQL.
+DELETE using DeleteStatement - MySQL.
 
 This example demonstrates:
-1. Delete single row using DeleteExpression
+1. Delete single row using DeleteStatement
 2. Delete with WHERE condition
 3. Delete all rows
 """
@@ -28,28 +28,29 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
 # Drop dependent tables first for clean setup
-drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
+drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "users"),
     columns=[
@@ -57,15 +58,15 @@ create_table = CreateTableExpression(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
     ],
@@ -75,7 +76,7 @@ sql, params = create_table.to_sql()
 print(f"Create table SQL: {sql}")
 backend.execute(sql, params)
 
-insert = InsertExpression(
+insert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["name"],
@@ -95,11 +96,11 @@ backend.execute(sql, params)
 # ============================================================
 # SECTION: Delete Single Row
 # ============================================================
-from rhosocial.activerecord.backend.expression import DeleteExpression  # noqa: E402
+from rhosocial.activerecord.backend.expression import DeleteStatement  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
-delete_expr = DeleteExpression(
+delete_expr = DeleteStatement(
     dialect=dialect,
     tables=Table(dialect, "users"),
     where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
@@ -115,7 +116,7 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Delete with Condition
 # ============================================================
-delete_expr = DeleteExpression(
+delete_expr = DeleteStatement(
     dialect=dialect,
     tables=Table(dialect, "users"),
     where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Bob")),
@@ -128,7 +129,7 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Delete All Rows
 # ============================================================
-delete_expr = DeleteExpression(dialect=dialect, tables=Table(dialect, "users"))
+delete_expr = DeleteStatement(dialect=dialect, tables=Table(dialect, "users"))
 sql, params = delete_expr.to_sql()
 print(f"Delete all SQL: {sql}")
 result = backend.execute(sql, params, options=options)
@@ -137,11 +138,11 @@ print(f"Deleted rows: {result.affected_rows}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_orders = DropTableExpression(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
+drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
 sql, params = drop_orders.to_sql()
 backend.execute(sql, params)
 
-drop_expr = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+drop_expr = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()
@@ -150,7 +151,7 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use DeleteExpression to build DELETE query
+# 1. Use DeleteStatement to build DELETE query
 # 2. Use ComparisonPredicate for WHERE conditions
 # 3. Omit where parameter to delete all rows
 # 4. affected_rows shows number of deleted rows

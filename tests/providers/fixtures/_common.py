@@ -1,22 +1,19 @@
 # tests/providers/fixtures/_common.py
 """Shared helpers for the MySQL DDL expression fixtures.
 
-The MySQL backend's :meth:`format_storage_options` quotes string option
-values (``ENGINE='InnoDB'``) and :meth:`format_table_constraint` does not
-emit ``ON DELETE`` / ``ON UPDATE`` referential actions for
-:class:`ForeignKeyConstraint` instances.  The authoritative ``.sql`` schema
-files under ``tests/rhosocial/activerecord_mysql_test/feature/<feature>/schema/``
-use the unquoted storage form and inline ``FOREIGN KEY ... ON DELETE CASCADE``
-clauses.
+The MySQL backend's :meth:`format_storage_options_expression` quotes string option
+values (``ENGINE='InnoDB'``), while the authoritative ``.sql`` schema files
+under ``tests/rhosocial/activerecord_mysql_test/feature/<feature>/schema/``
+use the unquoted storage form. :func:`to_mysql_ddl_sql` post-processes the
+SQL produced by ``CreateTableStatement.to_sql()`` so the generated DDL
+matches the reference files for that bit.
 
-Rather than modifying the MySQL backend library source (which is out of
-scope for this refactor), :func:`to_mysql_ddl_sql` post-processes the SQL
-produced by ``CreateTableExpression.to_sql()`` so that the generated DDL
-matches the reference files byte-for-byte for the bits that matter:
-
-* ``KEY='value'`` storage options become ``KEY=value``.
-* ``FOREIGN KEY ... REFERENCES ...`` clauses have their declared
-  ``on_delete`` / ``on_update`` referential actions appended.
+The former second post-processing step -- re-injecting ``ON DELETE`` /
+``ON UPDATE`` referential actions that ``format_table_constraint`` used to
+drop for plain table constraints -- is gone: the two-level constraint nodes
+render every ``TableForeignKeyConstraint`` through the shared
+``ReferencesClause`` machinery, so the actions the fixtures declare are on
+the wire the dialect produced.
 
 Providers call :func:`create_table_sql` instead of ``expr.to_sql()`` directly
 to obtain the canonical ``(sql, params)`` tuple.
@@ -28,18 +25,13 @@ import re
 from typing import Tuple
 
 from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    DropTableExpression,
+    CreateTableStatement,
+    DropTableStatement,
 )
-from rhosocial.activerecord.backend.expression.statements import ReferentialAction
 from rhosocial.activerecord.backend.expression.objects import Table
 
 
 _STORAGE_OPTION_RE = re.compile(r"([A-Z_ ]+=)'([^']*)'")
-_FK_RE = re.compile(
-    r"(FOREIGN KEY \([`A-Za-z0-9_ ,]+\) REFERENCES [`A-Za-z0-9_.]+ \([`A-Za-z0-9_ ,]+\))"
-    r"(?=[,)])"
-)
 
 
 def _strip_storage_option_quotes(sql: str) -> str:
@@ -47,70 +39,30 @@ def _strip_storage_option_quotes(sql: str) -> str:
     return _STORAGE_OPTION_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}", sql)
 
 
-def _append_fk_actions(expr: CreateTableExpression, sql: str) -> str:
-    """Append ``ON DELETE`` / ``ON UPDATE`` clauses to inline FK constraints.
+def to_mysql_ddl_sql(expr: CreateTableStatement) -> Tuple[str, tuple]:
+    """Generate canonical MySQL DDL for a :class:`CreateTableStatement`.
 
-    The MySQL dialect's ``format_table_constraint`` does not currently emit
-    referential actions even though :class:`ForeignKeyConstraint` carries them.
-    This helper re-injects them so the generated DDL matches the reference SQL
-    files that use ``ON DELETE CASCADE``.
-    """
-    # Build a lookup of "FOREIGN KEY (cols) REFERENCES ref_table (ref_cols)"
-    # -> suffix to append for each matching constraint.
-    fk_suffix_by_clause: dict = {}
-    for t_const in expr.table_constraints:
-        from rhosocial.activerecord.backend.expression.statements import (
-            TableConstraintType,
-            ForeignKeyConstraint,
-        )
-        if t_const.constraint_type != TableConstraintType.FOREIGN_KEY:
-            continue
-        if not isinstance(t_const, ForeignKeyConstraint):
-            continue
-        cols = ", ".join(f"`{c}`" for c in (t_const.columns or []))
-        ref_cols = ", ".join(f"`{c}`" for c in (t_const.foreign_key_columns or []))
-        ref_table = t_const.foreign_key_table.to_sql()[0]
-        clause = f"FOREIGN KEY ({cols}) REFERENCES {ref_table} ({ref_cols})"
-        suffix_parts = []
-        on_delete = getattr(t_const, "on_delete", None)
-        on_update = getattr(t_const, "on_update", None)
-        if on_delete and on_delete != ReferentialAction.NO_ACTION:
-            suffix_parts.append(f"ON DELETE {on_delete.value}")
-        if on_update and on_update != ReferentialAction.NO_ACTION:
-            suffix_parts.append(f"ON UPDATE {on_update.value}")
-        if suffix_parts:
-            fk_suffix_by_clause[clause] = " " + " ".join(suffix_parts)
+    Post-processes the dialect output to drop quotes around storage option
+    values. Referential actions need no help any more: the table-level
+    foreign-key branch renders them through the shared ``ReferencesClause``
+    path, so what the fixtures declare is what the dialect emits.
 
-    def repl(match: re.Match) -> str:
-        return match.group(1) + fk_suffix_by_clause.get(match.group(1), "")
-
-    return _FK_RE.sub(repl, sql)
-
-
-def to_mysql_ddl_sql(expr: CreateTableExpression) -> Tuple[str, tuple]:
-    """Generate canonical MySQL DDL for a :class:`CreateTableExpression`.
-
-    Post-processes the dialect output to:
-    1. Drop quotes around storage option values.
-    2. Re-insert ``ON DELETE`` / ``ON UPDATE`` referential actions for
-       inline ``FOREIGN KEY`` table constraints.
-
-    Returns the ``(sql, params)`` tuple suitable for ``backend.execute``.
+    Returns:
+        The ``(sql, params)`` tuple suitable for ``backend.execute``.
     """
     sql, params = expr.to_sql()
     sql = _strip_storage_option_quotes(sql)
-    sql = _append_fk_actions(expr, sql)
     return sql, params
 
 
-def create_table_sql(expr: CreateTableExpression) -> Tuple[str, tuple]:
+def create_table_sql(expr: CreateTableStatement) -> Tuple[str, tuple]:
     """Public alias for :func:`to_mysql_ddl_sql`."""
     return to_mysql_ddl_sql(expr)
 
 
-def drop_table(dialect, table_name: str) -> DropTableExpression:
+def drop_table(dialect, table_name: str) -> DropTableStatement:
     """Build a canonical ``DROP TABLE IF EXISTS`` expression."""
-    return DropTableExpression(
+    return DropTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         if_exists=True,

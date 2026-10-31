@@ -1,6 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/dml.py
 from typing import TYPE_CHECKING, Any, List, Tuple
 
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.core import Literal
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -9,7 +10,7 @@ from .object_kind import require_kind
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
-        MySQLLoadDataExpression,
+        MySQLLoadDataStatement,
     )
 
 
@@ -25,7 +26,7 @@ class MySQLDMLOperationMixin:
     def supports_load_data(self) -> bool:
         return True
 
-    def format_load_data_statement(self, expr: "MySQLLoadDataExpression") -> Tuple[str, tuple]:
+    def format_mysql_load_data_statement(self, expr: "MySQLLoadDataStatement") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement.
 
         Raises:
@@ -33,7 +34,7 @@ class MySQLDMLOperationMixin:
                 wrong kind there would render a statement loading into whatever
                 object's name was supplied.
         """
-        require_kind(expr.table, Table, "MySQLLoadDataExpression.table")
+        require_kind(expr.table, Table, "MySQLLoadDataStatement.table")
         expr.validate(strict=self.strict_validation)
 
         all_params: List[Any] = []
@@ -61,20 +62,20 @@ class MySQLDMLOperationMixin:
 
         field_parts = []
         if expr.options.fields_terminated_by is not None:
-            field_parts.append(f"TERMINATED BY '{self._escape_sql_string(expr.options.fields_terminated_by)}'")
+            field_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.options.fields_terminated_by)}'")
         if expr.options.fields_enclosed_by is not None:
-            field_parts.append(f"ENCLOSED BY '{self._escape_sql_string(expr.options.fields_enclosed_by)}'")
+            field_parts.append(f"ENCLOSED BY '{self.escape_sql_string(expr.options.fields_enclosed_by)}'")
         if expr.options.fields_escaped_by is not None:
-            field_parts.append(f"ESCAPED BY '{self._escape_sql_string(expr.options.fields_escaped_by)}'")
+            field_parts.append(f"ESCAPED BY '{self.escape_sql_string(expr.options.fields_escaped_by)}'")
         if field_parts:
             parts.append("FIELDS")
             parts.append(" ".join(field_parts))
 
         line_parts = []
         if expr.options.lines_starting_by is not None:
-            line_parts.append(f"STARTING BY '{self._escape_sql_string(expr.options.lines_starting_by)}'")
+            line_parts.append(f"STARTING BY '{self.escape_sql_string(expr.options.lines_starting_by)}'")
         if expr.options.lines_terminated_by is not None:
-            line_parts.append(f"TERMINATED BY '{self._escape_sql_string(expr.options.lines_terminated_by)}'")
+            line_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.options.lines_terminated_by)}'")
         if line_parts:
             parts.append("LINES")
             parts.append(" ".join(line_parts))
@@ -90,7 +91,7 @@ class MySQLDMLOperationMixin:
             set_parts = []
             for col, val in expr.options.set_assignments.items():
                 col_sql = self.format_identifier(col)
-                if hasattr(val, "to_sql"):
+                if isinstance(val, BaseExpression):
                     val_sql, val_params = val.to_sql()
                     all_params.extend(val_params)
                 else:
@@ -110,7 +111,7 @@ class MySQLDMLOperationMixin:
         if expr.update_assignments:
             for col_name, value_expr in expr.update_assignments.items():
                 col_sql = self.format_identifier(col_name)
-                if hasattr(value_expr, "to_sql"):
+                if isinstance(value_expr, BaseExpression):
                     val_sql, val_params = value_expr.to_sql()
                 else:
                     val_sql, val_params = Literal(self, value_expr).to_sql()

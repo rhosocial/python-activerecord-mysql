@@ -17,14 +17,16 @@ from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
 from rhosocial.activerecord.backend.expression import (
-    DropTableExpression,
-    CreateTableExpression,
+    DropTableStatement,
+    CreateTableStatement,
 )
-from rhosocial.activerecord.backend.expression.functions.datetime import current_timestamp
+from rhosocial.activerecord.backend.expression import functions as F
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     IndexDefinition,
@@ -43,7 +45,7 @@ backend.connect()
 dialect = backend.dialect
 
 # Drop if exists for clean setup
-drop = DropTableExpression(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
+drop = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
 sql, params = drop.to_sql()
 backend.execute(sql, params)
 
@@ -56,22 +58,22 @@ columns = [
         name="id",
         data_type="INT",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-            ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+            ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
     ),
     ColumnDefinition(
         name="name",
         data_type="VARCHAR(200)",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
     ),
     ColumnDefinition(
         name="price",
         data_type="DECIMAL(10,2)",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.NOT_NULL),
+            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
     ),
     ColumnDefinition(
@@ -82,14 +84,14 @@ columns = [
         name="is_active",
         data_type="TINYINT(1)",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
+            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 1)),
         ],
     ),
     ColumnDefinition(
         name="created_at",
         data_type="TIMESTAMP",
         constraints=[
-            ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=current_timestamp(dialect)),
+            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, F.current_timestamp(dialect))),
         ],
     ),
 ]
@@ -102,7 +104,7 @@ indexes = [
 ]
 
 # Create table with MySQL-specific ENGINE and CHARSET options
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "products"),
     columns=columns,
@@ -130,7 +132,7 @@ for col in columns_info:
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()
@@ -142,5 +144,5 @@ backend.disconnect()
 # 1. Use ColumnConstraint with is_auto_increment=True for AUTO_INCREMENT
 # 2. MySQL table options (engine/charset) are typed on MySQLCreateTableOptions
 # 3. IndexDefinition creates inline indexes within CREATE TABLE
-# 4. Use current_timestamp(dialect) for SQL niladic functions (no parentheses)
+# 4. Use F.current_timestamp(dialect) for SQL niladic functions (no parentheses)
 # 5. Use introspector.get_columns() to verify table structure

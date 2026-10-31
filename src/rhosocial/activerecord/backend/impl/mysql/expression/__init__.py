@@ -28,7 +28,7 @@ from .column import (
     MySQLColumnDefinition,
     MySQLColumnOptions,
 )
-from .load_data import MySQLLoadDataExpression, LoadDataOptions
+from .load_data import MySQLLoadDataStatement, LoadDataOptions
 from .json_table import MySQLJSONTableExpression, JSONTableColumn, NestedPath
 from .json import (
     MySQLJSONExtractExpression,
@@ -51,7 +51,7 @@ from .spatial import (
     MySQLSTGeomFromWKBExpression,
     MySQLSTAsTextExpression,
     MySQLSTAsGeoJSONExpression,
-    MySQLCreateSpatialIndexExpression,
+    MySQLCreateSpatialIndexStatement,
 )
 from .vector import (
     MySQLVectorExpression,
@@ -61,7 +61,7 @@ from .vector import (
     MySQLStringToVectorExpression,
     MySQLVectorToStringExpression,
     MySQLVectorDimExpression,
-    MySQLCreateVectorIndexExpression,
+    MySQLCreateVectorIndexStatement,
 )
 from .set_type import (
     MySQLSetLiteralExpression,
@@ -72,8 +72,8 @@ from .fulltext import MySQLFulltextIndexOptionsExpression
 from .table_expr import MySQLInlineIndexExpression, MySQLStorageOptionsExpression
 from .match_against import MySQLMatchAgainstExpression, MatchAgainstMode
 from .json_duality_view import (
-    CreateJsonDualityViewExpression,
-    DropJsonDualityViewExpression,
+    CreateJsonDualityViewStatement,
+    DropJsonDualityViewStatement,
     DualityObjectSpec,
     DualityColumnMapping,
     DualityNestedMapping,
@@ -125,56 +125,56 @@ from .partition_lifecycle import (
     MySQLDropOldestPartitionHelper,
     MySQLReorganizePartitionHelper,
 )
-from .rename_table import MySQLRenameTableExpression
+from .rename_table import MySQLRenameTableStatement
 from .table_statement import MySQLTableStatement, MySQLValuesExpression
 from .maintenance import (
-    MySQLAnalyzeTableExpression,
-    MySQLCheckTableExpression,
-    MySQLChecksumTableExpression,
-    MySQLOptimizeTableExpression,
-    MySQLRepairTableExpression,
+    MySQLAnalyzeTableStatement,
+    MySQLCheckTableStatement,
+    MySQLChecksumTableStatement,
+    MySQLOptimizeTableStatement,
+    MySQLRepairTableStatement,
     CheckTableOption,
     ChecksumTableOption,
     RepairTableOption,
     NoWriteToBinlogOption,
 )
 from .routine import (
-    MySQLCallExpression,
-    MySQLCreateProcedureExpression,
-    MySQLDropProcedureExpression,
-    MySQLCreateFunctionExpression,
-    MySQLDropFunctionExpression,
+    MySQLCallStatement,
+    MySQLCreateProcedureStatement,
+    MySQLDropProcedureStatement,
+    MySQLCreateFunctionStatement,
+    MySQLDropFunctionStatement,
 )
-from .load_xml import MySQLLoadXMLEXpression, LoadXMLPriority, LoadXMLConflictMode
+from .load_xml import MySQLLoadXMLStatement, LoadXMLPriority, LoadXMLConflictMode
 from .admin import (
-    MySQLCacheIndexExpression,
-    MySQLLoadIndexIntoCacheExpression,
-    MySQLFlushExpression,
+    MySQLCacheIndexStatement,
+    MySQLLoadIndexIntoCacheStatement,
+    MySQLFlushStatement,
     FlushOption,
-    MySQLResetExpression,
+    MySQLResetStatement,
     ResetOption,
-    MySQLInstallComponentExpression,
-    MySQLUninstallComponentExpression,
-    MySQLInstallPluginExpression,
-    MySQLUninstallPluginExpression,
-    MySQLCloneExpression,
-    MySQLRestartExpression,
-    MySQLBinlogExpression,
-    MySQLHandlerOpenExpression,
-    MySQLHandlerReadExpression,
-    MySQLHandlerCloseExpression,
+    MySQLInstallComponentStatement,
+    MySQLUninstallComponentStatement,
+    MySQLInstallPluginStatement,
+    MySQLUninstallPluginStatement,
+    MySQLCloneStatement,
+    MySQLRestartStatement,
+    MySQLBinlogStatement,
+    MySQLHandlerOpenStatement,
+    MySQLHandlerReadStatement,
+    MySQLHandlerCloseStatement,
     HandlerReadMode,
-    MySQLDoExpression,
-    MySQLKillExpression,
+    MySQLDoStatement,
+    MySQLKillStatement,
     KillTarget,
-    MySQLShutdownExpression,
-    MySQLHelpExpression,
+    MySQLShutdownStatement,
+    MySQLHelpStatement,
     AccountSpec,
     GrantPrivilege,
-    MySQLCreateUserExpression,
-    MySQLDropUserExpression,
-    MySQLGrantExpression,
-    MySQLRevokeExpression,
+    MySQLCreateUserStatement,
+    MySQLDropUserStatement,
+    MySQLGrantStatement,
+    MySQLRevokeStatement,
 )
 
 # DataType subclasses for DDL
@@ -210,7 +210,7 @@ from .types import (
 )
 
 __all__ = [
-    "MySQLLoadDataExpression",
+    "MySQLLoadDataStatement",
     "LoadDataOptions",
     "MySQLCreateTableOptions",
     "MySQLRowFormat",
@@ -241,7 +241,7 @@ __all__ = [
     "MySQLSTGeomFromWKBExpression",
     "MySQLSTAsTextExpression",
     "MySQLSTAsGeoJSONExpression",
-    "MySQLCreateSpatialIndexExpression",
+    "MySQLCreateSpatialIndexStatement",
     "MySQLVectorExpression",
     "MySQLDistanceEuclideanExpression",
     "MySQLDistanceCosineExpression",
@@ -249,7 +249,7 @@ __all__ = [
     "MySQLStringToVectorExpression",
     "MySQLVectorToStringExpression",
     "MySQLVectorDimExpression",
-    "MySQLCreateVectorIndexExpression",
+    "MySQLCreateVectorIndexStatement",
     "MySQLSetLiteralExpression",
     "MySQLFindInSetExpression",
     "MySQLSetContainsExpression",
@@ -258,8 +258,8 @@ __all__ = [
     "MySQLStorageOptionsExpression",
     "MySQLMatchAgainstExpression",
     "MatchAgainstMode",
-    "CreateJsonDualityViewExpression",
-    "DropJsonDualityViewExpression",
+    "CreateJsonDualityViewStatement",
+    "DropJsonDualityViewStatement",
     "DualityObjectSpec",
     "DualityColumnMapping",
     "DualityNestedMapping",
@@ -298,54 +298,54 @@ __all__ = [
     "MySQLSubpartitionStrategy",
     "MySQLSubpartitionDefinition",
     "MySQLSubpartitionClause",
-    "MySQLRenameTableExpression",
+    "MySQLRenameTableStatement",
     "MySQLTableStatement",
     "MySQLValuesExpression",
-    "MySQLAnalyzeTableExpression",
-    "MySQLCheckTableExpression",
-    "MySQLChecksumTableExpression",
-    "MySQLOptimizeTableExpression",
-    "MySQLRepairTableExpression",
+    "MySQLAnalyzeTableStatement",
+    "MySQLCheckTableStatement",
+    "MySQLChecksumTableStatement",
+    "MySQLOptimizeTableStatement",
+    "MySQLRepairTableStatement",
     "CheckTableOption",
     "ChecksumTableOption",
     "RepairTableOption",
     "NoWriteToBinlogOption",
-    "MySQLCallExpression",
-    "MySQLCreateProcedureExpression",
-    "MySQLDropProcedureExpression",
-    "MySQLCreateFunctionExpression",
-    "MySQLDropFunctionExpression",
-    "MySQLLoadXMLEXpression",
+    "MySQLCallStatement",
+    "MySQLCreateProcedureStatement",
+    "MySQLDropProcedureStatement",
+    "MySQLCreateFunctionStatement",
+    "MySQLDropFunctionStatement",
+    "MySQLLoadXMLStatement",
     "LoadXMLPriority",
     "LoadXMLConflictMode",
-    "MySQLCacheIndexExpression",
-    "MySQLLoadIndexIntoCacheExpression",
-    "MySQLFlushExpression",
+    "MySQLCacheIndexStatement",
+    "MySQLLoadIndexIntoCacheStatement",
+    "MySQLFlushStatement",
     "FlushOption",
-    "MySQLResetExpression",
+    "MySQLResetStatement",
     "ResetOption",
-    "MySQLInstallComponentExpression",
-    "MySQLUninstallComponentExpression",
-    "MySQLInstallPluginExpression",
-    "MySQLUninstallPluginExpression",
-    "MySQLCloneExpression",
-    "MySQLRestartExpression",
-    "MySQLBinlogExpression",
-    "MySQLHandlerOpenExpression",
-    "MySQLHandlerReadExpression",
-    "MySQLHandlerCloseExpression",
+    "MySQLInstallComponentStatement",
+    "MySQLUninstallComponentStatement",
+    "MySQLInstallPluginStatement",
+    "MySQLUninstallPluginStatement",
+    "MySQLCloneStatement",
+    "MySQLRestartStatement",
+    "MySQLBinlogStatement",
+    "MySQLHandlerOpenStatement",
+    "MySQLHandlerReadStatement",
+    "MySQLHandlerCloseStatement",
     "HandlerReadMode",
-    "MySQLDoExpression",
-    "MySQLKillExpression",
+    "MySQLDoStatement",
+    "MySQLKillStatement",
     "KillTarget",
-    "MySQLShutdownExpression",
-    "MySQLHelpExpression",
+    "MySQLShutdownStatement",
+    "MySQLHelpStatement",
     "AccountSpec",
     "GrantPrivilege",
-    "MySQLCreateUserExpression",
-    "MySQLDropUserExpression",
-    "MySQLGrantExpression",
-    "MySQLRevokeExpression",
+    "MySQLCreateUserStatement",
+    "MySQLDropUserStatement",
+    "MySQLGrantStatement",
+    "MySQLRevokeStatement",
     # DataType subclasses for DDL
     "MySQLBigIntType",
     "MySQLBinaryType",
@@ -376,3 +376,32 @@ __all__ = [
     "MySQLVectorType",
     "MySQLYearType",
 ]
+
+# ``MySQL`` is one word. The general derivation -- a run of capitals counts as
+# a single word -- disagrees with this backend's identifier and yields
+# ``my_sql_flush_expression``, ``my_sqljson_object_expression``,
+# ``my_sqlst_as_text_expression`` and ``my_sqluuid_type``. The kind is a wire
+# contract (§3), so the identifier is declared whole and the kind is derived
+# from that declaration: ``KIND_RESERVED`` is data, not behaviour, so no class
+# overrides ``kind()`` and class name, kind and formatter entry keep one source.
+#
+# The loop walks this package's own modules rather than an exported name list,
+# for the reason the sqlite package's note gives: a hand-maintained list can
+# only ever be out of date, and a node that is defined but not re-exported here
+# (the SHOW family) would silently keep the split spelling.
+import importlib as _importlib
+import pkgutil as _pkgutil
+
+from rhosocial.activerecord.backend.expression.core import BaseExpression as _BaseExpression
+
+for _module_info in _pkgutil.walk_packages(__path__, prefix=__name__ + ".", onerror=lambda _error: None):
+    _module = _importlib.import_module(_module_info.name)
+    for _value in vars(_module).values():
+        if (
+            isinstance(_value, type)
+            and issubclass(_value, _BaseExpression)
+            and _value.__name__.startswith("MySQL")
+            and _value.__module__ == _module_info.name
+        ):
+            _value.KIND_RESERVED = ("MySQL",)
+del _module_info, _module, _value, _importlib, _pkgutil, _BaseExpression

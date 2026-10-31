@@ -25,16 +25,16 @@ from rhosocial.activerecord.backend.dialect.protocols import (
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression import BaseExpression, Literal
 from rhosocial.activerecord.backend.expression.statements import (
-    AlterDomainExpression,
-    AlterTypeExpression,
-    CreateDomainExpression,
-    CreateTypeExpression,
+    AlterDomainStatement,
+    AlterTypeStatement,
+    CreateDomainStatement,
+    CreateTypeStatement,
     DomainCheckConstraint,
     DomainNullability,
     DomainValueExpression,
     DropDomainDefaultAction,
-    DropDomainExpression,
-    DropTypeExpression,
+    DropDomainStatement,
+    DropTypeStatement,
     TypeAlterAction,
     TypeDefinition,
 )
@@ -113,21 +113,24 @@ def _type_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
     definition = _TestTypeDefinition(dialect)
     action = _TestTypeAlterAction(dialect)
     return (
-        CreateTypeExpression(dialect, Type(dialect, "status"), definition),
-        AlterTypeExpression(dialect, Type(dialect, "status"), [action]),
-        DropTypeExpression(dialect, Type(dialect, "status")),
+        CreateTypeStatement(dialect, Type(dialect, "status"), definition),
+        AlterTypeStatement(dialect, Type(dialect, "status"), [action]),
+        DropTypeStatement(dialect, Type(dialect, "status")),
         definition,
         action,
     )
 
 
 def _domain_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
-    condition = DomainValueExpression(dialect) > Literal(dialect, 0, inline_literals=True)
+    # A CHECK expression accepts no bind parameter either, so every literal
+    # in the tree says ``inline=True`` itself; a binding literal here would
+    # be refused at render time rather than silently inlined.
+    condition = DomainValueExpression(dialect) > Literal(dialect, 0, inline=True)
     check = DomainCheckConstraint(dialect, condition)
     return (
-        CreateDomainExpression(dialect, Domain(dialect, "positive"), IntegerType(dialect)),
-        AlterDomainExpression(dialect, Domain(dialect, "positive"), [DropDomainDefaultAction(dialect)]),
-        DropDomainExpression(dialect, Domain(dialect, "positive")),
+        CreateDomainStatement(dialect, Domain(dialect, "positive"), IntegerType(dialect)),
+        AlterDomainStatement(dialect, Domain(dialect, "positive"), [DropDomainDefaultAction(dialect)]),
+        DropDomainStatement(dialect, Domain(dialect, "positive")),
         DomainValueExpression(dialect),
         check,
         DropDomainDefaultAction(dialect),

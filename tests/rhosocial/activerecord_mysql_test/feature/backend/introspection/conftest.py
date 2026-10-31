@@ -11,6 +11,15 @@ import pytest_asyncio
 
 
 # SQL script for creating test tables
+#
+# The DROP list is ordered by dependency and runs before every CREATE, so a
+# previous run that failed *during* setup leaves nothing that would make this
+# one fail. That case is real: a fixture generator that raises before its
+# ``yield`` never reaches its teardown, so a server touched by an earlier
+# failure keeps the tables -- and the next setup then dies on MySQL's
+# "tablespace exists" (error 1813), which is about the InnoDB space rather
+# than about the row in the dictionary. Dropping first makes setup idempotent,
+# which is what keeps that from ever starting.
 _TABLES_SQL = """
     SET FOREIGN_KEY_CHECKS = 0;
     DROP TABLE IF EXISTS post_tags;
@@ -130,6 +139,27 @@ _CLEANUP_TRIGGER_SQL = """
     SET FOREIGN_KEY_CHECKS = 1;
 """
 
+# A RANGE-partitioned table. The partition column has to be part of the
+# primary key in MySQL, hence the composite key.
+_PARTITIONED_TABLE_SQL = """
+    DROP TABLE IF EXISTS partitioned_events;
+    CREATE TABLE partitioned_events (
+        id INT NOT NULL,
+        created_at DATE NOT NULL,
+        payload VARCHAR(64) DEFAULT NULL,
+        PRIMARY KEY (id, created_at)
+    ) ENGINE=InnoDB COMMENT='partitioned introspection fixture'
+    PARTITION BY RANGE (YEAR(created_at)) (
+        PARTITION p2020 VALUES LESS THAN (2021),
+        PARTITION p2021 VALUES LESS THAN (2022),
+        PARTITION p_max VALUES LESS THAN MAXVALUE
+    );
+"""
+
+_CLEANUP_PARTITIONED_TABLE_SQL = """
+    DROP TABLE IF EXISTS partitioned_events;
+"""
+
 
 @pytest.fixture(scope="function")
 def backend_with_tables(mysql_backend):
@@ -205,5 +235,31 @@ async def async_backend_with_trigger(async_mysql_backend):
     try:
         async_mysql_backend.introspector.clear_cache()
         await async_mysql_backend.executescript(_CLEANUP_TRIGGER_SQL)
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="function")
+def backend_with_partitioned_table(backend_with_tables):
+    """Fixture providing backend with a RANGE-partitioned table."""
+    backend_with_tables.introspector.clear_cache()
+    backend_with_tables.executescript(_PARTITIONED_TABLE_SQL)
+    yield backend_with_tables
+    try:
+        backend_with_tables.introspector.clear_cache()
+        backend_with_tables.executescript(_CLEANUP_PARTITIONED_TABLE_SQL)
+    except Exception:
+        pass
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_backend_with_partitioned_table(async_backend_with_tables):
+    """Async fixture providing backend with a RANGE-partitioned table."""
+    async_backend_with_tables.introspector.clear_cache()
+    await async_backend_with_tables.executescript(_PARTITIONED_TABLE_SQL)
+    yield async_backend_with_tables
+    try:
+        async_backend_with_tables.introspector.clear_cache()
+        await async_backend_with_tables.executescript(_CLEANUP_PARTITIONED_TABLE_SQL)
     except Exception:
         pass

@@ -1,5 +1,5 @@
 """
-UNION using SetOperationExpression - MySQL.
+UNION using SetOperation - MySQL.
 
 This example demonstrates:
 1. UNION (distinct)
@@ -28,24 +28,24 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnPrimaryKeyConstraint,
 )
 
 # Drop table first for clean setup
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "users"),
     columns=[
@@ -53,7 +53,7 @@ create_table = CreateTableExpression(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
             ],
         ),
         ColumnDefinition("name", "VARCHAR(100)"),
@@ -65,7 +65,7 @@ print(f"Create table SQL: {sql}")
 backend.execute(sql, params)
 
 # Insert data into table_a
-insert = InsertExpression(
+insert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "users"),
     columns=["id", "name"],
@@ -85,28 +85,29 @@ backend.execute(sql, params)
 # SECTION: UNION (distinct)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    QueryExpression,
-    SetOperationExpression,
+    QueryStatement,
+    SetOperation,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 
 # First query
-query1 = QueryExpression(
+query1 = QueryStatement(
     dialect=dialect,
     select=[Column(dialect, "name")],
     from_=Table(dialect, "users"),
 )
 
-query2 = QueryExpression(
+query2 = QueryStatement(
     dialect=dialect,
     select=[Literal(dialect, "Charlie")],
 )
 
-# Union
-union_expr = SetOperationExpression(
+# Union. The node states the operation as a word and the dialect writes the
+# spelling, so a backend that gates UNION behind a probe refuses it there.
+union_expr = SetOperation(
     dialect=dialect,
+    op="union",
     left=query1,
-    operation="UNION",
     right=query2,
 )
 sql, params = union_expr.to_sql()
@@ -120,11 +121,10 @@ print(f"UNION result: {result.data}")
 # ============================================================
 # SECTION: UNION ALL
 # ============================================================
-union_all = SetOperationExpression(
+union_all = SetOperation(
     dialect=dialect,
+    op="union_all",
     left=query1,
-    operation="UNION",
-    all_=True,
     right=query2,
 )
 sql, params = union_all.to_sql()
@@ -135,7 +135,7 @@ print(f"UNION ALL result: {result.data}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_expr = DropTableExpression(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+drop_expr = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
 sql, params = drop_expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()
@@ -144,6 +144,8 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use SetOperationExpression with operation='UNION', all_=True for UNION ALL
+# 1. Use SetOperation with op='union' / op='union_all'; the dialect writes the
+#    SQL spelling and gates it behind its own capability probes
 # 2. UNION removes duplicates, UNION ALL keeps all rows
-# 3. Can add ORDER BY using query1.with_order_by()
+# 3. ORDER BY is a clause on the statement, not a setter on the query:
+#    QueryStatement(..., order_by=OrderByClause(dialect, [...]))

@@ -36,10 +36,10 @@ from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.expression.statements import (
     AutoIncrementClause,
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
-    CreateTableExpression,
-    DropTableExpression,
+    ColumnPrimaryKeyConstraint,
+    CreateTableStatement,
+    DropTableStatement,
     IdentityClause,
 )
 from rhosocial.activerecord.backend.expression.types import IntegerType
@@ -56,7 +56,8 @@ def _auto_increment_column(dialect, name="id"):
         IntegerType(dialect),
         constraints=[
             ColumnConstraint(
-                dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True
+                dialect,
+                branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)
             )
         ],
     )
@@ -107,7 +108,7 @@ class TestAutoIncrementMarkerExecutes:
     def test_rendered_create_table_executes(self, mysql_backend):
         dialect = mysql_backend.dialect
         table = Table(dialect, "_probe_ai_exec")
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect, table, [_auto_increment_column(dialect)]
         )
         sql, _ = expression.to_sql()
@@ -117,7 +118,7 @@ class TestAutoIncrementMarkerExecutes:
         )
 
         outcome = confirm_expression_execution(
-            mysql_backend, expression, teardown=[DropTableExpression(dialect, table)]
+            mysql_backend, expression, teardown=[DropTableStatement(dialect, table)]
         )
 
         assert outcome is ExecutionOutcome.ACCEPTED
@@ -134,7 +135,7 @@ class TestProbeGatesTheDdl:
 
     def test_withdrawn_probe_refuses_the_column(self):
         dialect = _DeclinedAutoIncrementDialect((8, 0, 36))
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect, Table(dialect, "t"), [_auto_increment_column(dialect)]
         )
         with pytest.raises(UnsupportedFeatureError, match="AUTO_INCREMENT column"):
@@ -148,7 +149,7 @@ class TestProbeGatesTheDdl:
         the column formatter's probe.
         """
         dialect = _DeclinedAutoIncrementDialect((8, 0, 36))
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect,
             Table(dialect, "t"),
             [ColumnDefinition(dialect, "id", IntegerType(dialect))],
@@ -206,7 +207,7 @@ class TestIdentityIsRefusedByName:
     def test_identity_attribute_is_refused(self, mysql_backend):
         """The AR-layer attribute path used to silently drop ALWAYS and start."""
         dialect = mysql_backend.dialect
-        expression = CreateTableExpression(
+        expression = CreateTableStatement(
             dialect,
             Table(dialect, "_probe_identity_attr"),
             [

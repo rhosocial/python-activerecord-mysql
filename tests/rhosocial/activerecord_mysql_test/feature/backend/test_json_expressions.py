@@ -67,15 +67,23 @@ class TestMySQLJSONObjectExpression:
         assert "name" in params
         assert "age" in params
 
-    def test_json_object_with_kwargs(self):
-        """Test JSON object creation with keyword arguments."""
+    def test_json_object_from_pairs(self):
+        """Test JSON object creation from an iterable of pairs.
+
+        The constructor used to also take the pairs as ``**kwargs``, but a
+        parameter whose identity depends on how many extras arrived has no
+        artifact spelling (§4.11.4); the mapping and the pair list are the
+        two shapes that name every member, and both name them up front.
+        """
         dialect = MySQLDialect(version=(8, 0, 0))
 
-        expr = MySQLJSONObjectExpression(dialect, name="John", age=30).as_("obj")
+        expr = MySQLJSONObjectExpression(dialect, [("name", "John"), ("age", 30)]).as_("obj")
         sql, params = expr.to_sql()
 
         assert "JSON_OBJECT" in sql
         assert "AS `obj`" in sql
+        assert "John" in params
+        assert 30 in params
 
 
 class TestMySQLJSONArrayExpression:

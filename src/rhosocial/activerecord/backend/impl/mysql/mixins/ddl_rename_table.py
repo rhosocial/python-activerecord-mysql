@@ -7,7 +7,7 @@ from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
-        MySQLRenameTableExpression,
+        MySQLRenameTableStatement,
     )
 
 
@@ -35,9 +35,9 @@ class MySQLRenameTableMixin:
         """
         return True
 
-    def format_rename_table_statement(
+    def format_mysql_rename_table_statement(
         self,
-        expr: "MySQLRenameTableExpression",
+        expr: "MySQLRenameTableStatement",
     ) -> Tuple[str, tuple]:
         """Format a MySQL ``RENAME TABLE ...`` statement.
 
@@ -61,10 +61,10 @@ class MySQLRenameTableMixin:
         pairs = []
         for position, (old_table, new_table) in enumerate(expr.renames):
             require_kind(
-                old_table, Table, f"MySQLRenameTableExpression.renames old side at position {position}"
+                old_table, Table, f"MySQLRenameTableStatement.renames old side at position {position}"
             )
             require_kind(
-                new_table, Table, f"MySQLRenameTableExpression.renames new side at position {position}"
+                new_table, Table, f"MySQLRenameTableStatement.renames new side at position {position}"
             )
             old_sql = old_table.to_sql()[0]
             new_sql = new_table.to_sql()[0]

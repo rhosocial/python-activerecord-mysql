@@ -351,8 +351,10 @@ class MySQLBackend(
 
         cursor = None
         try:
+            from ..expression.system import version_query
+
             cursor = self._get_cursor()
-            cursor.execute("SELECT VERSION()")
+            cursor.execute(*version_query(self.dialect).to_sql())
             version_row = cursor.fetchone()
             version_str = version_row[0] if version_row else "8.0.0"
 
@@ -419,8 +421,10 @@ class MySQLBackend(
 
             # reconnect=True: verify connection with SELECT 1
             try:
+                from ..expression.system import ping_query
+
                 cursor = self._get_cursor()
-                cursor.execute("SELECT 1")
+                cursor.execute(*ping_query(self.dialect).to_sql())
                 cursor.fetchone()
                 cursor.close()
                 return True

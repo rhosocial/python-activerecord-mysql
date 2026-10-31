@@ -13,15 +13,18 @@ This module tests MySQL-specific DDL features including:
 
 import pytest
 from rhosocial.activerecord.backend.expression import (
-    CreateTableExpression,
-    DropTableExpression,
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
-    IndexDefinition,
-    TableConstraint,
-    TableConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
+    CreateTableStatement,
+    DropTableStatement,
     ForeignKeyConstraint,
+    IndexDefinition,
+    TableCheckConstraint,
+    TableConstraint,
+    TablePrimaryKeyConstraint,
+    TableUniqueConstraint,
 )
 from rhosocial.activerecord.backend.expression import ColumnCommentClause, TableCommentClause
 from rhosocial.activerecord.backend.expression.statements import ReferentialAction
@@ -44,8 +47,8 @@ class TestMySQLStorageOptions:
     def test_engine_option(self):
         """Test ENGINE storage option."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "test_table"), columns=columns, storage_options={"ENGINE": "InnoDB"}
         )
         sql, params = expr.to_sql()
@@ -54,8 +57,8 @@ class TestMySQLStorageOptions:
     def test_charset_option(self):
         """Test DEFAULT CHARSET storage option."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "test_table"), columns=columns, storage_options={"DEFAULT CHARSET": "utf8mb4"}
         )
         sql, params = expr.to_sql()
@@ -64,8 +67,8 @@ class TestMySQLStorageOptions:
     def test_collate_option(self):
         """Test COLLATE storage option."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "test_table"), columns=columns, storage_options={"COLLATE": "utf8mb4_unicode_ci"}
         )
         sql, params = expr.to_sql()
@@ -74,8 +77,8 @@ class TestMySQLStorageOptions:
     def test_multiple_storage_options(self):
         """Test multiple storage options combined."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect,
             table=Table(dialect, "test_table"),
             columns=columns,
@@ -89,8 +92,8 @@ class TestMySQLStorageOptions:
     def test_storage_options_with_if_not_exists(self):
         """Test storage options with IF NOT EXISTS."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect,
             table=Table(dialect, "test_table"),
             columns=columns,
@@ -108,8 +111,8 @@ class TestMySQLTableComment:
     def test_table_comment(self):
         """Test table-level COMMENT."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns,
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "用户信息表")),
         )
@@ -119,8 +122,8 @@ class TestMySQLTableComment:
     def test_table_comment_with_storage_options(self):
         """Test table COMMENT with storage options."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect,
             table=Table(dialect, "users"),
             columns=columns,
@@ -135,8 +138,8 @@ class TestMySQLTableComment:
     def test_table_comment_special_characters(self):
         """Test table COMMENT with special characters."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
-        expr = CreateTableExpression(
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "test"), columns=columns,
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "测试's表")),
         )
@@ -147,9 +150,9 @@ class TestMySQLTableComment:
         """Test table COMMENT via typed CreateTableOptions (new API)."""
         from rhosocial.activerecord.backend.expression.statements.ddl_table import CreateTableOptions
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
         opts = CreateTableOptions(dialect, comment=TableCommentClause(dialect, "typed comment"))
-        expr = CreateTableExpression(
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns, table_options=opts,
         )
         sql, params = expr.to_sql()
@@ -158,11 +161,11 @@ class TestMySQLTableComment:
     def test_engine_charset_via_table_options(self):
         """Test ENGINE/CHARSET/COLLATE via typed MySQLCreateTableOptions."""
         dialect = MySQLDialect()
-        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)])]
+        columns = [ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))])]
         opts = MySQLCreateTableOptions(
             dialect, engine="InnoDB", charset="utf8mb4", collate="utf8mb4_unicode_ci"
         )
-        expr = CreateTableExpression(
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "test"), columns=columns, table_options=opts,
         )
         sql, params = expr.to_sql()
@@ -179,11 +182,11 @@ class TestMySQLColumnComment:
         dialect = MySQLDialect()
         columns = [
             ColumnDefinition(dialect, 
-                "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)], comment=ColumnCommentClause(dialect, "主键ID")
+                "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))], comment=ColumnCommentClause(dialect, "主键ID")
             ),
             ColumnDefinition(dialect, "name", VarCharType(dialect, 100), comment=ColumnCommentClause(dialect, "用户名")),
         ]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns)
         sql, params = expr.to_sql()
         assert "COMMENT '主键ID'" in sql
         assert "COMMENT '用户名'" in sql
@@ -193,11 +196,11 @@ class TestMySQLColumnComment:
         dialect = MySQLDialect()
         columns = [
             ColumnDefinition(dialect, 
-                "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)], comment=ColumnCommentClause(dialect, "主键")
+                "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))], comment=ColumnCommentClause(dialect, "主键")
             ),
             ColumnDefinition(dialect, "name", VarCharType(dialect, 100), comment=ColumnCommentClause(dialect, "名称")),
         ]
-        expr = CreateTableExpression(
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns,
             table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "用户表")),
         )
@@ -218,12 +221,12 @@ class TestMySQLAutoIncrement:
                 "id",
                 BigIntType(dialect),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
-                    ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                    ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
+                    ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
                 ],
             )
         ]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns)
         sql, params = expr.to_sql()
         assert "AUTO_INCREMENT" in sql
         assert "PRIMARY KEY" in sql
@@ -236,13 +239,13 @@ class TestMySQLAutoIncrement:
                 "id",
                 BigIntType(dialect),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
-                    ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                    ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
+                    ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
                 ],
                 comment=ColumnCommentClause(dialect, "自增主键"),
             )
         ]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns)
         sql, params = expr.to_sql()
         assert "AUTO_INCREMENT" in sql
         assert "COMMENT '自增主键'" in sql
@@ -255,12 +258,12 @@ class TestMySQLAutoIncrement:
                 "id",
                 BigIntType(dialect),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
-                    ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                    ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
+                    ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
                 ],
             )
         ]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "test"), columns=columns)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "test"), columns=columns)
         sql, params = expr.to_sql()
         assert "NOT NULL" in sql
         assert "AUTO_INCREMENT" in sql
@@ -273,11 +276,11 @@ class TestMySQLInlineIndex:
         """Test simple INDEX definition."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
         ]
         indexes = [IndexDefinition(dialect, "idx_name", ["name"])]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
         sql, params = expr.to_sql()
         assert "INDEX `idx_name`" in sql
         assert "(`name`)" in sql
@@ -286,11 +289,11 @@ class TestMySQLInlineIndex:
         """Test UNIQUE INDEX definition."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "email", VarCharType(dialect, 100)),
         ]
         indexes = [IndexDefinition(dialect, "idx_email", ["email"], unique=True)]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
         sql, params = expr.to_sql()
         assert "UNIQUE INDEX" in sql
         assert "idx_email" in sql
@@ -299,12 +302,12 @@ class TestMySQLInlineIndex:
         """Test composite index on multiple columns."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "user_id", IntegerType(dialect)),
             ColumnDefinition(dialect, "created_at", DateTimeType(dialect)),
         ]
         indexes = [IndexDefinition(dialect, "idx_user_created", ["user_id", "created_at"])]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "orders"), columns=columns, indexes=indexes)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "orders"), columns=columns, indexes=indexes)
         sql, params = expr.to_sql()
         assert "`user_id`, `created_at`" in sql or "`user_id`,`created_at`" in sql
 
@@ -312,11 +315,11 @@ class TestMySQLInlineIndex:
         """Test INDEX with USING clause."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
         ]
         indexes = [IndexDefinition(dialect, "idx_name", ["name"], type="BTREE")]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
         sql, params = expr.to_sql()
         assert "USING BTREE" in sql
 
@@ -324,11 +327,11 @@ class TestMySQLInlineIndex:
         """Test HASH index type."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "key", VarCharType(dialect, 100)),
         ]
         indexes = [IndexDefinition(dialect, "idx_key", ["key"], type="HASH")]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "cache"), columns=columns, indexes=indexes)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "cache"), columns=columns, indexes=indexes)
         sql, params = expr.to_sql()
         assert "USING HASH" in sql
 
@@ -336,12 +339,12 @@ class TestMySQLInlineIndex:
         """Test multiple inline indexes."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "email", VarCharType(dialect, 100)),
             ColumnDefinition(dialect, "username", VarCharType(dialect, 50)),
         ]
         indexes = [IndexDefinition(dialect, "idx_email", ["email"], unique=True), IndexDefinition(dialect, "idx_username", ["username"])]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns, indexes=indexes)
         sql, params = expr.to_sql()
         assert "UNIQUE INDEX `idx_email`" in sql
         assert "INDEX `idx_username`" in sql
@@ -404,12 +407,12 @@ class TestMySQLEnumType:
         dialect = MySQLDialect()
         status_enum = MySQLEnumType(dialect, ["draft", "published", "archived"])
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, 
-                "status", status_enum, constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]
+                "status", status_enum, constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]
             ),
         ]
-        expr = CreateTableExpression(dialect=dialect, table=Table(dialect, "articles"), columns=columns)
+        expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "articles"), columns=columns)
         sql, params = expr.to_sql()
         assert "ENUM('draft','published','archived')" in sql
 
@@ -465,8 +468,8 @@ class TestMySQLTableConstraints:
         """Test PRIMARY KEY table constraint."""
         dialect = MySQLDialect()
         columns = [ColumnDefinition(dialect, "id", IntegerType(dialect)), ColumnDefinition(dialect, "name", VarCharType(dialect, 100))]
-        table_constraints = [TableConstraint(dialect, TableConstraintType.PRIMARY_KEY, columns=["id"])]
-        expr = CreateTableExpression(
+        table_constraints = [TableConstraint(dialect, branch=TablePrimaryKeyConstraint(dialect, ["id"]))]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns, table_constraints=table_constraints
         )
         sql, params = expr.to_sql()
@@ -476,11 +479,11 @@ class TestMySQLTableConstraints:
         """Test UNIQUE table constraint."""
         dialect = MySQLDialect()
         columns = [
-            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY)]),
+            ColumnDefinition(dialect, "id", IntegerType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect))]),
             ColumnDefinition(dialect, "email", VarCharType(dialect, 100)),
         ]
-        table_constraints = [TableConstraint(dialect, TableConstraintType.UNIQUE, columns=["email"])]
-        expr = CreateTableExpression(
+        table_constraints = [TableConstraint(dialect, branch=TableUniqueConstraint(dialect, ["email"]))]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns, table_constraints=table_constraints
         )
         sql, params = expr.to_sql()
@@ -490,8 +493,8 @@ class TestMySQLTableConstraints:
         """Test composite PRIMARY KEY."""
         dialect = MySQLDialect()
         columns = [ColumnDefinition(dialect, "user_id", IntegerType(dialect)), ColumnDefinition(dialect, "role_id", IntegerType(dialect))]
-        table_constraints = [TableConstraint(dialect, TableConstraintType.PRIMARY_KEY, columns=["user_id", "role_id"])]
-        expr = CreateTableExpression(
+        table_constraints = [TableConstraint(dialect, branch=TablePrimaryKeyConstraint(dialect, ["user_id", "role_id"]))]
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "user_roles"), columns=columns, table_constraints=table_constraints
         )
         sql, params = expr.to_sql()
@@ -510,7 +513,7 @@ class TestMySQLTableConstraints:
             dialect, columns=["user_id"], foreign_key_table=Table(dialect, "users"),
             foreign_key_columns=["id"], on_delete=ReferentialAction.CASCADE,
         )
-        expr = CreateTableExpression(
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "orders"), columns=columns, table_constraints=[fk],
         )
         sql, params = expr.to_sql()
@@ -526,7 +529,7 @@ class TestMySQLTableConstraints:
             foreign_key_columns=["id"], on_delete=ReferentialAction.NO_ACTION,
             on_update=ReferentialAction.SET_NULL,
         )
-        expr = CreateTableExpression(
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "orders"), columns=columns, table_constraints=[fk],
         )
         sql, params = expr.to_sql()
@@ -543,12 +546,10 @@ class TestMySQLTableConstraints:
             ColumnDefinition(dialect, "age", IntegerType(dialect)),
         ]
         check = TableConstraint(
-            dialect, TableConstraintType.CHECK,
-            check_condition=ComparisonPredicate(
-                dialect, ">=", Column(dialect, "age"), Literal(dialect, 0)
-            ),
-        )
-        expr = CreateTableExpression(
+    dialect,
+    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, ">=", Column(dialect, "age"), Literal(dialect, 0, inline=True) ))
+)
+        expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns, table_constraints=[check],
         )
         sql, params = expr.to_sql()
@@ -561,7 +562,7 @@ class TestMySQLDropTable:
     def test_drop_table_if_exists(self):
         """Test DROP TABLE IF EXISTS."""
         dialect = MySQLDialect()
-        expr = DropTableExpression(dialect=dialect, table=Table(dialect, "test_table"), if_exists=True)
+        expr = DropTableStatement(dialect=dialect, table=Table(dialect, "test_table"), if_exists=True)
         sql, params = expr.to_sql()
         assert sql == "DROP TABLE IF EXISTS `test_table`"
         assert params == ()
@@ -569,7 +570,7 @@ class TestMySQLDropTable:
     def test_drop_table_without_if_exists(self):
         """Test DROP TABLE without IF EXISTS."""
         dialect = MySQLDialect()
-        expr = DropTableExpression(dialect=dialect, table=Table(dialect, "test_table"), if_exists=False)
+        expr = DropTableStatement(dialect=dialect, table=Table(dialect, "test_table"), if_exists=False)
         sql, params = expr.to_sql()
         assert sql == "DROP TABLE `test_table`"
         assert params == ()
@@ -588,27 +589,27 @@ class TestMySQLCompleteTableCreation:
                 "id",
                 BigIntType(dialect),
                 constraints=[
-                    ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL),
-                    ColumnConstraint(dialect, ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                    ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
+                    ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
                 ],
                 comment=ColumnCommentClause(dialect, "Primary key"),
             ),
             ColumnDefinition(dialect, 
                 "name",
                 VarCharType(dialect, 100),
-                constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)],
+                constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))],
                 comment=ColumnCommentClause(dialect, "User name"),
             ),
             ColumnDefinition(dialect, 
                 "email",
                 VarCharType(dialect, 255),
-                constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)],
+                constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))],
                 comment=ColumnCommentClause(dialect, "Email address"),
             ),
             ColumnDefinition(dialect, 
                 "status",
                 status_enum,
-                constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)],
+                constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))],
                 comment=ColumnCommentClause(dialect, "User status"),
             ),
             ColumnDefinition(dialect, "created_at", DateTimeType(dialect), comment=ColumnCommentClause(dialect, "Creation timestamp")),
@@ -616,7 +617,7 @@ class TestMySQLCompleteTableCreation:
 
         indexes = [IndexDefinition(dialect, "idx_email", ["email"], unique=True), IndexDefinition(dialect, "idx_status", ["status"])]
 
-        expr = CreateTableExpression(
+        expr = CreateTableStatement(
             dialect=dialect,
             table=Table(dialect, "users"),
             columns=columns,

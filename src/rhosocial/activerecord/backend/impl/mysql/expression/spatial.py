@@ -16,7 +16,7 @@ This module provides expression classes for MySQL spatial functions:
 
 from typing import TYPE_CHECKING, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValueExpression):
+class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValue):
     """MySQL ST_GeomFromText expression.
 
     Creates a geometry value from WKT.
@@ -49,10 +49,10 @@ class MySQLSTGeomFromTextExpression(AliasableMixin, SQLValueExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_geom_from_text"
+        return "format_mysql_st_geom_from_text_expression"
 
 
-class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL ST_Distance expression.
 
     Returns the distance between two geometries.
@@ -77,10 +77,10 @@ class MySQLSTDistanceExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_distance"
+        return "format_mysql_st_distance_expression"
 
 
-class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL ST_Within expression.
 
     Returns whether one geometry is within another.
@@ -105,10 +105,10 @@ class MySQLSTWithinExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_within"
+        return "format_mysql_st_within_expression"
 
 
-class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL ST_Contains expression.
 
     Returns whether one geometry contains another.
@@ -133,10 +133,10 @@ class MySQLSTContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_contains"
+        return "format_mysql_st_contains_expression"
 
 
-class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL spatial literal expression with optional SRID.
 
     Args:
@@ -162,10 +162,10 @@ class MySQLSpatialLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExp
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_spatial_literal"
+        return "format_mysql_spatial_literal_expression"
 
 
-class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL ST_GeomFromWKB expression.
 
     Creates a geometry value from WKB (Well-Known Binary).
@@ -193,10 +193,10 @@ class MySQLSTGeomFromWKBExpression(AliasableMixin, ComparisonMixin, SQLValueExpr
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_geom_from_wkb"
+        return "format_mysql_st_geom_from_wkb_expression"
 
 
-class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL ST_AsText expression.
 
     Converts a geometry value to its WKT (Well-Known Text) representation.
@@ -221,10 +221,10 @@ class MySQLSTAsTextExpression(AliasableMixin, ComparisonMixin, SQLValueExpressio
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_as_text"
+        return "format_mysql_st_as_text_expression"
 
 
-class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL ST_AsGeoJSON expression.
 
     Converts a geometry value to GeoJSON format (MySQL 5.7.5+).
@@ -249,10 +249,10 @@ class MySQLSTAsGeoJSONExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_st_as_geojson"
+        return "format_mysql_st_as_geo_json_expression"
 
 
-class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLCreateSpatialIndexStatement(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL CREATE SPATIAL INDEX expression.
 
     Args:
@@ -281,7 +281,7 @@ class MySQLCreateSpatialIndexExpression(AliasableMixin, ComparisonMixin, SQLValu
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_create_spatial_index"
+        return "format_mysql_create_spatial_index_statement"
 
 
 __all__ = [
@@ -293,5 +293,5 @@ __all__ = [
     "MySQLSTGeomFromWKBExpression",
     "MySQLSTAsTextExpression",
     "MySQLSTAsGeoJSONExpression",
-    "MySQLCreateSpatialIndexExpression",
+    "MySQLCreateSpatialIndexStatement",
 ]

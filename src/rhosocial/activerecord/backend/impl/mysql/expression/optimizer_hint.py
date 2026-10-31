@@ -18,8 +18,11 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 
 
-class OptimizerHintType(Enum):
+class OptimizerHintType(str, Enum):
     """Types of MySQL optimizer hints."""
+    #: A member *is* the word it carries; see `SortDirection.__str__`.
+    __str__ = str.__str__
+
 
     SET_VAR = "SET_VAR"
 
@@ -50,5 +53,5 @@ class MySQLOptimizerHintExpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_optimizer_hint"
+        return "format_mysql_optimizer_hint_expression"
 

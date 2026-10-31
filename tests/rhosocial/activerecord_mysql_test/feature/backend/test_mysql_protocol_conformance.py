@@ -334,6 +334,14 @@ class TestProtocolNonOverlap:
             assert len(members) > 0, f"Protocol {name} has no members defined"
 
         excluded_overlaps = {
+
+            # The CTAS bind-parameter probe: the backend's table protocol
+
+            # derives from the generic CTAS protocol, so both declare it.
+
+            ('CreateTableAsSupport', 'MySQLTableSupport'),
+
+            ('MySQLTableSupport', 'CreateTableAsSupport'),
             # Each pair below is a MySQL-specific protocol deliberately
             # restating part of a generic one, which is the whole point of a
             # backend protocol: MySQL's spelling and capability probes differ,
@@ -411,54 +419,54 @@ class TestMySQLExpressionDialectSeparation:
     """
 
     EXPRESSION_DIALECT_PAIRS = [
-        ("MySQLLoadDataExpression", "format_load_data_statement"),
-        ("MySQLJSONTableExpression", "format_json_table_expression"),
-        ("MySQLJSONExtractExpression", "format_json_extract"),
-        ("MySQLJSONObjectExpression", "format_json_object"),
-        ("MySQLJSONArrayExpression", "format_json_array"),
-        ("MySQLJSONContainsExpression", "format_json_contains"),
-        ("MySQLSTGeomFromTextExpression", "format_st_geom_from_text"),
-        ("MySQLSTDistanceExpression", "format_st_distance"),
-        ("MySQLSTWithinExpression", "format_st_within"),
-        ("MySQLSTContainsExpression", "format_st_contains"),
-        ("MySQLVectorExpression", "format_vector_literal"),
-        ("MySQLDistanceEuclideanExpression", "format_distance_euclidean"),
-        ("MySQLDistanceCosineExpression", "format_distance_cosine"),
-        ("MySQLDistanceDotExpression", "format_distance_dot"),
-        ("MySQLMatchAgainstExpression", "format_match_against"),
-        ("MySQLOptimizerHintExpression", "format_optimizer_hint"),
-        ("MySQLPartitionMaxValue", "format_partition_value"),
-        ("MySQLPartitionValue", "format_partition_value"),
-        ("MySQLAddPartitionExpression", "format_add_partition_statement"),
-        ("MySQLDropPartitionExpression", "format_drop_partition_statement"),
-        ("MySQLTruncatePartitionExpression", "format_truncate_partition_statement"),
-        ("MySQLReorganizePartitionExpression", "format_reorganize_partition_statement"),
-        ("MySQLExchangePartitionExpression", "format_exchange_partition_statement"),
-        ("MySQLRenameTableExpression", "format_rename_table_statement"),
-        ("MySQLTableStatement", "format_table_statement"),
-        ("MySQLValuesExpression", "format_values_statement"),
-        ("MySQLAnalyzeTableExpression", "format_table_maintenance_statement"),
-        ("MySQLCheckTableExpression", "format_table_maintenance_statement"),
-        ("MySQLChecksumTableExpression", "format_table_maintenance_statement"),
-        ("MySQLOptimizeTableExpression", "format_table_maintenance_statement"),
-        ("MySQLRepairTableExpression", "format_table_maintenance_statement"),
-        ("MySQLCreateProcedureExpression", "format_create_procedure_statement"),
-        ("MySQLDropProcedureExpression", "format_drop_procedure_statement"),
-        ("MySQLCreateFunctionExpression", "format_create_function_statement"),
-        ("MySQLDropFunctionExpression", "format_drop_function_statement"),
-        ("MySQLCallExpression", "format_call_statement"),
-        ("MySQLLoadXMLEXpression", "format_load_xml_statement"),
-        ("MySQLFlushExpression", "format_flush_statement"),
-        ("MySQLResetExpression", "format_reset_statement"),
-        ("MySQLCacheIndexExpression", "format_cache_index_statement"),
-        ("MySQLKillExpression", "format_kill_statement"),
-        ("MySQLInstallPluginExpression", "format_install_plugin_statement"),
-        ("MySQLGrantExpression", "format_grant_statement"),
-        ("MySQLCreateUserExpression", "format_create_user_statement"),
-        ("MySQLCloneExpression", "format_clone_statement"),
-        ("MySQLRestartExpression", "format_restart_statement"),
-        ("MySQLHandlerOpenExpression", "format_handler_open_statement"),
-        ("MySQLDoExpression", "format_do_statement"),
+        ("MySQLLoadDataStatement", "format_mysql_load_data_statement"),
+        ("MySQLJSONTableExpression", "format_mysql_json_table_expression"),
+        ("MySQLJSONExtractExpression", "format_mysql_json_extract_expression"),
+        ("MySQLJSONObjectExpression", "format_mysql_json_object_expression"),
+        ("MySQLJSONArrayExpression", "format_mysql_json_array_expression"),
+        ("MySQLJSONContainsExpression", "format_mysql_json_contains_expression"),
+        ("MySQLSTGeomFromTextExpression", "format_mysql_st_geom_from_text_expression"),
+        ("MySQLSTDistanceExpression", "format_mysql_st_distance_expression"),
+        ("MySQLSTWithinExpression", "format_mysql_st_within_expression"),
+        ("MySQLSTContainsExpression", "format_mysql_st_contains_expression"),
+        ("MySQLVectorExpression", "format_mysql_vector_expression"),
+        ("MySQLDistanceEuclideanExpression", "format_mysql_distance_euclidean_expression"),
+        ("MySQLDistanceCosineExpression", "format_mysql_distance_cosine_expression"),
+        ("MySQLDistanceDotExpression", "format_mysql_distance_dot_expression"),
+        ("MySQLMatchAgainstExpression", "format_mysql_match_against_expression"),
+        ("MySQLOptimizerHintExpression", "format_mysql_optimizer_hint_expression"),
+        ("MySQLPartitionMaxValue", "format_mysql_partition_max_value"),
+        ("MySQLPartitionValue", "format_mysql_partition_value"),
+        ("MySQLAddPartitionExpression", "format_mysql_add_partition_expression"),
+        ("MySQLDropPartitionExpression", "format_mysql_drop_partition_expression"),
+        ("MySQLTruncatePartitionExpression", "format_mysql_truncate_partition_expression"),
+        ("MySQLReorganizePartitionExpression", "format_mysql_reorganize_partition_expression"),
+        ("MySQLExchangePartitionExpression", "format_mysql_exchange_partition_expression"),
+        ("MySQLRenameTableStatement", "format_mysql_rename_table_statement"),
+        ("MySQLTableStatement", "format_mysql_table_statement"),
+        ("MySQLValuesExpression", "format_mysql_values_expression"),
+        ("MySQLAnalyzeTableStatement", "format_mysql_analyze_table_statement"),
+        ("MySQLCheckTableStatement", "format_mysql_check_table_statement"),
+        ("MySQLChecksumTableStatement", "format_mysql_checksum_table_statement"),
+        ("MySQLOptimizeTableStatement", "format_mysql_optimize_table_statement"),
+        ("MySQLRepairTableStatement", "format_mysql_repair_table_statement"),
+        ("MySQLCreateProcedureStatement", "format_mysql_create_procedure_statement"),
+        ("MySQLDropProcedureStatement", "format_mysql_drop_procedure_statement"),
+        ("MySQLCreateFunctionStatement", "format_mysql_create_function_statement"),
+        ("MySQLDropFunctionStatement", "format_mysql_drop_function_statement"),
+        ("MySQLCallStatement", "format_mysql_call_statement"),
+        ("MySQLLoadXMLStatement", "format_mysql_load_xml_statement"),
+        ("MySQLFlushStatement", "format_mysql_flush_statement"),
+        ("MySQLResetStatement", "format_mysql_reset_statement"),
+        ("MySQLCacheIndexStatement", "format_mysql_cache_index_statement"),
+        ("MySQLKillStatement", "format_mysql_kill_statement"),
+        ("MySQLInstallPluginStatement", "format_mysql_install_plugin_statement"),
+        ("MySQLGrantStatement", "format_mysql_grant_statement"),
+        ("MySQLCreateUserStatement", "format_mysql_create_user_statement"),
+        ("MySQLCloneStatement", "format_mysql_clone_statement"),
+        ("MySQLRestartStatement", "format_mysql_restart_statement"),
+        ("MySQLHandlerOpenStatement", "format_mysql_handler_open_statement"),
+        ("MySQLDoStatement", "format_mysql_do_statement"),
     ]
 
     @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)
@@ -647,4 +655,44 @@ class TestProtocolMixinReverseCoverage:
         undeclared = mixin_own_methods - proto_methods
         assert not undeclared, (
             f"{mixin.__name__} implements these methods not declared in {protocol.__name__}: {undeclared}"
+        )
+
+
+class TestTheBackendOwnAnswersAreTheEffectiveOnes:
+    """A backend mixin's method must resolve to a backend class.
+
+    The other checks in this file are about the *declaration*: the mixin
+    declares the method, and the protocol declares it too. This one is
+    about the *resolution*. A core class that wins the MRO makes the
+    backend's implementation dead code, and the answer a caller gets is
+    core's rather than the backend's -- so the backend never says what it
+    means about itself, and nothing else in the suite notices: the
+    declaration is there either way.
+
+    A protocol class is a declaration rather than an implementation (its
+    body is ``...``), so a core class may legitimately precede it; only
+    the mixins are held to this.
+    """
+
+    def test_no_backend_method_is_shadowed_by_a_core_class(self):
+        mro = type(mysql_dialect.MySQLDialect()).__mro__
+        own = "rhosocial.activerecord.backend.impl.mysql"
+        shadowed = []
+        for klass in mro:
+            if not klass.__module__.startswith(own):
+                continue
+            if not klass.__name__.endswith("Mixin"):
+                continue
+            for name in vars(klass):
+                if not name.startswith(("format_", "supports_", "get_")):
+                    continue
+                if not callable(vars(klass)[name]):
+                    continue
+                winner = next((k for k in mro if name in k.__dict__), None)
+                if winner is None or winner.__module__.startswith(own):
+                    continue
+                shadowed.append(f"{klass.__name__}.{name} -> {winner.__name__}")
+        assert not shadowed, (
+            "a core class wins these backend methods, so the backend's "
+            f"implementation is dead code: {shadowed}"
         )

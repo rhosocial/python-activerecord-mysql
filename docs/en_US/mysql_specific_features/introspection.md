@@ -457,8 +457,8 @@ Supports configuration via command-line arguments or environment variables:
 ### Querying Table Details
 
 ```bash
-# Get complete table info (columns, indexes, foreign keys)
-python -m rhosocial.activerecord.backend.impl.mysql introspect table users \
+# Describe one view
+python -m rhosocial.activerecord.backend.impl.mysql introspect views users_v \
   --database mydb --user root
 
 # Query only column information
@@ -484,16 +484,19 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect triggers users \
 
 ### Introspection Types
 
-| Type | Description | Table Name Required |
-|------|-------------|---------------------|
-| `tables` | List all tables | No |
-| `views` | List all views | No |
-| `database` | Database information | No |
-| `table` | Complete table details (columns, indexes, foreign keys) | Yes |
-| `columns` | Column information | Yes |
-| `indexes` | Index information | Yes |
-| `foreign-keys` | Foreign key information | Yes |
-| `triggers` | Trigger information | Optional |
+| Type | Description | Name |
+|------|-------------|------|
+| `tables` | List all tables | not accepted |
+| `views` | List all views, or describe one | optional (view) |
+| `database` | Database information | not accepted |
+| `columns` | Column information | required (table) |
+| `indexes` | Index information | required (table) |
+| `foreign-keys` | Foreign key information | required (table) |
+| `triggers` | Trigger information | optional (table) |
+| `table-options` | Engine, row format, collation and byte sizes of one table | optional (table) |
+| `partitions` | One table's partitions | required (table) |
+
+A name the type cannot use is refused (exit 2) rather than ignored.
 
 ### Output Formats
 

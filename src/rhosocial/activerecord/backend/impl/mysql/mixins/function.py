@@ -1,5 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/function.py
-from typing import Dict
+from typing import Dict, Tuple
+
+from rhosocial.activerecord.backend.expression import bases
 
 # MySQL function version support: function_name -> (min_version, max_version)
 # min_version: minimum supported version (inclusive), None = all versions
@@ -98,17 +100,48 @@ class MySQLFunctionMixin:
         return result
 
     def _is_mysql_function_supported(self, func_name: str) -> bool:
-        """Check if a MySQL-specific function is supported based on version."""
+        """Check if a MySQL-specific function is supported based on version.
+
+        This is a capability check, so it answers before adaptation rather
+        than raising: a name with no version bound is available on every
+        server, and a version-bounded one is not claimed until a version is
+        known. ``supports_functions()`` reports the result as-is.
+        """
         version_range = self._MYSQL_FUNCTION_VERSIONS.get(func_name)
         if version_range is None:
             return True
 
-        min_version, max_version = version_range
-
-        if min_version is not None and self.version < min_version:
+        version = self.version_or_none
+        if version is None:
             return False
 
-        if max_version is not None and self.version > max_version:
+        min_version, max_version = version_range
+
+        if min_version is not None and version < min_version:
+            return False
+
+        if max_version is not None and version > max_version:
             return False
 
         return True
+
+    def format_char_length_function(self, expr: "bases.BaseExpression") -> Tuple[str, tuple]:
+        """MySQL's character-length spelling: ``CHAR_LENGTH(operand)``.
+
+        The base spells ``LENGTH``, and on MySQL that answers a different
+        question: measured on 8.0.46 (192.168.1.3:14682),
+        ``LENGTH('aé')`` is 3 -- the byte count, é being two bytes -- while
+        ``CHAR_LENGTH('aé')`` is 2, the characters, so the default would
+        answer a different question than this node asks.
+
+        The node's ``unit`` records the semantics the caller asked for and
+        never enters the SQL, exactly as the base's contract says; the
+        octet and bit semantics have their own dedicated nodes, whose
+        defaults (``OCTET_LENGTH`` / ``BIT_LENGTH``) are spellings MySQL
+        accepts as-is.
+        """
+        operand_sql, operand_params = expr.operand.to_sql()
+        sql = f"CHAR_LENGTH({operand_sql})"
+        if expr.alias:
+            sql = f"{sql} AS {self.format_identifier(expr.alias)}"
+        return sql, tuple(operand_params)

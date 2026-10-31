@@ -41,10 +41,12 @@ and all three tables are asserted exactly, in both directions: a new class
 nobody listed is a failure, and so is a row left behind after the class started
 working.
 
-Discovery is ``collect_expression_classes``, never
-``ExpressionRegistry._registry``. The registry is process-global and grows as
+Discovery is ``collect_expression_classes``, never the render registry in
+``backend.expression.registry``. That registry is process-global and grows as
 sibling modules import other backends, so three runs of this file measured
-three different denominators.
+three different denominators. The two are different mechanisms anyway: the
+registry indexes ``(dialect class, kind)`` to a formatter, while the
+serialization side indexes a kind to its expression class.
 
 Coverage spans two packages. ``backend.expression`` is core's own class
 library, collected here as well as this backend's, because outside the single
@@ -59,7 +61,7 @@ import typing
 
 import pytest
 
-from rhosocial.activerecord.testsuite.utils.expression import (
+from expression_roundtrip_harness import (
     collect_expression_classes,
     make_instance,
     register_all,
@@ -195,6 +197,59 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "types.MySQLEnumType": "values must be a non-empty list of labels.",
     "types.MySQLSetType": "values must be a non-empty list of labels.",
     "types.MySQLVectorType": "dim must be a positive integer.",
+    # Core predicates whose operand slots the generic guess fills with plain
+    # strings (the core's wildcard-split commit calls this out: value nodes in
+    # operand positions, supplied as strings). The factories hand them real
+    # value nodes, exactly as the core's own dummy2 matrix registers them.
+    "predicates.LikePredicate": "op is annotated str and the two operands "
+    "are string forward references, so the generic constructor supplies "
+    "plain strings where value nodes belong and the instance cannot render.",
+    "predicates.ILikePredicate": "column is annotated Any, so the generic "
+    "constructor supplies a plain string where a value node belongs and the "
+    "instance cannot render.",
+    # The string-function family whose operands are ``SQLValue`` forward
+    # references: the generic guess hands plain strings where value nodes
+    # belong, and the classes compare a Literal's value against a bound
+    # (``count.value < 0``) that a string cannot survive on the way back.
+    # The factories hand real value nodes.
+    "functions.string.ChrFunction": "code is a SQLValue forward reference, so "
+    "the generic constructor supplies a plain string where a value node "
+    "belongs.",
+    "functions.string.SpaceFunction": "count is a SQLValue forward reference, "
+    "so the generic constructor supplies a plain string where a value node "
+    "belongs.",
+    "functions.string.LeftFunction": "count is a SQLValue forward reference, "
+    "so the generic constructor supplies a plain string whose second "
+    "construction trips the n >= 0 comparison.",
+    "functions.string.RightFunction": "count is a SQLValue forward reference, "
+    "so the generic constructor supplies a plain string whose second "
+    "construction trips the n >= 0 comparison.",
+    "functions.string.OverlayExpression": "target / replacement / start are "
+    "SQLValue forward references, so the generic constructor supplies plain "
+    "strings where value nodes belong.",
+    "functions.string.SubstringExpression": "target / start are SQLValue "
+    "forward references, so the generic constructor supplies plain strings "
+    "whose second construction trips the start >= 1 comparison.",
+    # The two extract spellings: ``field`` reaches ``normalize_datetime_field``
+    # at construction, and the generic guess is not a word the vocabulary
+    # names.
+    "datetime.ExtractFieldExpression": "field must name a DateTimeField member "
+    "or its word; the generic constructor supplies \"x\".",
+    "datetime._ExtractBase": "field must name a DateTimeField member or its "
+    "word; the generic constructor supplies \"x\".",
+    # The three nodes whose operation is a closed set of *words*, validated at
+    # construction. The generic constructor guesses a string for an unannotated
+    # ``op`` and the node refuses it, so the factories hand a real word form.
+    "operators.ArithmeticOperation": "op is validated against the wire word "
+    "forms (add / sub / mul / div / mod); the generic constructor supplies "
+    "\"x\", which is not one of them.",
+    "query_sources.SetOperation": "op is validated against the wire word "
+    "forms (union / union_all / intersect / except); the generic constructor "
+    "supplies \"x\", which is not one of them.",
+    "predicates.ComparisonPredicate": "op is validated at construction by "
+    "normalize_comparison_operator, which accepts a ComparisonOperator member, "
+    "a wire word, or a SQL character; the generic constructor supplies \"x\", "
+    "which is none of them, so the factory hands ComparisonOperator.EQ.",
 }
 
 #: Every class with a dedicated constructor, in one mapping, so
@@ -255,7 +310,73 @@ def _register_mysql_specials():
 
         return getattr(mod, cls_name)(d, table=Table(d, "t"), partitions=["p0"])
 
+    from rhosocial.activerecord.backend.expression.operators import ArithmeticOperation
+    from rhosocial.activerecord.backend.expression.predicates import (
+        ComparisonOperator,
+        ComparisonPredicate,
+        ILikePredicate,
+        LikeOperator,
+        LikePredicate,
+    )
+    from rhosocial.activerecord.backend.expression.query_sources import SetOperation
+    from rhosocial.activerecord.backend.expression.statements.dql import (
+        QueryStatement,
+    )
+    from rhosocial.activerecord.backend.expression.datetime import (
+        ExtractFieldExpression,
+        _ExtractBase,
+    )
+    from rhosocial.activerecord.backend.expression.functions.string import (
+        ChrFunction,
+        LeftFunction,
+        OverlayExpression,
+        RightFunction,
+        SpaceFunction,
+        SubstringExpression,
+    )
+
     factories = {
+        "predicates.LikePredicate":
+            lambda d: LikePredicate(d, LikeOperator.LIKE, Column(d, "a"), Literal(d, "%x%")),
+        "predicates.ILikePredicate":
+            lambda d: ILikePredicate(d, Column(d, "a"), "%x%"),
+        "predicates.ComparisonPredicate":
+            lambda d: ComparisonPredicate(
+                d, ComparisonOperator.EQ, Column(d, "a"), Literal(d, 1)
+            ),
+        "operators.ArithmeticOperation":
+            lambda d: ArithmeticOperation(
+                d, "add", Column(d, "a"), Column(d, "b")
+            ),
+        "query_sources.SetOperation":
+            lambda d: SetOperation(
+                d,
+                op="union",
+                left=QueryStatement(
+                    d, select=[Column(d, "id")], from_=Table(d, "t")
+                ),
+                right=QueryStatement(
+                    d, select=[Column(d, "id")], from_=Table(d, "other")
+                ),
+            ),
+        "functions.string.ChrFunction": lambda d: ChrFunction(d, Literal(d, 65)),
+        "functions.string.SpaceFunction": lambda d: SpaceFunction(d, Literal(d, 3)),
+        "functions.string.LeftFunction":
+            lambda d: LeftFunction(d, Literal(d, "abcdef"), Literal(d, 3)),
+        "functions.string.RightFunction":
+            lambda d: RightFunction(d, Literal(d, "abcdef"), Literal(d, 3)),
+        "functions.string.OverlayExpression":
+            lambda d: OverlayExpression(
+                d, Literal(d, "abcdef"), Literal(d, "XY"), Literal(d, 2), Literal(d, 3)
+            ),
+        "functions.string.SubstringExpression":
+            lambda d: SubstringExpression(
+                d, Literal(d, "abcdef"), Literal(d, 1), Literal(d, 3)
+            ),
+        "datetime.ExtractFieldExpression":
+            lambda d: ExtractFieldExpression(d, "YEAR", Column(d, "created_at")),
+        "datetime._ExtractBase":
+            lambda d: _ExtractBase(d, "YEAR", Column(d, "created_at")),
         "match_against.MySQLMatchAgainstExpression":
             lambda d: MySQLMatchAgainstExpression(d, columns=["title"], search_string="x"),
         "json.MySQLJSONObjectExpression":
@@ -348,35 +469,26 @@ _register_mysql_specials()
 # :data:`_DECLARED_GAP`, which is where a class that constructs but does not
 # render belongs.
 _UNBUILDABLE = {
-    "statements.ddl_alter.AlterConstraint":
-        "constraint_name defaults to None and the constructor rejects it, so "
-        "the generic placeholder is never reached.",
+    # RESET names its option through the enum the constructor normalises
+    # through, so the generic guess ("x") is refused at construction rather
+    # than at render time.
+    "admin.MySQLResetStatement":
+        "option must be a ResetOption member or its word; the constructor "
+        "normalises through the enum and refuses \"x\" at construction.",
     "statements.ddl_alter.AlterConstraintAction":
-        "same shape as AlterConstraint: an abstract constraint action with no "
-        "constructible default.",
-    "statements.ddl_alter.AlterTableConstraint":
-        "same shape as AlterConstraint.",
-    "statements.ddl_alter.ValidateConstraint":
-        "constraint_name defaults to None and the constructor rejects it.",
-    "statements.ddl_alter.ValidateConstraintAction":
-        "same shape as ValidateConstraint.",
-    "statements.ddl_alter.ValidateTableConstraint":
-        "same shape as ValidateConstraint.",
+        "constraint_kind is a required keyword-only parameter naming the "
+        "branch class, and constraint_name defaults to None and is refused; "
+        "the generic placeholder reaches neither.",
     "statements.ddl_domain.AddDomainCheckAction":
         "check must be a DomainCheckConstraint instance; the generic "
         "constructor supplies a string.",
-    "types.enum_.EnumType":
-        "values defaults to None and EnumType requires a non-empty list.",
-    "types.custom.CustomType":
-        "raw defaults to '' and CustomType requires a SQL type name; dialect "
-        "comes first, so a required raw behind that default is not expressible.",
     "types.MySQLVarBinaryType":
         "length defaults to None and the class requires a length, so no "
         "signature makes it required at the filler's call site.",
     "uuid.UUIDConstantExpression":
         "which must name 'nil' or 'max' and __init__ rejects anything else, so "
         "the filler's guess is refused at construction.",
-    "uuid.UUIDCastExpression":
+    "uuid.UUIDCastFunction":
         "expression is annotated Any, so the filler supplies a string where the "
         "node requires an expression to cast.",
     "uuid.UUIDGenerationExpression":
@@ -409,30 +521,40 @@ _DECLARED_GAP = {
     # Each of these has a ``supports_*`` method answering True while the
     # formatter the expression dispatches to does not exist, so a caller that
     # asks whether the feature is available is told yes and is then refused.
-    "statements.ddl_schema.CreateSchemaExpression": (
+    "statements.ddl_schema.CreateSchemaStatement": (
         "format_create_schema_statement",
         "DECLARED BUT NOT RENDERED. MySQLSchemaMixin.supports_create_schema() "
         "answers True -- MySQL takes SCHEMA as a synonym for DATABASE -- yet "
         "MySQLDialect defines no format_create_schema_statement. The dialect "
         "claims the capability and refuses the statement.",
     ),
-    "statements.ddl_schema.DropSchemaExpression": (
+    "statements.ddl_schema.DropSchemaStatement": (
         "format_drop_schema_statement",
-        "DECLARED BUT NOT RENDERED. Same shape as CreateSchemaExpression: "
+        "DECLARED BUT NOT RENDERED. Same shape as CreateSchemaStatement: "
         "MySQLSchemaMixin.supports_drop_schema() answers True and "
         "format_drop_schema_statement is absent.",
     ),
     "table_expr.MySQLInlineIndexExpression": (
-        "format_inline_index",
+        "format_mysql_inline_index_expression",
         "DECLARED BUT NOT RENDERED. MySQLDDLTableMixin."
         "supports_inline_index() answers True, and the expression dispatches "
-        "to format_inline_index, which MySQLDialect does not define. CREATE "
+        "to format_mysql_inline_index_expression, which MySQLDialect does not define. CREATE "
         "TABLE renders its inline indexes through format_index_definition, so "
         "the class is unreachable from any rendering path in this backend -- "
         "nothing in src or tests constructs it.",
     ),
+    # --- The clause travels as a node; its rendering is inline. -----------
+    "load_data.LoadDataOptions": (
+        "format_load_data_options",
+        "DECLARED BUT NOT RENDERED. The LOAD DATA statement's own formatter "
+        "renders the options inline, reading the fields this clause declares; "
+        "no dialect defines a standing-alone entry for it. The clause is a "
+        "node because a constructor parameter is a scalar or an expression "
+        "instance (§10) and a dataclass is neither -- not because it renders "
+        "by itself.",
+    ),
     # --- SQL/PGQ: property graphs are not a MySQL feature. ----------------
-    "graph.AlterPropertyGraphExpression": (
+    "graph.AlterPropertyGraphStatement": (
         "format_alter_property_graph_statement",
         "SQL/PGQ: MySQL has no property graphs, so no "
         "format_alter_property_graph_statement exists.",
@@ -441,17 +563,19 @@ _DECLARED_GAP = {
         "format_graph_columns_clause",
         "SQL/PGQ graph column list; no format_graph_columns_clause.",
     ),
-    "graph.CreatePropertyGraphExpression": (
+    "graph.CreatePropertyGraphStatement": (
         "format_create_property_graph_statement",
         "SQL/PGQ: no format_create_property_graph_statement.",
     ),
-    "graph.DropPropertyGraphExpression": (
+    "graph.DropPropertyGraphStatement": (
         "format_drop_property_graph_statement",
         "SQL/PGQ: no format_drop_property_graph_statement.",
     ),
-    "graph.EdgeTable": (
-        "format_edge_table",
-        "SQL/PGQ edge table; no format_edge_table.",
+    "graph.EdgeTableDefinition": (
+        "format_edge_table_definition",
+        "SQL/PGQ edge table definition; no format_edge_table_definition. The "
+        "row was pinned as graph.EdgeTable / format_edge_table until core "
+        "renamed the declaration class.",
     ),
     "graph.GraphTableExpression": (
         "format_graph_table_expression",
@@ -466,18 +590,18 @@ _DECLARED_GAP = {
         "SQL/PGQ vertex table; no format_vertex_table.",
     ),
     # --- PIVOT / UNPIVOT are T-SQL and Oracle, not MySQL. -----------------
-    "pivot.PivotExpression": (
-        "format_pivot_expression",
+    "pivot.Pivot": (
+        "format_pivot",
         "PIVOT is T-SQL/Oracle; MySQL spells it as GROUP BY with conditional "
         "aggregates and declares no formatter.",
     ),
-    "pivot.UnpivotExpression": (
-        "format_unpivot_expression",
+    "pivot.Unpivot": (
+        "format_unpivot",
         "UNPIVOT is T-SQL/Oracle; MySQL declares no formatter.",
     ),
     # --- Case-insensitive matching is written LOWER() = LOWER() here. -----
-    "predicates.ILIKEExpression": (
-        "format_ilike_expression",
+    "predicates.ILikePredicate": (
+        "format_ilike_predicate",
         "MySQL has no ILIKE operator; case-insensitive matching is written "
         "LOWER(a) = LOWER(b), and no formatter exists.",
     ),
@@ -489,8 +613,8 @@ _DECLARED_GAP = {
         "base that implements it.",
     ),
     # --- COMMENT ON is SQL-standard/PostgreSQL. ---------------------------
-    "statements.ddl_comment.CommentOnExpression": (
-        "format_comment_statement",
+    "statements.ddl_comment.CommentOnStatement": (
+        "format_comment_on_statement",
         "COMMENT ON is SQL-standard/PostgreSQL. MySQL spells a table comment "
         "as a CREATE TABLE option and a column comment inline, which "
         "format_column_definition already renders.",
@@ -506,23 +630,30 @@ _DECLARED_GAP = {
     # the dispatch, which is the same declared gap as the property-graph rows
     # above and stated for the same reason. Naming a sequence is untouched:
     # SequenceNameMixin stays, so Sequence(dialect, "s").to_sql() renders.
-    "statements.ddl_sequence.CreateSequenceExpression": (
+    "statements.ddl_sequence.CreateSequenceStatement": (
         "format_create_sequence_statement",
         "MySQL has no sequence object; AUTO_INCREMENT columns are how rows are "
         "numbered. MySQLDialect mixes in no base providing this formatter.",
     ),
-    "statements.ddl_sequence.DropSequenceExpression": (
+    "statements.ddl_sequence.DropSequenceStatement": (
         "format_drop_sequence_statement",
         "MySQL has no sequence object; no format_drop_sequence_statement.",
     ),
-    "statements.ddl_sequence.AlterSequenceExpression": (
+    "statements.ddl_sequence.AlterSequenceStatement": (
         "format_alter_sequence_statement",
         "MySQL has no sequence object; no format_alter_sequence_statement.",
     ),
     # --- XML functions are not in MySQL. -----------------------------------
+    # The S1-c PASSING clause rides the XML querying expressions; MySQL has
+    # none of that family, so the clause's own formatter is absent too and the
+    # dispatch refuses it -- the same declared gap as the rows below it.
+    "xml.PassingClause": (
+        "format_passing_clause",
+        "XML functions are not in MySQL; no format_passing_clause.",
+    ),
     "xml.XMLAggExpression": (
-        "format_xmlagg_expression",
-        "XML functions are not in MySQL; no format_xmlagg_expression.",
+        "format_xml_agg_expression",
+        "XML functions are not in MySQL; no format_xml_agg_expression.",
     ),
     # The four that used to be pinned in _UNBUILDABLE, because the harness read
     # their ``Sequence[X]`` parameter as the catalogue object Sequence and could
@@ -531,60 +662,80 @@ _DECLARED_GAP = {
     # exists. They were unreachable from the matrix before and are accounted for
     # here now, which is the outcome the _UNBUILDABLE rows asked for.
     "xml.XMLAttributesExpression": (
-        "format_xmlattributes_expression",
-        "XML functions are not in MySQL; no format_xmlattributes_expression. "
+        "format_xml_attributes_expression",
+        "XML functions are not in MySQL; no format_xml_attributes_expression. "
         "This row was in _UNBUILDABLE until testsuite stopped reading "
         "attributes: Sequence[XMLAttribute] as the catalogue object Sequence.",
     ),
     "xml.XMLConcatExpression": (
-        "format_xmlconcat_expression",
-        "XML functions are not in MySQL; no format_xmlconcat_expression. This "
+        "format_xml_concat_expression",
+        "XML functions are not in MySQL; no format_xml_concat_expression. This "
         "row was in _UNBUILDABLE until testsuite stopped reading parts: "
         "Sequence[BaseExpression] as the catalogue object Sequence.",
     ),
     "xml.XMLForestExpression": (
-        "format_xmlforest_expression",
-        "XML functions are not in MySQL; no format_xmlforest_expression. This "
+        "format_xml_forest_expression",
+        "XML functions are not in MySQL; no format_xml_forest_expression. This "
         "row was in _UNBUILDABLE until testsuite stopped reading items: "
         "Sequence[XMLForestItem] as the catalogue object Sequence.",
     ),
     "xml.XMLTableExpression": (
-        "format_xmltable_expression",
-        "XML functions are not in MySQL; no format_xmltable_expression. This "
+        "format_xml_table_expression",
+        "XML functions are not in MySQL; no format_xml_table_expression. This "
         "row was in _UNBUILDABLE until testsuite stopped reading columns: "
         "Sequence[XMLTableColumn] as the catalogue object Sequence.",
     ),
     "xml.XMLCommentExpression": (
-        "format_xmlcomment_expression",
-        "XML functions are not in MySQL; no format_xmlcomment_expression.",
+        "format_xml_comment_expression",
+        "XML functions are not in MySQL; no format_xml_comment_expression.",
     ),
     "xml.XMLElementExpression": (
-        "format_xmlelement_expression",
-        "XML functions are not in MySQL; no format_xmlelement_expression.",
+        "format_xml_element_expression",
+        "XML functions are not in MySQL; no format_xml_element_expression.",
     ),
-    "xml.XMLExistsExpression": (
-        "format_xmlexists_expression",
-        "XML functions are not in MySQL; no format_xmlexists_expression.",
+    "xml.XMLExistsPredicate": (
+        "format_xmlexists_predicate",
+        "XML functions are not in MySQL; no format_xmlexists_predicate.",
     ),
     "xml.XMLPIExpression": (
         "format_xmlpi_expression",
         "XML functions are not in MySQL; no format_xmlpi_expression.",
     ),
     "xml.XMLParseExpression": (
-        "format_xmlparse_expression",
-        "XML functions are not in MySQL; no format_xmlparse_expression.",
+        "format_xml_parse_expression",
+        "XML functions are not in MySQL; no format_xml_parse_expression.",
     ),
     "xml.XMLQueryExpression": (
-        "format_xmlquery_expression",
-        "XML functions are not in MySQL; no format_xmlquery_expression.",
+        "format_xml_query_expression",
+        "XML functions are not in MySQL; no format_xml_query_expression.",
     ),
     "xml.XMLRootExpression": (
-        "format_xmlroot_expression",
-        "XML functions are not in MySQL; no format_xmlroot_expression.",
+        "format_xml_root_expression",
+        "XML functions are not in MySQL; no format_xml_root_expression.",
     ),
     "xml.XMLSerializeExpression": (
-        "format_xmlserialize_expression",
-        "XML functions are not in MySQL; no format_xmlserialize_expression.",
+        "format_xml_serialize_expression",
+        "XML functions are not in MySQL; no format_xml_serialize_expression.",
+    ),
+    # --- The standard spelling of what MySQL renders under its own node. ----
+    # Both rows are the honest outcome of splitting one entry into two: this
+    # dialect renders CREATE/DROP FUNCTION through MySQLCreateFunctionStatement
+    # and MySQLDropFunctionStatement, whose contract is the stored routine MySQL
+    # actually has, and it names no entry for core's SQL/PSM nodes. Those two
+    # used to reach the MySQL entry, which read ``expr.name`` off a node that
+    # carries ``expr.function`` and raised AttributeError -- a claim of support
+    # followed by a crash. Naming no entry is the support claim being withdrawn.
+    "statements.ddl_function.CreateFunctionStatement": (
+        "format_create_function_statement",
+        "MySQL models CREATE FUNCTION as a stored routine "
+        "(MySQLCreateFunctionStatement, entry format_mysql_create_function_statement); "
+        "core's SQL/PSM node carries function/parameters/language, and this "
+        "dialect declares no entry for that shape.",
+    ),
+    "statements.ddl_function.DropFunctionStatement": (
+        "format_drop_function_statement",
+        "Same split as CreateFunctionStatement: MySQLDropFunctionStatement "
+        "renders DROP FUNCTION; core's node has no entry here.",
     ),
 }
 
@@ -600,52 +751,34 @@ _DECLARED_GAP = {
 # interesting half -- every row below is a refusal that is the right answer to
 # a wrong value.
 _NOT_RENDERED = {
-    # --- A MySQL formatter shadows the core one and reads other slots. ----
-    "statements.ddl_function.CreateFunctionExpression": (
-        "AttributeError",
-        "MySQLRoutineMixin.format_create_function_statement reads expr.name; "
-        "core's CreateFunctionExpression carries expr.function, so the MySQL "
-        "routine formatter shadows the core one for an expression it cannot "
-        "render.",
-    ),
-    "statements.ddl_function.DropFunctionExpression": (
-        "AttributeError",
-        "Same shadowing as CreateFunctionExpression.",
-    ),
-    "query_sources.JSONTableExpression": (
-        "AttributeError",
-        "MySQLJSONFunctionMixin.format_json_table_expression reads json_doc / "
-        "path / columns; core's JSONTableExpression exposes a different "
-        "shape, so the MySQL formatter cannot read it.",
-    ),
     # --- The dialect correctly refuses what the harness invented. ---------
-    "collation.CollateExpression": (
+    "collation.CollateFunction": (
         "ValueError",
         "The generic constructor supplies \"x\" for collation_name and MySQL's "
         "validate_collation_name refuses a collation it does not know. The "
         "refusal is the right answer to a wrong value.",
     ),
-    "routine.MySQLCallExpression": (
+    "routine.MySQLCallStatement": (
         "TypeError",
         "name must be a Procedure or Function object; the generic constructor "
         "supplies a string. Refusing is the object-kind guard working.",
     ),
-    "routine.MySQLCreateFunctionExpression": (
+    "routine.MySQLCreateFunctionStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
     ),
-    "routine.MySQLCreateProcedureExpression": (
+    "routine.MySQLCreateProcedureStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
     ),
-    "routine.MySQLDropFunctionExpression": (
+    "routine.MySQLDropFunctionStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
     ),
-    "routine.MySQLDropProcedureExpression": (
+    "routine.MySQLDropProcedureStatement": (
         "TypeError",
         "name must be a routine object; the generic constructor supplies a "
         "string.",
@@ -718,30 +851,92 @@ _NOT_RENDERED = {
         "A window specification needs at least one of PARTITION BY / ORDER BY "
         "/ FRAME; the generic constructor supplies none.",
     ),
-    "admin.MySQLFlushExpression": (
+    "admin.MySQLFlushStatement": (
         "ValueError",
         "FLUSH needs at least one option; the generic constructor supplies an "
         "empty list.",
     ),
-    "admin.MySQLHandlerCloseExpression": (
+    "admin.MySQLHandlerCloseStatement": (
         "TypeError",
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    "admin.MySQLHandlerOpenExpression": (
+    "admin.MySQLHandlerOpenStatement": (
         "TypeError",
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    "admin.MySQLHandlerReadExpression": (
+    "admin.MySQLHandlerReadStatement": (
         "TypeError",
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    "admin.MySQLResetExpression": (
+    # --- The declared-result annotations render through a formatter that
+    # --- reads an optional field not every node declares. ----------------
+    # ``format_declared_result`` (a core dialect mixin) reads
+    # ``expr.source.alias`` directly. ``alias`` is an optional field and
+    # not every node declares it -- ``Literal`` has none -- so any
+    # annotation over a bare literal is refused with AttributeError from
+    # inside the renderer. §11.2 spells the expectation: an optional field
+    # is a class attribute with a default, and a formatter reads declared
+    # fields. These rows name the defect so the table says to come back
+    # when the formatter or the base declares it.
+    "declared._Annotation": (
         "AttributeError",
-        "option must be a ResetOption member; the generic constructor supplies "
-        "a string.",
+        "format_declared_result reads expr.source.alias; the annotation's "
+        "source is a Literal, which declares no alias. The same defect sits "
+        "under every row below -- one entry per class because the table is "
+        "keyed by class.",
+    ),
+    "declared.ArrayAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.BinaryAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.BooleanAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.IntegerAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.JSONAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.NumberAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.TemporalAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.TextAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.UUIDAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
+    ),
+    "declared.XMLAnnotation": (
+        "AttributeError",
+        "format_declared_result reads expr.source.alias; a Literal source "
+        "declares no alias.",
     ),
     "alter_column.MySQLAddColumn": (
         "AttributeError",
@@ -753,7 +948,7 @@ _NOT_RENDERED = {
         "Temporal options cannot be empty, and the generic constructor cannot "
         "know which one to pick.",
     ),
-    "json_duality_view.CreateJsonDualityViewExpression": (
+    "json_duality_view.CreateJsonDualityViewStatement": (
         "AttributeError",
         "The JSON duality view takes duality object specs; the generic "
         "constructor supplies strings.",
@@ -771,35 +966,30 @@ _NOT_RENDERED = {
         "subquery must be a duality object select spec; the generic "
         "constructor supplies a string.",
     ),
-    "maintenance.MySQLAnalyzeTableExpression": (
+    "maintenance.MySQLAnalyzeTableStatement": (
         "ValueError",
         "ANALYZE TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLCheckTableExpression": (
+    "maintenance.MySQLCheckTableStatement": (
         "ValueError",
         "CHECK TABLE needs at least one table; the generic constructor supplies "
         "an empty list.",
     ),
-    "maintenance.MySQLChecksumTableExpression": (
+    "maintenance.MySQLChecksumTableStatement": (
         "ValueError",
         "CHECKSUM TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLOptimizeTableExpression": (
+    "maintenance.MySQLOptimizeTableStatement": (
         "ValueError",
         "OPTIMIZE TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
     ),
-    "maintenance.MySQLRepairTableExpression": (
+    "maintenance.MySQLRepairTableStatement": (
         "ValueError",
         "REPAIR TABLE needs at least one table; the generic constructor "
         "supplies an empty list.",
-    ),
-    "maintenance.MySQLTableMaintenanceExpression": (
-        "ValueError",
-        "A whole-table maintenance statement needs at least one table; the "
-        "generic constructor supplies an empty list.",
     ),
     "optimizer_hint.MySQLOptimizerHintExpression": (
         "AttributeError",
@@ -826,40 +1016,35 @@ _NOT_RENDERED = {
         "target_count must be below current_count; the generic constructor "
         "supplies 1 for both.",
     ),
-    "rename_table.MySQLRenameTableExpression": (
+    "rename_table.MySQLRenameTableStatement": (
         "ValueError",
         "renames must be a non-empty list of (old, new) Table pairs; the "
         "generic constructor supplies an empty list.",
     ),
-    "statements.ddl_alter.AddColumn": (
+    "statements.ddl_alter.AddColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_alter.AddTableConstraint": (
+    "statements.ddl_alter.AddTableConstraintAction": (
         "AttributeError",
         "constraint must be a TableConstraint; the generic constructor supplies "
         "a string.",
     ),
-    "statements.ddl_alter.ChangeColumn": (
+    "statements.ddl_alter.ChangeColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_alter.ModifyColumn": (
+    "statements.ddl_alter.ModifyColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
     ),
-    "statements.ddl_trigger.CreateTriggerExpression": (
+    "statements.ddl_trigger.CreateTriggerStatement": (
         "AttributeError",
         "timing must be a TriggerTiming member; the generic constructor "
         "supplies a string.",
-    ),
-    "statements.ddl_table.ColumnConstraint": (
-        "ValueError",
-        "constraint_type must be a ColumnConstraintType member or its string "
-        "value; the generic constructor supplies \"x\".",
     ),
     "statements.ddl_table.ReferencesClause": (
         "ValueError",
@@ -873,19 +1058,121 @@ _NOT_RENDERED = {
         "MERGE at all -- upsert is ON DUPLICATE KEY UPDATE -- so this row is "
         "core's shape rather than MySQL's.",
     ),
-    "statements.dml.MergeExpression": (
+    "statements.dml.MergeStatement": (
         "AttributeError",
         "source must be a row source; the generic constructor supplies a "
         "string. MySQL has no MERGE.",
-    ),
-    "table_expr.MySQLStorageOptionsExpression": (
-        "AttributeError",
-        "Built without the options mapping its formatter reads.",
     ),
     "table_statement.MySQLValuesExpression": (
         "ValueError",
         "VALUES needs at least one ROW(...); the generic constructor supplies "
         "an empty list.",
+    ),
+}
+
+# Classes that build, whose round-trip through the artifact does not deliver
+# an equivalent instance -- whether the parameter comparison catches it or the
+# re-render after the trip does -- for a reason that lives outside this
+# repository. Keyed by fqn suffix; the value is
+# ``(exception type name, reason)`` and both are asserted, so a row cannot
+# quietly start describing a different failure.
+#
+# The serialization half of this matrix has no other escape hatch, and it
+# needs exactly one: every buildable class must survive all three channels,
+# and these classes cannot, because a *core* class breaks the trip -- an enum
+# whose spelling the XML channel mangles, an enum whose member the value
+# vocabulary refuses to write, a constructor that refuses the word its own
+# artifact carries, or a parameter whose type has no artifact form at all.
+# The owner is the core worktree; each reason names the defect and the class
+# it sits in, and the exactness test below makes a core fix delete its own
+# row: once the class round-trips, a row left behind is a failure.
+_ROUNDTRIP_DEFECT = {
+    # --- A constructor that keeps the artifact's word instead of the -------
+    # --- member, so the restored parameter is not the one that went out. ---
+    # §10: the constructor takes the serialized form and normalises it. These
+    # store what the artifact hands back, so a parameter that left as a member
+    # returns as a plain ``str`` -- and everything downstream that reads
+    # ``.value`` only finds it on the member.
+    #
+    # The four enum families below are the residue of a core fix that made the
+    # member *be* its word on the wire: the artifact now carries 'DOCUMENT',
+    # 'CASCADE', 'VIRTUAL' as a plain string, and the reader has nothing left
+    # to normalise with. The spelling half of the defect is gone; the
+    # normalisation half is not.
+    "xml.XMLParseExpression": (
+        "AssertionError",
+        "CORE DEFECT: core's XMLParseExpression stores ``document_type`` raw, "
+        "so the word the artifact carries ('DOCUMENT') comes back as a str "
+        "where the original carried the XMLParseDocumentType member. The "
+        "spelling itself is now right -- the XML channel writes the word, not "
+        "'XMLParseDocumentType.DOCUMENT'.",
+    ),
+    "xml.XMLSerializeExpression": (
+        "AssertionError",
+        "CORE DEFECT: same raw-store of ``document_type`` in "
+        "XMLSerializeExpression -- the restored parameter is the word, not the "
+        "XMLSerializeDocumentType member.",
+    ),
+    "statements.ddl_table.ForeignKeyConstraint": (
+        "AssertionError",
+        "CORE DEFECT: core's ReferentialAction is a str enum now, so the "
+        "artifact carries 'CASCADE' -- and TableForeignKeyConstraint stores "
+        "``on_delete`` / ``on_update`` raw, so the restored constraint carries "
+        "the word where the original carried the member.",
+    ),
+    "statements.ddl_table.ColumnGeneratedConstraint": (
+        "AssertionError",
+        "CORE DEFECT: core's GeneratedColumnType is a str enum now, so the "
+        "artifact carries 'VIRTUAL' -- but the constructor stores "
+        "``storage_type`` without normalising, so the restored constraint "
+        "carries the word where the original carried the member.",
+    ),
+    # --- A constructor that refuses its own artifact's word. ---------------
+    # §10: the constructor accepts the serialized form and normalises it.
+    # These two do the opposite -- the entry is narrower than the wire.
+    "statements.ddl_table.CreateTableCloneStatement": (
+        "TypeError",
+        "CORE DEFECT: the constructor refuses the word its artifact carries "
+        "('mode must be a CreateTableCloneMode, got str') instead of "
+        "normalising it, so the JSON channel's own output cannot be read "
+        "back.",
+    ),
+    "statements.ddl_trigger.CreateTriggerStatement": (
+        "AssertionError",
+        "CORE DEFECT: the constructor stores ``level`` raw, so the restored "
+        "instance carries the plain word where the original carried the "
+        "TriggerLevel member -- and the formatter reads ``.value``, which "
+        "only the member has.",
+    ),
+    "graph.GraphEdge": (
+        "AssertionError",
+        "CORE DEFECT: the constructor stores ``direction`` raw; the restored "
+        "instance carries the plain word, and format_graph_edge's "
+        "isinstance guard refuses it on re-render.",
+    ),
+    "advanced_functions.ExistsPredicate": (
+        "AssertionError",
+        "CORE DEFECT: the constructor renders its subquery input at "
+        "construction time (``query_input, query_params = query.to_sql()``), "
+        "and the artifact carries that tuple as a JSON array; the "
+        "constructor does not normalise the array back to a tuple, so the "
+        "restored statement binds a list where the original bound a tuple.",
+    ),
+    # --- A parameter whose type has no artifact form. -----------------------
+    # §10 names exactly two parameter forms: a language-neutral scalar, or an
+    # expression instance. A dataclass is neither, and the core's own
+    # artifact-contract test states the absence: a dataclass has no place in
+    # the artifact at all.
+    "graph.GraphTableExpression": (
+        "TypeError",
+        "CORE DEFECT: GraphColumn is a dataclass carried in the columns "
+        "parameter -- neither scalar nor node, so LiteralKind.of refuses it "
+        "and the graph-table contract has no artifact form.",
+    ),
+    "statements.ddl_view.CreateViewStatement": (
+        "TypeError",
+        "CORE DEFECT: ViewOptions is a dataclass carried in the options "
+        "parameter -- neither scalar nor node, so LiteralKind.of refuses it.",
     ),
 }
 
@@ -964,7 +1251,18 @@ class TestExpressionSerialization:
 
     def test_get_params_roundtrip(self, expr_case, mysql_dialect):
         suffix, instance = expr_case
-        roundtrip_expression(suffix, instance, mysql_dialect)
+        try:
+            roundtrip_expression(suffix, instance, mysql_dialect)
+        except Exception as exc:
+            row = _ROUNDTRIP_DEFECT.get(suffix)
+            assert row is not None, (
+                f"{suffix}: round-trip raised {type(exc).__name__}, which is "
+                f"not a named row in _ROUNDTRIP_DEFECT: {exc}"
+            )
+            assert type(exc).__name__ == row[0], (
+                f"{suffix}: _ROUNDTRIP_DEFECT says {row[0]} but it raised "
+                f"{type(exc).__name__}: {exc}"
+            )
 
 
 class TestExpressionRendering:
@@ -1007,7 +1305,18 @@ class TestExpressionRendering:
         assert isinstance(rendered, tuple) and len(rendered) == 2, (
             f"{suffix}: to_sql() returned {rendered!r}, expected a (sql, params) tuple"
         )
-        sql_consistent(suffix, instance, mysql_dialect)
+        try:
+            sql_consistent(suffix, instance, mysql_dialect)
+        except Exception as exc:
+            # A class whose round-trip is broken by a named defect cannot be
+            # asked to render identically *after* that trip: the restored
+            # instance is exactly the one the defect mangles. The row already
+            # accounts for the class, and test_roundtrip_defect_table_is_exact
+            # is what says the row still describes a live failure.
+            assert suffix in _ROUNDTRIP_DEFECT, (
+                f"{suffix}: the restored instance failed where the original "
+                f"rendered, and no _ROUNDTRIP_DEFECT row accounts for it: {exc}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -1075,6 +1384,59 @@ def _verdicts(mysql_dialect):
         else:
             out["probe"].add(suffix)
     return out
+
+
+def _roundtrip_defects(mysql_dialect):
+    """What every buildable class actually does when asked to round-trip.
+
+    The observed half of ``_ROUNDTRIP_DEFECT``'s exactness assertion, built
+    the same way the two tests build their cases: every buildable class,
+    constructed, walked through all three channels, and -- where the
+    original renders -- asked to render identically after the trip.
+    ``sql_consistent`` guards its own ``to_sql`` call, so a class whose
+    rendering is refused contributes only its serialization verdict.
+    """
+    failures = {}
+    for fqn in _MATRIX_FQNS:
+        instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect)
+        if instance is None:
+            continue
+        suffix = _suffix(fqn)
+        try:
+            roundtrip_expression(suffix, instance, mysql_dialect)
+            sql_consistent(suffix, instance, mysql_dialect)
+        except Exception as exc:
+            failures[suffix] = type(exc).__name__
+    return failures
+
+
+def test_roundtrip_defect_table_is_exact(mysql_dialect):
+    """_ROUNDTRIP_DEFECT lists every class whose round-trip fails, and only those.
+
+    A row means the trip does not deliver an equivalent instance -- whether
+    the parameter comparison catches it or the re-render does. Exact in both
+    directions, like the other tables: a core fix that makes a class
+    round-trip leaves a stale row behind, and that is a failure -- the table
+    cannot outlive the defect it describes. A new failure with no row is a
+    failure too, for the usual reason.
+    """
+    observed = _roundtrip_defects(mysql_dialect)
+    missing = sorted(set(observed) - set(_ROUNDTRIP_DEFECT))
+    stale = sorted(set(_ROUNDTRIP_DEFECT) - set(observed))
+    assert not missing, (
+        "these classes fail to round-trip and are not pinned in "
+        f"_ROUNDTRIP_DEFECT: {missing}"
+    )
+    assert not stale, (
+        f"these rows in _ROUNDTRIP_DEFECT are stale -- the classes now "
+        f"round-trip (a core fix landed; delete the rows): {stale}"
+    )
+    for suffix, (exc_name, reason) in _ROUNDTRIP_DEFECT.items():
+        assert exc_name == observed[suffix], (
+            f"_ROUNDTRIP_DEFECT[{suffix!r}] says {exc_name} but it raises "
+            f"{observed[suffix]}"
+        )
+        assert reason.strip(), f"_ROUNDTRIP_DEFECT[{suffix!r}] has no reason"
 
 
 def test_unbuildable_table_is_exact(mysql_dialect):
@@ -1183,7 +1545,7 @@ def test_the_three_render_verdicts_partition_the_matrix(mysql_dialect):
 
 def test_constructor_tables_are_exact():
     """Every row has a registered factory, and every factory has a row."""
-    from rhosocial.activerecord.testsuite.utils import expression as harness
+    import expression_roundtrip_harness as harness
 
     installed = set(harness._SPECIAL_REGISTRY) - set(harness.special_constructors())
     listed = set(DEDICATED_CONSTRUCTORS)

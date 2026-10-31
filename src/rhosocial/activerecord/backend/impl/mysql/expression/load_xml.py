@@ -21,23 +21,29 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class LoadXMLPriority(Enum):
+class LoadXMLPriority(str, Enum):
     """LOW_PRIORITY / CONCURRENT selector."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     NONE = ""
     LOW_PRIORITY = "LOW_PRIORITY"
     CONCURRENT = "CONCURRENT"
 
 
-class LoadXMLConflictMode(Enum):
+class LoadXMLConflictMode(str, Enum):
     """REPLACE / IGNORE selector."""
+
+    #: A member *is* the word it carries; see ``SortDirection.__str__``.
+    __str__ = str.__str__
 
     NONE = ""
     REPLACE = "REPLACE"
     IGNORE = "IGNORE"
 
 
-class MySQLLoadXMLEXpression(BaseExpression):
+class MySQLLoadXMLStatement(BaseExpression):
     """Represent the MySQL ``LOAD XML`` statement.
 
     Attributes:
@@ -80,8 +86,11 @@ class MySQLLoadXMLEXpression(BaseExpression):
         self.file_path: str = file_path
         self.table: "Table" = table
         self.local: bool = local
-        self.priority: LoadXMLPriority = priority
-        self.conflict_mode: LoadXMLConflictMode = conflict_mode
+        # The member or the word it spells (§10: wide entry, normalised
+        # storage): an artifact carries the word, and the formatter reads
+        # ``.value``, which only the member has.
+        self.priority: LoadXMLPriority = LoadXMLPriority(priority)
+        self.conflict_mode: LoadXMLConflictMode = LoadXMLConflictMode(conflict_mode)
         self.character_set: Optional[str] = character_set
         self.rows_identified_by: Optional[str] = rows_identified_by
         self.ignore_count: Optional[int] = ignore_count
@@ -113,4 +122,4 @@ class MySQLLoadXMLEXpression(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_load_xml_statement"
+        return "format_mysql_load_xml_statement"

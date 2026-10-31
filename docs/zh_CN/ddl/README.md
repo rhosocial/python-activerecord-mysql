@@ -6,14 +6,14 @@ MySQL 后端支持与核心库相同的类型安全 DDL 表达式。
 
 | 操作 | MySQL 支持 | 备注 |
 |----------|--------------|-------|
-| `CreateTableExpression` | ✅ 完整 | PRIMARY KEY, NOT NULL, UNIQUE 等 |
-| `DropTableExpression` | ✅ 完整 | IF EXISTS 支持 |
-| `AlterTableExpression` | ✅ 完整 | ADD/DROP COLUMN |
-| `CreateIndexExpression` | ✅ 完整 | 索引类型 (BTREE, HASH) |
-| `DropIndexExpression` | ✅ 完整 | |
-| `CreateViewExpression` | ✅ 完整 | MySQL ALGORITHM 选项 |
-| `DropViewExpression` | ✅ 完整 | |
-| `CreateTableExpression` | ✅ 完整 | 分区支持（RANGE, LIST, HASH, KEY） |
+| `CreateTableStatement` | ✅ 完整 | PRIMARY KEY, NOT NULL, UNIQUE 等 |
+| `DropTableStatement` | ✅ 完整 | IF EXISTS 支持 |
+| `AlterTableStatement` | ✅ 完整 | ADD/DROP COLUMN |
+| `CreateIndexStatement` | ✅ 完整 | 索引类型 (BTREE, HASH) |
+| `DropIndexStatement` | ✅ 完整 | |
+| `CreateViewStatement` | ✅ 完整 | MySQL ALGORITHM 选项 |
+| `DropViewStatement` | ✅ 完整 | |
+| `CreateTableStatement` | ✅ 完整 | 分区支持（RANGE, LIST, HASH, KEY） |
 | `PartitionByRange` | ✅ 完整 | RANGE 和 RANGE COLUMNS 分区 |
 | `PartitionByList` | ✅ 完整 | LIST 和 LIST COLUMNS 分区 |
 | `PartitionByHash` | ✅ 完整 | HASH 和 LINEAR HASH 分区 |
@@ -39,7 +39,7 @@ partition = MySQLPartitionByRange(
     ]
 )
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect,
     table_name="orders",
     columns=[...],
@@ -54,7 +54,7 @@ MySQL 视图支持 ALGORITHM 来控制执行方式：
 ```python
 from rhosocial.activerecord.backend.expression import ViewOptions, ViewAlgorithm
 
-create_view = CreateViewExpression(
+create_view = CreateViewStatement(
     dialect,
     view_name="optimized_view",
     query=query,
@@ -67,7 +67,7 @@ create_view = CreateViewExpression(
 MySQL 支持指定存储引擎：
 
 ```python
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect,
     table_name="users",
     columns=columns,

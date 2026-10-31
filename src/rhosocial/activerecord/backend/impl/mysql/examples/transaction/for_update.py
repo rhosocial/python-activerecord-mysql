@@ -28,20 +28,22 @@ dialect = backend.dialect
 
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
-    QueryExpression,
-    UpdateExpression,
+    DropTableStatement,
+    QueryStatement,
+    UpdateStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
 from rhosocial.activerecord.backend.expression.query_parts import ForUpdateClause  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefaultConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
 from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
@@ -49,11 +51,11 @@ from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
 dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
 dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "accounts"),
     columns=[
@@ -61,22 +63,22 @@ create_table = CreateTableExpression(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.NOT_NULL),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "balance",
             "DECIMAL(10,2)",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=0),
+                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
             ],
         ),
     ],
@@ -86,7 +88,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert_expr = InsertExpression(
+insert_expr = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "accounts"),
     columns=["name", "balance"],
@@ -109,7 +111,7 @@ backend.execute(sql, params)
 # In a transaction, select with FOR UPDATE
 with backend.transaction():
     # Lock Alice's row using ForUpdateClause
-    lock_query = QueryExpression(
+    lock_query = QueryStatement(
         dialect=dialect,
         select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
         from_=Table(dialect, "accounts"),
@@ -121,7 +123,7 @@ with backend.transaction():
     print(f"Locked row: {result.data}")
 
     # Update the balance
-    update_expr = UpdateExpression(
+    update_expr = UpdateStatement(
         dialect=dialect,
         table=Table(dialect, "accounts"),
         assignments={"balance": Literal(dialect, 900)},
@@ -138,7 +140,7 @@ with backend.transaction():
 # Lock specific rows based on conditions
 
 with backend.transaction():
-    lock_query = QueryExpression(
+    lock_query = QueryStatement(
         dialect=dialect,
         select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
         from_=Table(dialect, "accounts"),
@@ -154,7 +156,7 @@ with backend.transaction():
 # ============================================================
 # Skip locked rows instead of waiting
 
-skip_query = QueryExpression(
+skip_query = QueryStatement(
     dialect=dialect,
     select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
     from_=Table(dialect, "accounts"),
@@ -171,7 +173,7 @@ print(f"SKIP LOCKED result: {result.data}")
 # Fail immediately if rows are locked
 
 try:
-    nowait_query = QueryExpression(
+    nowait_query = QueryStatement(
         dialect=dialect,
         select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
         from_=Table(dialect, "accounts"),
@@ -198,7 +200,7 @@ from rhosocial.activerecord.backend.expression import (  # noqa: E402
 from rhosocial.activerecord.backend.expression.objects import Table
 
 with backend.transaction():
-    share_query = QueryExpression(
+    share_query = QueryStatement(
         dialect=dialect,
         select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
         from_=Table(dialect, "accounts"),
@@ -211,7 +213,7 @@ with backend.transaction():
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 backend.disconnect()
@@ -220,7 +222,7 @@ backend.disconnect()
 # SECTION: Summary
 # ============================================================
 # Key points:
-# 1. Use ForUpdateClause with QueryExpression for SELECT ... FOR UPDATE
+# 1. Use ForUpdateClause with QueryStatement for SELECT ... FOR UPDATE
 # 2. ForUpdateClause(dialect, skip_locked=True) for SKIP LOCKED (MySQL 8.0+)
 # 3. ForUpdateClause(dialect, nowait=True) for NOWAIT (MySQL 8.0+)
 # 4. Use ForUpdateClause with LockStrength.SHARE for FOR SHARE (MySQL 8.0+)

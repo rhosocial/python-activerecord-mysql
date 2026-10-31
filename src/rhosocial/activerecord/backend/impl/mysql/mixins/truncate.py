@@ -8,7 +8,7 @@ from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.statements.ddl_truncate import (
-        TruncateExpression,
+        TruncateStatement,
     )
 
 
@@ -32,7 +32,7 @@ class MySQLTruncateMixin:
     def supports_truncate_cascade(self) -> bool:
         return False
 
-    def format_truncate_statement(self, expr: "TruncateExpression") -> Tuple[str, tuple]:
+    def format_truncate_statement(self, expr: "TruncateStatement") -> Tuple[str, tuple]:
         """Format MySQL ``TRUNCATE [TABLE] tbl_name``.
 
         Raises:
@@ -40,7 +40,7 @@ class MySQLTruncateMixin:
                 so a View or a Sequence in that slot would render a statement
                 emptying something else.
         """
-        require_kind(expr.table, Table, "TruncateExpression.table")
+        require_kind(expr.table, Table, "TruncateStatement.table")
         if expr.restart_identity or expr.continue_identity:
             if expr.restart_identity:
                 feature = "TRUNCATE ... RESTART IDENTITY"

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, List, Optional
 
-from rhosocial.activerecord.backend.expression.bases import SQLValueExpression
+from rhosocial.activerecord.backend.expression.bases import SQLValue
 from rhosocial.activerecord.backend.expression.mixins import (
     AliasableMixin,
     ComparisonMixin,
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL SET literal value expression.
 
     Args:
@@ -39,10 +39,10 @@ class MySQLSetLiteralExpression(AliasableMixin, ComparisonMixin, SQLValueExpress
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_set_literal"
+        return "format_mysql_set_literal_expression"
 
 
-class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL FIND_IN_SET expression.
 
     Args:
@@ -68,10 +68,10 @@ class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValueExpressi
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_find_in_set"
+        return "format_mysql_find_in_set_expression"
 
 
-class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpression):
+class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
     """MySQL SET contains check expression.
 
     Args:
@@ -97,7 +97,7 @@ class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValueExpres
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_set_contains"
+        return "format_mysql_set_contains_expression"
 
 
 __all__ = [

@@ -9,19 +9,19 @@ from typing import Optional
 import pytest
 
 from rhosocial.activerecord.backend.expression import (
+    AllColumnsWildcard,
     Column,
-    ComparisonPredicate,
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
-    CreateTableExpression,
-    DropTableExpression,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ComparisonPredicate,
+    CreateTableStatement,
+    DropTableStatement,
     IndexDefinition,
-    InsertExpression,
+    InsertStatement,
     Literal,
-    QueryExpression,
+    QueryStatement,
     ValuesSource,
-    WildcardExpression,
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult, MySQLExplainRow
@@ -41,17 +41,17 @@ def _partition_value(dialect, value):
 
 
 def _drop_partition_explain_table_expression(dialect):
-    return DropTableExpression(dialect=dialect, table=Table(dialect, PARTITION_EXPLAIN_TABLE), if_exists=True)
+    return DropTableStatement(dialect=dialect, table=Table(dialect, PARTITION_EXPLAIN_TABLE), if_exists=True)
 
 
 def _create_partition_explain_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, PARTITION_EXPLAIN_TABLE),
         columns=[
-            ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+            ColumnDefinition(dialect, "tenant_id", BigIntType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ],
         indexes=[
@@ -89,7 +89,7 @@ def _seed_partition_explain_rows_expression(dialect):
         [2, 100, datetime(2026, 2, 15), "feb"],
         [3, 200, datetime(2026, 3, 15), "mar"],
     ]
-    return InsertExpression(
+    return InsertStatement(
         dialect=dialect,
         into=Table(dialect, PARTITION_EXPLAIN_TABLE),
         columns=["id", "tenant_id", "created_at", "payload"],
@@ -101,9 +101,9 @@ def _seed_partition_explain_rows_expression(dialect):
 
 
 def _partition_range_query_expression(dialect, start, end):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
-        select=[WildcardExpression(dialect)],
+        select=[AllColumnsWildcard(dialect)],
         from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
         where=ComparisonPredicate(
             dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
@@ -115,9 +115,9 @@ def _partition_range_query_expression(dialect, start, end):
 
 
 def _full_scan_query_expression(dialect):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
-        select=[WildcardExpression(dialect)],
+        select=[AllColumnsWildcard(dialect)],
         from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
     )
 

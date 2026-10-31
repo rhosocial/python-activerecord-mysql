@@ -11,11 +11,11 @@ MySQL has some specific SQL syntax and functions. This section covers commonly u
 MySQL supports copying table structure using the `LIKE` clause. This is useful for creating table backups or test tables with identical structure.
 
 ```python
-from rhosocial.activerecord.backend.expression import CreateTableExpression
+from rhosocial.activerecord.backend.expression import CreateTableStatement
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 # Basic usage - copy table structure
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=MySQLDialect(),
     table_name="users_copy",
     columns=[],
@@ -24,7 +24,7 @@ create_expr = CreateTableExpression(
 # Generates: CREATE TABLE `users_copy` LIKE `users`
 
 # With schema-qualified source table
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=MySQLDialect(),
     table_name="users_copy",
     columns=[],
@@ -33,7 +33,7 @@ create_expr = CreateTableExpression(
 # Generates: CREATE TABLE `users_copy` LIKE `production`.`users`
 
 # With TEMPORARY and IF NOT EXISTS
-create_expr = CreateTableExpression(
+create_expr = CreateTableStatement(
     dialect=MySQLDialect(),
     table_name="temp_users",
     columns=[],
@@ -59,7 +59,7 @@ from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now,
 )
 from rhosocial.activerecord.backend.expression.statements import (
-    ColumnDefinition, ColumnConstraint, ColumnConstraintType,
+    ColumnDefinition, ColumnConstraint, ColumnDefaultConstraint,
 )
 
 # Correct: Use factory functions for SQL:2003 niladic functions
@@ -67,8 +67,8 @@ ColumnDefinition(
     name='created_at',
     data_type='TIMESTAMP',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=current_timestamp(dialect)),
+        ColumnConstraint(dialect,
+                         branch=ColumnDefaultConstraint(dialect, current_timestamp(dialect))),
         # Generates: `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         # (no parentheses — SQL:2003 niladic form)
     ],
@@ -79,8 +79,8 @@ ColumnDefinition(
     name='updated_at',
     data_type='DATETIME',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT,
-                         default_value=now(dialect)),
+        ColumnConstraint(dialect,
+                         branch=ColumnDefaultConstraint(dialect, now(dialect))),
         # Generates: `updated_at` DATETIME DEFAULT NOW()
     ],
 )
@@ -90,7 +90,7 @@ ColumnDefinition(
     name='is_active',
     data_type='TINYINT(1)',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value=1),
+        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 1)),
         # Generates: `is_active` TINYINT(1) DEFAULT 1
     ],
 )
@@ -100,7 +100,7 @@ ColumnDefinition(
     name='status',
     data_type='VARCHAR(20)',
     constraints=[
-        ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='active'),
+        ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 'active')),
         # Generates: `status` VARCHAR(20) DEFAULT 'active'
     ],
 )
@@ -111,7 +111,7 @@ ColumnDefinition(
 ```python
 # WRONG: Passing SQL keywords as Python strings
 # This would generate DEFAULT 'CURRENT_TIMESTAMP' (quoted, treated as string literal)
-ColumnConstraint(ColumnConstraintType.DEFAULT, default_value='CURRENT_TIMESTAMP')
+ColumnConstraint(dialect, branch=ColumnDefaultConstraint(dialect, 'CURRENT_TIMESTAMP'))
 ```
 
 **Common statement-level constants reference:**
@@ -176,17 +176,17 @@ class GroupConcat(FunctionExpression):
 
 ## Querying Runtime Functions and Constants
 
-MySQL supports querying runtime functions without a data source, such as `SELECT CURRENT_TIMESTAMP`, `SELECT NOW()`, `SELECT VERSION()`. Use `QueryExpression` without specifying `from_` to achieve this.
+MySQL supports querying runtime functions without a data source, such as `SELECT CURRENT_TIMESTAMP`, `SELECT NOW()`, `SELECT VERSION()`. Use `QueryStatement` without specifying `from_` to achieve this.
 
 ```python
-from rhosocial.activerecord.backend.expression import QueryExpression
+from rhosocial.activerecord.backend.expression import QueryStatement
 from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now, current_date, current_time,
 )
 
 # SELECT CURRENT_TIMESTAMP (niladic — no parentheses)
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[current_timestamp(dialect)],
 )
@@ -194,14 +194,14 @@ sql, params = query.to_sql()
 # Generates: SELECT CURRENT_TIMESTAMP
 
 # SELECT NOW()
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[now(dialect)],
 )
 # Generates: SELECT NOW()
 
 # SELECT CURRENT_DATE, CURRENT_TIME (niladic — no parentheses)
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         current_date(dialect),
@@ -211,7 +211,7 @@ query = QueryExpression(
 # Generates: SELECT CURRENT_DATE, CURRENT_TIME
 
 # Multi-function query with aliases
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         now(dialect).as_('current_time'),
@@ -222,7 +222,7 @@ query = QueryExpression(
 # Generates: SELECT NOW() AS `current_time`, DATABASE() AS `db_name`, VERSION() AS `db_version`
 
 # Function calls with arguments
-query = QueryExpression(
+query = QueryStatement(
     dialect=dialect,
     select=[
         FunctionCall(dialect, 'DATE_FORMAT',

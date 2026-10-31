@@ -365,8 +365,10 @@ class AsyncMySQLBackend(
 
         cursor = None
         try:
+            from ..expression.system import version_query
+
             cursor = await self._get_cursor()
-            await cursor.execute("SELECT VERSION()")
+            await cursor.execute(*version_query(self.dialect).to_sql())
             version_row = await cursor.fetchone()
             version_str = version_row[0] if version_row else "8.0.0"
 
@@ -433,8 +435,10 @@ class AsyncMySQLBackend(
 
             # reconnect=True: verify connection with SELECT 1
             try:
+                from ..expression.system import ping_query
+
                 cursor = await self._get_cursor()
-                await cursor.execute("SELECT 1")
+                await cursor.execute(*ping_query(self.dialect).to_sql())
                 await cursor.fetchone()
                 await cursor.close()
                 return True

@@ -24,23 +24,24 @@ backend.connect()
 dialect = backend.dialect
 
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression,
-    InsertExpression,
+    CreateTableStatement,
+    InsertStatement,
     ValuesSource,
-    DropTableExpression,
+    DropTableStatement,
 )
 from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
 from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnDefinition,
     ColumnConstraint,
-    ColumnConstraintType,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ColumnPrimaryKeyConstraint,
 )
 
-drop_table = DropTableExpression(dialect=dialect, table=Table(dialect, "employees"), if_exists=True)
+drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "employees"), if_exists=True)
 sql, params = drop_table.to_sql()
 backend.execute(sql, params)
 
-create_table = CreateTableExpression(
+create_table = CreateTableStatement(
     dialect=dialect,
     table=Table(dialect, "employees"),
     columns=[
@@ -48,14 +49,14 @@ create_table = CreateTableExpression(
             "id",
             "INT",
             constraints=[
-                ColumnConstraint(ColumnConstraintType.PRIMARY_KEY),
-                ColumnConstraint(ColumnConstraintType.NOT_NULL, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
         ),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",
-            constraints=[ColumnConstraint(ColumnConstraintType.NOT_NULL)],
+            constraints=[ColumnConstraint(None, branch=ColumnNotNullConstraint(None))],
         ),
         ColumnDefinition("department", "VARCHAR(50)"),
         ColumnDefinition("salary", "DECIMAL(10,2)"),
@@ -66,7 +67,7 @@ create_table = CreateTableExpression(
 sql, params = create_table.to_sql()
 backend.execute(sql, params)
 
-insert = InsertExpression(
+insert = InsertStatement(
     dialect=dialect,
     into=Table(dialect, "employees"),
     columns=["name", "department", "salary", "manager_id"],
@@ -94,10 +95,11 @@ backend.execute(sql, params)
 # SECTION: Business Logic (the pattern to learn)
 # ============================================================
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    QueryExpression,
+    QueryStatement,
     WhereClause,
 )
 from rhosocial.activerecord.backend.expression.predicates import (  # noqa: E402
+    LikeOperator,
     ComparisonPredicate,
     LikePredicate,
     InPredicate,
@@ -109,7 +111,7 @@ from rhosocial.activerecord.backend.expression.objects import Table
 
 # 1. LIKE predicate - pattern matching
 # Find employees whose name starts with 'A'
-like_query = QueryExpression(
+like_query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),
@@ -121,7 +123,7 @@ like_query = QueryExpression(
         dialect,
         condition=LikePredicate(
             dialect,
-            "LIKE",
+            LikeOperator.LIKE,
             Column(dialect, "name"),
             Literal(dialect, "A%"),
         ),
@@ -134,7 +136,7 @@ print(f"LIKE Params: {params}")
 
 # 2. IN predicate - list membership
 # Find employees in Engineering or Sales departments
-in_query = QueryExpression(
+in_query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),
@@ -158,7 +160,7 @@ print(f"IN Params: {params}")
 
 # 3. BETWEEN predicate - range check
 # Find employees with salary between 65000 and 75000
-between_query = QueryExpression(
+between_query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),
@@ -183,7 +185,7 @@ print(f"BETWEEN Params: {params}")
 
 # 4. IS NULL / IS NOT NULL predicates
 # Find employees without a manager (manager_id IS NULL)
-is_null_query = QueryExpression(
+is_null_query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),
@@ -205,7 +207,7 @@ print(f"IS NULL SQL: {sql}")
 print(f"IS NULL Params: {params}")
 
 # Find employees with a manager (manager_id IS NOT NULL)
-is_not_null_query = QueryExpression(
+is_not_null_query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),
@@ -229,7 +231,7 @@ print(f"IS NOT NULL Params: {params}")
 
 # 5. Combining predicates with AND/OR logic
 # Engineering employees earning between 75000 and 100000
-combined_query = QueryExpression(
+combined_query = QueryStatement(
     dialect=dialect,
     select=[
         Column(dialect, "id"),

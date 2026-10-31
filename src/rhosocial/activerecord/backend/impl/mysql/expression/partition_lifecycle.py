@@ -87,7 +87,7 @@ class MySQLAddPartitionHelper(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_add_partition_helper"
+        return "format_mysql_add_partition_helper"
 
 
 class MySQLCoalescePartitionHelper(BaseExpression):
@@ -118,7 +118,7 @@ class MySQLCoalescePartitionHelper(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_coalesce_partition_helper"
+        return "format_mysql_coalesce_partition_helper"
 
 
 class MySQLDropOldestPartitionHelper(BaseExpression):
@@ -148,7 +148,7 @@ class MySQLDropOldestPartitionHelper(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_drop_oldest_partition_helper"
+        return "format_mysql_drop_oldest_partition_helper"
 
 
 class MySQLReorganizePartitionHelper(BaseExpression):
@@ -177,7 +177,7 @@ class MySQLReorganizePartitionHelper(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_reorganize_partition_helper"
+        return "format_mysql_reorganize_partition_helper"
 
 
 class MySQLAddSubpartitionHelper(BaseExpression):
@@ -215,4 +215,4 @@ class MySQLAddSubpartitionHelper(BaseExpression):
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_add_subpartition_helper"
+        return "format_mysql_add_subpartition_helper"

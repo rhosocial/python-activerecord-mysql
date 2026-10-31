@@ -26,12 +26,12 @@ dialect = backend.dialect
 
 # Clean up any leftover tables
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableExpression,
+    DropTableStatement,
 )
-expr = DropTableExpression(dialect, Table(dialect, "users"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, Table(dialect, "orders"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "orders"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 
@@ -45,8 +45,9 @@ from rhosocial.activerecord.backend.impl.mysql.schema.differ import (  # noqa: E
     MySQLSchemaDiffer,
 )
 from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableExpression, ColumnDefinition,
-    ColumnConstraint, ColumnConstraintType,
+    CreateTableStatement, ColumnDefinition,
+ ColumnConstraint,
+    ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
 )
 from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
     IntegerType, VarCharType, DecimalType,
@@ -57,24 +58,24 @@ builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
 snapshot_before = builder.build()
 
 # Create one table, drop another (if it existed)
-expr = CreateTableExpression(
+expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "users"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
-                ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
-                ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
             ]),
         ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
     ]
 )
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = CreateTableExpression(
+expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "orders"), columns=[
         ColumnDefinition(dialect, "id", IntegerType(dialect),
             constraints=[
-                ColumnConstraint(constraint_type=ColumnConstraintType.NOT_NULL),
-                ColumnConstraint(constraint_type=ColumnConstraintType.PRIMARY_KEY, is_auto_increment=True),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
             ]),
         ColumnDefinition(dialect, "user_id", IntegerType(dialect)),
         ColumnDefinition(dialect, "amount", DecimalType(dialect, 10, 2)),
@@ -99,10 +100,10 @@ print(f"Diff is empty:  {diff.is_empty}")
 # ============================================================
 # SECTION: Teardown (necessary for execution, reference only)
 # ============================================================
-expr = DropTableExpression(dialect, Table(dialect, "users"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
-expr = DropTableExpression(dialect, Table(dialect, "orders"), if_exists=True)
+expr = DropTableStatement(dialect, Table(dialect, "orders"), if_exists=True)
 sql, params = expr.to_sql()
 backend.execute(sql, params)
 backend.disconnect()

@@ -456,8 +456,8 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect tables \
 ### 查询表详情
 
 ```bash
-# 获取表的完整信息（列、索引、外键）
-python -m rhosocial.activerecord.backend.impl.mysql introspect table users \
+# 描述单个视图
+python -m rhosocial.activerecord.backend.impl.mysql introspect views users_v \
   --database mydb --user root
 
 # 仅查询列信息
@@ -483,16 +483,19 @@ python -m rhosocial.activerecord.backend.impl.mysql introspect triggers users \
 
 ### 内省类型
 
-| 类型 | 说明 | 是否需要表名 |
-|------|------|-------------|
-| `tables` | 列出所有表 | 否 |
-| `views` | 列出所有视图 | 否 |
-| `database` | 数据库信息 | 否 |
-| `table` | 表完整详情（列、索引、外键） | 是 |
-| `columns` | 列信息 | 是 |
-| `indexes` | 索引信息 | 是 |
-| `foreign-keys` | 外键信息 | 是 |
-| `triggers` | 触发器信息 | 可选 |
+| 类型 | 说明 | 名称参数 |
+|------|------|---------|
+| `tables` | 列出所有表 | 不接受 |
+| `views` | 列出所有视图，或描述单个视图 | 可选（视图名） |
+| `database` | 数据库信息 | 不接受 |
+| `columns` | 列信息 | 必填（表名） |
+| `indexes` | 索引信息 | 必填（表名） |
+| `foreign-keys` | 外键信息 | 必填（表名） |
+| `triggers` | 触发器信息 | 可选（表名） |
+| `table-options` | 单表的引擎、行格式、排序规则与字节数 | 可选（表名） |
+| `partitions` | 单表的分区 | 必填（表名） |
+
+类型不接受名称参数时会报错（退出码 2），而不是静默忽略。
 
 ### 输出格式
 

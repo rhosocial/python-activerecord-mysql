@@ -7,21 +7,22 @@ import pytest
 from rhosocial.activerecord.backend.expression import (
     Column,
     ColumnConstraint,
-    ColumnConstraintType,
     ColumnDefinition,
+    ColumnNotNullConstraint,
     ComparisonPredicate,
-    CreateTableExpression,
-    DropTableExpression,
+    CountFunction,
+    CreateTableStatement,
+    DropTableStatement,
     FunctionCall,
-    InsertExpression,
+    InsertStatement,
     Literal,
     LogicalPredicate,
     OrderByClause,
-    QueryExpression,
+    QueryStatement,
+    RowCountWildcard,
     TableConstraint,
-    TableConstraintType,
+    TablePrimaryKeyConstraint,
     ValuesSource,
-    WildcardExpression,
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.expression import (
@@ -64,15 +65,15 @@ STRATEGY_TABLES = (
 
 
 def _drop_named_table_expression(dialect, table_name: str):
-    return DropTableExpression(dialect=dialect, table=Table(dialect, table_name), if_exists=True)
+    return DropTableStatement(dialect=dialect, table=Table(dialect, table_name), if_exists=True)
 
 
 def _base_columns(dialect):
     return [
-        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "category", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+        ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "category", VarCharType(dialect, 32), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+        ColumnDefinition(dialect, "payload", VarCharType(dialect, 255), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
     ]
 
 
@@ -81,7 +82,7 @@ def _partition_value(dialect, value):
 
 
 def _create_range_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, RANGE_TABLE),
         columns=_base_columns(dialect),
@@ -97,7 +98,7 @@ def _create_range_table_expression(dialect):
 
 
 def _create_range_columns_multi_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, RANGE_COLUMNS_MULTI_TABLE),
         columns=_base_columns(dialect),
@@ -123,7 +124,7 @@ def _create_range_columns_multi_table_expression(dialect):
 
 
 def _create_list_columns_multi_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, LIST_COLUMNS_MULTI_TABLE),
         columns=_base_columns(dialect),
@@ -151,7 +152,7 @@ def _create_list_columns_multi_table_expression(dialect):
 
 
 def _create_list_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, LIST_TABLE),
         columns=_base_columns(dialect),
@@ -173,7 +174,7 @@ def _create_list_table_expression(dialect):
 
 
 def _create_list_columns_table_expression(dialect):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, LIST_COLUMNS_TABLE),
         columns=_base_columns(dialect),
@@ -195,7 +196,7 @@ def _create_list_columns_table_expression(dialect):
 
 
 def _create_hash_table_expression(dialect, table_name: str, *, linear: bool = False):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         columns=_base_columns(dialect),
@@ -209,7 +210,7 @@ def _create_hash_table_expression(dialect, table_name: str, *, linear: bool = Fa
 
 
 def _create_key_table_expression(dialect, table_name: str, *, linear: bool = False):
-    return CreateTableExpression(
+    return CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, table_name),
         columns=_base_columns(dialect),
@@ -223,7 +224,7 @@ def _create_key_table_expression(dialect, table_name: str, *, linear: bool = Fal
 
 
 def _insert_rows_expression(dialect, table_name: str, rows: Sequence[Sequence[object]]):
-    return InsertExpression(
+    return InsertStatement(
         dialect=dialect,
         into=Table(dialect, table_name),
         columns=["id", "shard_id", "category", "payload"],
@@ -235,7 +236,7 @@ def _insert_rows_expression(dialect, table_name: str, rows: Sequence[Sequence[ob
 
 
 def _select_payloads_expression(dialect, table_name: str):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[Column(dialect, "payload")],
         from_=Table(dialect, table_name),
@@ -244,16 +245,16 @@ def _select_payloads_expression(dialect, table_name: str):
 
 
 def _select_count_expression(dialect, table_name: str):
-    return QueryExpression(
+    return QueryStatement(
         dialect,
-        select=[FunctionCall(dialect, "COUNT", WildcardExpression(dialect)).as_("count")],
+        select=[CountFunction(dialect, RowCountWildcard(dialect)).as_("count")],
         from_=Table(dialect, table_name),
     )
 
 
 def _partition_metadata_expression(dialect, table_name: str):
     partitions = Table(dialect, "PARTITIONS", catalog_name="information_schema")
-    return QueryExpression(
+    return QueryStatement(
         dialect,
         select=[
             Column(dialect, "PARTITION_NAME", alias="name"),
@@ -568,13 +569,13 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_range"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),  # nullable
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
-            *CreateTableExpression(
+            *CreateTableStatement(
                 dialect=mysql_backend.dialect,
                 table=Table(mysql_backend.dialect, table),
                 columns=columns,
@@ -589,7 +590,7 @@ class TestMySQLPartitionStrategies:
             ).to_sql()
         )
         try:
-            insert = InsertExpression(
+            insert = InsertStatement(
                 dialect=mysql_backend.dialect,
                 into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
@@ -613,13 +614,13 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_list"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
-            *CreateTableExpression(
+            *CreateTableStatement(
                 dialect=mysql_backend.dialect,
                 table=Table(mysql_backend.dialect, table),
                 columns=columns,
@@ -640,7 +641,7 @@ class TestMySQLPartitionStrategies:
             ).to_sql()
         )
         try:
-            insert = InsertExpression(
+            insert = InsertStatement(
                 dialect=mysql_backend.dialect,
                 into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
@@ -664,13 +665,13 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_hash"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
-            *CreateTableExpression(
+            *CreateTableStatement(
                 dialect=mysql_backend.dialect,
                 table=Table(mysql_backend.dialect, table),
                 columns=columns,
@@ -682,7 +683,7 @@ class TestMySQLPartitionStrategies:
             ).to_sql()
         )
         try:
-            insert = InsertExpression(
+            insert = InsertStatement(
                 dialect=mysql_backend.dialect,
                 into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
@@ -706,13 +707,13 @@ class TestMySQLPartitionStrategies:
         table = "ar_mysql_null_key"
         dialect = mysql_backend.dialect
         columns = [
-            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+            ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
             ColumnDefinition(dialect, "shard_id", BigIntType(dialect=dialect)),
             ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
         ]
         mysql_backend.execute(*_drop_named_table_expression(mysql_backend.dialect, table).to_sql())
         mysql_backend.execute(
-            *CreateTableExpression(
+            *CreateTableStatement(
                 dialect=mysql_backend.dialect,
                 table=Table(mysql_backend.dialect, table),
                 columns=columns,
@@ -725,7 +726,7 @@ class TestMySQLPartitionStrategies:
         )
         try:
             # KEY partition using `id` which is NOT NULL; verify normal inserts work
-            insert = InsertExpression(
+            insert = InsertStatement(
                 dialect=mysql_backend.dialect,
                 into=Table(mysql_backend.dialect, table),
                 columns=["id", "shard_id", "payload"],
@@ -756,16 +757,16 @@ class TestMySQLPartitionStrategies:
         dialect = mysql_backend.dialect
         mysql_backend.execute(*_drop_named_table_expression(dialect, table).to_sql())
         mysql_backend.execute(
-            *CreateTableExpression(
+            *CreateTableStatement(
                 dialect=dialect,
                 table=Table(dialect, table),
                 columns=[
-                    ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
-                    ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, ColumnConstraintType.NOT_NULL)]),
+                    ColumnDefinition(dialect, "id", BigIntType(dialect=dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
+                    ColumnDefinition(dialect, "created_at", DateType(dialect), constraints=[ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]),
                     ColumnDefinition(dialect, "payload", VarCharType(dialect, 255)),
                 ],
                 table_constraints=[
-                    TableConstraint(dialect, TableConstraintType.PRIMARY_KEY, columns=["id", "created_at"]),
+                    TableConstraint(dialect, branch=TablePrimaryKeyConstraint(dialect, ["id", "created_at"])),
                 ],
                 partition=MySQLPartitionByKey(
                     mysql_backend.dialect,

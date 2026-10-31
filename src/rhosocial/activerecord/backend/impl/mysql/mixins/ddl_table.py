@@ -1,6 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py
 from typing import Any, List, TYPE_CHECKING, Tuple
-import re
 
 from rhosocial.activerecord.backend.expression.objects import Table
 
@@ -9,20 +8,19 @@ from .object_kind import require_kind
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         ColumnDefinition,
-        CreateTableLikeExpression,
+        CreateTableLikeStatement,
         IndexDefinition,
         StorageOptionsExpression,
-        TableConstraint,
+        TableCheckConstraint,
+        TableForeignKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.table_expr import (
+        MySQLStorageOptionsExpression,
     )
 
 
 class MySQLTableMixin:
     """MySQL table DDL implementation."""
-
-    @staticmethod
-    def _validate_data_type(data_type: str) -> bool:
-        """Validate data type string, allowing single quotes for MySQL ENUM types."""
-        return bool(re.fullmatch(r"[A-Za-z0-9\s\(\),\']+", data_type))
 
     def supports_if_not_exists_table(self) -> bool:
         """Whether CREATE TABLE IF NOT EXISTS is supported."""
@@ -32,6 +30,15 @@ class MySQLTableMixin:
         """Whether DROP TABLE IF EXISTS is supported."""
         return True
 
+
+    def supports_create_table_as_bind_parameters(self) -> bool:
+        """MySQL accepts bind parameters in a CTAS body.
+
+        Measured on 9.7: ``CREATE TABLE t AS SELECT %s FROM s`` is accepted
+        and the table is created. MySQL's "parameters" are interpolated
+        client-side, so the value is baked into the statement's text.
+        """
+        return True
     def supports_create_table_like(self) -> bool:
         return True
 
@@ -77,7 +84,7 @@ class MySQLTableMixin:
         """
         from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 
-        require_kind(expr.table, Table, "CreateTableExpression.table")
+        require_kind(expr.table, Table, "CreateTableStatement.table")
         if expr.tablespace:
             raise UnsupportedFeatureError(
                 self.name, "TABLESPACE",
@@ -91,7 +98,7 @@ class MySQLTableMixin:
         all_params: List[Any] = []
 
         options_part = ""
-        table_options = getattr(expr, "table_options", None)
+        table_options = expr.table_options
         if table_options is not None:
             options_sql, options_params = table_options.to_sql()
             if options_sql:
@@ -129,8 +136,12 @@ class MySQLTableMixin:
 
         if expr.storage_options:
             from rhosocial.activerecord.backend.expression.statements.ddl_table import StorageOptionsExpression
-            storage_expr = StorageOptionsExpression(self, expr.storage_options) if isinstance(expr.storage_options, dict) else expr.storage_options
-            storage_sql, storage_params = self.format_storage_options(storage_expr)
+            storage_expr = (
+                StorageOptionsExpression(self, expr.storage_options)
+                if isinstance(expr.storage_options, dict)
+                else expr.storage_options
+            )
+            storage_sql, storage_params = self.format_storage_options_expression(storage_expr)
             if storage_sql:
                 parts.append(storage_sql)
                 all_params.extend(storage_params)
@@ -138,8 +149,7 @@ class MySQLTableMixin:
         from rhosocial.activerecord.backend.impl.mysql.expression.table_options import (
             MySQLCreateTableOptions,
         )
-        table_options = getattr(expr, "table_options", None)
-        if table_options is not None and getattr(table_options, "comment", None) is not None:
+        if table_options is not None and table_options.comment is not None:
             comment_sql, _ = self.format_table_comment_clause(table_options.comment)
             parts.append(comment_sql.strip())
 
@@ -163,7 +173,7 @@ class MySQLTableMixin:
 
         return " ".join(parts), tuple(all_params)
 
-    def format_create_table_like_statement(self, expr: "CreateTableLikeExpression") -> Tuple[str, tuple]:
+    def format_create_table_like_statement(self, expr: "CreateTableLikeStatement") -> Tuple[str, tuple]:
         """Render ``CREATE TABLE ... LIKE`` via the generic TableMixin formatter."""
         return super().format_create_table_like_statement(expr)
 
@@ -192,7 +202,14 @@ class MySQLTableMixin:
             if constraint_text:
                 parts.append(constraint_text)
             params.extend(list(cp))
-            if constraint.is_auto_increment:
+            from rhosocial.activerecord.backend.expression.statements import (
+                ColumnPrimaryKeyConstraint,
+            )
+
+            if (
+                isinstance(constraint.branch, ColumnPrimaryKeyConstraint)
+                and constraint.branch.is_auto_increment
+            ):
                 # The marker is rendered by the dialect's
                 # format_auto_increment_clause, not spelled here: the formatter
                 # consults supports_auto_increment_column(), so the capability
@@ -228,118 +245,76 @@ class MySQLTableMixin:
 
         return " ".join(parts), params
 
-    def format_table_constraint(self, t_const: "TableConstraint") -> Tuple[str, tuple]:
-        """Format a table-level constraint.
+    def format_table_check_constraint(
+        self, constraint: "TableCheckConstraint"
+    ) -> Tuple[str, tuple]:
+        """Format a table-level ``CHECK`` body behind this server's version gate.
+
+        The core's table-level CHECK body renders without consulting a
+        probe; MySQL's server accepted and *enforced* CHECK only from
+        8.0.16 on (below that the clause parses and is discarded -- see
+        ``supports_check_constraint``), so the version gate stays on the
+        branch this backend overrides.
+        """
+        from rhosocial.activerecord.backend.dialect.exceptions import (
+            UnsupportedFeatureError,
+        )
+
+        if not self.supports_check_constraint():
+            raise UnsupportedFeatureError(
+                self.name,
+                "CHECK constraint",
+                f"{self.name} does not support CHECK constraints.",
+            )
+        return super().format_table_check_constraint(constraint)
+
+    def format_table_foreign_key_constraint(
+        self, constraint: "TableForeignKeyConstraint"
+    ) -> Tuple[str, tuple]:
+        """Format a table-level ``FOREIGN KEY`` with MySQL's spaced column list.
+
+        MySQL's own DDL (``SHOW CREATE TABLE``) sets the referenced column
+        list off with a space -- ``FOREIGN KEY (`d`) REFERENCES `p` (`id`)``
+        -- and this backend's tests and DDL fixtures pin that spelling, so
+        the reference body is re-spaced here rather than through the
+        core's ``REFERENCES t(c)``. The referential actions and ``MATCH``
+        still ride the shared ``ReferencesClause`` machinery, so the
+        capability probes stay consulted (``supports_fk_match`` refuses
+        MATCH on this server).
 
         Raises:
-            TypeError: ``t_const.foreign_key_table`` is set and is not a Table.
-                The rendered statement would reference whatever object's name
-                was in that slot.
+            ValueError: The local columns, the referenced columns or the
+                referenced table are missing.
         """
-        from rhosocial.activerecord.backend.expression.statements import (
-            ForeignKeyConstraint,
-            ReferentialAction,
-            TableConstraintType,
+        from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+            ReferencesClause,
         )
-        if t_const.foreign_key_table is not None:
-            require_kind(
-                t_const.foreign_key_table,
-                Table,
-                "TableConstraint.foreign_key_table",
+
+        if not constraint.columns:
+            raise ValueError(
+                "FOREIGN KEY constraint must have at least one local column specified."
             )
-        parts = []
-        params: List[Any] = []
-
-        if t_const.name:
-            parts.append(f"CONSTRAINT {self.format_identifier(t_const.name)}")
-
-        if t_const.constraint_type == TableConstraintType.PRIMARY_KEY:
-            if t_const.columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"PRIMARY KEY ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.UNIQUE:
-            if t_const.columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                parts.append(f"UNIQUE ({cols_str})")
-        elif t_const.constraint_type == TableConstraintType.CHECK:
-            if t_const.check_condition is not None:
-                enforcement = ""
-                if t_const.enforced or t_const.not_enforced:
-                    if not self.supports_constraint_enforced():
-                        feature = (
-                            "CHECK constraint ENFORCED"
-                            if t_const.enforced
-                            else "CHECK constraint NOT ENFORCED"
-                        )
-                        from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                        raise UnsupportedFeatureError(
-                            self.name, feature,
-                            f"{self.name} does not support {feature}."
-                        )
-                    enforcement = " ENFORCED" if t_const.enforced else " NOT ENFORCED"
-                if not self.supports_check_constraint():
-                    from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                    raise UnsupportedFeatureError(
-                        self.name, "CHECK constraint",
-                        f"{self.name} does not support CHECK constraints."
-                    )
-                check_sql, check_params = t_const.check_condition.to_sql()
-                parts.append(f"CHECK ({check_sql}){enforcement}")
-                params.extend(check_params)
-        elif t_const.constraint_type == TableConstraintType.FOREIGN_KEY:
-            if t_const.deferrable or t_const.not_deferrable:
-                feature = (
-                    "FOREIGN KEY DEFERRABLE"
-                    if t_const.deferrable
-                    else "FOREIGN KEY NOT DEFERRABLE"
-                )
-                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                raise UnsupportedFeatureError(
-                    self.name, feature,
-                    f"{self.name} does not support {feature}."
-                )
-            if t_const.initially_deferred or t_const.initially_immediate:
-                feature = (
-                    "FOREIGN KEY INITIALLY DEFERRED"
-                    if t_const.initially_deferred
-                    else "FOREIGN KEY INITIALLY IMMEDIATE"
-                )
-                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                raise UnsupportedFeatureError(
-                    self.name, feature,
-                    f"{self.name} does not support {feature}."
-                )
-            if t_const.enforced or t_const.not_enforced:
-                feature = (
-                    "FOREIGN KEY ENFORCED"
-                    if t_const.enforced
-                    else "FOREIGN KEY NOT ENFORCED"
-                )
-                from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                raise UnsupportedFeatureError(
-                    self.name, feature,
-                    f"{self.name} does not support {feature}."
-                )
-            if t_const.columns and t_const.foreign_key_table and t_const.foreign_key_columns:
-                cols_str = ", ".join(self.format_identifier(c) for c in t_const.columns)
-                ref_cols_str = ", ".join(self.format_identifier(c) for c in t_const.foreign_key_columns)
-                ref_table = t_const.foreign_key_table.to_sql()[0]
-                parts.append(f"FOREIGN KEY ({cols_str}) REFERENCES {ref_table} ({ref_cols_str})")
-                if isinstance(t_const, ForeignKeyConstraint):
-                    if t_const.on_delete and t_const.on_delete != ReferentialAction.NO_ACTION:
-                        parts.append(f"ON DELETE {t_const.on_delete.value}")
-                    if t_const.on_update and t_const.on_update != ReferentialAction.NO_ACTION:
-                        parts.append(f"ON UPDATE {t_const.on_update.value}")
-                    if t_const.match_type is not None:
-                        if not self.supports_fk_match():
-                            from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-                            raise UnsupportedFeatureError(
-                                self.name, "FOREIGN KEY MATCH",
-                                f"{self.name} does not support MATCH for foreign keys."
-                            )
-                        parts.append(f"MATCH {t_const.match_type}")
-
-        return " ".join(parts), params
+        referenced_table, referenced_columns = constraint.references
+        if not referenced_columns:
+            raise ValueError(
+                "FOREIGN KEY constraint must have at least one foreign key column specified."
+            )
+        if not referenced_table:
+            raise ValueError("FOREIGN KEY constraint must have a foreign key table specified.")
+        cols_str = ", ".join(self.format_identifier(c) for c in constraint.columns)
+        references = ReferencesClause(
+            self,
+            referenced_table,
+            list(referenced_columns),
+            on_delete=constraint.on_delete,
+            on_update=constraint.on_update,
+            match_type=constraint.match_type,
+        )
+        ref_sql, ref_params = self.format_references_clause(references)
+        # The shared clause renders "REFERENCES <table>(<cols>)..."; MySQL
+        # spells the column list with a space: "REFERENCES <table> (<cols>)...".
+        head, rest = ref_sql.split("(", 1)
+        return f"FOREIGN KEY ({cols_str}) {head} ({rest}", tuple(ref_params)
 
     def format_index_definition(self, idx_def: "IndexDefinition") -> Tuple[str, tuple]:
         """Format an inline INDEX definition within CREATE TABLE (MySQL-specific)."""
@@ -354,11 +329,27 @@ class MySQLTableMixin:
             parts.append(f"USING {idx_def.type}")
         return " ".join(parts), ()
 
-    def format_storage_options(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
-        """Format MySQL table storage options (ENGINE, CHARSET, etc.)."""
+    def format_storage_options_expression(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
+        """Format core's table storage options (ENGINE, CHARSET, etc.)."""
+        return self._render_storage_options(expr.options), ()
+
+    def format_mysql_storage_options_expression(
+        self,
+        expr: "MySQLStorageOptionsExpression",
+    ) -> Tuple[str, tuple]:
+        """Format :class:`MySQLStorageOptionsExpression`.
+
+        Its own entry because it is its own node: the constructor parameter is
+        ``storage_options`` where core's node calls the same mapping
+        ``options``, and one entry reading the other field raised
+        ``AttributeError`` on half of the pair.
+        """
+        return self._render_storage_options(expr.storage_options), ()
+
+    def _render_storage_options(self, options) -> str:
         parts = []
-        for key, value in expr.options.items():
+        for key, value in options.items():
             rendered = self.inline_sql_literal(value)
             parts.append(f"{key}={rendered}")
-        return " ".join(parts), ()
+        return " ".join(parts)
 
