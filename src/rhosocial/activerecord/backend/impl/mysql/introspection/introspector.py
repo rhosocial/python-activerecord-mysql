@@ -2,7 +2,7 @@
 """
 MySQL concrete introspectors.
 
-Implements SyncAbstractIntrospector and AsyncAbstractIntrospector for MySQL
+Implements AbstractIntrospector and AsyncAbstractIntrospector for MySQL
 databases using the information_schema system tables for metadata queries.
 
 The introspectors are exposed via ``backend.introspector`` and also provide
@@ -22,7 +22,7 @@ Key behaviours:
   - parse_* methods are pure Python — shared by sync and async introspectors
 
 Design principle: Sync and Async are separate and cannot coexist.
-- SyncMySQLIntrospector: for synchronous backends
+- MySQLIntrospector: for synchronous backends
 - AsyncMySQLIntrospector: for asynchronous backends
 """
 
@@ -38,12 +38,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from rhosocial.activerecord.backend.introspection.base import (
     IntrospectorMixin,
-    SyncAbstractIntrospector,
+    AbstractIntrospector,
     AsyncAbstractIntrospector,
 )
 from rhosocial.activerecord.backend.introspection.cache import IntrospectionCache
 from rhosocial.activerecord.backend.introspection.executor import (
-    SyncIntrospectorExecutor,
+    IntrospectorExecutor,
     AsyncIntrospectorExecutor,
 )
 from rhosocial.activerecord.backend.introspection.types import (
@@ -64,11 +64,11 @@ from rhosocial.activerecord.backend.introspection.types import (
 from rhosocial.activerecord.backend.expression.types import DataType
 from .types import MySQLPartitionInfo, MySQLTableOptions
 from .show_introspector import (
-    SyncShowIntrospector,
+    ShowIntrospector,
     AsyncShowIntrospector,
 )
 from .status_introspector import (
-    SyncMySQLStatusIntrospector,
+    MySQLStatusIntrospector,
     AsyncMySQLStatusIntrospector,
 )
 
@@ -76,7 +76,7 @@ from .status_introspector import (
 class MySQLIntrospectorMixin(IntrospectorMixin):
     """Mixin providing shared MySQL-specific introspection logic.
 
-    Both SyncMySQLIntrospector and AsyncMySQLIntrospector inherit
+    Both MySQLIntrospector and AsyncMySQLIntrospector inherit
     from this mixin to share:
     - Default schema handling
     - The version a database record reports (``server_version``)
@@ -413,10 +413,10 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         ]
 
 
-class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
+class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
     """Synchronous introspector for MySQL backends.
 
-    In addition to the standard SyncAbstractIntrospector interface, exposes the
+    In addition to the standard AbstractIntrospector interface, exposes the
     ``.show`` sub-introspector for direct SHOW command access::
 
         # Standard API
@@ -430,25 +430,25 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
     def __init__(
         self,
         backend: Any,
-        executor: SyncIntrospectorExecutor,
+        executor: IntrospectorExecutor,
         cache: Optional[IntrospectionCache] = None,
     ) -> None:
         super().__init__(backend, executor, cache)
-        self._show_instance: Optional[SyncShowIntrospector] = None
-        self._status_instance: Optional[SyncMySQLStatusIntrospector] = None
+        self._show_instance: Optional[ShowIntrospector] = None
+        self._status_instance: Optional[MySQLStatusIntrospector] = None
 
     @property
-    def show(self) -> SyncShowIntrospector:
+    def show(self) -> ShowIntrospector:
         """MySQL-specific SHOW sub-introspector (lazily created)."""
         if self._show_instance is None:
-            self._show_instance = SyncShowIntrospector(self._backend, self._executor)
+            self._show_instance = ShowIntrospector(self._backend, self._executor)
         return self._show_instance
 
     @property
-    def status(self) -> SyncMySQLStatusIntrospector:
+    def status(self) -> MySQLStatusIntrospector:
         """MySQL status introspector (lazily created)."""
         if self._status_instance is None:
-            self._status_instance = SyncMySQLStatusIntrospector(self._backend)
+            self._status_instance = MySQLStatusIntrospector(self._backend)
         return self._status_instance
 
     # ------------------------------------------------------------------ #

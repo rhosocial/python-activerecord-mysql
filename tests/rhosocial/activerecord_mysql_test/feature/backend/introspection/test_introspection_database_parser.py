@@ -11,7 +11,7 @@ server at all -- the row the query would have returned is supplied directly
 from types import SimpleNamespace
 
 from rhosocial.activerecord.backend.impl.mysql.introspection import (
-    SyncMySQLIntrospector,
+    MySQLIntrospector,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.introspection.types import TableType
@@ -36,8 +36,8 @@ class _UnusedExecutor:
         raise AssertionError("a parser-level test must not execute SQL")
 
 
-def _introspector(**kwargs) -> SyncMySQLIntrospector:
-    return SyncMySQLIntrospector(_NoServerBackend(**kwargs), _UnusedExecutor())
+def _introspector(**kwargs) -> MySQLIntrospector:
+    return MySQLIntrospector(_NoServerBackend(**kwargs), _UnusedExecutor())
 
 
 _SCHEMATA_ROW = {

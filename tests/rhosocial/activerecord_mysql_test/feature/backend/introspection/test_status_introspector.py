@@ -2,7 +2,7 @@
 """
 Tests for MySQL status introspector.
 
-This module tests the SyncMySQLStatusIntrospector functionality
+This module tests the MySQLStatusIntrospector functionality
 for retrieving server status information via SHOW VARIABLES, SHOW STATUS,
 and other system commands.
 """
@@ -28,7 +28,7 @@ from rhosocial.activerecord.backend.impl.mysql.introspection.status_types import
 )
 
 
-class TestSyncMySQLStatusIntrospector:
+class TestMySQLStatusIntrospector:
     """Tests for synchronous MySQL status introspector."""
 
     def test_get_overview(self, mysql_backend):

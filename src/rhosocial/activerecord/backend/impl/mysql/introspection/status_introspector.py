@@ -6,7 +6,7 @@ Provides server status information by querying MySQL's SHOW VARIABLES,
 SHOW STATUS, and other system commands.
 
 Design principle: Sync and Async are separate and cannot coexist.
-- SyncMySQLStatusIntrospector: for synchronous backends
+- MySQLStatusIntrospector: for synchronous backends
 - AsyncMySQLStatusIntrospector: for asynchronous backends
 """
 
@@ -21,7 +21,7 @@ from rhosocial.activerecord.backend.introspection.status import (
     StorageInfo,
     SessionInfo,
     ProcessInfo,
-    SyncAbstractStatusIntrospector,
+    AbstractStatusIntrospector,
     AsyncAbstractStatusIntrospector,
 )
 
@@ -495,7 +495,7 @@ class MySQLStatusIntrospectorMixin:
         )
 
 
-class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStatusIntrospector):
+class MySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AbstractStatusIntrospector):
     """Synchronous MySQL status introspector.
 
     Uses SHOW VARIABLES and SHOW STATUS to gather server information.

@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 from rhosocial.activerecord.backend.introspection import InMemoryIntrospectionCache
-from rhosocial.activerecord.backend.introspection.executor import SyncIntrospectorExecutor
+from rhosocial.activerecord.backend.introspection.executor import IntrospectorExecutor
 
 DEMO_TABLE = "mysql_introspection_demo"
 DEMO_PARTITIONS = ("p_before_2020", "p_before_2024", "p_max")
@@ -200,7 +200,7 @@ def walk_schema(backend: MySQLBackend) -> int:
 # --------------------------------------------------------------------- #
 
 
-class CountingExecutor(SyncIntrospectorExecutor):
+class CountingExecutor(IntrospectorExecutor):
     """An executor that also reports how many questions it was asked."""
 
     def __init__(self, backend: Any) -> None:
