@@ -200,11 +200,13 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "types.MySQLEnumType": "values must be a non-empty list of labels.",
     "types.MySQLSetType": "values must be a non-empty list of labels.",
     "types.MySQLVectorType": "dim must be a positive integer.",
-    # Core introspection expression whose object_name is a required string:
-    # the generic constructor cannot know what to name, and SHOW CREATE TABLE
-    # needs one. The factory supplies it.
-    "introspection.DDLStatementQueryStatement": "object_name is required and "
-    "the generic constructor supplies no object; the factory names a table.",
+    # Core introspection expression whose object_name defaults to empty. An
+    # empty name renders SHOW CREATE with no operand, which MySQL will not
+    # parse, so the rendering fixtures need a named instance; the class stays
+    # constructible by any filler because the name has a default.
+    "introspection.DDLStatementQueryStatement":
+        "object_name defaults to empty and SHOW CREATE TABLE needs a real "
+        "name; the factory supplies one.",
     # Core predicates whose operand slots the generic guess fills with plain
     # strings (the core's wildcard-split commit calls this out: value nodes in
     # operand positions, supplied as strings). The factories hand them real
