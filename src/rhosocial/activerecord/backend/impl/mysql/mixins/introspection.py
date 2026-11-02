@@ -14,6 +14,10 @@ if TYPE_CHECKING:
         TriggerListQueryStatement,
         TableUsageStatsQueryStatement,
         UnusedIndexesQueryStatement,
+        RuntimeMetricsQueryStatement,
+        IndexUsageStatsQueryStatement,
+        ObjectDependencyQueryStatement,
+        DDLStatementQueryStatement,
     )
     from ...expression.introspection import (
         MySQLTableOptionsListQueryStatement,
@@ -704,6 +708,51 @@ class MySQLIntrospectionMixin:
         )
         return statement.to_sql()
 
+
+    def supports_runtime_stats(self) -> bool:
+        """MySQL answers runtime measurements from ``performance_schema``.
+
+        Its counters cover the server's *uptime* rather than a resettable
+        window, which is a different tense from PostgreSQL's: a zero means
+        "not since startup" and the numbers carry as far as the server has
+        been up. The family is only as available as the performance schema,
+        which is an install-time option -- hence the docstring here rather
+        than a promise on the probe alone.
+        """
+        return True
+
+    def supports_index_stats(self) -> bool:
+        """MySQL answers per-index counters from the performance schema.
+
+        ``table_io_waits_summary_by_index`` keeps the per-index split of the
+        table-level counters already used for ``table_stats``, so "how much
+        is this index used" and "which access shape" are both answerable.
+        """
+        return True
+
+    def supports_object_dependencies(self) -> bool:
+        """MySQL answers dependencies from ``referential_constraints``.
+
+        That catalogue covers **foreign keys only** -- it does not record
+        which view or trigger references which table. So the answer is a real
+        graph and a partial one, and the docstring says which part rather
+        than letting a reader assume the catalogue is complete.
+        """
+        return True
+
+    def supports_ddl_extraction(self) -> bool:
+        """MySQL answers natively: ``SHOW CREATE TABLE`` (and VIEW / PROCEDURE).
+
+        Unlike PostgreSQL, the engine itself will hand back the DDL it holds,
+        so ``DDLStatement.native`` is True and the text is the engine's own
+        rather than an assembly pretending to be.
+        """
+        return True
+
+    def supports_ddl_extraction_native(self) -> bool:
+        """True -- ``SHOW CREATE`` is MySQL's own retrieval, not an assembly."""
+        return True
+
     def supports_table_stats(self) -> bool:
         """MySQL answers per-table usage counters from the performance schema.
 
@@ -794,4 +843,169 @@ class MySQLIntrospectionMixin:
             ),
         )
         return statement.to_sql()
+
+    def format_runtime_metrics_query_statement(
+        self, expr: "RuntimeMetricsQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the runtime listing from the performance schema's pluggable tables.
+
+        ``performance_schema.setup_instruments`` names what is actually being
+        counted on this server, which makes it the honest source for a
+        "what is alive" listing: an instrument not enabled produces no rows,
+        and therefore no number, rather than a zero that would read as "idle".
+        """
+        from rhosocial.activerecord.backend.expression import Column
+
+        # No schema filter: ``setup_instruments`` is server-wide and has no
+        # schema column, so a filter here would refuse a correct query for a
+        # nonsensical reason.
+        return self._information_schema_query(
+            "setup_instruments",
+            [
+                Column(self, "NAME").as_("name"),
+                Column(self, "ENABLED").as_("value"),
+                Column(self, "TIMED").as_("kind"),
+            ],
+            [],
+            [Column(self, "NAME")],
+        )
+
+    def format_index_usage_stats_query_statement(
+        self, expr: "IndexUsageStatsQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format per-index counters from ``table_io_waits_summary_by_index``.
+
+        ``COUNT_STAR`` is the number of wait events, ``COUNT_FETCH`` the
+        fetches and ``COUNT_INSERT/UPDATE/DELETE`` the write shapes; the
+        engine does not keep a per-index "rows read" counter, so
+        ``rows_read`` stays unmapped rather than being filled with
+        ``COUNT_FETCH`` -- a fetch is not a row and the two must not be
+        merged into one slot.
+        """
+        from rhosocial.activerecord.backend.expression import Column
+
+        params = expr.get_params()
+        schema = params.get("schema", "")
+
+        conditions = []
+        if schema:
+            from rhosocial.activerecord.backend.expression import (
+                ComparisonPredicate,
+                Literal,
+            )
+
+            conditions.append(
+                ComparisonPredicate(
+                    self, "eq", Column(self, "OBJECT_SCHEMA"), Literal(self, schema)
+                )
+            )
+
+        return self._information_schema_query(
+            "table_io_waits_summary_by_index",
+            [
+                Column(self, "OBJECT_SCHEMA"),
+                Column(self, "OBJECT_NAME").as_("table_name"),
+                Column(self, "INDEX_NAME"),
+                Column(self, "COUNT_STAR").as_("scans"),
+                Column(self, "COUNT_FETCH").as_("rows_fetched"),
+            ],
+            [],
+            [Column(self, "OBJECT_SCHEMA"), Column(self, "OBJECT_NAME"), Column(self, "INDEX_NAME")],
+        )
+
+    def format_object_dependency_query_statement(
+        self, expr: "ObjectDependencyQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the foreign-key dependency graph.
+
+        ``referential_constraints`` records the constraint and the tables it
+        names, which is exactly one edge per FK -- a partial graph, and the
+        partial part is stated on the probe so a reader does not take it for
+        the whole one.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema", "")
+        object_name = params.get("object_name")
+
+        conditions = []
+        if schema:
+            conditions.append(
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "CONSTRAINT_SCHEMA"),
+                    Literal(self, schema),
+                )
+            )
+        if object_name:
+            from rhosocial.activerecord.backend.expression import (
+                ComparisonPredicate,
+                Literal,
+            )
+
+            conditions.append(
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_NAME"), Literal(self, object_name)
+                )
+            )
+
+        return self._information_schema_query(
+            "referential_constraints",
+            [
+                Column(self, "CONSTRAINT_SCHEMA"),
+                Column(self, "CONSTRAINT_NAME"),
+                Column(self, "TABLE_NAME").as_("dependent"),
+                Column(self, "REFERENCED_TABLE_NAME").as_("referenced"),
+                Column(self, "DELETE_RULE").as_("action"),
+            ],
+            conditions,
+            [Column(self, "CONSTRAINT_NAME")],
+        )
+
+    def format_ddl_statement_query_statement(
+        self, expr: "DDLStatementQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format ``SHOW CREATE TABLE`` -- the engine's own text.
+
+        The engine's result column is literally named ``Create Table``, so
+        there is nothing to assemble: this is a read, not a reconstruction,
+        which is why ``native`` is True here and False on PostgreSQL.
+
+        Only TABLE is rendered. The engine also answers for VIEW, PROCEDURE,
+        FUNCTION and TRIGGER through their own ``SHOW CREATE`` statements, and
+        each has a different result column name -- adding them means mapping
+        five shapes, which is a question about which ones callers actually
+        ask rather than something to guess at now. A caller naming one of the
+        others gets ``UnsupportedFeatureError`` rather than the table answer.
+        """
+        from rhosocial.activerecord.backend.impl.mysql.expression.show import (
+            ShowCreateTableStatement,
+        )
+
+        params = expr.get_params()
+        object_name = params.get("object_name", "")
+        object_type = (params.get("object_type") or "TABLE").upper()
+        if object_type != "TABLE":
+            from rhosocial.activerecord.backend.dialect.exceptions import (
+                UnsupportedFeatureError,
+            )
+
+            raise UnsupportedFeatureError(
+                dialect_name="MySQL",
+                feature_name="DDL retrieval for {0!r} objects".format(object_type),
+                suggestion=(
+                    "MySQL answers natively for TABLE; VIEW, PROCEDURE, "
+                    "FUNCTION and TRIGGER each use a different SHOW CREATE "
+                    "statement and result column, and are not mapped yet."
+                ),
+            )
+        schema = params.get("schema") or self.default_schema
+
+        return ShowCreateTableStatement(self, object_name, schema=schema).to_sql()
 

@@ -70,6 +70,9 @@ from expression_roundtrip_harness import (
     sql_consistent,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from rhosocial.activerecord.backend.expression.introspection import (
+    DDLStatementQueryStatement,
+)
 from rhosocial.activerecord.backend.expression.objects import Table
 
 MYSQL_EXPR_PKG = "rhosocial.activerecord.backend.impl.mysql.expression"
@@ -197,6 +200,11 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "types.MySQLEnumType": "values must be a non-empty list of labels.",
     "types.MySQLSetType": "values must be a non-empty list of labels.",
     "types.MySQLVectorType": "dim must be a positive integer.",
+    # Core introspection expression whose object_name is a required string:
+    # the generic constructor cannot know what to name, and SHOW CREATE TABLE
+    # needs one. The factory supplies it.
+    "introspection.DDLStatementQueryStatement": "object_name is required and "
+    "the generic constructor supplies no object; the factory names a table.",
     # Core predicates whose operand slots the generic guess fills with plain
     # strings (the core's wildcard-split commit calls this out: value nodes in
     # operand positions, supplied as strings). The factories hand them real
@@ -421,6 +429,10 @@ def _register_mysql_specials():
         "partition_lifecycle.MySQLDropOldestPartitionHelper":
             lambda d: MySQLDropOldestPartitionHelper(
                 d, table=Table(d, "t"), partition_names=["p0"]
+            ),
+        "introspection.DDLStatementQueryStatement":
+            lambda d: DDLStatementQueryStatement(
+                d, object_name="orders", schema="app"
             ),
     }
     for _name in (
