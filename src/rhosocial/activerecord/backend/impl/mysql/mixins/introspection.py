@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         ViewListQueryStatement,
         ViewInfoQueryStatement,
         TriggerListQueryStatement,
+        UnusedIndexesQueryStatement,
     )
     from ...expression.introspection import (
         MySQLTableOptionsListQueryStatement,
@@ -623,3 +624,81 @@ class MySQLIntrospectionMixin:
                 Column(self, "SUBPARTITION_ORDINAL_POSITION"),
             ],
         )
+
+    def supports_unused_indexes_detection(self) -> bool:
+        """MySQL answers from ``sys.schema_unused_indexes``.
+
+        That view exists in stock MySQL 5.7+ and MariaDB does not ship it --
+        which is why the capability is declared here rather than inherited
+        from a shared MySQL-family mixin. What the view means: an index the
+        performance schema has seen no *access* for, counting from the last
+        time the table's statistics were reset. It is a strong hint and not a
+        proof -- a table nobody has queried since a restart reports all of its
+        indexes, and the view covers only tables the performance schema
+        instruments -- so the answer is read as "worth reviewing", never as
+        "safe to drop".
+        """
+        return True
+
+    def format_unused_indexes_query_statement(
+        self, expr: "UnusedIndexesQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the unused-indexes listing from ``sys.schema_unused_indexes``.
+
+        The view already carries the address the caller needs -- schema,
+        object, index name -- so the projection is the view's own columns
+        rather than a join against ``information_schema``: the join would add
+        nothing and could disagree with the view about which tables it covers.
+
+        The schema filter is applied here rather than left to the caller
+        because the view is database-wide and a caller asking about one schema
+        should not have to post-filter a listing that may be large.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+        from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
+        from rhosocial.activerecord.backend.expression.statements import (
+            QueryStatement,
+            WhereClause,
+        )
+        from rhosocial.activerecord.backend.expression.statements.dql import (
+            OrderByClause,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema", "")
+
+        # ``sys`` rides the catalog slot: MySQL's only namespace level is the
+        # database, and putting it in schema_name is refused rather than
+        # silently dropped (the same rule ``_information_schema_query`` spells
+        # out for ``information_schema``).
+        view = Table(self, "schema_unused_indexes", catalog_name="sys")
+        column = Column(self, "object_schema")
+        statement = QueryStatement(
+            self,
+            select=[
+                Column(self, "object_schema"),
+                Column(self, "object_name"),
+                Column(self, "index_name"),
+            ],
+            from_=NamedRelationRef(self, view),
+            where=WhereClause(
+                self,
+                condition=ComparisonPredicate(
+                    self, "eq", column, Literal(self, schema)
+                ),
+            ),
+            order_by=OrderByClause(
+                self,
+                expressions=[
+                    (Column(self, "object_schema"), "ASC"),
+                    (Column(self, "object_name"), "ASC"),
+                    (Column(self, "index_name"), "ASC"),
+                ],
+            ),
+        )
+        return statement.to_sql()
