@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         ViewListQueryStatement,
         ViewInfoQueryStatement,
         TriggerListQueryStatement,
+        TableUsageStatsQueryStatement,
         UnusedIndexesQueryStatement,
     )
     from ...expression.introspection import (
@@ -702,3 +703,95 @@ class MySQLIntrospectionMixin:
             ),
         )
         return statement.to_sql()
+
+    def supports_table_stats(self) -> bool:
+        """MySQL answers per-table usage counters from the performance schema.
+
+        The source is ``performance_schema.table_io_waits_summary_by_table``,
+        whose per-table wait counters count I/O operations since the server
+        last started -- not since some resettable epoch -- and cover only
+        tables the performance schema instruments. A zero is therefore "no
+        I/O the collector saw", and the counters of two different servers are
+        not comparable; both facts are the reader's to keep in mind, and the
+        engine-specific split (fetches versus inserts versus updates) rides
+        the row into ``extra`` rather than being forced into the common
+        slots.
+        """
+        return True
+
+    def format_table_usage_stats_query_statement(
+        self, expr: "TableUsageStatsQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the per-table usage-counter listing from the performance schema.
+
+        One row per instrumented table, projected from
+        ``table_io_waits_summary_by_table``: ``count_read`` and
+        ``count_write`` are the I/O sides the common shape names, and the
+        view's finer split -- ``count_fetch``, ``count_insert``,
+        ``count_update``, ``count_delete`` -- travels with the row into
+        ``extra``, where ``TableUsageStats``' docstring says engine-specific
+        counters belong.
+
+        No row estimate is projected: the performance schema's summary view
+        does not carry one, and MySQL's estimate lives in
+        ``information_schema.tables``.TABLE_ROWS -- a different source with a
+        different refresh schedule, whose number beside these counters would
+        look more correlated than it is. ``estimated_row_count`` stays None
+        here, and ``IntrospectionTableInfo.row_count`` is already the place
+        the estimate is answered from.
+
+        MySQL's counters are for I/O operations the performance schema timed,
+        since server start -- a different tense from PostgreSQL's statement
+        counters, and one more reason the two engines' numbers are not
+        comparable.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+        from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
+        from rhosocial.activerecord.backend.expression.statements import (
+            QueryStatement,
+            WhereClause,
+        )
+        from rhosocial.activerecord.backend.expression.statements.dql import (
+            OrderByClause,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema", "")
+
+        stats = Table(self, "table_io_waits_summary_by_table", catalog_name="performance_schema")
+
+        object_schema = Column(self, "OBJECT_SCHEMA")
+        object_name = Column(self, "OBJECT_NAME")
+
+        statement = QueryStatement(
+            self,
+            select=[
+                object_schema,
+                object_name,
+                Column(self, "count_read"),
+                Column(self, "count_write"),
+                Column(self, "count_fetch"),
+                Column(self, "count_insert"),
+                Column(self, "count_update"),
+                Column(self, "count_delete"),
+            ],
+            from_=NamedRelationRef(self, stats),
+            where=WhereClause(
+                self,
+                condition=ComparisonPredicate(self, "eq", object_schema, Literal(self, schema)),
+            ),
+            order_by=OrderByClause(
+                self,
+                expressions=[
+                    (object_schema, "ASC"),
+                    (object_name, "ASC"),
+                ],
+            ),
+        )
+        return statement.to_sql()
+
