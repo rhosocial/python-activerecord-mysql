@@ -765,6 +765,26 @@ _DECLARED_GAP = {
 # interesting half -- every row below is a refusal that is the right answer to
 # a wrong value.
 _NOT_RENDERED = {
+    # --- core data-profile families MySQL does not answer (yet). -----------
+    # MySQL has no per-column statistics catalogue: `information_schema`
+    # describes columns, not what they hold. Profiling means a grouped scan,
+    # which is implementable here and simply not written -- so the probes
+    # answer False and these classes are a declared gap rather than a defect.
+    "introspection.ColumnDataProfileQueryStatement": (
+        "ProtocolNotImplementedError",
+        "MySQL keeps no per-column statistics; a profile means a grouped scan "
+        "per column.",
+    ),
+    "introspection.ColumnValueSampleQueryStatement": (
+        "ProtocolNotImplementedError",
+        "Requires a grouped scan; `information_schema` holds no value "
+        "distribution.",
+    ),
+    "introspection.JoinCoverageQueryStatement": (
+        "ProtocolNotImplementedError",
+        "Requires reading both columns; no catalogue statistic answers how far "
+        "two domains overlap.",
+    ),
     # --- The dialect correctly refuses what the harness invented. ---------
     "collation.CollateFunction": (
         "ValueError",
