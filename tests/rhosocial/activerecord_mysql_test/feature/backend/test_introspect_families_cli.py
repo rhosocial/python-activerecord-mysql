@@ -10,6 +10,11 @@ the introspector's question, and the live tests carry it.
 The stub introspector records one call per run, so a branch that calls two
 methods, or calls the right one with a dropped argument, fails here rather
 than showing up as a plausible-looking listing.
+
+One of the nine is gated on the server's version rather than answered
+unconditionally -- ``unused-indexes`` reads a view the ``sys`` schema provides
+from 5.7 on -- so the probe and the refusal that follows it are asserted on
+both sides of that floor.
 """
 
 import argparse
@@ -30,6 +35,8 @@ from rhosocial.activerecord.backend.introspection.types import (
 #: The nine families this change wires, and the switch that gates each. The
 #: dialect declares them, so a run against a real server passes the gate; the
 #: refusal test below turns the switch off to prove the gate is still read.
+#: ``unused-indexes`` is the one whose switch is itself version-dependent, so
+#: its floor is asserted directly in ``TestTheUnusedIndexesFloor`` below.
 NEW_FAMILIES = {
     "unused-indexes": "supports_unused_indexes_detection",
     "table-stats": "supports_table_stats",
@@ -49,6 +56,13 @@ WHOLE_DATABASE_FAMILIES = (
     "runtime",
     "index-stats",
 )
+
+#: The versions the unused-indexes gate is asserted across. The family reads
+#: ``sys.schema_unused_indexes``, and the ``sys`` schema arrived with 5.7, so
+#: the floor is where the probe starts answering.
+MYSQL_56 = (5, 6, 51)
+MYSQL_57 = (5, 7, 44)
+MYSQL_80 = (8, 0, 46)
 
 
 class _RecordingIntrospector:
@@ -104,8 +118,18 @@ def _args(type_: str, name: Optional[str] = None, **overrides) -> argparse.Names
     return argparse.Namespace(**values)
 
 
+#: The version the stub's ``introspect_and_adapt()`` claims. A modern one, so a
+#: family gated on a release the engine reached answers the gate here -- the
+#: refusal path is tested separately, with the switch forced off.
+STUB_SERVER_VERSION = (8, 0, 46)
+
+
 def _run_sync(monkeypatch, introspector, args) -> None:
     class _Backend:
+        # ``connect()`` alone leaves the dialect unadapted, which is exactly
+        # the state the real backend is in before it is told the version; the
+        # capability probes read the adapted version, so the stub installs one
+        # in ``introspect_and_adapt`` the way the real backend does.
         dialect = MySQLDialect()
         _connection = None
 
@@ -116,7 +140,7 @@ def _run_sync(monkeypatch, introspector, args) -> None:
             pass
 
         def introspect_and_adapt(self) -> None:
-            pass
+            self.dialect = MySQLDialect(version=STUB_SERVER_VERSION)
 
         def disconnect(self) -> None:
             pass
@@ -140,7 +164,7 @@ def _run_async(monkeypatch, introspector, args) -> None:
             pass
 
         async def introspect_and_adapt(self) -> None:
-            pass
+            self.dialect = MySQLDialect(version=STUB_SERVER_VERSION)
 
         async def disconnect(self) -> None:
             pass
@@ -522,3 +546,64 @@ class TestTheTypeSurfaceExtension:
             assert introspect_cli._TYPE_CAPABILITIES[type_] == switch
             assert hasattr(MySQLDialect, switch)
 
+
+class TestTheUnusedIndexesFloor:
+    """The one new family whose probe is a version gate, not a bare ``True``.
+
+    The family reads ``sys.schema_unused_indexes``, and the ``sys`` schema came
+    with 5.7. Answering ``True`` below that floor promises a query the server
+    answers with ``1146``, which is how the defect was found: the CLI was the
+    first caller to reach the family against 5.6, and it failed at execution
+    rather than at the capability question. These tests hold the probe to the
+    floor and hold the CLI to the refusal that follows from it.
+    """
+
+    def test_the_probe_refuses_below_the_sys_schema(self):
+        """5.6 has no ``sys`` schema, so the question cannot be answered."""
+        dialect = MySQLDialect(version=MYSQL_56)
+        assert dialect.supports_unused_indexes_detection() is False
+
+    @pytest.mark.parametrize(
+        "version", [MYSQL_57, MYSQL_80, (26, 7, 0)], ids=["5.7.44", "8.0.46", "26.7.0"]
+    )
+    def test_the_probe_answers_from_the_sys_schema_on(self, version):
+        dialect = MySQLDialect(version=version)
+        assert dialect.supports_unused_indexes_detection() is True
+
+    def test_the_gate_is_read_through_the_version_accessor(self):
+        """The rule for version gating here: ask the accessor, not the tuple.
+
+        ``version_at_least`` answers without raising, so a probe guarded on it
+        can be called before the dialect is adapted -- and an unadapted dialect
+        is one whose version nobody has confirmed, which must not read as a
+        capability the server has.
+        """
+        dialect = MySQLDialect()
+        assert dialect.version_or_none is None
+        assert dialect.supports_unused_indexes_detection() is False
+
+    def test_a_56_server_is_refused_not_asked_to_run_a_query(self, capsys):
+        """The refusal is the capability answer, not an execution error.
+
+        This is the regression itself: before the gate, the branch rendered the
+        statement, handed it to the engine, and reported the resulting
+        ``ProgrammingError`` as a generic "Error during introspection". The
+        introspector must never be reached at all below the floor.
+        """
+
+        class _Backend:
+            dialect = MySQLDialect(version=MYSQL_56)
+
+        with pytest.raises(SystemExit) as excinfo:
+            introspect_cli._require_capability(_args("unused-indexes"), _Backend())
+
+        assert excinfo.value.code == 2
+        assert "not supported by this server" in capsys.readouterr().err
+
+    def test_a_modern_server_is_not_refused(self):
+        """The gate must not answer ``False`` for a server that can answer."""
+
+        class _Backend:
+            dialect = MySQLDialect(version=MYSQL_80)
+
+        introspect_cli._require_capability(_args("unused-indexes"), _Backend())

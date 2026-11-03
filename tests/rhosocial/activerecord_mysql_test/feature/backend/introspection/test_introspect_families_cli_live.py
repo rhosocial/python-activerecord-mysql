@@ -13,6 +13,10 @@ The two performance-schema families skip on a server where that collector is
 off, because the capability is real but the data source is an install-time
 option; an empty answer there is not a defect.
 
+The unused-indexes family splits on whether the server has a ``sys`` schema
+(5.7+): where it does, the answer is asserted; where it does not, the run is
+asserted to refuse rather than to fail mid-query.
+
 The tables come from ``backend_with_tables`` (users, posts, tags, post_tags,
 with the posts -> users foreign key), so every test also exercises MySQL's
 usual catalogue shapes rather than a table built only for this file.
@@ -30,6 +34,27 @@ pytestmark = pytest.mark.skipif(
     not mysql_server_available(),
     reason="No MySQL server reachable from the configured scenarios",
 )
+
+#: The ``sys`` schema -- and with it ``sys.schema_unused_indexes`` -- arrived
+#: with MySQL 5.7. A probe answering ``True`` below that floor would be a
+#: promise a 5.6 server cannot keep, so the scenario is split there rather
+#: than demanded of every server.
+UNUSED_INDEXES_FLOOR = (5, 7, 0)
+
+
+def _server_has_sys_schema(backend) -> bool:
+    """Whether this server carries the schema the family reads.
+
+    Asked of the server rather than of the version number, because that is
+    what the family actually depends on and the two could in principle
+    disagree on a server somebody hand-built. The column is aliased to a
+    name that is not a keyword, because ``SCHEMAS`` is one.
+    """
+    row = backend.execute(
+        "SELECT COUNT(*) AS sys_present FROM information_schema.schemata "
+        "WHERE schema_name = 'sys'"
+    ).data[0]
+    return int(row["sys_present"]) != 0
 
 
 def _cli_args(backend, *rest) -> list:
@@ -90,7 +115,16 @@ def _insert_users(backend, names) -> list:
 
 
 class TestUnusedIndexesCommand:
-    """``sys.schema_unused_indexes`` reached through the CLI."""
+    """``sys.schema_unused_indexes`` reached through the CLI.
+
+    The family is only answerable where the ``sys`` schema exists, which is a
+    5.7+ fact: before that the view is absent and the probe is honest about
+    it. So the scenario is split at the schema rather than demanded of every
+    server -- one half proves the answer arrives, the other half proves the
+    run refuses cleanly instead of failing mid-execution. That second half is
+    the regression: the CLI was the first caller to reach the family against
+    5.6, and what it found there was a ``1146`` from the engine.
+    """
 
     def test_an_index_a_full_scan_never_touched_is_reported(
         self, backend_with_tables, capsys
@@ -101,6 +135,12 @@ class TestUnusedIndexesCommand:
         instruments), but a row the view *does* report must arrive with its
         address intact -- that is what the CLI adds to the introspector.
         """
+        if not _server_has_sys_schema(backend_with_tables):
+            pytest.skip(
+                f"this server has no sys schema (unused-indexes is a "
+                f"{'.'.join(str(p) for p in UNUSED_INDEXES_FLOOR)}+ family)"
+            )
+
         backend_with_tables.execute("SELECT * FROM users")
 
         payload = json.loads(_run(capsys, _cli_args(backend_with_tables, "unused-indexes")))
@@ -110,6 +150,25 @@ class TestUnusedIndexesCommand:
             assert {"table_name", "index_name"} <= set(row)
         reported = {row["index_name"] for row in payload if row["table_name"] == "users"}
         assert reported <= {"idx_users_email", "idx_users_name_age"}
+
+    def test_a_server_without_the_sys_schema_is_refused_not_errored_on(
+        self, backend_with_tables, capsys
+    ):
+        """The refusal is the probe saying "cannot answer", not a 1146.
+
+        Below 5.7 the view does not exist, so rendering the query and running
+        it would hand back an ``ProgrammingError`` the CLI reports as a generic
+        "Error during introspection". What the caller needs is the capability
+        answer, which is what exit 2 with "not supported by this server" says.
+        """
+        if _server_has_sys_schema(backend_with_tables):
+            pytest.skip("this server answers the family; nothing to refuse")
+
+        with pytest.raises(SystemExit) as excinfo:
+            _run(capsys, _cli_args(backend_with_tables, "unused-indexes"))
+
+        assert excinfo.value.code == 2
+        assert "not supported by this server" in capsys.readouterr().err
 
 
 class TestTableStatsCommand:

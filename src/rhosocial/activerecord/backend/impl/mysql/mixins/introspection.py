@@ -645,19 +645,28 @@ class MySQLIntrospectionMixin:
         )
 
     def supports_unused_indexes_detection(self) -> bool:
-        """MySQL answers from ``sys.schema_unused_indexes``.
+        """MySQL answers from ``sys.schema_unused_indexes`` -- where it exists.
 
-        That view exists in stock MySQL 5.7+ and MariaDB does not ship it --
-        which is why the capability is declared here rather than inherited
-        from a shared MySQL-family mixin. What the view means: an index the
-        performance schema has seen no *access* for, counting from the last
-        time the table's statistics were reset. It is a strong hint and not a
-        proof -- a table nobody has queried since a restart reports all of its
-        indexes, and the view covers only tables the performance schema
-        instruments -- so the answer is read as "worth reviewing", never as
-        "safe to drop".
+        That view is part of the ``sys`` schema, and the engine has no ``sys``
+        schema before 5.7: the schema itself arrived with 5.7, so on 5.6 the
+        statement that renders here answers ``1146`` "table does not exist"
+        rather than an empty list. A probe that answered ``True`` there would
+        be a promise the server cannot keep, and the family would turn a
+        definition-time question ("can you answer this?") into an execution
+        error -- so the accessor is asked rather than a bare ``True``, and the
+        refusal is the "cannot answer" path, not "no unused indexes exist".
+
+        This is why the capability is declared here rather than inherited from
+        a shared MySQL-family mixin: MariaDB does not ship the view at all.
+
+        What the view means where it exists: an index the performance schema
+        has seen no *access* for, counting from the last time the table's
+        statistics were reset. It is a strong hint and not a proof -- a table
+        nobody has queried since a restart reports all of its indexes, and the
+        view covers only tables the performance schema instruments -- so the
+        answer is read as "worth reviewing", never as "safe to drop".
         """
-        return True
+        return self.version_at_least((5, 7, 0))
 
     def format_unused_indexes_query_statement(
         self, expr: "UnusedIndexesQueryStatement"
