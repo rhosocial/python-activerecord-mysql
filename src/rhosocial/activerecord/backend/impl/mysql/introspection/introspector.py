@@ -60,6 +60,7 @@ from rhosocial.activerecord.backend.introspection.types import (
     IntrospectionViewInfo,
     IntrospectionTriggerInfo,
     IntrospectionScope,
+    DDLStatement,
 )
 from rhosocial.activerecord.backend.expression.types import DataType
 from .types import MySQLPartitionInfo, MySQLTableOptions
@@ -316,6 +317,36 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             )
             for row in rows
         ]
+
+    def parse_ddl_statements(
+        self, rows: List[Dict[str, Any]], schema: str
+    ) -> List[DDLStatement]:
+        """Project ``SHOW CREATE TABLE`` rows into the engine's own DDL.
+
+        ``SHOW CREATE`` names its result columns after the object --
+        ``Table`` and ``Create Table`` -- rather than after the concept, so
+        the common spellings a catalogue-reading parser looks for (``ddl``,
+        ``sql``, ``definition``) are simply not in the row and the table the
+        engine had just described would be reported as having no DDL. The text
+        is the engine's own retrieval, never an assembly, which is what
+        ``native`` says. Only the TABLE flavour is read because only it is
+        formatted; see the dialect's ``format_ddl_statement_query_statement``.
+        """
+        found: List[DDLStatement] = []
+        for row in rows or []:
+            ddl = row.get("Create Table")
+            if not ddl:
+                continue
+            found.append(
+                DDLStatement(
+                    schema=schema,
+                    object_type="TABLE",
+                    object_name=str(row.get("Table") or ""),
+                    ddl=str(ddl),
+                    native=True,
+                )
+            )
+        return found
 
     # ------------------------------------------------------------------ #
     # Table storage options and partitions — statement factories

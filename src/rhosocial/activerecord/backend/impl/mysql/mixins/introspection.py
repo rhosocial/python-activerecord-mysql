@@ -168,22 +168,30 @@ class MySQLIntrospectionMixin:
         order_by: "Optional[list]" = None,
         source: "Any" = None,
     ) -> Tuple[str, tuple]:
-        """Build a SELECT over one ``information_schema`` relation.
+        """Build a SELECT over one catalogue relation.
 
         Each formatter below supplies only what varies -- the relation, the
         projection, the conjunction and the ordering -- and the shape lives
         here. The relation is a :class:`Table` carrying its database in the
         catalog slot, because MySQL's only namespace level is the database and
         putting ``information_schema`` in ``schema_name`` would be refused
-        rather than silently dropped.
+        rather than silently dropped. A formatter reading the performance
+        schema passes its own relation through ``source``, with that database
+        in the same slot.
+
+        A caller with nothing to filter -- the runtime listing, which describes
+        a server rather than a schema -- passes an empty list, and gets no
+        WHERE at all. An empty ``LogicalPredicate`` would render a ``WHERE``
+        keyword with no condition after it, which the server rejects.
 
         Args:
             relation: The ``information_schema`` relation being read.
             projections: The select list, in order.
-            conditions: Conditions to AND together.
+            conditions: Conditions to AND together; none means no WHERE.
             order_by: The ordering expressions, or ``None`` for no ORDER BY.
-            source: A pre-built FROM source (a join, for the foreign-key
-                query), or ``None`` to read *relation* directly.
+            source: A pre-built FROM source (a join for the foreign-key query,
+                another catalogue for the performance schema), or ``None`` to
+                read *relation* directly.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
@@ -203,8 +211,11 @@ class MySQLIntrospectionMixin:
                 if source is not None
                 else Table(self, relation, catalog_name="information_schema")
             ),
-            "where": WhereClause(self, LogicalPredicate(self, "AND", *conditions)),
         }
+        if conditions:
+            kwargs["where"] = WhereClause(
+                self, LogicalPredicate(self, "AND", *conditions)
+            )
         if order_by is not None:
             kwargs["order_by"] = OrderByClause(self, order_by)
         return QueryStatement(self, **kwargs).to_sql()
@@ -727,7 +738,7 @@ class MySQLIntrospectionMixin:
     def supports_index_stats(self) -> bool:
         """MySQL answers per-index counters from the performance schema.
 
-        ``table_io_waits_summary_by_index`` keeps the per-index split of the
+        ``table_io_waits_summary_by_index_usage`` keeps the per-index split of the
         table-level counters already used for ``table_stats``, so "how much
         is this index used" and "which access shape" are both answerable.
         """
@@ -823,8 +834,11 @@ class MySQLIntrospectionMixin:
         statement = QueryStatement(
             self,
             select=[
-                object_schema,
-                object_name,
+                # The common shape's address slots, so the parser reads one
+                # spelling on every engine: ``table_name`` is the name it keys
+                # a row by.
+                object_schema.as_("schema_name"),
+                object_name.as_("table_name"),
                 Column(self, "count_read"),
                 Column(self, "count_write"),
                 Column(self, "count_fetch"),
@@ -856,8 +870,11 @@ class MySQLIntrospectionMixin:
         counted on this server, which makes it the honest source for a
         "what is alive" listing: an instrument not enabled produces no rows,
         and therefore no number, rather than a zero that would read as "idle".
+        The relation is in the performance schema, not in
+        ``information_schema``, so its database is named explicitly.
         """
         from rhosocial.activerecord.backend.expression import Column
+        from rhosocial.activerecord.backend.expression.objects import Table
 
         # No schema filter: ``setup_instruments`` is server-wide and has no
         # schema column, so a filter here would refuse a correct query for a
@@ -871,12 +888,13 @@ class MySQLIntrospectionMixin:
             ],
             [],
             [Column(self, "NAME")],
+            source=Table(self, "setup_instruments", catalog_name="performance_schema"),
         )
 
     def format_index_usage_stats_query_statement(
         self, expr: "IndexUsageStatsQueryStatement"
     ) -> Tuple[str, tuple]:
-        """Format per-index counters from ``table_io_waits_summary_by_index``.
+        """Format per-index counters from ``table_io_waits_summary_by_index_usage``.
 
         ``COUNT_STAR`` is the number of wait events, ``COUNT_FETCH`` the
         fetches and ``COUNT_INSERT/UPDATE/DELETE`` the write shapes; the
@@ -884,8 +902,15 @@ class MySQLIntrospectionMixin:
         ``rows_read`` stays unmapped rather than being filled with
         ``COUNT_FETCH`` -- a fetch is not a row and the two must not be
         merged into one slot.
+
+        The summary lives in the performance schema, not in
+        ``information_schema``, so the relation is named with its own
+        database; the schema filter is applied here because the summary is
+        server-wide and a caller asking about one database should not receive
+        every database's indexes.
         """
         from rhosocial.activerecord.backend.expression import Column
+        from rhosocial.activerecord.backend.expression.objects import Table
 
         params = expr.get_params()
         schema = params.get("schema", "")
@@ -904,16 +929,26 @@ class MySQLIntrospectionMixin:
             )
 
         return self._information_schema_query(
-            "table_io_waits_summary_by_index",
+            "table_io_waits_summary_by_index_usage",
             [
-                Column(self, "OBJECT_SCHEMA"),
+                # The common shape's address slots: the parser keys a row by
+                # ``table_name`` and ``index_name``, so the catalogue's own
+                # uppercase spellings are aliased onto them.
+                Column(self, "OBJECT_SCHEMA").as_("schema_name"),
                 Column(self, "OBJECT_NAME").as_("table_name"),
-                Column(self, "INDEX_NAME"),
+                Column(self, "INDEX_NAME").as_("index_name"),
                 Column(self, "COUNT_STAR").as_("scans"),
                 Column(self, "COUNT_FETCH").as_("rows_fetched"),
             ],
-            [],
-            [Column(self, "OBJECT_SCHEMA"), Column(self, "OBJECT_NAME"), Column(self, "INDEX_NAME")],
+            conditions,
+            [
+                Column(self, "OBJECT_SCHEMA"),
+                Column(self, "OBJECT_NAME"),
+                Column(self, "INDEX_NAME"),
+            ],
+            source=Table(
+                self, "table_io_waits_summary_by_index_usage", catalog_name="performance_schema"
+            ),
         )
 
     def format_object_dependency_query_statement(
