@@ -1053,35 +1053,103 @@ class MySQLIntrospectionMixin:
         """
         return True
 
-    def _quoted(self, name: str) -> str:
-        """One identifier, quoted the way this dialect quotes it.
+    def _user_relation(self, table_name: str, alias: str, schema: "Optional[str]"):
+        """A user table as a FROM source, quoted by the dialect.
 
-        The profile statement is a ``UNION ALL`` over a column list the
-        dialect cannot know from a table name, so that one is assembled as
-        text rather than as an expression node -- but the identifiers still
-        come from the dialect's own renderer, so they are quoted exactly as
-        every other statement quotes them.
-        """
-        from rhosocial.activerecord.backend.expression import Column
-
-        return Column(self, name).to_sql()[0]
-
-    def _quoted_table(self, table_name: str, schema: "Optional[str]") -> str:
-        """A table reference, quoted, with the database MySQL qualifies by.
-
-        The database rides ``catalog_name`` because MySQL has exactly one
-        namespace level and refuses an inner ``schema_name`` rather than
-        dropping it. An absent database renders the bare table name.
+        The opposite of :meth:`_information_schema_query`'s catalog relation:
+        a user table is whatever its owner declared -- mixed case, a space, a
+        reserved word -- so the name and the database are left to the
+        dialect's identifier renderer, and the alias is what tells the two
+        sides of a coverage measurement apart.
         """
         from rhosocial.activerecord.backend.expression.objects import Table
+        from rhosocial.activerecord.backend.expression.sources import (
+            NamedRelationRef,
+        )
 
-        return Table(self, table_name, catalog_name=schema or None).to_sql()[0]
+        return NamedRelationRef(
+            self,
+            Table(self, table_name, catalog_name=schema or None),
+            alias=alias,
+        )
 
-    def _literal_label(self, text: str) -> str:
-        """One string literal, quoted with the dialect's own literal renderer."""
-        from rhosocial.activerecord.backend.expression import Literal
+    def _profile_label(self, text: "Optional[str]", alias: str):
+        """A constant label as a named select-list entry.
 
-        return Literal(self, text, inline=True).to_sql()[0]
+        ``Literal`` is deliberately unaliasable -- a value has nothing to name
+        (see :class:`~...expression.core.Literal`) -- so the constant is cast
+        to text, which is the smallest node in the tree that produces a named
+        result. The cast is not there for its type: it is there so the label
+        can be called ``column_name`` or ``source``, which is what the parser
+        reads. ``None`` is the same node carrying SQL NULL, which is how the
+        empty profile says "the column name is absent" without inventing one.
+
+        The cast target is ``CHAR`` rather than a length-bounded string type
+        because MySQL's CAST accepts ``CHAR`` bare and a label has no width to
+        declare.
+        """
+        from rhosocial.activerecord.backend.expression.core import (
+            CastExpression,
+            Literal,
+        )
+        from rhosocial.activerecord.backend.expression.types.string import CharType
+
+        return CastExpression(self, Literal(self, text, inline=True), CharType(self), alias=alias)
+
+    def _profile_arm(self, table_name: str, schema: "Optional[str]", column_name: str):
+        """One column's arm of the profile, as a node.
+
+        The seven entries are the family's contract: the column's own name,
+        the null count, the distinct count, the two endpoints, the row count
+        the parser divides by, and the provenance. The null count is a ``SUM``
+        over a ``CASE`` so an empty table answers NULL rather than a
+        fabricated zero; the distinct count is ``COUNT(DISTINCT ...)``; the
+        endpoints are the engine's own ``MIN``/``MAX``; and ``COUNT(*)`` rides
+        the same scan as the divisor, so an arm reads its table once.
+
+        ``COUNT(*)`` and the null count share a scan because they are two
+        halves of one fraction: the parser divides one by the other, and
+        reading the same table twice to get them would double the cost of the
+        cheapest part of the answer.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            CaseExpression,
+            Column,
+            CountFunction,
+            FunctionCall,
+            IsNullPredicate,
+            Literal,
+            QueryStatement,
+            RowCountWildcard,
+            SumFunction,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        return QueryStatement(
+            self,
+            select=[
+                self._profile_label(column_name, "column_name"),
+                SumFunction(
+                    self,
+                    CaseExpression(
+                        self,
+                        cases=[
+                            (
+                                IsNullPredicate(self, Column(self, column_name)),
+                                Literal(self, 1, inline=True),
+                            )
+                        ],
+                        else_result=Literal(self, 0, inline=True),
+                    ),
+                ).as_("null_count"),
+                CountFunction(self, Column(self, column_name), distinct=True).as_("distinct_count"),
+                FunctionCall(self, "MIN", Column(self, column_name)).as_("min_value"),
+                FunctionCall(self, "MAX", Column(self, column_name)).as_("max_value"),
+                CountFunction(self, RowCountWildcard(self)).as_("row_count"),
+                self._profile_label("aggregate", "source"),
+            ],
+            from_=Table(self, table_name, catalog_name=schema or None),
+        )
 
     def format_column_data_profile_query_statement(
         self, expr: "ColumnDataProfileQueryStatement"
@@ -1096,25 +1164,28 @@ class MySQLIntrospectionMixin:
         this profile with a PostgreSQL estimate can tell the two apart without
         knowing which engine it asked.
 
-        One ``UNION ALL`` arm per column, over the column list the expression
-        carries: SQL cannot pivot ``SUM(CASE WHEN col IS NULL ...)`` across
-        columns it was never told about, so an aggregating dialect genuinely
-        needs that list where a catalogue-based one does not. An empty list
-        answers with no rows -- a table with no columns is answerable, and its
-        profile is an empty list rather than an error.
+        One arm per column, over the column list the expression carries: SQL
+        cannot pivot ``SUM(CASE WHEN col IS NULL ...)`` across columns it was
+        never told about, so an aggregating dialect genuinely needs that list
+        where a catalogue-based one does not.
+
+        The one place in this module where a set operator is written as text.
+        Every arm is a real :class:`~...expression.statements.dql.QueryStatement`
+        -- the renderer owns its projection, its identifiers and its relation --
+        because a ``UNION ALL`` over a column list known only at run time has
+        no node to represent it: the column list is a tuple on the expression,
+        not an operand in the tree. So each arm is rendered on its own, its
+        parameters are concatenated in arm order, and the rendered arms are
+        joined by the set operator's word. Nothing else here is text.
 
         ``null_count`` rather than a fraction: dividing by a row count that
         may legitimately be zero belongs in the parser, not in a SQL
-        expression that would then have to guard against it. ``COUNT(*)``
-        rides the same arm so the divisor and the numerator come from one
-        scan.
+        expression that would then have to guard against it.
 
-        The arm is text rather than a ``QueryStatement`` because its
-        projection carries two constant labels, and a ``Literal`` is
-        deliberately unaliasable in this expression model (see
-        :class:`~...expression.core.Literal`) -- the constant is a value, not
-        a named result. The identifiers and the literals still go through the
-        dialect's own renderers.
+        An empty column list answers with no rows. That case cannot arise from
+        a real table -- MySQL requires at least one column -- but the branch
+        has to render, so it is a statement that selects no rows rather than a
+        special-case string.
 
         One consequence of the union is worth reading before the figures are:
         MySQL resolves *one* result type per column position across every
@@ -1124,26 +1195,39 @@ class MySQLIntrospectionMixin:
         union's. One query per column would keep each type, at the price of a
         round trip per column, which is the loop this family exists to avoid.
         """
-        table_sql = self._quoted_table(expr.table_name, expr.schema)
+        from rhosocial.activerecord.backend.expression import (
+            ComparisonPredicate,
+            Literal,
+            QueryStatement,
+            WhereClause,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema")
+
         arms = []
+        parameters: "list" = []
         for name in expr.columns:
-            column_sql = self._quoted(name)
-            arms.append(
-                "SELECT "
-                + self._literal_label(name)
-                + " AS column_name, "
-                + f"SUM(CASE WHEN {column_sql} IS NULL THEN 1 ELSE 0 END) AS null_count, "
-                + f"COUNT(DISTINCT {column_sql}) AS distinct_count, "
-                + f"MIN({column_sql}) AS min_value, "
-                + f"MAX({column_sql}) AS max_value, "
-                + "COUNT(*) AS row_count, "
-                + self._literal_label("aggregate")
-                + " AS source "
-                + f"FROM {table_sql}"
-            )
+            sql, arm_parameters = self._profile_arm(params.get("table_name"), schema, name).to_sql()
+            arms.append(sql)
+            parameters.extend(arm_parameters)
+
         if not arms:
-            return "SELECT NULL AS column_name FROM DUAL WHERE 0", ()
-        return " UNION ALL ".join(arms), ()
+            return QueryStatement(
+                self,
+                select=[self._profile_label(None, "column_name")],
+                where=WhereClause(
+                    self,
+                    ComparisonPredicate(
+                        self,
+                        "eq",
+                        Literal(self, 0, inline=True),
+                        Literal(self, 1, inline=True),
+                    ),
+                ),
+            ).to_sql()
+
+        return " UNION ALL ".join(arms), tuple(parameters)
 
     def format_column_value_sample_query_statement(
         self, expr: "ColumnValueSampleQueryStatement"
@@ -1158,10 +1242,9 @@ class MySQLIntrospectionMixin:
         ``ORDER BY COUNT(*) DESC`` is what makes the answer "the most
         frequent values" rather than "the first values"; ties break by the
         value so two runs of the same query agree. The ``LIMIT`` is a bind
-        parameter, as it is everywhere else in this dialect: MySQL accepts
-        ``LIMIT ?`` once the placeholder reaches it as a number, and keeping
-        it bound means the caller's integer is never spliced into statement
-        text.
+        parameter, as it is everywhere else in this dialect: keeping it bound
+        means the caller's integer is never spliced into statement text, and
+        MySQL accepts it once the placeholder reaches it as a number.
         """
         from rhosocial.activerecord.backend.expression import (
             Column,
@@ -1195,39 +1278,37 @@ class MySQLIntrospectionMixin:
             limit_offset=LimitOffsetClause(self, limit=int(expr.limit)),
         ).to_sql()
 
-    def format_join_coverage_query_statement(
-        self, expr: "JoinCoverageQueryStatement"
-    ) -> Tuple[str, tuple]:
-        """Format a two-sided coverage measurement over distinct values.
+    def _coverage_fraction(self, column, source, other_column, other_source):
+        """One side of the overlap: the share of *column* the other side holds.
 
-        Both sides are counted as *distinct values*, not rows: a heavily
-        repeated key that matches once would otherwise look well covered. The
-        numerator counts the members of the left column's distinct domain that
-        also occur on the right, via a ``SELECT DISTINCT`` derived table and
-        an ``IN (SELECT ...)``; the denominator is ``COUNT(DISTINCT ...)``,
-        which MySQL answers directly and which ignores NULLs on its own.
+        The numerator counts the *distinct* values of *column* that also occur
+        in *other_column*, as a ``COUNT(*)`` over a derived table of those
+        distinct values; the denominator counts *column*'s distinct non-NULL
+        values. Distinct on both sides is what makes the figure a coverage of
+        values rather than of rows -- a key repeated a thousand times that
+        matches once would otherwise read as well covered.
 
-        NULLs are excluded from both numerators and denominators explicitly.
-        A NULL is not a value that could ever join, so counting it would drag
-        coverage down for a reason that has nothing to do with the join; the
-        ``IS NOT NULL`` filters state that rather than relying on ``COUNT``'s
-        NULL handling alone, because the derived-table count is a ``COUNT(*)``
-        over rows that would otherwise include the NULL domain member.
+        ``IS NOT NULL`` is written on both halves rather than relied upon. In
+        the numerator it is load-bearing: a DISTINCT treats a NULL as one
+        value, so counting it would credit the tested side with a match it
+        does not have. In the divisor ``COUNT(DISTINCT ...)`` skips NULLs on
+        its own, but the statement says so explicitly, because the share is of
+        the values that could join and that is the fact being measured.
+        ``NULLIF(..., 0)`` then makes a column with no value at all answer
+        NULL rather than 0, which the parser reads as "no fraction": the
+        difference between "nothing matched" and "nothing to match" survives
+        to the caller.
 
-        Two scalar subqueries in one row rather than two round trips: the two
-        fractions are only meaningful together. ``NULLIF(..., 0)`` turns an
-        empty domain into ``NULL`` -- "no measurement" -- rather than a
-        division error or a fabricated zero, which is the distinction
-        :class:`~...introspection.types.JoinCoverage` says a caller must be
-        able to make.
+        There is no ``* 1.0`` here, unlike PostgreSQL's version of this
+        method: MySQL's ``/`` over two integer counts already answers a
+        fractional DECIMAL, so multiplying first would add noise and change
+        nothing. The division is kept as a plain node division because that is
+        the spelling both engines agree on and the one this backend validated
+        against the live servers.
         """
         from rhosocial.activerecord.backend.expression import (
-            ArithmeticOperation,
-            Column,
-            CountFunction,
             FunctionCall,
             InPredicate,
-            IsNullPredicate,
             Literal,
             LogicalPredicate,
             QueryStatement,
@@ -1236,92 +1317,123 @@ class MySQLIntrospectionMixin:
             Subquery,
             WhereClause,
         )
-        from rhosocial.activerecord.backend.expression.objects import Table
+        from rhosocial.activerecord.backend.expression.functions import (
+            CountFunction,
+        )
+        from rhosocial.activerecord.backend.expression.sources import (
+            DerivedTableSource,
+        )
 
-        def distinct_value_count(table_name: str, column_name: str) -> "Subquery":
-            """How many distinct non-null values one column holds."""
-            return Subquery(
+        overlap = QueryStatement(
+            self,
+            select=[column],
+            from_=source,
+            where=WhereClause(
                 self,
-                QueryStatement(
+                LogicalPredicate(
                     self,
-                    select=[CountFunction(self, Column(self, column_name), distinct=True)],
-                    from_=Table(self, table_name, catalog_name=expr.schema or None),
-                    where=WhereClause(
+                    "AND",
+                    column.is_not_null(),
+                    InPredicate(
                         self,
-                        IsNullPredicate(self, Column(self, column_name), is_not=True),
-                    ),
-                ),
-            )
-
-        def overlap_count(
-            left_table: str, left_column: str, right_table: str, right_column: str
-        ) -> "Subquery":
-            """The left values that also occur on the right, as a subquery."""
-            other_domain = QueryStatement(
-                self,
-                select=[Column(self, right_column)],
-                from_=Table(self, right_table, catalog_name=expr.schema or None),
-                where=WhereClause(
-                    self,
-                    IsNullPredicate(self, Column(self, right_column), is_not=True),
-                ),
-            )
-            inner = QueryStatement(
-                self,
-                select=[Column(self, left_column)],
-                from_=Table(self, left_table, catalog_name=expr.schema or None),
-                where=WhereClause(
-                    self,
-                    LogicalPredicate(
-                        self,
-                        "AND",
-                        IsNullPredicate(self, Column(self, left_column), is_not=True),
-                        InPredicate(
+                        column,
+                        Subquery(
                             self,
-                            Column(self, left_column),
-                            Subquery(self, other_domain),
+                            QueryStatement(
+                                self,
+                                select=[other_column],
+                                from_=other_source,
+                                where=WhereClause(self, other_column.is_not_null()),
+                            ),
                         ),
                     ),
                 ),
-                select_modifier=SelectModifier.DISTINCT,
-            )
-            return Subquery(
+            ),
+            select_modifier=SelectModifier.DISTINCT,
+        )
+        covered = Subquery(
+            self,
+            QueryStatement(
                 self,
-                QueryStatement(
-                    self,
-                    select=[CountFunction(self, RowCountWildcard(self))],
-                    from_=Subquery(self, inner, alias="overlap"),
-                ),
-            )
+                select=[CountFunction(self, RowCountWildcard(self))],
+                from_=DerivedTableSource(self, overlap, alias="covered"),
+            ),
+        )
+        total = Subquery(
+            self,
+            QueryStatement(
+                self,
+                select=[
+                    FunctionCall(
+                        self,
+                        "NULLIF",
+                        CountFunction(self, column, distinct=True),
+                        Literal(self, 0, inline=True),
+                    )
+                ],
+                from_=source,
+                where=WhereClause(self, column.is_not_null()),
+            ),
+        )
+        return covered / total
 
-        def coverage(left_table: str, left_column: str, right_table: str, right_column: str):
-            """One side's fraction: overlap over that side's distinct domain."""
-            return ArithmeticOperation(
-                self,
-                "div",
-                overlap_count(left_table, left_column, right_table, right_column),
-                FunctionCall(
-                    self,
-                    "NULLIF",
-                    distinct_value_count(left_table, left_column),
-                    Literal(self, 0, inline=True),
-                ),
-            )
+    def format_join_coverage_query_statement(
+        self, expr: "JoinCoverageQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format a two-sided measurement of two columns' value domains.
+
+        Unlike every other statement in this module, this one names two user
+        tables rather than one catalogue relation: the question is a relation
+        between two objects, so both sides are carried explicitly and their
+        identifiers are the dialect's to quote (see :meth:`_user_relation`).
+        The aliases ``l`` and ``r`` are what keep the two columns apart in the
+        rendered statement, and they are quoted like every other identifier.
+
+        The row carries both fractions because neither is meaningful alone. A
+        left share of 1.0 beside a right share of 0.2 says every tested value
+        exists on the other side while most of that other domain is
+        unaccounted for; a single similarity score would average the two and
+        describe neither. A caller deciding whether a join is worth writing
+        needs to know which direction is incomplete.
+
+        Both figures are counted over *distinct* values, with NULLs excluded
+        from the numerators and the denominators alike -- a NULL is not a value
+        that could ever join, so it belongs in neither half of the fraction.
+        The denominators are ``NULLIF``-guarded so a column with nothing to
+        match answers NULL, which the parser reports as "no measurement"
+        instead of a zero overlap that would read as a real answer. See
+        :meth:`_coverage_fraction` for both rules in place.
+
+        The cost is the two sides read for their distinct domains plus an
+        intersection of the two -- a double scan, and the reason the probe
+        belongs behind an explicit call rather than in any automatic pass.
+
+        Collations are not reconciled. MySQL compares the two columns under
+        whichever collation applies, so values the database would treat as
+        equal may be counted as distinct here, and the fractions are a *lower*
+        bound across mismatched collations -- never an upper one.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            QueryStatement,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema")
+
+        left_source = self._user_relation(params.get("left_table"), "l", schema)
+        right_source = self._user_relation(params.get("right_table"), "r", schema)
+        left_column = Column(self, params.get("left_column"), table="l")
+        right_column = Column(self, params.get("right_column"), table="r")
 
         return QueryStatement(
             self,
             select=[
-                coverage(
-                    expr.left_table,
-                    expr.left_column,
-                    expr.right_table,
-                    expr.right_column,
-                ).as_("left_coverage"),
-                coverage(
-                    expr.right_table,
-                    expr.right_column,
-                    expr.left_table,
-                    expr.left_column,
-                ).as_("right_coverage"),
+                self._coverage_fraction(left_column, left_source, right_column, right_source).as_(
+                    "left_coverage"
+                ),
+                self._coverage_fraction(right_column, right_source, left_column, left_source).as_(
+                    "right_coverage"
+                ),
             ],
         ).to_sql()
