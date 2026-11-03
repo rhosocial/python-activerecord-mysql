@@ -18,6 +18,9 @@ if TYPE_CHECKING:
         IndexUsageStatsQueryStatement,
         ObjectDependencyQueryStatement,
         DDLStatementQueryStatement,
+        ColumnDataProfileQueryStatement,
+        ColumnValueSampleQueryStatement,
+        JoinCoverageQueryStatement,
     )
     from ...expression.introspection import (
         MySQLTableOptionsListQueryStatement,
@@ -1009,3 +1012,316 @@ class MySQLIntrospectionMixin:
 
         return ShowCreateTableStatement(self, object_name, schema=schema).to_sql()
 
+    # ========== Data Profiles (row-shaped answers) ==========
+
+    def supports_column_data_profile(self) -> bool:
+        """MySQL answers a column data profile by aggregating the rows.
+
+        There is no per-column statistics catalogue to read.
+        ``information_schema`` describes what a column *declares* -- type,
+        nullability, default -- and never what its rows hold; ``ANALYZE
+        TABLE`` refreshes the optimiser's *index* statistics
+        (``information_schema.STATISTICS.CARDINALITY`` is one estimate per
+        index prefix) and publishes no per-column distribution. So the answer
+        is exact and paid for in time: one ``UNION ALL`` arm per column, each
+        one a full scan of the table, which is why the result is labelled
+        ``AGGREGATE`` rather than left to look like an estimate of some
+        collector's last run.
+        """
+        return True
+
+    def supports_column_value_sample(self) -> bool:
+        """MySQL answers a value listing by aggregating with a limit.
+
+        Nothing is precomputed, so this costs a ``GROUP BY`` over the whole
+        column plus a sort of the groups -- the same order as the profile
+        itself. That is why the two are separate probes rather than one call
+        that would force the cheap half to pay for the dear one.
+        """
+        return True
+
+    def supports_join_coverage(self) -> bool:
+        """MySQL answers overlap by counting distinct values on both sides.
+
+        Exact, and paid for with two scans of each column: one for the
+        overlap, one for the denominator. ``COUNT(DISTINCT col)`` is the
+        engine's own spelling for the second half, so no separate
+        ``SELECT DISTINCT`` pass is needed for it. Answering ``True`` is right
+        because the probe asks whether the engine *can* answer, not whether it
+        can answer cheaply -- the cost belongs in the docstring, not in a
+        False that would claim MySQL cannot measure its own rows.
+        """
+        return True
+
+    def _quoted(self, name: str) -> str:
+        """One identifier, quoted the way this dialect quotes it.
+
+        The profile statement is a ``UNION ALL`` over a column list the
+        dialect cannot know from a table name, so that one is assembled as
+        text rather than as an expression node -- but the identifiers still
+        come from the dialect's own renderer, so they are quoted exactly as
+        every other statement quotes them.
+        """
+        from rhosocial.activerecord.backend.expression import Column
+
+        return Column(self, name).to_sql()[0]
+
+    def _quoted_table(self, table_name: str, schema: "Optional[str]") -> str:
+        """A table reference, quoted, with the database MySQL qualifies by.
+
+        The database rides ``catalog_name`` because MySQL has exactly one
+        namespace level and refuses an inner ``schema_name`` rather than
+        dropping it. An absent database renders the bare table name.
+        """
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        return Table(self, table_name, catalog_name=schema or None).to_sql()[0]
+
+    def _literal_label(self, text: str) -> str:
+        """One string literal, quoted with the dialect's own literal renderer."""
+        from rhosocial.activerecord.backend.expression import Literal
+
+        return Literal(self, text, inline=True).to_sql()[0]
+
+    def format_column_data_profile_query_statement(
+        self, expr: "ColumnDataProfileQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format a per-column profile by aggregating the rows themselves.
+
+        MySQL keeps no statistics catalogue to read, so the answer is exact
+        and paid for in time, one full scan per column. That is why the result
+        is labelled ``AGGREGATE`` -- and the label is projected *into* each
+        row rather than stamped onto the result afterwards: a row that came
+        back from the server says how it was produced, so a consumer comparing
+        this profile with a PostgreSQL estimate can tell the two apart without
+        knowing which engine it asked.
+
+        One ``UNION ALL`` arm per column, over the column list the expression
+        carries: SQL cannot pivot ``SUM(CASE WHEN col IS NULL ...)`` across
+        columns it was never told about, so an aggregating dialect genuinely
+        needs that list where a catalogue-based one does not. An empty list
+        answers with no rows -- a table with no columns is answerable, and its
+        profile is an empty list rather than an error.
+
+        ``null_count`` rather than a fraction: dividing by a row count that
+        may legitimately be zero belongs in the parser, not in a SQL
+        expression that would then have to guard against it. ``COUNT(*)``
+        rides the same arm so the divisor and the numerator come from one
+        scan.
+
+        The arm is text rather than a ``QueryStatement`` because its
+        projection carries two constant labels, and a ``Literal`` is
+        deliberately unaliasable in this expression model (see
+        :class:`~...expression.core.Literal`) -- the constant is a value, not
+        a named result. The identifiers and the literals still go through the
+        dialect's own renderers.
+
+        One consequence of the union is worth reading before the figures are:
+        MySQL resolves *one* result type per column position across every
+        arm, so ``min_value`` -- which carries ``code``'s text in one arm and
+        ``amount``'s decimal in another -- arrives as text, ``'1.00'`` rather
+        than a number. The values are exact; only the Python type is the
+        union's. One query per column would keep each type, at the price of a
+        round trip per column, which is the loop this family exists to avoid.
+        """
+        table_sql = self._quoted_table(expr.table_name, expr.schema)
+        arms = []
+        for name in expr.columns:
+            column_sql = self._quoted(name)
+            arms.append(
+                "SELECT "
+                + self._literal_label(name)
+                + " AS column_name, "
+                + f"SUM(CASE WHEN {column_sql} IS NULL THEN 1 ELSE 0 END) AS null_count, "
+                + f"COUNT(DISTINCT {column_sql}) AS distinct_count, "
+                + f"MIN({column_sql}) AS min_value, "
+                + f"MAX({column_sql}) AS max_value, "
+                + "COUNT(*) AS row_count, "
+                + self._literal_label("aggregate")
+                + " AS source "
+                + f"FROM {table_sql}"
+            )
+        if not arms:
+            return "SELECT NULL AS column_name FROM DUAL WHERE 0", ()
+        return " UNION ALL ".join(arms), ()
+
+    def format_column_value_sample_query_statement(
+        self, expr: "ColumnValueSampleQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format a most-frequent-values listing with a grouped scan.
+
+        Nothing is precomputed in MySQL, so this costs a ``GROUP BY`` over the
+        column plus a sort of the groups -- the same order as the profile
+        itself, which is why the two are separate probes rather than one call
+        that would make the cheap half pay for the dear one.
+
+        ``ORDER BY COUNT(*) DESC`` is what makes the answer "the most
+        frequent values" rather than "the first values"; ties break by the
+        value so two runs of the same query agree. The ``LIMIT`` is a bind
+        parameter, as it is everywhere else in this dialect: MySQL accepts
+        ``LIMIT ?`` once the placeholder reaches it as a number, and keeping
+        it bound means the caller's integer is never spliced into statement
+        text.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            CountFunction,
+            GroupByHavingClause,
+            LimitOffsetClause,
+            OrderByClause,
+            QueryStatement,
+            RowCountWildcard,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        relation = Table(self, expr.table_name, catalog_name=expr.schema or None)
+        column = Column(self, expr.column_name)
+
+        return QueryStatement(
+            self,
+            select=[
+                column.as_("value"),
+                CountFunction(self, RowCountWildcard(self)).as_("count"),
+            ],
+            from_=relation,
+            group_by_having=GroupByHavingClause(self, group_by=[Column(self, expr.column_name)]),
+            order_by=OrderByClause(
+                self,
+                expressions=[
+                    (CountFunction(self, RowCountWildcard(self)), "DESC"),
+                    (Column(self, expr.column_name), "ASC"),
+                ],
+            ),
+            limit_offset=LimitOffsetClause(self, limit=int(expr.limit)),
+        ).to_sql()
+
+    def format_join_coverage_query_statement(
+        self, expr: "JoinCoverageQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format a two-sided coverage measurement over distinct values.
+
+        Both sides are counted as *distinct values*, not rows: a heavily
+        repeated key that matches once would otherwise look well covered. The
+        numerator counts the members of the left column's distinct domain that
+        also occur on the right, via a ``SELECT DISTINCT`` derived table and
+        an ``IN (SELECT ...)``; the denominator is ``COUNT(DISTINCT ...)``,
+        which MySQL answers directly and which ignores NULLs on its own.
+
+        NULLs are excluded from both numerators and denominators explicitly.
+        A NULL is not a value that could ever join, so counting it would drag
+        coverage down for a reason that has nothing to do with the join; the
+        ``IS NOT NULL`` filters state that rather than relying on ``COUNT``'s
+        NULL handling alone, because the derived-table count is a ``COUNT(*)``
+        over rows that would otherwise include the NULL domain member.
+
+        Two scalar subqueries in one row rather than two round trips: the two
+        fractions are only meaningful together. ``NULLIF(..., 0)`` turns an
+        empty domain into ``NULL`` -- "no measurement" -- rather than a
+        division error or a fabricated zero, which is the distinction
+        :class:`~...introspection.types.JoinCoverage` says a caller must be
+        able to make.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            ArithmeticOperation,
+            Column,
+            CountFunction,
+            FunctionCall,
+            InPredicate,
+            IsNullPredicate,
+            Literal,
+            LogicalPredicate,
+            QueryStatement,
+            RowCountWildcard,
+            SelectModifier,
+            Subquery,
+            WhereClause,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+
+        def distinct_value_count(table_name: str, column_name: str) -> "Subquery":
+            """How many distinct non-null values one column holds."""
+            return Subquery(
+                self,
+                QueryStatement(
+                    self,
+                    select=[CountFunction(self, Column(self, column_name), distinct=True)],
+                    from_=Table(self, table_name, catalog_name=expr.schema or None),
+                    where=WhereClause(
+                        self,
+                        IsNullPredicate(self, Column(self, column_name), is_not=True),
+                    ),
+                ),
+            )
+
+        def overlap_count(
+            left_table: str, left_column: str, right_table: str, right_column: str
+        ) -> "Subquery":
+            """The left values that also occur on the right, as a subquery."""
+            other_domain = QueryStatement(
+                self,
+                select=[Column(self, right_column)],
+                from_=Table(self, right_table, catalog_name=expr.schema or None),
+                where=WhereClause(
+                    self,
+                    IsNullPredicate(self, Column(self, right_column), is_not=True),
+                ),
+            )
+            inner = QueryStatement(
+                self,
+                select=[Column(self, left_column)],
+                from_=Table(self, left_table, catalog_name=expr.schema or None),
+                where=WhereClause(
+                    self,
+                    LogicalPredicate(
+                        self,
+                        "AND",
+                        IsNullPredicate(self, Column(self, left_column), is_not=True),
+                        InPredicate(
+                            self,
+                            Column(self, left_column),
+                            Subquery(self, other_domain),
+                        ),
+                    ),
+                ),
+                select_modifier=SelectModifier.DISTINCT,
+            )
+            return Subquery(
+                self,
+                QueryStatement(
+                    self,
+                    select=[CountFunction(self, RowCountWildcard(self))],
+                    from_=Subquery(self, inner, alias="overlap"),
+                ),
+            )
+
+        def coverage(left_table: str, left_column: str, right_table: str, right_column: str):
+            """One side's fraction: overlap over that side's distinct domain."""
+            return ArithmeticOperation(
+                self,
+                "div",
+                overlap_count(left_table, left_column, right_table, right_column),
+                FunctionCall(
+                    self,
+                    "NULLIF",
+                    distinct_value_count(left_table, left_column),
+                    Literal(self, 0, inline=True),
+                ),
+            )
+
+        return QueryStatement(
+            self,
+            select=[
+                coverage(
+                    expr.left_table,
+                    expr.left_column,
+                    expr.right_table,
+                    expr.right_column,
+                ).as_("left_coverage"),
+                coverage(
+                    expr.right_table,
+                    expr.right_column,
+                    expr.left_table,
+                    expr.left_column,
+                ).as_("right_coverage"),
+            ],
+        ).to_sql()
