@@ -70,10 +70,18 @@ from expression_roundtrip_harness import (
     sql_consistent,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from rhosocial.activerecord.backend.expression.core import Column, Literal
 from rhosocial.activerecord.backend.expression.introspection import (
     DDLStatementQueryStatement,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
+from rhosocial.activerecord.backend.expression.predicates import (
+    ComparisonPredicate,
+)
+from rhosocial.activerecord.backend.expression.statements.dql import (
+    QueryStatement,
+    SetOperationStatement,
+)
 
 MYSQL_EXPR_PKG = "rhosocial.activerecord.backend.impl.mysql.expression"
 CORE_EXPR_PKG = "rhosocial.activerecord.backend.expression"
@@ -86,6 +94,30 @@ register_all(ALL_CLASSES)
 
 def _table(d, name="t"):
     return Table(d, name)
+
+
+def _set_operation_parts(d):
+    """The arms of the compound SELECT the factory builds.
+
+    Two arms, because a compound query needs two; the second carries a bind
+    parameter, so the parameter list is not a single value and the ordering
+    claim in :func:`test_set_operation_statement_renders_the_pinned_sql` has
+    something real to order. Identifiers come back quoted the way this dialect
+    quotes them, so the pinned SQL is the dialect's own spelling.
+    """
+    return [
+        QueryStatement(
+            d,
+            select=[Column(d, "id"), Literal(d, 1)],
+            from_=Table(d, "t"),
+            where=ComparisonPredicate(d, "=", Column(d, "id"), Literal(d, 5)),
+        ),
+        QueryStatement(
+            d,
+            select=[Column(d, "id"), Literal(d, 2)],
+            from_=Table(d, "u"),
+        ),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -168,9 +200,6 @@ _MISREAD_AND_CONTRACT_CONSTRUCTORS = {
     "partition_lifecycle.MySQLDropOldestPartitionHelper": "``partition_names: "
     "Sequence[str]`` is read as the catalogue object Sequence, and "
     "partition_names must be non-empty afterwards.",
-    "partition.MySQLSubpartitionClause": "``subpartition_definitions: "
-    "Sequence[...]`` is read as the catalogue object Sequence, and strategy "
-    "must additionally be a MySQLSubpartitionStrategy member.",
 }
 
 _EXPRESSION_CONTRACT_CONSTRUCTORS = {
@@ -256,6 +285,25 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "query_sources.SetOperation": "op is validated against the wire word "
     "forms (union / union_all / intersect / except); the generic constructor "
     "supplies \"x\", which is not one of them.",
+    # The statement half of the same pair. ``op`` is typed as the word-form
+    # enum and is normalised through it at construction, so the generic
+    # constructor's bare string is refused before any part exists -- and
+    # ``parts`` is what makes the instance worth asserting on, so a node with
+    # none of them renders nothing and pins nothing.
+    "statements.dql.SetOperationStatement":
+        "op is a SetOperationKind and the constructor normalises through the "
+        "enum, refusing the generic \"x\"; the parts are QueryStatements and "
+        "an empty sequence renders nothing, so the factory hands both.",
+    # ``definitions`` is keyword-only behind a default, so the filler skips it,
+    # and the required ``strategy`` must be a MySQLSubpartitionStrategy member
+    # -- which is the refusal, not the Sequence reading. The annotation does
+    # name a parameterised Sequence, but one the filler never supplies is not
+    # what the harness misreads, so the reason is the member requirement.
+    "partition.MySQLSubpartitionClause":
+        "strategy must be a MySQLSubpartitionStrategy member or its string "
+        "value; the generic constructor supplies \"x\". ``definitions`` is "
+        "defaulted and so skipped by the filler, which is why this row is not "
+        "one of the Sequence-misreading rows.",
     "predicates.ComparisonPredicate": "op is validated at construction by "
     "normalize_comparison_operator, which accepts a ComparisonOperator member, "
     "a wire word, or a SQL character; the generic constructor supplies \"x\", "
@@ -273,7 +321,6 @@ DEDICATED_CONSTRUCTORS = {
 
 def _register_mysql_specials():
     """Install one dedicated constructor per row of the two tables above."""
-    from rhosocial.activerecord.backend.expression.core import Column, Literal
     from rhosocial.activerecord.backend.expression.statements.dml import ValuesSource
     from rhosocial.activerecord.backend.expression.types import IntegerType
     from rhosocial.activerecord.backend.impl.mysql.expression.column import (
@@ -329,9 +376,6 @@ def _register_mysql_specials():
         LikePredicate,
     )
     from rhosocial.activerecord.backend.expression.query_sources import SetOperation
-    from rhosocial.activerecord.backend.expression.statements.dql import (
-        QueryStatement,
-    )
     from rhosocial.activerecord.backend.expression.datetime import (
         ExtractFieldExpression,
         _ExtractBase,
@@ -435,6 +479,17 @@ def _register_mysql_specials():
         "introspection.DDLStatementQueryStatement":
             lambda d: DDLStatementQueryStatement(
                 d, object_name="orders", schema="app"
+            ),
+        # A compound SELECT is the *statement* half of the set-operation pair:
+        # ``op`` is the word form the constructor normalises through the enum,
+        # and the arms are real query statements, so both have to be handed
+        # over. The unit test below pins the SQL this instance renders, so the
+        # factory is not the only thing saying the node works.
+        "statements.dql.SetOperationStatement":
+            lambda d: SetOperationStatement(
+                d,
+                op="union_all",
+                parts=_set_operation_parts(d),
             ),
     }
     for _name in (
@@ -1212,6 +1267,15 @@ def _uses_parameterised_sequence(cls):
     The harness's defect is exactly this shape: it reads the ``Sequence`` of a
     subscripted generic as the catalogue object. Detecting it is what lets the
     rows that depend on it be told apart from rows that do not.
+
+    Declaring the shape is not the same as the misreading biting. The filler
+    skips every parameter that carries a default, so a ``Sequence[...]`` behind
+    one is never handed to the constructor and the annotation alone says
+    nothing about why the row exists. Core's compound-SELECT statement is that
+    case: its ``parts`` is defaulted, so the filler never reaches it and the
+    class fails on ``op`` instead. Its row therefore blames the operator word
+    and lives with the expression-contract rows, which is why this helper is
+    asked about parameters the filler actually supplies.
     """
     for param in inspect.signature(cls.__init__).parameters.values():
         annotation = param.annotation
@@ -1225,6 +1289,35 @@ def _uses_parameterised_sequence(cls):
             if getattr(annotation, "__args__", ()):
                 return True
     return False
+
+
+def _filler_supplies_parameterised_sequence(cls):
+    """Whether the filler hands the constructor a ``Sequence[...]``.
+
+    ``_try_construct`` skips every parameter that carries a default, so only a
+    *required* one is ever supplied. This is the shape the misreading can
+    actually bite on: the harness reads the ``Sequence`` inside the subscript as
+    the catalogue object and hands over something it cannot iterate. A defaulted
+    sequence is never read at all, which is why the claim the misreading test
+    makes is about this and not about the annotation shape.
+    """
+    for param in inspect.signature(cls.__init__).parameters.values():
+        if param.default is not inspect.Parameter.empty:
+            continue
+        if _parameter_is_parameterised_sequence(param):
+            return True
+    return False
+
+
+def _parameter_is_parameterised_sequence(param):
+    """Whether one parameter's annotation is a subscripted ``Sequence``."""
+    annotation = param.annotation
+    if isinstance(annotation, str):
+        return "[" in annotation and "Sequence" in annotation
+    return (
+        typing.get_origin(annotation) is collections.abc.Sequence
+        and bool(getattr(annotation, "__args__", ()))
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1576,18 +1669,28 @@ def test_constructor_tables_are_exact():
 
 
 def test_harness_defect_rows_match_the_misreading():
-    """The misreading rows are exactly the rows whose annotation triggers it.
+    """The misreading rows are exactly the rows whose filler hits the misreading.
 
-    The claim in the table comment -- that these seven factories exist only
-    because the harness reads ``Sequence[str]`` as the catalogue object -- is
-    checkable, so it is checked. This is the test that says to delete them once
+    The claim in the table comment -- that these factories exist only because
+    the harness reads ``Sequence[str]`` as the catalogue object -- is checkable,
+    so it is checked. This is the test that says to delete them once
     ``rhosocial-activerecord-testsuite`` stops doing it, and it fails now, which
-    is the point: it names the seven rather than letting the exemption grow.
+    is the point: it names them rather than letting the exemption grow.
+
+    What it is checked against is *what the filler hands over*, not the
+    annotation shape on its own. ``_try_construct`` skips every parameter that
+    carries a default, so a ``Sequence[...]`` behind one is never read and
+    cannot be the reason a row exists. Core's compound-SELECT statement is the
+    case that forced the distinction: its ``parts`` is defaulted, the filler
+    supplies only ``op``, and the class fails on the word-form enum -- a
+    different cause entirely, recorded in
+    :data:`_EXPRESSION_CONTRACT_CONSTRUCTORS` instead. ``MySQLSubpartition
+    Clause`` is the same shape, so its row moved with it.
     """
     reaches = {
         _suffix(fqn)
         for fqn, cls in ALL_CLASSES.items()
-        if _uses_parameterised_sequence(cls)
+        if _filler_supplies_parameterised_sequence(cls)
     }
     misread = set(_HARNESS_DEFECT_CONSTRUCTORS) | set(
         _MISREAD_AND_CONTRACT_CONSTRUCTORS
@@ -1623,3 +1726,85 @@ def test_core_expressions_also_roundtrip(mysql_dialect):
     )
     roundtrip_expression("core", expr, mysql_dialect)
     sql_consistent("core", expr, mysql_dialect)
+
+
+# ---------------------------------------------------------------------------
+# The set-operation statement, rendered
+# ---------------------------------------------------------------------------
+#
+# Core's ``SetOperationStatement`` is the *statement* half of the set-operation
+# pair, and MySQL is one of the two backends whose data-profile formatter builds
+# one to ask a question per column. The matrix says the class *renders*, which
+# is a verdict and not a claim about the bytes; this is where the bytes live.
+#
+# The parts are real query statements, so each arm renders its own projection,
+# its own relation and its own predicate, and the bind parameters arrive at the
+# caller concatenated in part order. Ordering is the part worth pinning: a
+# parameter list assembled out of order still renders valid SQL that binds the
+# wrong value, which is exactly the failure mode a rendering test exists to
+# catch. The ``all`` word is the axis too: the plain ``UNION`` on the same parts
+# must render, and must be a different spelling.
+
+
+def test_set_operation_statement_renders_the_pinned_sql(mysql_dialect):
+    """The compound SELECT renders as the parts, joined by the keyword."""
+    node = SetOperationStatement(
+        mysql_dialect,
+        op="union_all",
+        parts=_set_operation_parts(mysql_dialect),
+    )
+
+    rendered, params = node.to_sql()
+
+    assert rendered == (
+        "SELECT `id`, %s FROM `t` WHERE `id` = %s "
+        "UNION ALL "
+        "SELECT `id`, %s FROM `u`"
+    )
+    # First arm's two binds, then the second arm's one: the arms' parameters in
+    # the order the operator joins them, not in the order the columns were
+    # projected.
+    assert params == (1, 5, 2)
+
+
+def test_set_operation_statement_rejects_what_the_probe_declines(mysql_dialect):
+    """The same parts render under every word the probe answers yes to.
+
+    ``UNION`` is the honest counterpoint to the pinned ``UNION ALL`` above: the
+    parts are identical, the only difference is the operator word, so if this
+    passed with the ``UNION ALL`` string it would prove nothing.
+    """
+    node = SetOperationStatement(
+        mysql_dialect,
+        op="union",
+        parts=_set_operation_parts(mysql_dialect),
+    )
+
+    rendered, params = node.to_sql()
+
+    assert rendered == (
+        "SELECT `id`, %s FROM `t` WHERE `id` = %s "
+        "UNION "
+        "SELECT `id`, %s FROM `u`"
+    )
+    assert params == (1, 5, 2)
+
+
+def test_set_operation_statement_declined_operation_is_a_probe_refusal(
+    mysql_dialect,
+):
+    """The dialect inherits the mixin's probes, so a refused word raises.
+
+    ``supports_intersect`` answers False on every MySQL release before 8.0.31,
+    so a compound query built with ``intersect`` must be refused by the probe
+    rather than rendered as text the server will not parse. The fixture's
+    dialect is 8.0.0, which is before that boundary.
+    """
+    node = SetOperationStatement(
+        mysql_dialect,
+        op="intersect",
+        parts=_set_operation_parts(mysql_dialect),
+    )
+
+    with pytest.raises(UnsupportedFeatureError):
+        node.to_sql()
