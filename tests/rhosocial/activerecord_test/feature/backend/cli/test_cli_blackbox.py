@@ -125,7 +125,7 @@ class TestNamedConnection:
         (mod_dir / "connections.py").write_text(
             "from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig\n"
             "def prod_db():\n"
-            "    return MySQLConnectionConfig(host='192.168.1.3', port=14683, "
+            "    return MySQLConnectionConfig(host='prod-db.example.internal', port=3306, "
             "database='test_db', username='root', password='password')\n"
         )
         env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(mod_dir)] + sys.path))

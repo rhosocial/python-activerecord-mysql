@@ -6,7 +6,7 @@ value as SQL text, and it resolves in three tiers: the portable scalars it
 knows, the types a backend spells for themselves, and the
 literal-construction protocol. This module is MySQL's second tier, and it
 carries the two spellings measured on the live servers (8.0.46 at
-192.168.1.3:14682, and the server at 192.168.1.3:14686 which answers
+scenario ``mysql_80``, and the server behind scenario ``mysql_97`` which answers
 ``SELECT VERSION()`` with ``26.7.0``):
 
 * ``bytes`` becomes ``X'0102FF'``, the hex form from MySQL's literal

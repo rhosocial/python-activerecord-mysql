@@ -10,8 +10,8 @@ tier of that construction, ``MySQLLiteralValueMixin.format_literal``, and
 everything else falls through to the base.
 
 Every literal form asserted here was measured, not transcribed. Measured
-on 8.0.46 (scenario ``mysql_80``, 192.168.1.3:14682) and on the server
-behind scenario ``mysql_97`` (192.168.1.3:14686, which answers
+on 8.0.46 (scenario ``mysql_80``) and on the server
+behind scenario ``mysql_97`` (which answers
 ``SELECT VERSION()`` with ``26.7.0``):
 
 * ``SELECT X'0102FF'`` returns ``b'\\x01\\x02\\xff'``; a

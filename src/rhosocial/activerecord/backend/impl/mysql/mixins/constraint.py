@@ -99,7 +99,7 @@ class MySQLConstraintMixin:
     def supports_primary_key_constraint(self) -> bool:
         """Whether PRIMARY KEY constraints are supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686):
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``):
         ``ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (v)`` is accepted and
         rendered back by ``SHOW CREATE TABLE`` as ``PRIMARY KEY (`v`)``.
 
@@ -115,7 +115,7 @@ class MySQLConstraintMixin:
     def supports_unique_constraint(self) -> bool:
         """Whether UNIQUE constraints are supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686):
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``):
         ``ALTER TABLE t ADD CONSTRAINT uq UNIQUE (v)`` is accepted, the symbol
         survives in ``SHOW CREATE TABLE`` as ``CONSTRAINT `uq` UNIQUE (`v`)``,
         and ``ALTER TABLE t DROP CONSTRAINT uq`` removes it.
@@ -125,7 +125,7 @@ class MySQLConstraintMixin:
     def supports_not_null_constraint(self) -> bool:
         """Whether NOT NULL column constraints are supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686):
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``):
         ``CREATE TABLE t (x INT NOT NULL)`` is accepted and renders
         ``x int NOT NULL``. Trivial for the server, but declared here so the
         verdict is this backend's rather than an inherited default.
@@ -135,7 +135,7 @@ class MySQLConstraintMixin:
     def supports_foreign_key_constraint(self) -> bool:
         """Whether FOREIGN KEY constraints are supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686):
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``):
         ``ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (d) REFERENCES p (id)``
         is accepted, rendered back, and enforced -- a dangling child row is
         refused with
@@ -148,7 +148,7 @@ class MySQLConstraintMixin:
     def supports_fk_on_delete(self) -> bool:
         """Whether ``ON DELETE`` referential actions are supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686): all five
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``): all five
         ``reference_option`` values are accepted on ``ADD CONSTRAINT``, and
         ``information_schema.REFERENTIAL_CONSTRAINTS.DELETE_RULE`` reads back
         ``CASCADE`` for the action that was written.
@@ -162,7 +162,7 @@ class MySQLConstraintMixin:
     def supports_fk_on_update(self) -> bool:
         """Whether ``ON UPDATE`` referential actions are supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686): ``ON
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``): ``ON
         UPDATE CASCADE`` is accepted and
         ``information_schema.REFERENTIAL_CONSTRAINTS.UPDATE_RULE`` reads back
         ``CASCADE``. Measured even together with ``MATCH FULL``, where the
@@ -174,7 +174,7 @@ class MySQLConstraintMixin:
     def supports_exclude_constraint(self) -> bool:
         """Whether EXCLUDE table constraints are supported.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686),
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``),
         ``ALTER TABLE t ADD CONSTRAINT ex EXCLUDE (a WITH =)`` answers
 
             1064 (42000): You have an error in your SQL syntax; check the
@@ -189,7 +189,7 @@ class MySQLConstraintMixin:
     def supports_check_constraint(self) -> bool:
         """Whether CHECK constraints are supported and enforced.
 
-        Measured on Community Server 26.7.0 (192.168.1.3:14686):
+        Measured on Community Server 26.7.0 (scenario ``mysql_97``):
         ``ALTER TABLE t ADD CONSTRAINT ck CHECK (v > 0)`` is accepted and
         rendered back by ``SHOW CREATE TABLE`` as
         ``CONSTRAINT ck CHECK ((v > 0))``, and it is really enforced -- adding
@@ -207,7 +207,7 @@ class MySQLConstraintMixin:
     def supports_add_constraint(self) -> bool:
         """Whether ``ALTER TABLE ADD CONSTRAINT`` is supported.
 
-        True. Measured on Community Server 26.7.0 (192.168.1.3:14686): all
+        True. Measured on Community Server 26.7.0 (scenario ``mysql_97``): all
         four kinds are accepted by the ALTER path -- ``ADD CONSTRAINT ck
         CHECK (v > 0)``, ``ADD CONSTRAINT pk PRIMARY KEY (id)`` (on a table
         that has no primary key yet; a second one is refused with
@@ -230,7 +230,7 @@ class MySQLConstraintMixin:
         """Whether ``ALTER TABLE DROP CONSTRAINT`` is supported.
 
         True, but the name space is narrower than it looks. Measured on
-        Community Server 26.7.0 (192.168.1.3:14686):
+        Community Server 26.7.0 (scenario ``mysql_97``):
 
         * ``DROP CONSTRAINT uq`` (UNIQUE) and ``DROP CONSTRAINT fk``
           (FOREIGN KEY) both work.
@@ -268,7 +268,7 @@ class MySQLConstraintMixin:
     def supports_drop_constraint_if_exists(self) -> bool:
         """Whether ``ALTER TABLE DROP CONSTRAINT IF EXISTS`` is supported.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686),
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``),
         ``ALTER TABLE t DROP CONSTRAINT IF EXISTS x`` answers
 
             1064 (42000): You have an error in your SQL syntax; check the
@@ -290,7 +290,7 @@ class MySQLConstraintMixin:
     def supports_rename_constraint(self) -> bool:
         """Whether ``ALTER TABLE ... RENAME CONSTRAINT ... TO ...`` is supported.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686),
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``),
         ``ALTER TABLE t RENAME CONSTRAINT ck TO ck2`` answers
 
             1064 (42000): You have an error in your SQL syntax; check the
@@ -308,7 +308,7 @@ class MySQLConstraintMixin:
     def supports_enable_disable_constraint(self) -> bool:
         """Whether ``ALTER TABLE ... {ENABLE|DISABLE} CONSTRAINT`` is supported.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686), both
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``), both
         halves are parser errors:
 
             1064 (42000): ... near 'CONSTRAINT ck' at line 1
@@ -327,7 +327,7 @@ class MySQLConstraintMixin:
     def supports_constraint_novalidate(self) -> bool:
         """Whether ``ADD CONSTRAINT ... NOT VALID`` is accepted.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686),
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``),
         ``ALTER TABLE t ADD CONSTRAINT ck CHECK (v > 0) NOT VALID`` answers
 
             1064 (42000): You have an error in your SQL syntax; check the
@@ -344,7 +344,7 @@ class MySQLConstraintMixin:
     def supports_validate_constraint(self) -> bool:
         """Whether ``ALTER TABLE ... VALIDATE CONSTRAINT`` is supported.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686),
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``),
         ``ALTER TABLE t VALIDATE CONSTRAINT ck`` answers
 
             1064 (42000): You have an error in your SQL syntax; check the
@@ -366,7 +366,7 @@ class MySQLConstraintMixin:
         by name before the shared rendering runs.
 
         The verb exists from 8.0.16 on. Measured on Community Server 26.7.0
-        (192.168.1.3:14686):
+        (scenario ``mysql_97``):
 
         * ``ALTER TABLE t ALTER CONSTRAINT ck NOT ENFORCED`` is accepted and
           ``SHOW CREATE TABLE`` then renders
@@ -438,7 +438,7 @@ class MySQLConstraintMixin:
         """Whether ``ALTER TABLE ... ALTER CONSTRAINT`` is supported at all.
 
         True, for exactly one attribute. Measured on Community Server 26.7.0
-        (192.168.1.3:14686) the statement exists and ``ALTER CONSTRAINT ck
+        (scenario ``mysql_97``) the statement exists and ``ALTER CONSTRAINT ck
         [NOT] ENFORCED`` works on a CHECK; every other attribute -- ``DEFERRABLE``,
         ``INITIALLY DEFERRED``, ``VALIDATE``, ``NOVALIDATE``, ``RELY`` -- is a
         ``1064 (42000)`` parser error.
@@ -461,7 +461,7 @@ class MySQLConstraintMixin:
         """Whether ``[NOT] ENFORCED`` on a CHECK constraint is supported.
 
         True from 8.0.16 on. Measured on Community Server 26.7.0
-        (192.168.1.3:14686) on the ``ADD CONSTRAINT`` / ``CREATE TABLE``
+        (scenario ``mysql_97``) on the ``ADD CONSTRAINT`` / ``CREATE TABLE``
         path:
 
         * ``CHECK (v > 0) NOT ENFORCED`` is accepted and round-trips as
@@ -634,7 +634,7 @@ class MySQLConstraintMixin:
         """Whether ``MATCH {SIMPLE|PARTIAL|FULL}`` is supported.
 
         False -- and not because the spelling is rejected. Measured on
-        Community Server 26.7.0 (192.168.1.3:14686),
+        Community Server 26.7.0 (scenario ``mysql_97``),
         ``ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (d) REFERENCES p (id)
         MATCH FULL`` is *accepted*, and the MATCH clause is then parsed away:
         ``SHOW CREATE TABLE`` renders
@@ -649,7 +649,7 @@ class MySQLConstraintMixin:
         ``information_schema.REFERENTIAL_CONSTRAINTS.MATCH_OPTION`` reads
         ``FULL`` for the ``MATCH FULL`` FK, ``PARTIAL`` for the ``MATCH
         PARTIAL`` one, and ``NONE`` for the FK written with no MATCH clause
-        (measured on the same server, 192.168.1.3:14686). So the server
+        (measured on the same server). So the server
         records the mode in its catalog even though it renders and enforces
         nothing from it -- reading it back proves what was *written*, never
         what is in *force*. (Earlier notes on this switch said ``MATCH_OPTION``
@@ -690,7 +690,7 @@ class MySQLConstraintMixin:
         """Whether ``DEFERRABLE`` / ``INITIALLY DEFERRED|IMMEDIATE`` is
         supported.
 
-        False. Measured on Community Server 26.7.0 (192.168.1.3:14686), every
+        False. Measured on Community Server 26.7.0 (scenario ``mysql_97``), every
         spelling is a parser error: ``ADD CONSTRAINT ck CHECK (v > 0)
         DEFERRABLE``, ``ADD CONSTRAINT ck CHECK (v > 0) NOT DEFERRABLE
         INITIALLY DEFERRED`` and ``ADD CONSTRAINT fk FOREIGN KEY (d)

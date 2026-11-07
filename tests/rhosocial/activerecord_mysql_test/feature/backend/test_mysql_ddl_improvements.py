@@ -204,7 +204,7 @@ class TestMeasuredConstraintLifecycleCapabilities:
     """The constraint-lifecycle probes answer what the server was measured to do.
 
     Every verdict asserted here was measured on Community Server 26.7.0
-    (192.168.1.3:14686) by running the ``ALTER TABLE`` statement and reading
+    (scenario ``mysql_97``) by running the ``ALTER TABLE`` statement and reading
     ``SHOW CREATE TABLE`` back; the probe docstrings in
     ``MySQLConstraintMixin`` record the same measurements, errnos included.
 
