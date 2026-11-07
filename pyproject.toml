@@ -36,7 +36,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "rhosocial-activerecord>=1.0.0.dev0,<2.0.0",
+    "rhosocial-activerecord>=1.0.0.dev30,<2.0.0",
     # The driver raises its floor with every series, so the pin has to follow
     # the interpreter: 9.0.0 is the last release installable on 3.8 and 9.4.0
     # the last on 3.9. Those two are exact because no later release can ever
@@ -53,7 +53,7 @@ test = [
     "coverage>=7.0.0",
     "pytest-asyncio",
     "pytest-cov",
-    "rhosocial-activerecord[test]>=1.0.0.dev0,<2.0.0",
+    "rhosocial-activerecord[test]>=1.0.0.dev30,<2.0.0",
     "rhosocial-activerecord-testsuite",
     "fastapi>=0.110",
     "httpx>=0.27",
