@@ -16,16 +16,14 @@ import asyncio
 import sys
 from dataclasses import asdict, is_dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Dict
 
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 
 from .connection import add_connection_args, resolve_connection_config_from_args
-from .output import create_provider
-
-OUTPUT_CHOICES = ["table", "json", "csv", "tsv"]
+from .output import OUTPUT_CHOICES, create_provider
 
 #: The single place a type name maps to the dialect capability that decides
 #: whether this backend can answer it. ``INTROSPECT_TYPES`` is derived from it,
@@ -112,19 +110,7 @@ _TYPE_OPTION_FLAGS = {
     for attribute, flag, _required in options
 }
 
-#: How many values ``value-samples`` lists when ``--limit`` is not given. The
-#: introspector's own default, restated because the parser has to say what it
-#: will send when the flag is absent.
-DEFAULT_VALUE_SAMPLE_LIMIT = 100
 
-#: Said before a data-profile listing. It goes to stderr so the machine
-#: formats stay parseable; each row carries ``source='aggregate'`` itself, and
-#: this is the sentence that keeps a reader from taking an exact full-table
-#: count for a cheap catalogue reading.
-_AGGREGATE_PROFILE_NOTE = (
-    "Note: column profiles are aggregated from the rows themselves "
-    "(source='aggregate') -- exact, and paid for with a full scan per column."
-)
 
 
 def create_parser(subparsers):
@@ -233,7 +219,7 @@ def create_parser(subparsers):
         default=None,
         help=(
             "Maximum values to list for value-samples "
-            f"(default: {DEFAULT_VALUE_SAMPLE_LIMIT})."
+            "(default: the introspector's own limit)."
         ),
     )
     parser.add_argument(
@@ -428,10 +414,17 @@ def _display_ddl(args, provider, statement) -> None:
     print(record["ddl"])
 
 
-def _value_sample_limit(args) -> int:
-    """The row limit ``value-samples`` sends, given the parsed argument."""
+def _value_sample_arguments(args) -> Dict[str, int]:
+    """The optional arguments ``value-samples`` sends, given the parsed argument.
+
+    ``limit`` is forwarded only when the caller supplied ``--limit``. When the
+    flag is absent the introspector's signature answers with its own default,
+    so a forwarder that filled in ``100`` would be a second place writing a
+    number the signature already owns -- and a place no test could keep in
+    step with it.
+    """
     limit = getattr(args, "limit", None)
-    return DEFAULT_VALUE_SAMPLE_LIMIT if limit is None else limit
+    return {} if limit is None else {"limit": limit}
 
 
 def _handle_introspect_sync(args, backend: MySQLBackend, provider):
@@ -550,7 +543,11 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             _display_ddl(args, provider, statement)
 
         elif args.type == "column-profiles":
-            print(_AGGREGATE_PROFILE_NOTE, file=sys.stderr)
+            print(
+                "Note: column profiles are aggregated from the rows themselves "
+                "(source='aggregate') -- exact, and paid for with a full scan per column.",
+                file=sys.stderr,
+            )
             profiles = introspector.list_column_data_profiles(args.name, schema=None)
             provider.display_results(
                 _serialize_for_output(profiles), title=f"Column profiles of {args.name}"
@@ -560,8 +557,8 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             samples = introspector.sample_column_values(
                 args.name,
                 args.column,
-                limit=_value_sample_limit(args),
                 schema=None,
+                **_value_sample_arguments(args),
             )
             provider.display_results(
                 _serialize_for_output(samples),
@@ -718,7 +715,11 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             _display_ddl(args, provider, statement)
 
         elif args.type == "column-profiles":
-            print(_AGGREGATE_PROFILE_NOTE, file=sys.stderr)
+            print(
+                "Note: column profiles are aggregated from the rows themselves "
+                "(source='aggregate') -- exact, and paid for with a full scan per column.",
+                file=sys.stderr,
+            )
             profiles = await introspector.list_column_data_profiles(
                 args.name, schema=None
             )
@@ -730,8 +731,8 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             samples = await introspector.sample_column_values(
                 args.name,
                 args.column,
-                limit=_value_sample_limit(args),
                 schema=None,
+                **_value_sample_arguments(args),
             )
             provider.display_results(
                 _serialize_for_output(samples),
