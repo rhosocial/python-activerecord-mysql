@@ -1,6 +1,8 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/introspection.py
 from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
+from rhosocial.activerecord.backend.introspection.types import ProfileSource
+
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.introspection.types import IntrospectionScope
     from rhosocial.activerecord.backend.expression.introspection import (
@@ -1190,7 +1192,7 @@ class MySQLIntrospectionMixin:
                 FunctionCall(self, "MIN", Column(self, column_name)).as_("min_value"),
                 FunctionCall(self, "MAX", Column(self, column_name)).as_("max_value"),
                 CountFunction(self, RowCountWildcard(self)).as_("row_count"),
-                self._profile_label("aggregate", "source"),
+                self._profile_label(ProfileSource.AGGREGATE.value, "source"),
             ],
             from_=Table(self, table_name, catalog_name=schema or None),
         )
