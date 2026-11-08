@@ -174,6 +174,46 @@ class GroupConcat(FunctionExpression):
 
 💡 *AI Prompt:* "What is the difference between MySQL's REPLACE INTO and INSERT ... ON DUPLICATE KEY UPDATE?"
 
+### Signed seconds between two timestamps
+
+`date_diff` counts whole units; `seconds_between` answers `end - start` in
+signed, fractional seconds:
+
+```python
+from rhosocial.activerecord.backend.expression import Column
+from rhosocial.activerecord.backend.expression.functions import seconds_between
+from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+dialect = MySQLDialect()
+elapsed = seconds_between(
+    dialect,
+    Column(dialect, "queued_at"),
+    Column(dialect, "started_at"),
+).as_("queue_seconds")
+sql, params = elapsed.to_sql()
+# sql: '(TIMESTAMPDIFF(MICROSECOND, `queued_at`, `started_at`) / 1000000) AS `queue_seconds`'
+# params: ()
+```
+
+The result is `end - start` in seconds:
+
+| Case | Result |
+|------|--------|
+| `end` later than `start` | positive |
+| `end` earlier than `start` | negative |
+| same instant | `0` |
+| a fraction present in either value | kept by the division |
+
+`TIMESTAMPDIFF(MICROSECOND, ...)` counts the interval in whole microseconds and
+keeps its sign. The `/` operator is MySQL's decimal division, not integer
+division, so the sub-second part is not truncated. MySQL's default
+`div_precision_increment` gives the result at least four fractional digits;
+round explicitly if you need a particular scale.
+
+Bind parameters follow the SQL: the dialect writes `start` first, so
+`start`'s parameters come before `end`'s. `.as_("...")` is applied after the
+parenthesised expression, so the alias survives in a `SELECT` list.
+
 ## Querying Runtime Functions and Constants
 
 MySQL supports querying runtime functions without a data source, such as `SELECT CURRENT_TIMESTAMP`, `SELECT NOW()`, `SELECT VERSION()`. Use `QueryStatement` without specifying `from_` to achieve this.

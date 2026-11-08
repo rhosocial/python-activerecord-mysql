@@ -234,6 +234,42 @@ expr = DatetimeDiffExpression(dialect, DateTimeField.DAY,
 # 生成: TIMESTAMPDIFF(DAY, `start`, `end`)
 ```
 
+### 两个时间戳之间相差的秒数
+
+`date_diff` 按整单位计数；`seconds_between` 返回 `end - start` 的带符号小数秒：
+
+```python
+from rhosocial.activerecord.backend.expression import Column
+from rhosocial.activerecord.backend.expression.functions import seconds_between
+from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+dialect = MySQLDialect()
+elapsed = seconds_between(
+    dialect,
+    Column(dialect, "queued_at"),
+    Column(dialect, "started_at"),
+).as_("queue_seconds")
+sql, params = elapsed.to_sql()
+# sql: '(TIMESTAMPDIFF(MICROSECOND, `queued_at`, `started_at`) / 1000000) AS `queue_seconds`'
+# params: ()
+```
+
+结果为以秒计的 `end - start`：
+
+| 情形 | 结果 |
+|------|------|
+| `end` 晚于 `start` | 正数 |
+| `end` 早于 `start` | 负数 |
+| 同一时刻 | `0` |
+| 任一侧带小数 | 由除法保留 |
+
+`TIMESTAMPDIFF(MICROSECOND, ...)` 以整微秒计数并保留符号；`/` 是 MySQL 的
+小数除法而非整数除法，因此亚秒部分不会被截断。MySQL 默认的
+`div_precision_increment` 至少给出四位小数；需要特定精度时请显式取整。
+
+绑定参数顺序跟随 SQL：方言先写 `start`，因此 `start` 的参数排在 `end` 之前。
+`.as_("...")` 附加在带括号的表达式之后，别名在 `SELECT` 列表中保留。
+
 ## 查询优化器提示 (Optimizer Hints)
 
 MySQL 支持 SET_VAR 优化器提示，MySQL 9.7+ 还支持超图优化器：
