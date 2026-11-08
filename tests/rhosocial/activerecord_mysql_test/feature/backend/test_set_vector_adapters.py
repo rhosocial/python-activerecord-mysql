@@ -13,6 +13,7 @@ from rhosocial.activerecord.backend.impl.mysql.adapters import (
     MySQLSetAdapter,
     MySQLVectorAdapter,
 )
+from rhosocial.activerecord.backend.impl.mysql.mixins.vector import MySQLVectorMixin
 
 
 class TestMySQLSetAdapterDecodeFromInt:
@@ -191,3 +192,15 @@ class TestMySQLVectorAdapterFromDatabaseIntegration:
         adapter = MySQLVectorAdapter()
         result = adapter.from_database("[1.5,2.5,3.5]", list)
         assert result == [1.5, 2.5, 3.5]
+
+
+class TestTheDimensionLimitHasOneOwner:
+    """The adapter and the mixin must not answer the limit separately."""
+
+    def test_adapter_reads_the_mixin_limit(self):
+        # One number, two readers: the adapter refuses longer vectors on the
+        # way out and the mixin refuses them at format time. Two literals
+        # would let one move without the other, and the refusal a caller sees
+        # would depend on which half of the machinery got there first.
+        assert MySQLVectorAdapter.MAX_VECTOR_DIMENSION is MySQLVectorMixin.MAX_VECTOR_DIMENSION
+

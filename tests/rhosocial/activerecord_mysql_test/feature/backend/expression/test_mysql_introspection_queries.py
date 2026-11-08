@@ -54,7 +54,8 @@ class TestTableList:
         sql, params = TableListQueryStatement(dialect, schema="app").to_sql()
         assert sql.startswith(
             "SELECT `TABLE_NAME`, `TABLE_TYPE`, `TABLE_COMMENT`, `TABLE_ROWS`, "
-            "`DATA_LENGTH`, `AUTO_INCREMENT`, `CREATE_TIME`, `UPDATE_TIME` "
+            "`DATA_LENGTH`, `INDEX_LENGTH`, `AUTO_INCREMENT`, `CREATE_TIME`, "
+            "`UPDATE_TIME` "
             "FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = %s"
         )
         # The exclusion list is a fact about the engine, not caller data, so it
@@ -76,6 +77,46 @@ class TestTableList:
         sql, params = TableListQueryStatement(dialect, schema="app", table_type="VIEW").to_sql()
         assert sql.endswith("`TABLE_TYPE` = %s")
         assert params == ("app", "VIEW")
+
+    def test_storage_split_rides_the_list_query(self, dialect):
+        """The per-table slots are answered by the list query, not a new one.
+
+        MySQL's storage is row-plus-index shaped, so the split is read from the
+        same relation the row count already comes from: no second query, and
+        no engine-only extension of the statement's parameters.
+        """
+        sql, params = TableListQueryStatement(dialect, schema="app").to_sql()
+        assert "`DATA_LENGTH`" in sql and "`INDEX_LENGTH`" in sql
+        assert params == ("app",)
+
+
+class TestTableStorageProbe:
+    """The capability gate the storage slots answer under."""
+
+    def test_mysql_declares_the_family(self, dialect):
+        assert dialect.supports_table_storage_introspection() is True
+
+
+class TestStatusSizeQuery:
+    """The status overview's size question, rendered from its nodes."""
+
+    def test_the_split_is_asked_for_beside_the_total(self, dialect):
+        from types import SimpleNamespace
+
+        from rhosocial.activerecord.backend.impl.mysql.introspection.status_introspector import (
+            MySQLStatusIntrospectorMixin,
+        )
+
+        introspector = MySQLStatusIntrospectorMixin()
+        introspector._backend = SimpleNamespace(
+            dialect=dialect, config=SimpleNamespace(database="app")
+        )
+
+        sql, params = introspector._database_size_query()
+        assert "SUM(`DATA_LENGTH` + `INDEX_LENGTH`)" in sql
+        assert "SUM(`DATA_LENGTH`)" in sql
+        assert "SUM(`INDEX_LENGTH`)" in sql
+        assert params == ("app",)
 
 
 class TestColumnAndIndexInfo:

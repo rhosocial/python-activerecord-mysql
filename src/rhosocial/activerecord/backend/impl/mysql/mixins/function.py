@@ -129,7 +129,7 @@ class MySQLFunctionMixin:
         """MySQL's character-length spelling: ``CHAR_LENGTH(operand)``.
 
         The base spells ``LENGTH``, and on MySQL that answers a different
-        question: measured on 8.0.46 (192.168.1.3:14682),
+        question: measured on 8.0.46 (scenario ``mysql_80``),
         ``LENGTH('aé')`` is 3 -- the byte count, é being two bytes -- while
         ``CHAR_LENGTH('aé')`` is 2, the characters, so the default would
         answer a different question than this node asks.

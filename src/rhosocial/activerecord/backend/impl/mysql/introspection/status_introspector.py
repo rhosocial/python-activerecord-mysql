@@ -6,7 +6,7 @@ Provides server status information by querying MySQL's SHOW VARIABLES,
 SHOW STATUS, and other system commands.
 
 Design principle: Sync and Async are separate and cannot coexist.
-- SyncMySQLStatusIntrospector: for synchronous backends
+- MySQLStatusIntrospector: for synchronous backends
 - AsyncMySQLStatusIntrospector: for asynchronous backends
 """
 
@@ -15,21 +15,24 @@ from typing import Any, Dict, List, Optional, Tuple
 from rhosocial.activerecord.backend.introspection.status import (
     StatusItem,
     StatusCategory,
-    ServerOverview,
     DatabaseBriefInfo,
     UserInfo,
     ConnectionInfo,
     StorageInfo,
     SessionInfo,
-    InnoDBInfo,
-    BinaryLogInfo,
     ProcessInfo,
-    SlowQueryInfo,
+    AbstractStatusIntrospector,
+    AsyncAbstractStatusIntrospector,
+)
+
+from .status_types import (
+    BinaryLogInfo,
+    InnoDBInfo,
     MySQLReplicationInfo,
+    MySQLServerOverview,
     ReplicationMasterInfo,
     ReplicationSlaveInfo,
-    SyncAbstractStatusIntrospector,
-    AsyncAbstractStatusIntrospector,
+    SlowQueryInfo,
 )
 
 
@@ -252,7 +255,13 @@ class MySQLStatusIntrospectorMixin:
         ).to_sql()
 
     def _database_size_query(self) -> Tuple[str, tuple]:
-        """``SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM information_schema.TABLES``."""
+        """``SELECT SUM(DATA_LENGTH + INDEX_LENGTH), SUM(DATA_LENGTH), SUM(INDEX_LENGTH)``.
+
+        The two components are asked for beside the total because MySQL's
+        storage *is* row-plus-index shaped: the sum answers "how big", and the
+        split answers "big with what" -- the narrow slots of
+        :class:`~rhosocial.activerecord.backend.introspection.status.StorageInfo`.
+        """
         from rhosocial.activerecord.backend.expression import (
             ArithmeticOperation,
             Column,
@@ -271,9 +280,11 @@ class MySQLStatusIntrospectorMixin:
                 dialect, "add", Column(dialect, "DATA_LENGTH"), Column(dialect, "INDEX_LENGTH")
             ),
         ).as_("total_size")
+        data = SumFunction(dialect, Column(dialect, "DATA_LENGTH")).as_("data_size")
+        index = SumFunction(dialect, Column(dialect, "INDEX_LENGTH")).as_("index_size")
         return QueryStatement(
             dialect,
-            select=[total],
+            select=[total, data, index],
             from_=Table(dialect, "TABLES", catalog_name="information_schema"),
             where=WhereClause(
                 dialect,
@@ -459,9 +470,14 @@ class MySQLStatusIntrospectorMixin:
         processes: Optional[List[ProcessInfo]] = None,
         slow_query: Optional[SlowQueryInfo] = None,
         mysql_replication: Optional[MySQLReplicationInfo] = None,
-    ) -> ServerOverview:
-        """Build ServerOverview from collected data."""
-        return ServerOverview(
+    ) -> MySQLServerOverview:
+        """Build the MySQL overview: the core shape plus its own families.
+
+        The four engine-owned slots are filled from the collectors below, so
+        an overview always answers for the server it was taken from rather
+        than for the smallest question every engine can answer.
+        """
+        return MySQLServerOverview(
             server_version=version,
             server_vendor=self._get_vendor_name(),
             session=session,
@@ -479,7 +495,7 @@ class MySQLStatusIntrospectorMixin:
         )
 
 
-class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStatusIntrospector):
+class MySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AbstractStatusIntrospector):
     """Synchronous MySQL status introspector.
 
     Uses SHOW VARIABLES and SHOW STATUS to gather server information.
@@ -496,7 +512,7 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
         super().__init__(backend)
         self._show = backend.introspector.show
 
-    def get_overview(self) -> ServerOverview:
+    def get_overview(self) -> MySQLServerOverview:
         """Get complete MySQL status overview."""
         configuration = self.list_configuration()
         performance = self.list_performance_metrics()
@@ -624,15 +640,22 @@ class SyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, SyncAbstractStat
 
         # Get database size from information_schema if available
         total_size = None
+        data_size = None
+        index_size = None
         try:
             result = self._backend.execute(*self._database_size_query())
             if result and result.data:
-                total_size = result.data[0].get("total_size")
+                row = result.data[0]
+                total_size = row.get("total_size")
+                data_size = row.get("data_size")
+                index_size = row.get("index_size")
         except Exception:
             pass
 
         return StorageInfo(
             total_size_bytes=self.parse_variable_value(total_size),
+            data_size_bytes=self.parse_variable_value(data_size),
+            index_size_bytes=self.parse_variable_value(index_size),
             extra={
                 "datadir": var_dict.get("datadir"),
                 "innodb_buffer_pool_size": self.parse_variable_value(var_dict.get("innodb_buffer_pool_size")),
@@ -1109,7 +1132,7 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
         super().__init__(backend)
         self._show = backend.introspector.show
 
-    async def get_overview(self) -> ServerOverview:
+    async def get_overview(self) -> MySQLServerOverview:
         """Get complete MySQL status overview."""
         configuration = await self.list_configuration()
         performance = await self.list_performance_metrics()
@@ -1232,15 +1255,22 @@ class AsyncMySQLStatusIntrospector(MySQLStatusIntrospectorMixin, AsyncAbstractSt
             var_dict[var.variable_name] = var.value
 
         total_size = None
+        data_size = None
+        index_size = None
         try:
             result = await self._backend.execute(*self._database_size_query())
             if result and result.data:
-                total_size = result.data[0].get("total_size")
+                row = result.data[0]
+                total_size = row.get("total_size")
+                data_size = row.get("data_size")
+                index_size = row.get("index_size")
         except Exception:
             pass
 
         return StorageInfo(
             total_size_bytes=self.parse_variable_value(total_size),
+            data_size_bytes=self.parse_variable_value(data_size),
+            index_size_bytes=self.parse_variable_value(index_size),
             extra={
                 "datadir": var_dict.get("datadir"),
                 "innodb_buffer_pool_size": self.parse_variable_value(var_dict.get("innodb_buffer_pool_size")),

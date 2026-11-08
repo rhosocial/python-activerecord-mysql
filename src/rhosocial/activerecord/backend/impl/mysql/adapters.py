@@ -9,6 +9,8 @@ from datetime import timedelta
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
+from .mixins.vector import MySQLVectorMixin
+
 
 class MySQLBlobAdapter(SQLTypeAdapter):
     """
@@ -571,8 +573,10 @@ class MySQLVectorAdapter(SQLTypeAdapter):
     - DISTANCE_DOT: Dot product distance
     """
 
-    # Maximum dimension supported by MySQL 9.0
-    MAX_VECTOR_DIMENSION = 16384
+    # Maximum dimension supported by MySQL 9.0. Read from the mixin that also
+    # enforces it at format time: one limit, two readers, and a second literal
+    # here would be a second place to move when the engine's limit changes.
+    MAX_VECTOR_DIMENSION = MySQLVectorMixin.MAX_VECTOR_DIMENSION
 
     def __init__(self, dimension: Optional[int] = None):
         """

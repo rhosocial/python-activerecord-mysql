@@ -17,7 +17,7 @@ from rhosocial.activerecord.backend.impl.mysql.introspection.types import (
 )
 from rhosocial.activerecord.backend.introspection.executor import (
     AsyncIntrospectorExecutor,
-    SyncIntrospectorExecutor,
+    IntrospectorExecutor,
 )
 
 from mysql_live_server import mysql_server_available
@@ -30,7 +30,7 @@ pytestmark = pytest.mark.skipif(
 PARTITIONED_TABLE = "partitioned_events"
 
 
-class CountingExecutor(SyncIntrospectorExecutor):
+class CountingExecutor(IntrospectorExecutor):
     """An executor that reports how many questions it was asked."""
 
     def __init__(self, backend: Any) -> None:

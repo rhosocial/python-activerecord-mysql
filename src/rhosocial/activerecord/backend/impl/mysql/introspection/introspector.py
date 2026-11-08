@@ -2,7 +2,7 @@
 """
 MySQL concrete introspectors.
 
-Implements SyncAbstractIntrospector and AsyncAbstractIntrospector for MySQL
+Implements AbstractIntrospector and AsyncAbstractIntrospector for MySQL
 databases using the information_schema system tables for metadata queries.
 
 The introspectors are exposed via ``backend.introspector`` and also provide
@@ -22,7 +22,7 @@ Key behaviours:
   - parse_* methods are pure Python — shared by sync and async introspectors
 
 Design principle: Sync and Async are separate and cannot coexist.
-- SyncMySQLIntrospector: for synchronous backends
+- MySQLIntrospector: for synchronous backends
 - AsyncMySQLIntrospector: for asynchronous backends
 """
 
@@ -38,12 +38,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from rhosocial.activerecord.backend.introspection.base import (
     IntrospectorMixin,
-    SyncAbstractIntrospector,
+    AbstractIntrospector,
     AsyncAbstractIntrospector,
 )
 from rhosocial.activerecord.backend.introspection.cache import IntrospectionCache
 from rhosocial.activerecord.backend.introspection.executor import (
-    SyncIntrospectorExecutor,
+    IntrospectorExecutor,
     AsyncIntrospectorExecutor,
 )
 from rhosocial.activerecord.backend.introspection.types import (
@@ -60,15 +60,16 @@ from rhosocial.activerecord.backend.introspection.types import (
     IntrospectionViewInfo,
     IntrospectionTriggerInfo,
     IntrospectionScope,
+    DDLStatement,
 )
 from rhosocial.activerecord.backend.expression.types import DataType
 from .types import MySQLPartitionInfo, MySQLTableOptions
 from .show_introspector import (
-    SyncShowIntrospector,
+    ShowIntrospector,
     AsyncShowIntrospector,
 )
 from .status_introspector import (
-    SyncMySQLStatusIntrospector,
+    MySQLStatusIntrospector,
     AsyncMySQLStatusIntrospector,
 )
 
@@ -76,7 +77,7 @@ from .status_introspector import (
 class MySQLIntrospectorMixin(IntrospectorMixin):
     """Mixin providing shared MySQL-specific introspection logic.
 
-    Both SyncMySQLIntrospector and AsyncMySQLIntrospector inherit
+    Both MySQLIntrospector and AsyncMySQLIntrospector inherit
     from this mixin to share:
     - Default schema handling
     - The version a database record reports (``server_version``)
@@ -126,6 +127,16 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         )
 
     def parse_tables(self, rows: List[Dict[str, Any]], schema: Optional[str]) -> List[IntrospectionTableInfo]:
+        """Turn the catalogue rows into table records, storage split included.
+
+        The three storage slots answer different questions and are all filled
+        from the server's own accounting: ``data_size_bytes`` is what the rows
+        occupy, ``index_size_bytes`` what the indexes occupy, and
+        ``size_bytes`` their sum -- ``None`` when the server reports neither,
+        which is an answer rather than a fabricated 0. ``MySQLTableOptions``
+        carries the same two numbers beside the engine and row format, with
+        the caveat about InnoDB estimates.
+        """
         target_db = schema if schema is not None else self.default_schema
         table_type_map = {
             "BASE TABLE": TableType.BASE_TABLE,
@@ -135,6 +146,12 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         tables = []
         for row in rows:
             t_type = table_type_map.get(row.get("TABLE_TYPE", "BASE TABLE"), TableType.BASE_TABLE)
+            data_length = row.get("DATA_LENGTH")
+            index_length = row.get("INDEX_LENGTH")
+            if data_length is None and index_length is None:
+                total_length = None
+            else:
+                total_length = (data_length or 0) + (index_length or 0)
             tables.append(
                 IntrospectionTableInfo(
                     name=row["TABLE_NAME"],
@@ -142,7 +159,9 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
                     table_type=t_type,
                     comment=row.get("TABLE_COMMENT"),
                     row_count=row.get("TABLE_ROWS"),
-                    size_bytes=row.get("DATA_LENGTH"),
+                    size_bytes=total_length,
+                    data_size_bytes=data_length,
+                    index_size_bytes=index_length,
                     auto_increment=row.get("AUTO_INCREMENT"),
                     create_time=str(row["CREATE_TIME"]) if row.get("CREATE_TIME") else None,
                     update_time=str(row["UPDATE_TIME"]) if row.get("UPDATE_TIME") else None,
@@ -299,6 +318,36 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             for row in rows
         ]
 
+    def parse_ddl_statements(
+        self, rows: List[Dict[str, Any]], schema: str
+    ) -> List[DDLStatement]:
+        """Project ``SHOW CREATE TABLE`` rows into the engine's own DDL.
+
+        ``SHOW CREATE`` names its result columns after the object --
+        ``Table`` and ``Create Table`` -- rather than after the concept, so
+        the common spellings a catalogue-reading parser looks for (``ddl``,
+        ``sql``, ``definition``) are simply not in the row and the table the
+        engine had just described would be reported as having no DDL. The text
+        is the engine's own retrieval, never an assembly, which is what
+        ``native`` says. Only the TABLE flavour is read because only it is
+        formatted; see the dialect's ``format_ddl_statement_query_statement``.
+        """
+        found: List[DDLStatement] = []
+        for row in rows or []:
+            ddl = row.get("Create Table")
+            if not ddl:
+                continue
+            found.append(
+                DDLStatement(
+                    schema=schema,
+                    object_type="TABLE",
+                    object_name=str(row.get("Table") or ""),
+                    ddl=str(ddl),
+                    native=True,
+                )
+            )
+        return found
+
     # ------------------------------------------------------------------ #
     # Table storage options and partitions — statement factories
     #
@@ -395,10 +444,10 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         ]
 
 
-class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
+class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
     """Synchronous introspector for MySQL backends.
 
-    In addition to the standard SyncAbstractIntrospector interface, exposes the
+    In addition to the standard AbstractIntrospector interface, exposes the
     ``.show`` sub-introspector for direct SHOW command access::
 
         # Standard API
@@ -412,25 +461,25 @@ class SyncMySQLIntrospector(MySQLIntrospectorMixin, SyncAbstractIntrospector):
     def __init__(
         self,
         backend: Any,
-        executor: SyncIntrospectorExecutor,
+        executor: IntrospectorExecutor,
         cache: Optional[IntrospectionCache] = None,
     ) -> None:
         super().__init__(backend, executor, cache)
-        self._show_instance: Optional[SyncShowIntrospector] = None
-        self._status_instance: Optional[SyncMySQLStatusIntrospector] = None
+        self._show_instance: Optional[ShowIntrospector] = None
+        self._status_instance: Optional[MySQLStatusIntrospector] = None
 
     @property
-    def show(self) -> SyncShowIntrospector:
+    def show(self) -> ShowIntrospector:
         """MySQL-specific SHOW sub-introspector (lazily created)."""
         if self._show_instance is None:
-            self._show_instance = SyncShowIntrospector(self._backend, self._executor)
+            self._show_instance = ShowIntrospector(self._backend, self._executor)
         return self._show_instance
 
     @property
-    def status(self) -> SyncMySQLStatusIntrospector:
+    def status(self) -> MySQLStatusIntrospector:
         """MySQL status introspector (lazily created)."""
         if self._status_instance is None:
-            self._status_instance = SyncMySQLStatusIntrospector(self._backend)
+            self._status_instance = MySQLStatusIntrospector(self._backend)
         return self._status_instance
 
     # ------------------------------------------------------------------ #

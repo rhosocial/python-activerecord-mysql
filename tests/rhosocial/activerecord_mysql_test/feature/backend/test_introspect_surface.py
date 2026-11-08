@@ -58,7 +58,18 @@ class TestTheTypeSurface:
 
 
 class TestTheNameRule:
-    @pytest.mark.parametrize("type_", ["tables", "database"])
+    @pytest.mark.parametrize(
+        "type_",
+        [
+            "tables",
+            "database",
+            "unused-indexes",
+            "table-stats",
+            "runtime",
+            "index-stats",
+            "join-coverage",
+        ],
+    )
     def test_a_name_the_type_answers_whole_is_refused(self, type_, capsys):
         with pytest.raises(SystemExit) as excinfo:
             introspect_cli._validate_name(_Args(type_, "users"))
@@ -66,7 +77,18 @@ class TestTheNameRule:
         assert excinfo.value.code == 2
         assert "takes no name" in capsys.readouterr().err
 
-    @pytest.mark.parametrize("type_", ["columns", "indexes", "foreign-keys", "partitions"])
+    @pytest.mark.parametrize(
+        "type_",
+        [
+            "columns",
+            "indexes",
+            "foreign-keys",
+            "partitions",
+            "ddl",
+            "column-profiles",
+            "value-samples",
+        ],
+    )
     def test_a_required_name_must_be_given(self, type_, capsys):
         """A missing required NAME is an incomplete invocation, not a refusal.
 
@@ -79,7 +101,9 @@ class TestTheNameRule:
         assert excinfo.value.code == 1
         assert "required" in capsys.readouterr().err
 
-    @pytest.mark.parametrize("type_", ["views", "triggers", "table-options"])
+    @pytest.mark.parametrize(
+        "type_", ["views", "triggers", "table-options", "dependencies"]
+    )
     def test_an_optional_name_may_be_given_or_not(self, type_):
         introspect_cli._validate_name(_Args(type_))
         introspect_cli._validate_name(_Args(type_, "x"))

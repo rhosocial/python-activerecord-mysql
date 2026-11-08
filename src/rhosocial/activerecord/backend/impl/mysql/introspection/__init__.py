@@ -3,37 +3,56 @@
 MySQL introspection package.
 
 Provides:
-  SyncMySQLIntrospector   — synchronous introspector for MySQL databases
+  MySQLIntrospector   — synchronous introspector for MySQL databases
   AsyncMySQLIntrospector  — asynchronous introspector for MySQL databases
-  SyncShowIntrospector    — synchronous MySQL-specific SHOW command sub-introspector
+  ShowIntrospector    — synchronous MySQL-specific SHOW command sub-introspector
   AsyncShowIntrospector   — asynchronous MySQL-specific SHOW command sub-introspector
-  SyncMySQLStatusIntrospector  — synchronous MySQL status introspector
+  MySQLStatusIntrospector  — synchronous MySQL status introspector
   AsyncMySQLStatusIntrospector -- asynchronous MySQL status introspector
   MySQLTableOptions       — storage options of one table
   MySQLPartitionInfo      — one partition (or subpartition) of one table
+  MySQLServerOverview     — MySQL's overview subclass, carrying its own families
+  InnoDBInfo / BinaryLogInfo / SlowQueryInfo — MySQL's own status families
+  ReplicationSlaveInfo / ReplicationMasterInfo / MySQLReplicationInfo
 """
 
 from .introspector import (
-    SyncMySQLIntrospector,
+    MySQLIntrospector,
     AsyncMySQLIntrospector,
 )
 from .types import MySQLPartitionInfo, MySQLTableOptions
 from .show_introspector import (
-    SyncShowIntrospector,
+    ShowIntrospector,
     AsyncShowIntrospector,
 )
 from .status_introspector import (
-    SyncMySQLStatusIntrospector,
+    MySQLStatusIntrospector,
     AsyncMySQLStatusIntrospector,
+)
+from .status_types import (
+    BinaryLogInfo,
+    InnoDBInfo,
+    MySQLReplicationInfo,
+    MySQLServerOverview,
+    ReplicationMasterInfo,
+    ReplicationSlaveInfo,
+    SlowQueryInfo,
 )
 
 __all__ = [
-    "SyncMySQLIntrospector",
+    "MySQLIntrospector",
     "AsyncMySQLIntrospector",
-    "SyncShowIntrospector",
+    "ShowIntrospector",
     "AsyncShowIntrospector",
-    "SyncMySQLStatusIntrospector",
+    "MySQLStatusIntrospector",
     "AsyncMySQLStatusIntrospector",
     "MySQLTableOptions",
     "MySQLPartitionInfo",
+    "MySQLServerOverview",
+    "InnoDBInfo",
+    "BinaryLogInfo",
+    "SlowQueryInfo",
+    "ReplicationSlaveInfo",
+    "ReplicationMasterInfo",
+    "MySQLReplicationInfo",
 ]

@@ -14,9 +14,7 @@ from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import Asyn
 from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 
 from .connection import add_connection_args, resolve_connection_config_from_args
-from .output import create_provider, RICH_AVAILABLE
-
-OUTPUT_CHOICES = ["table", "json", "csv", "tsv"]
+from .output import OUTPUT_CHOICES, create_provider, RICH_AVAILABLE
 
 STATUS_TYPES = ["all", "config", "performance", "connections", "storage", "databases", "users"]
 
@@ -351,6 +349,22 @@ def _display_status_rich(status, verbose: int = 0):
             perf_table.add_row(*row)
 
         console.print(perf_table)
+        console.print()
+
+    # Storage section
+    if status.storage.total_size_bytes is not None:
+        console.print("[bold green]Storage[/bold green]")
+        storage_table = Table(show_header=True, header_style="bold")
+        storage_table.add_column("Metric")
+        storage_table.add_column("Value")
+
+        storage_table.add_row("Total Size", _format_size(status.storage.total_size_bytes))
+        if status.storage.data_size_bytes is not None:
+            storage_table.add_row("Data Size", _format_size(status.storage.data_size_bytes))
+        if status.storage.index_size_bytes is not None:
+            storage_table.add_row("Index Size", _format_size(status.storage.index_size_bytes))
+
+        console.print(storage_table)
         console.print()
 
     # Databases section

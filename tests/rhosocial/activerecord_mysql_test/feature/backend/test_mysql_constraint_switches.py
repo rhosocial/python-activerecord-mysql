@@ -2,7 +2,7 @@
 """MySQL constraint capability switches: values and their locality.
 
 Every verdict asserted here was measured against a live Community Server
-26.7.0 at 192.168.1.3:14686 by running the ``ALTER TABLE`` statement and
+26.7.0 on the scenario ``mysql_97`` server by running the ``ALTER TABLE`` statement and
 reading ``SHOW CREATE TABLE`` / ``information_schema`` back. The docstring
 each switch carries records the same measurement, errno included, so a
 verdict can be re-checked without re-measuring the family.

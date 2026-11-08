@@ -16,16 +16,14 @@ import asyncio
 import sys
 from dataclasses import asdict, is_dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Dict
 
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.errors import ConnectionError, QueryError
 
 from .connection import add_connection_args, resolve_connection_config_from_args
-from .output import create_provider
-
-OUTPUT_CHOICES = ["table", "json", "csv", "tsv"]
+from .output import OUTPUT_CHOICES, create_provider
 
 #: The single place a type name maps to the dialect capability that decides
 #: whether this backend can answer it. ``INTROSPECT_TYPES`` is derived from it,
@@ -40,6 +38,15 @@ _TYPE_CAPABILITIES = {
     "triggers": "supports_trigger_introspection",
     "table-options": "supports_table_options_introspection",
     "partitions": "supports_partition_introspection",
+    "unused-indexes": "supports_unused_indexes_detection",
+    "table-stats": "supports_table_stats",
+    "runtime": "supports_runtime_stats",
+    "index-stats": "supports_index_stats",
+    "dependencies": "supports_object_dependencies",
+    "ddl": "supports_ddl_extraction",
+    "column-profiles": "supports_column_data_profile",
+    "value-samples": "supports_column_value_sample",
+    "join-coverage": "supports_join_coverage",
     "database": "supports_database_info",
 }
 
@@ -63,8 +70,46 @@ _NAME_RULE = {
     "triggers": "optional",
     "table-options": "optional",
     "partitions": "required",
+    "unused-indexes": "forbidden",
+    "table-stats": "forbidden",
+    "runtime": "forbidden",
+    "index-stats": "forbidden",
+    "dependencies": "optional",
+    "ddl": "required",
+    "column-profiles": "required",
+    "value-samples": "required",
+    "join-coverage": "forbidden",
     "database": "forbidden",
 }
+
+#: Options whose meaning depends on the type, and whether they must be given.
+#:
+#: ``--column`` and ``--limit`` belong to ``value-samples``, the four join
+#: names to ``join-coverage``, and nothing else has an option beyond NAME. A
+#: flag supplied to a type that does not read it is refused rather than
+#: ignored, for the same reason a NAME nothing reads is: a silently dropped
+#: argument produces a successful run that looks like it answered a narrower
+#: question.
+_TYPE_OPTIONS = {
+    "value-samples": (
+        ("column", "--column", True),
+        ("limit", "--limit", False),
+    ),
+    "join-coverage": (
+        ("left_table", "--left-table", True),
+        ("left_column", "--left-column", True),
+        ("right_table", "--right-table", True),
+        ("right_column", "--right-column", True),
+    ),
+}
+
+#: Every option in ``_TYPE_OPTIONS``, by attribute, for the stray-flag check.
+_TYPE_OPTION_FLAGS = {
+    attribute: flag
+    for options in _TYPE_OPTIONS.values()
+    for attribute, flag, _required in options
+}
+
 
 
 def create_parser(subparsers):
@@ -90,12 +135,34 @@ def create_parser(subparsers):
   # Get the partitions of one table
   %(prog)s partitions orders --database mydb
 
+  # Operational readings: indexes with no recorded use, per-table and
+  # per-index counters, live runtime facts, the foreign-key graph.
+  %(prog)s unused-indexes --database mydb
+  %(prog)s table-stats --database mydb
+  %(prog)s index-stats --database mydb
+  %(prog)s runtime --database mydb
+  %(prog)s dependencies --database mydb
+  %(prog)s dependencies orders --database mydb
+
+  # The engine's own DDL for one table
+  %(prog)s ddl orders --database mydb
+
+  # Data profiles: exact counts, paid for with a full scan per column
+  %(prog)s column-profiles orders --database mydb
+  %(prog)s value-samples orders --column status --limit 20 --database mydb
+
+  # How much two columns' value domains overlap
+  %(prog)s join-coverage --left-table orders --left-column customer_id \\
+      --right-table customers --right-column id --database mydb
+
   # Output as JSON
   %(prog)s tables --database mydb -o json
 
-  # NAME is a table for columns/indexes/foreign-keys/partitions, the object
-  # itself for views/triggers/table-options, and is refused for
-  # tables/database -- those answer for the whole database.
+  # NAME is a table for columns/indexes/foreign-keys/partitions/ddl/
+  # column-profiles/value-samples, the object itself for views/triggers/
+  # table-options/dependencies, and is refused for the families that answer
+  # for the whole database (tables, database, unused-indexes, table-stats,
+  # runtime, index-stats, join-coverage).
 
   # Using environment variables for connection
   export MYSQL_HOST=localhost MYSQL_DATABASE=mydb MYSQL_USER=root MYSQL_PASSWORD=secret
@@ -127,20 +194,56 @@ def create_parser(subparsers):
     parser.add_argument(
         "type",
         choices=INTROSPECT_TYPES,
-        help=(
-            "Introspection type: tables, views, columns, indexes, "
-            "foreign-keys, triggers, table-options, partitions, database"
-        ),
+        help="Introspection type: " + ", ".join(INTROSPECT_TYPES),
     )
     parser.add_argument(
         "name",
         nargs="?",
         default=None,
         help=(
-            "Object name: a table for columns/indexes/foreign-keys/partitions, "
-            "the object itself for views/triggers/table-options. Refused for "
-            "tables/database."
+            "Object name: a table for columns/indexes/foreign-keys/partitions/"
+            "ddl/column-profiles/value-samples, the object itself for views/"
+            "triggers/table-options/dependencies. Refused for the families that "
+            "answer for the whole database."
         ),
+    )
+    parser.add_argument(
+        "--column",
+        default=None,
+        help="Column name for the value-samples type.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help=(
+            "Maximum values to list for value-samples "
+            "(default: the introspector's own limit)."
+        ),
+    )
+    parser.add_argument(
+        "--left-table",
+        dest="left_table",
+        default=None,
+        help="Left table for the join-coverage type.",
+    )
+    parser.add_argument(
+        "--left-column",
+        dest="left_column",
+        default=None,
+        help="Left column for the join-coverage type.",
+    )
+    parser.add_argument(
+        "--right-table",
+        dest="right_table",
+        default=None,
+        help="Right table for the join-coverage type.",
+    )
+    parser.add_argument(
+        "--right-column",
+        dest="right_column",
+        default=None,
+        help="Right column for the join-coverage type.",
     )
     parser.add_argument(
         "--include-system",
@@ -156,6 +259,7 @@ def handle(args):
     provider = create_provider(args.output, ascii_borders=args.rich_ascii)
 
     _validate_name(args)
+    _validate_options(args)
 
     named_conn = getattr(args, "named_connection", None)
     if not named_conn and not args.database:
@@ -231,6 +335,42 @@ def _validate_name(args) -> None:
         sys.exit(2)
 
 
+def _validate_options(args) -> None:
+    """Refuse a flag the type does not read, or a missing one it needs.
+
+    NAME has a rule table for the same reason: an option accepted by the
+    parser and ignored by the branch yields a run that succeeds and reads as
+    though it had answered the narrowed question. A missing required option is
+    an incomplete invocation (exit 1); an option the type has no use for is a
+    request this command declines (exit 2), like a NAME it cannot use.
+    """
+    options = _TYPE_OPTIONS.get(args.type, ())
+    accepted = {attribute for attribute, _flag, _required in options}
+
+    missing = [
+        flag
+        for attribute, flag, required in options
+        if required and not getattr(args, attribute, None)
+    ]
+    if missing:
+        print(
+            f"Error: {', '.join(missing)} is required for "
+            f"'{args.type}' introspection",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    for attribute, flag in _TYPE_OPTION_FLAGS.items():
+        if attribute in accepted:
+            continue
+        if getattr(args, attribute, None) not in (None, ""):
+            print(
+                f"Error: '{args.type}' introspection takes no {flag}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+
 def _require_capability(args, backend) -> None:
     """Refuse a family this server cannot answer.
 
@@ -253,6 +393,37 @@ def _require_capability(args, backend) -> None:
         file=sys.stderr,
     )
     sys.exit(2)
+
+
+def _display_ddl(args, provider, statement) -> None:
+    """Show one object's DDL as the engine handed it back.
+
+    A DDL text is a block, not a field of a row: a bordered cell wraps every
+    one of its lines and reads worse than the text itself. So the terminal
+    format prints the engine's own text, and the formats a caller parses keep
+    the record -- schema, object type, object name, ``native`` and the text --
+    which is what ``native`` is for: it says the engine retrieved this rather
+    than the library assembling it.
+    """
+    record = _serialize_for_output(statement)
+    if args.output != "table":
+        provider.display_results([record], title=f"DDL of {args.name}")
+        return
+    print(f"-- {record.get('object_type') or 'OBJECT'} {record.get('object_name') or args.name}")
+    print(record["ddl"])
+
+
+def _value_sample_arguments(args) -> Dict[str, int]:
+    """The optional arguments ``value-samples`` sends, given the parsed argument.
+
+    ``limit`` is forwarded only when the caller supplied ``--limit``. When the
+    flag is absent the introspector's signature answers with its own default,
+    so a forwarder that filled in ``100`` would be a second place writing a
+    number the signature already owns -- and a place no test could keep in
+    step with it.
+    """
+    limit = getattr(args, "limit", None)
+    return {} if limit is None else {"limit": limit}
 
 
 def _handle_introspect_sync(args, backend: MySQLBackend, provider):
@@ -323,6 +494,94 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             partitions = introspector.list_partitions(args.name, schema=None)
             provider.display_results(
                 _serialize_for_output(partitions), title=f"Partitions of {args.name}"
+            )
+
+        elif args.type == "unused-indexes":
+            indexes = introspector.list_unused_indexes(schema=None)
+            provider.display_results(
+                _serialize_for_output(indexes), title="Indexes with no recorded use"
+            )
+
+        elif args.type == "table-stats":
+            stats = introspector.list_table_usage_stats(schema=None)
+            provider.display_results(
+                _serialize_for_output(stats), title="Table usage counters"
+            )
+
+        elif args.type == "runtime":
+            metrics = introspector.list_runtime_metrics(schema=None)
+            provider.display_results(
+                _serialize_for_output(metrics), title="Runtime metrics"
+            )
+
+        elif args.type == "index-stats":
+            stats = introspector.list_index_usage_stats(schema=None)
+            provider.display_results(
+                _serialize_for_output(stats), title="Index usage counters"
+            )
+
+        elif args.type == "dependencies":
+            dependencies = introspector.list_object_dependencies(
+                object_name=args.name, schema=None
+            )
+            provider.display_results(
+                _serialize_for_output(dependencies),
+                title=(
+                    f"Dependencies of {args.name}" if args.name else "Object dependencies"
+                ),
+            )
+
+        elif args.type == "ddl":
+            statement = introspector.get_ddl_statement(args.name, schema=None)
+            if statement is None:
+                print(
+                    f"Error: DDL for '{args.name}' is not available from this server",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            _display_ddl(args, provider, statement)
+
+        elif args.type == "column-profiles":
+            print(
+                "Note: column profiles are aggregated from the rows themselves "
+                "(source='aggregate') -- exact, and paid for with a full scan per column.",
+                file=sys.stderr,
+            )
+            profiles = introspector.list_column_data_profiles(args.name, schema=None)
+            provider.display_results(
+                _serialize_for_output(profiles), title=f"Column profiles of {args.name}"
+            )
+
+        elif args.type == "value-samples":
+            samples = introspector.sample_column_values(
+                args.name,
+                args.column,
+                schema=None,
+                **_value_sample_arguments(args),
+            )
+            provider.display_results(
+                _serialize_for_output(samples),
+                title=f"Most frequent values of {args.name}.{args.column}",
+            )
+
+        elif args.type == "join-coverage":
+            coverage = introspector.estimate_join_coverage(
+                args.left_table,
+                args.left_column,
+                args.right_table,
+                args.right_column,
+                schema=None,
+            )
+            if coverage is None:
+                print(
+                    "Error: this server could not measure the overlap of "
+                    f"{args.left_table}.{args.left_column} and "
+                    f"{args.right_table}.{args.right_column}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            provider.display_results(
+                _serialize_for_output([coverage]), title="Join coverage"
             )
 
         elif args.type == "database":
@@ -407,6 +666,96 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             partitions = await introspector.list_partitions(args.name, schema=None)
             provider.display_results(
                 _serialize_for_output(partitions), title=f"Partitions of {args.name}"
+            )
+
+        elif args.type == "unused-indexes":
+            indexes = await introspector.list_unused_indexes(schema=None)
+            provider.display_results(
+                _serialize_for_output(indexes), title="Indexes with no recorded use"
+            )
+
+        elif args.type == "table-stats":
+            stats = await introspector.list_table_usage_stats(schema=None)
+            provider.display_results(
+                _serialize_for_output(stats), title="Table usage counters"
+            )
+
+        elif args.type == "runtime":
+            metrics = await introspector.list_runtime_metrics(schema=None)
+            provider.display_results(
+                _serialize_for_output(metrics), title="Runtime metrics"
+            )
+
+        elif args.type == "index-stats":
+            stats = await introspector.list_index_usage_stats(schema=None)
+            provider.display_results(
+                _serialize_for_output(stats), title="Index usage counters"
+            )
+
+        elif args.type == "dependencies":
+            dependencies = await introspector.list_object_dependencies(
+                object_name=args.name, schema=None
+            )
+            provider.display_results(
+                _serialize_for_output(dependencies),
+                title=(
+                    f"Dependencies of {args.name}" if args.name else "Object dependencies"
+                ),
+            )
+
+        elif args.type == "ddl":
+            statement = await introspector.get_ddl_statement(args.name, schema=None)
+            if statement is None:
+                print(
+                    f"Error: DDL for '{args.name}' is not available from this server",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            _display_ddl(args, provider, statement)
+
+        elif args.type == "column-profiles":
+            print(
+                "Note: column profiles are aggregated from the rows themselves "
+                "(source='aggregate') -- exact, and paid for with a full scan per column.",
+                file=sys.stderr,
+            )
+            profiles = await introspector.list_column_data_profiles(
+                args.name, schema=None
+            )
+            provider.display_results(
+                _serialize_for_output(profiles), title=f"Column profiles of {args.name}"
+            )
+
+        elif args.type == "value-samples":
+            samples = await introspector.sample_column_values(
+                args.name,
+                args.column,
+                schema=None,
+                **_value_sample_arguments(args),
+            )
+            provider.display_results(
+                _serialize_for_output(samples),
+                title=f"Most frequent values of {args.name}.{args.column}",
+            )
+
+        elif args.type == "join-coverage":
+            coverage = await introspector.estimate_join_coverage(
+                args.left_table,
+                args.left_column,
+                args.right_table,
+                args.right_column,
+                schema=None,
+            )
+            if coverage is None:
+                print(
+                    "Error: this server could not measure the overlap of "
+                    f"{args.left_table}.{args.left_column} and "
+                    f"{args.right_table}.{args.right_column}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            provider.display_results(
+                _serialize_for_output([coverage]), title="Join coverage"
             )
 
         elif args.type == "database":

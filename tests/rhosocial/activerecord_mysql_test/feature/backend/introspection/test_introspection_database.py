@@ -90,6 +90,15 @@ class TestIntrospectionCapabilities:
         """Test that MySQL backend supports table introspection."""
         assert mysql_backend.dialect.supports_table_introspection() is True
 
+    def test_supports_table_storage_introspection(self, mysql_backend):
+        """MySQL answers the per-table storage split, so it declares it.
+
+        The probe is the gate for the ``IntrospectionTableInfo`` slots; an
+        engine that cannot answer them leaves the probe at core's False and
+        its CLI offers nothing.
+        """
+        assert mysql_backend.dialect.supports_table_storage_introspection() is True
+
     def test_supports_column_introspection(self, mysql_backend):
         """Test that MySQL backend supports column introspection."""
         assert mysql_backend.dialect.supports_column_introspection() is True
