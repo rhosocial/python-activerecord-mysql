@@ -418,24 +418,28 @@ def test_subpartition_by_hash_with_expression(dialect):
     assert params == ()
 
 
-def test_subpartition_by_key_with_implicit_columns(dialect):
-    """SUBPARTITION BY KEY() without expression should produce correct SQL."""
-    expr = MySQLPartitionByRange(
-        dialect=dialect,
-        keys=[Column(dialect, "created_at")],
-        partitions=[
-            MySQLPartitionDefinition("p0", less_than=[_partition_value(dialect, "2026-01-01")]),
-        ],
-        subpartition_by=MySQLSubpartitionClause(
+def test_subpartition_by_key_requires_columns(dialect):
+    """SUBPARTITION BY KEY has no default column, so omitting it is refused."""
+    with pytest.raises(ValueError, match="requires an expression"):
+        MySQLSubpartitionClause(
             dialect=dialect,
             strategy=MySQLSubpartitionStrategy.KEY,
             count=4,
-        ),
+        )
+
+
+def test_subpartition_by_key_with_explicit_columns(dialect):
+    """SUBPARTITION BY KEY renders the required column list."""
+    sub = MySQLSubpartitionClause(
+        dialect=dialect,
+        strategy=MySQLSubpartitionStrategy.KEY,
+        expression=Column(dialect, "id"),
+        count=4,
     )
 
-    sql, params = expr.to_sql()
+    sql, params = sub.to_sql()
 
-    assert "SUBPARTITION BY KEY" in sql
+    assert "SUBPARTITION BY KEY (`id`)" in sql
     assert "SUBPARTITIONS 4" in sql
     assert params == ()
 
@@ -506,7 +510,9 @@ def test_subpartition_clause_accepts_strategy_word(dialect):
     serialized form of its own parameter unreadable (§10: the entry accepts
     the member or the word it spells, and stores the member).
     """
-    clause = MySQLSubpartitionClause(dialect, strategy="HASH")  # type: ignore[arg-type]
+    clause = MySQLSubpartitionClause(
+        dialect, strategy="HASH", expression=Column(dialect, "id")
+    )  # type: ignore[arg-type]
     assert clause.strategy is MySQLSubpartitionStrategy.HASH
 
 
