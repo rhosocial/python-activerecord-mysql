@@ -44,3 +44,20 @@ class MySQLDateTimeMixin:
         end_sql, end_params = expr.end.to_sql()
         sql = f"TIMESTAMPDIFF({expr.unit.value.upper()}, {start_sql}, {end_sql})"
         return self.apply_alias(sql, start_params + end_params, expr)
+
+    def format_seconds_between_expression(self, expr: "Any") -> Tuple[str, Tuple]:
+        """Format signed, fractional seconds between two instants.
+
+        ``TIMESTAMPDIFF(MICROSECOND, ...)`` counts ``end - start`` in
+        microseconds and keeps the sign: it is negative when ``end`` precedes
+        ``start``. Dividing by one million turns that count into seconds, and
+        MySQL's ``/`` is not integer division, so the sub-second part survives.
+
+        The rendering writes ``start`` first, so its parameters are collected
+        first as well -- bind order follows the SQL, not the constructor's
+        argument order.
+        """
+        start_sql, start_params = expr.start.to_sql()
+        end_sql, end_params = expr.end.to_sql()
+        sql = f"(TIMESTAMPDIFF(MICROSECOND, {start_sql}, {end_sql}) / 1000000)"
+        return self.apply_alias(sql, start_params + end_params, expr)
