@@ -184,6 +184,15 @@ version, see `.claude/mysql_backend.md` and the dialect source.
   MySQL version. Fetch the generated id with a follow-up `SELECT`.
 - Generated columns, `SET`, `ENUM`, spatial types and storage-engine options
   need backend-specific DDL expressions rather than plain column types.
+- **No `types` introspection family.** MySQL has no standalone user-defined
+  types: `ENUM` and `SET` are column types, not catalog objects. Their
+  definitions are already readable from `information_schema.COLUMNS` /
+  `introspect columns`, so there is nothing for a `types` family to list.
+- **`constraints` covers CHECK from 8.0.16.** `CHECK_CONSTRAINTS` is the
+  relation that holds a CHECK expression, and it arrived with enforcement in
+  8.0.16; below that floor the CLI refuses the family rather than returning an
+  empty listing. Primary-key, unique and foreign-key constraints are in the
+  same family, with their columns read from `KEY_COLUMN_USAGE`.
 
 ## Testing
 

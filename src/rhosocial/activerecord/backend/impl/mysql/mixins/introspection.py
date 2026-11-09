@@ -28,6 +28,9 @@ if TYPE_CHECKING:
         MySQLTableOptionsListQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
         MySQLPartitionListQueryStatement,
+        MySQLRoutineListQueryStatement,
+        MySQLRoutineInfoQueryStatement,
+        MySQLConstraintListQueryStatement,
     )
 
 
@@ -66,6 +69,38 @@ PARTITION_COLUMNS = (
     "TABLE_ROWS",
     "DATA_LENGTH",
     "INDEX_LENGTH",
+)
+
+#: The routine projection from ``ROUTINES``. The parser reads these names as
+#: the routine's own facts, so the parameter relation's similarly named
+#: columns are aliased below rather than allowed to collide.
+ROUTINE_COLUMNS = (
+    "ROUTINE_SCHEMA",
+    "ROUTINE_NAME",
+    "ROUTINE_TYPE",
+    "DATA_TYPE",
+    "DTD_IDENTIFIER",
+    "ROUTINE_BODY",
+    "EXTERNAL_LANGUAGE",
+    "IS_DETERMINISTIC",
+    "SQL_DATA_ACCESS",
+    "SECURITY_TYPE",
+    "ROUTINE_COMMENT",
+    "DEFINER",
+    "CREATED",
+    "LAST_ALTERED",
+    "SQL_MODE",
+)
+
+#: The constraint projection. ``CHECK_CLAUSE`` and the column pair are the two
+#: side relations' facts; both are nullable because a constraint has rows in
+#: only one of them.
+CONSTRAINT_COLUMNS = (
+    "CONSTRAINT_SCHEMA",
+    "TABLE_NAME",
+    "CONSTRAINT_NAME",
+    "CONSTRAINT_TYPE",
+    "ENFORCED",
 )
 
 
@@ -145,6 +180,28 @@ class MySQLIntrospectionMixin:
     def supports_trigger_introspection(self) -> bool:
         """MySQL supports trigger introspection via information_schema.TRIGGERS."""
         return True
+
+    def supports_routine_introspection(self) -> bool:
+        """MySQL supports routine introspection via information_schema.ROUTINES.
+
+        ``ROUTINES`` exists on every MySQL release this backend covers, so the
+        probe is a flat ``True``: it is the catalogue that is versioned, not
+        the question. The family also joins ``PARAMETERS`` for the argument
+        list, which every supported release has as well.
+        """
+        return True
+
+    def supports_constraint_introspection(self) -> bool:
+        """Whether the CHECK-bearing constraint catalogue exists on this server.
+
+        ``information_schema.CHECK_CONSTRAINTS`` is the relation that holds a
+        CHECK constraint's expression, and it arrived with enforcement in
+        8.0.16. Below that floor CHECK clauses parse and are discarded, so
+        there is nothing to report and the join this family renders would name
+        a relation the server does not have. The answer therefore follows
+        :meth:`supports_check_constraint` rather than restating a version.
+        """
+        return self.supports_check_constraint()
 
     def get_supported_introspection_scopes(self) -> List["IntrospectionScope"]:
         """Get list of supported introspection scopes."""
@@ -644,6 +701,281 @@ class MySQLIntrospectionMixin:
                 Column(self, "PARTITION_ORDINAL_POSITION"),
                 Column(self, "SUBPARTITION_ORDINAL_POSITION"),
             ],
+        )
+
+    # -- routines --------------------------------------------------------- #
+
+    def _routine_join(self):
+        """The ``ROUTINES``/``PARAMETERS`` join, as one source node.
+
+        Both relations live in ``information_schema`` and both carry a
+        ``ROUTINE_TYPE``. Joining on schema, name *and* type is what keeps a
+        procedure's parameters from being attached to a function of the same
+        name; MySQL keeps those two kinds in separate namespaces, so the kind
+        is part of the identity rather than decoration.
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            JoinClause,
+            LogicalPredicate,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+        from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
+
+        routines = NamedRelationRef(
+            self,
+            Table(self, "ROUTINES", catalog_name="information_schema"),
+            alias="r",
+        )
+        parameters = NamedRelationRef(
+            self,
+            Table(self, "PARAMETERS", catalog_name="information_schema"),
+            alias="p",
+        )
+        condition = LogicalPredicate(
+            self,
+            "AND",
+            ComparisonPredicate(
+                self,
+                "eq",
+                Column(self, "ROUTINE_SCHEMA", table="r"),
+                Column(self, "SPECIFIC_SCHEMA", table="p"),
+            ),
+            ComparisonPredicate(
+                self,
+                "eq",
+                Column(self, "ROUTINE_NAME", table="r"),
+                Column(self, "SPECIFIC_NAME", table="p"),
+            ),
+            ComparisonPredicate(
+                self,
+                "eq",
+                Column(self, "ROUTINE_TYPE", table="r"),
+                Column(self, "ROUTINE_TYPE", table="p"),
+            ),
+        )
+        return JoinClause(
+            self,
+            left_table=routines,
+            right_table=parameters,
+            join_type="LEFT JOIN",
+            condition=condition,
+        )
+
+    def _routine_query(self, *, schema: str, name: "Optional[str]" = None,
+                       kind: "Optional[str]" = None) -> Tuple[str, tuple]:
+        """Build the routine listing, narrowed by name and/or kind when given."""
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+
+        conditions = [
+            ComparisonPredicate(
+                self, "eq", Column(self, "ROUTINE_SCHEMA", table="r"),
+                Literal(self, schema),
+            )
+        ]
+        if name:
+            conditions.append(
+                ComparisonPredicate(
+                    self, "eq", Column(self, "ROUTINE_NAME", table="r"),
+                    Literal(self, name),
+                )
+            )
+        if kind:
+            conditions.append(
+                ComparisonPredicate(
+                    self, "eq", Column(self, "ROUTINE_TYPE", table="r"),
+                    Literal(self, kind),
+                )
+            )
+
+        return self._information_schema_query(
+            "ROUTINES",
+            [
+                Column(self, name_, table="r") for name_ in ROUTINE_COLUMNS
+            ]
+            + [
+                # The parameter relation's DATA_TYPE and DTD_IDENTIFIER collide
+                # with the routine's own columns, so each side is aliased onto
+                # a distinct name the parser reads.
+                Column(self, "ORDINAL_POSITION", table="p").as_("PARAM_ORDINAL_POSITION"),
+                Column(self, "PARAMETER_MODE", table="p"),
+                Column(self, "PARAMETER_NAME", table="p"),
+                Column(self, "DATA_TYPE", table="p").as_("PARAM_DATA_TYPE"),
+                Column(self, "DTD_IDENTIFIER", table="p").as_("PARAM_DTD_IDENTIFIER"),
+            ],
+            conditions,
+            [
+                Column(self, "ROUTINE_NAME", table="r"),
+                Column(self, "ROUTINE_TYPE", table="r"),
+                # Ordinal zero is the function's return value, so this puts
+                # the return value before the arguments in the row stream.
+                Column(self, "ORDINAL_POSITION", table="p"),
+            ],
+            source=self._routine_join(),
+        )
+
+    def format_routine_list_query_statement(
+        self, expr: "MySQLRoutineListQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the routine listing for one database."""
+        schema = expr.get_params().get("schema") or ""
+        return self._routine_query(schema=schema)
+
+    def format_routine_info_query_statement(
+        self, expr: "MySQLRoutineInfoQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the routine lookup for one name, and one kind when named."""
+        params = expr.get_params()
+        schema = params.get("schema") or ""
+        return self._routine_query(
+            schema=schema,
+            name=params.get("routine_name") or "",
+            kind=params.get("kind"),
+        )
+
+    # -- constraints ------------------------------------------------------ #
+
+    def _constraint_join(self):
+        """The three-relation constraint source, joined with LEFT JOINs.
+
+        A constraint has rows in exactly one side relation: CHECK constraints
+        in ``CHECK_CONSTRAINTS``, the column-bearing kinds in
+        ``KEY_COLUMN_USAGE``. An inner join would therefore drop half the
+        family; LEFT JOINs let one row stream carry both shapes, and the
+        parser reads a NULL side as "not that kind".
+        """
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            JoinClause,
+            LogicalPredicate,
+        )
+        from rhosocial.activerecord.backend.expression.objects import Table
+        from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
+
+        constraints = NamedRelationRef(
+            self,
+            Table(self, "TABLE_CONSTRAINTS", catalog_name="information_schema"),
+            alias="tc",
+        )
+        checks = NamedRelationRef(
+            self,
+            Table(self, "CHECK_CONSTRAINTS", catalog_name="information_schema"),
+            alias="cc",
+        )
+        usage = NamedRelationRef(
+            self,
+            Table(self, "KEY_COLUMN_USAGE", catalog_name="information_schema"),
+            alias="kcu",
+        )
+
+        constraints_checks = JoinClause(
+            self,
+            left_table=constraints,
+            right_table=checks,
+            join_type="LEFT JOIN",
+            condition=LogicalPredicate(
+                self,
+                "AND",
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "CONSTRAINT_SCHEMA", table="tc"),
+                    Column(self, "CONSTRAINT_SCHEMA", table="cc"),
+                ),
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "CONSTRAINT_NAME", table="tc"),
+                    Column(self, "CONSTRAINT_NAME", table="cc"),
+                ),
+            ),
+        )
+        return JoinClause(
+            self,
+            left_table=constraints_checks,
+            right_table=usage,
+            join_type="LEFT JOIN",
+            condition=LogicalPredicate(
+                self,
+                "AND",
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "CONSTRAINT_SCHEMA", table="tc"),
+                    Column(self, "CONSTRAINT_SCHEMA", table="kcu"),
+                ),
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "CONSTRAINT_NAME", table="tc"),
+                    Column(self, "CONSTRAINT_NAME", table="kcu"),
+                ),
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "TABLE_SCHEMA", table="tc"),
+                    Column(self, "TABLE_SCHEMA", table="kcu"),
+                ),
+                ComparisonPredicate(
+                    self,
+                    "eq",
+                    Column(self, "TABLE_NAME", table="tc"),
+                    Column(self, "TABLE_NAME", table="kcu"),
+                ),
+            ),
+        )
+
+    def format_constraint_list_query_statement(
+        self, expr: "MySQLConstraintListQueryStatement"
+    ) -> Tuple[str, tuple]:
+        """Format the constraint listing for one database or one table."""
+        from rhosocial.activerecord.backend.expression import (
+            Column,
+            ComparisonPredicate,
+            Literal,
+        )
+
+        params = expr.get_params()
+        schema = params.get("schema") or ""
+        table_name = params.get("table_name")
+
+        conditions = [
+            ComparisonPredicate(
+                self, "eq", Column(self, "CONSTRAINT_SCHEMA", table="tc"),
+                Literal(self, schema),
+            )
+        ]
+        if table_name:
+            conditions.append(
+                ComparisonPredicate(
+                    self, "eq", Column(self, "TABLE_NAME", table="tc"),
+                    Literal(self, table_name),
+                )
+            )
+
+        return self._information_schema_query(
+            "TABLE_CONSTRAINTS",
+            [
+                Column(self, name_, table="tc") for name_ in CONSTRAINT_COLUMNS
+            ]
+            + [
+                Column(self, "CHECK_CLAUSE", table="cc"),
+                Column(self, "COLUMN_NAME", table="kcu"),
+                Column(self, "ORDINAL_POSITION", table="kcu"),
+            ],
+            conditions,
+            [
+                Column(self, "TABLE_NAME", table="tc"),
+                Column(self, "CONSTRAINT_NAME", table="tc"),
+                Column(self, "ORDINAL_POSITION", table="kcu"),
+            ],
+            source=self._constraint_join(),
         )
 
     def supports_unused_indexes_detection(self) -> bool:
