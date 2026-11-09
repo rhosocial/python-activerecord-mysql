@@ -9,6 +9,7 @@ from enum import Enum
 from math import isfinite
 from typing import Any, List, Optional, Sequence, TYPE_CHECKING
 
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.statements import (
     PartitionClause,
@@ -103,6 +104,30 @@ class MySQLSubpartitionDefinition(SubpartitionDefinition):
             )
 
 
+def _normalize_subpartition_strategy(
+    dialect: "MySQLDialect",
+    strategy: Any,
+) -> MySQLSubpartitionStrategy:
+    """Return the strategy member, refusing RANGE/LIST by name.
+
+    MySQL and MariaDB restrict subpartitioning to HASH and KEY (and their
+    LINEAR variants). ``SUBPARTITION BY RANGE`` cannot be silently downgraded
+    to HASH: the caller asked for a feature the server does not have, so the
+    refusal names that feature instead of producing valid-but-wrong SQL.
+    """
+    try:
+        return MySQLSubpartitionStrategy(strategy)
+    except ValueError as error:
+        word = str(strategy).strip().upper()
+        if word in {"RANGE", "RANGE COLUMNS", "LIST", "LIST COLUMNS"}:
+            raise UnsupportedFeatureError(
+                getattr(dialect, "name", "MySQL"),
+                f"SUBPARTITION BY {word}",
+                "MySQL and MariaDB support only HASH and KEY subpartitioning.",
+            ) from error
+        raise
+
+
 class MySQLSubpartitionClause(BaseExpression):
     """MySQL ``SUBPARTITION BY {HASH|KEY}(...) SUBPARTITIONS N`` clause.
 
@@ -114,6 +139,9 @@ class MySQLSubpartitionClause(BaseExpression):
 
     Raises:
         ValueError: if strategy is not a MySQLSubpartitionStrategy word.
+        UnsupportedFeatureError: if strategy names RANGE or LIST subpartitioning.
+        ValueError: if ``expression`` is missing; MySQL requires a column list
+            for every SUBPARTITION BY HASH/KEY form, including LINEAR variants.
         ValueError: if count is provided but is not a positive integer.
     """
 
@@ -132,7 +160,12 @@ class MySQLSubpartitionClause(BaseExpression):
         # ``.value``, which only the member has. A word this enum does not
         # name is refused here, where the caller can still see which
         # strategy was meant.
-        self.strategy = MySQLSubpartitionStrategy(strategy)
+        self.strategy = _normalize_subpartition_strategy(dialect, strategy)
+        if expression is None:
+            raise ValueError(
+                "SUBPARTITION BY %s requires an expression (column list)"
+                % self.strategy.value
+            )
         if count is not None and (not isinstance(count, int) or count <= 0):
             raise ValueError("count must be a positive integer when provided")
         self.expression = expression

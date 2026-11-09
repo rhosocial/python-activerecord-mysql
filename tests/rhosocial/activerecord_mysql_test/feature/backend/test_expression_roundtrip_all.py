@@ -456,7 +456,10 @@ def _register_mysql_specials():
         "partition.MySQLPartitionByHash":
             lambda d: MySQLPartitionByHash(d, [Column(d, "id")], partitions_count=4),
         "partition.MySQLSubpartitionClause":
-            lambda d: MySQLSubpartitionClause(d, MySQLSubpartitionStrategy.HASH, count=4),
+            lambda d: MySQLSubpartitionClause(
+                d, MySQLSubpartitionStrategy.HASH,
+                expression=Column(d, "id"), count=4,
+            ),
         "partition.MySQLCoalescePartitionExpression":
             lambda d: MySQLCoalescePartitionExpression(d, table=Table(d, "t"), count=2),
         "column.MySQLColumnDefinition":

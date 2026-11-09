@@ -1014,11 +1014,14 @@ class TestMySQLPartitionExpressionEdgeCases:
         assert "2027-01-01" in sql
 
     def test_subpartition_clause_negative_count(self):
+        from rhosocial.activerecord.backend.expression.core import Column
+
         dialect = MySQLDialect(version=(8, 0, 0))
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="positive integer"):
             MySQLSubpartitionClause(
                 dialect,
                 strategy=MySQLSubpartitionStrategy.HASH,
+                expression=Column(dialect, "id"),
                 count=0,
             )
 
