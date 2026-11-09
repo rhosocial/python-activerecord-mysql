@@ -19,16 +19,22 @@ from mysql.connector.errors import (
 )
 
 from rhosocial.activerecord.backend.base import StorageBackend
+from rhosocial.activerecord.backend.base.execution_logging import (
+    log_batch_start,
+    log_batch_summary,
+    log_execution_error,
+)
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     DatabaseError,
     IntegrityError,
     QueryError,
 )
-from rhosocial.activerecord.backend.options import ExecutionOptions
+from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
 from rhosocial.activerecord.backend.result import QueryResult
 from rhosocial.activerecord.backend.introspection.backend_mixin import IntrospectorBackendMixin
 from rhosocial.activerecord.backend.explain import SyncExplainBackendMixin
+from rhosocial.activerecord.logging.redaction import unwrap_sensitive
 from ..config import MySQLConnectionConfig
 from ..dialect import MySQLDialect
 from ..transaction import MySQLTransactionManager
@@ -140,7 +146,7 @@ class MySQLBackend(
         # Register MySQL-specific type adapters (uses self._version)
         self._register_mysql_adapters()
 
-        self.log(logging.INFO, "MySQLBackend initialized")
+        self.log(logging.DEBUG, "MySQLBackend initialized")
 
     def _create_introspector(self) -> Any:
         """Create a MySQLIntrospector backed by a IntrospectorExecutor."""
@@ -249,7 +255,7 @@ class MySQLBackend(
             )
             self._fetch_concurrency_hint()
         except MySQLError as e:
-            self.log(logging.ERROR, f"Failed to connect to MySQL database: {str(e)}")
+            self.log(logging.DEBUG, f"Failed to connect to MySQL database: {str(e)}")
             raise ConnectionError(f"Failed to connect to MySQL: {str(e)}") from e
 
     def disconnect(self) -> None:
@@ -298,8 +304,23 @@ class MySQLBackend(
 
         return self._connection.cursor()
 
-    def execute_many(self, sql: str, params_list: List[Tuple]) -> QueryResult:
-        """Execute the same SQL statement multiple times with different parameters."""
+    def execute_many(
+        self,
+        sql: str,
+        params_list: List[Tuple],
+        *,
+        options: Optional[ExecutionOptions] = None,
+    ) -> QueryResult:
+        """Execute the same SQL statement multiple times with different parameters.
+
+        The backend owns the canonical DEBUG batch record and INFO batch
+        summary; callers only pass the logging context through ``options``.
+        """
+        if options is None:
+            options = ExecutionOptions(stmt_type=StatementType.DML)
+        params_list = [unwrap_sensitive(params) for params in params_list]
+        log_batch_start(self, sql, params_list, options)
+
         if not self._connection:
             self.connect()
 
@@ -308,11 +329,6 @@ class MySQLBackend(
 
         try:
             cursor = self._get_cursor()
-
-            # Log the batch operation if logging is enabled
-            if getattr(self.config, "log_queries", False):
-                self.log(logging.DEBUG, f"Executing batch operation: {sql}")
-                self.log(logging.DEBUG, f"With {len(params_list)} parameter sets")
 
             # Execute multiple statements
             affected_rows = 0
@@ -324,19 +340,17 @@ class MySQLBackend(
 
             result = QueryResult(affected_rows=affected_rows, data=None, duration=duration)
 
-            self.log(
-                logging.INFO, f"Batch operation completed, affected {affected_rows} rows, duration={duration:.3f}s"
-            )
+            log_batch_summary(self, sql, params_list, affected_rows, duration, options)
             return result
 
         except MySQLIntegrityError as e:
-            self.log(logging.ERROR, f"Integrity error in batch: {str(e)}")
+            log_execution_error(self, e, options)
             raise IntegrityError(str(e)) from e
         except MySQLError as e:
-            self.log(logging.ERROR, f"MySQL error in batch: {str(e)}")
+            log_execution_error(self, e, options)
             raise DatabaseError(str(e)) from e
         except Exception as e:
-            self.log(logging.ERROR, f"Unexpected error during batch execution: {str(e)}")
+            log_execution_error(self, e, options)
             raise QueryError(str(e)) from e
         finally:
             if cursor:
@@ -444,7 +458,10 @@ class MySQLBackend(
                     self.connect()
                     return True
                 except Exception as connect_error:
-                    self.log(logging.ERROR, f"Failed to reconnect after ping failure: {str(connect_error)}")
+                    self.log(
+                        logging.WARNING,
+                        f"Failed to reconnect after ping failure: {str(connect_error)}",
+                    )
                     return False
             return False
 
@@ -465,7 +482,7 @@ class MySQLBackend(
             self.log(logging.INFO, "Reconnection successful")
             return True
         except Exception as e:
-            self.log(logging.ERROR, f"Reconnection failed: {str(e)}")
+            self.log(logging.WARNING, f"Reconnection failed: {str(e)}")
             return False
 
     def _handle_auto_commit(self) -> None:
@@ -535,8 +552,6 @@ class MySQLBackend(
         Raises:
             DatabaseError: If execution fails after all retries
         """
-        from rhosocial.activerecord.backend.options import StatementType
-
         # If no options provided, create default options from kwargs
         if options is None:
             # Determine statement type based on SQL
@@ -583,7 +598,7 @@ class MySQLBackend(
                     if self._reconnect():
                         continue
                     else:
-                        self.log(logging.ERROR, "Reconnection failed, aborting retry")
+                        self.log(logging.WARNING, "Reconnection failed, aborting retry")
                         break
                 else:
                     # Not a connection error or max retries reached
@@ -610,7 +625,7 @@ class MySQLBackend(
         import time
         import mysql.connector
 
-        self.log(logging.INFO, "Executing SQL script.")
+        self.log(logging.DEBUG, "Executing SQL script.")
         start_time = time.perf_counter()
 
         if not self._connection:
@@ -642,10 +657,13 @@ class MySQLBackend(
                         result.fetchall()
 
             duration = time.perf_counter() - start_time
-            self.log(logging.INFO, f"SQL script executed successfully, duration={duration:.3f}s")
+            self.log(logging.DEBUG, f"SQL script executed successfully, duration={duration:.3f}s")
 
         except MySQLError as e:
-            self.log(logging.ERROR, f"Error executing SQL script: {str(e)}")
+            self.log(
+                logging.DEBUG,
+                f"Error executing SQL script, exception will be re-raised: {str(e)}",
+            )
             self._handle_error(e)
         finally:
             if cursor:

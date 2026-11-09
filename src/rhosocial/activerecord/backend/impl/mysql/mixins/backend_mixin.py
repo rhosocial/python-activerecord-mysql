@@ -6,7 +6,18 @@ from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
 
 class MySQLBackendMixin:
-    """MySQL backend common functionality."""
+    """MySQL backend common functionality.
+
+    Logging is inherited from ``BackendLoggingMixin``: the mixin pins the
+    library logger name so the sync and async backends share
+    ``rhosocial.activerecord.backend.mysql`` and the canonical execution
+    records stay in one place.
+    """
+
+    # Both MySQLBackend and AsyncMySQLBackend report under the same library
+    # logger; without this the derived Async* name would produce
+    # ``rhosocial.activerecord.backend.asyncmysql``.
+    _logger_name = "rhosocial.activerecord.backend.mysql"
 
     def _register_mysql_adapters(self):
         """Register MySQL-specific type adapters."""
@@ -122,13 +133,6 @@ class MySQLBackendMixin:
 
         return suggestions
 
-    def log(self, level: int, message: str):
-        """Log a message with the specified level."""
-        if hasattr(self, "_logger") and self._logger:
-            self._logger.log(level, message)
-        else:
-            print(f"[{logging.getLevelName(level)}] {message}")
-
     CONNECTION_ERROR_CODES = {
         2003,
         2006,
@@ -173,28 +177,28 @@ class MySQLBackendMixin:
 
         if isinstance(error, MySQLIntegrityError):
             if "Duplicate entry" in error_msg:
-                self.log(logging.ERROR, f"Unique constraint violation: {error_msg}")
+                self.log(logging.DEBUG, f"Unique constraint violation: {error_msg}")
                 raise IntegrityError(f"Unique constraint violation: {error_msg}")
             elif "Cannot delete or update" in error_msg or "a foreign key constraint fails" in error_msg:
-                self.log(logging.ERROR, f"Foreign key constraint violation: {error_msg}")
+                self.log(logging.DEBUG, f"Foreign key constraint violation: {error_msg}")
                 raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
-            self.log(logging.ERROR, f"Integrity error: {error_msg}")
+            self.log(logging.DEBUG, f"Integrity error: {error_msg}")
             raise IntegrityError(error_msg)
         elif isinstance(error, MySQLDatabaseError):
             if "Deadlock found" in error_msg:
-                self.log(logging.ERROR, f"Deadlock error: {error_msg}")
+                self.log(logging.DEBUG, f"Deadlock error: {error_msg}")
                 raise DeadlockError(error_msg)
-            self.log(logging.ERROR, f"Database error: {error_msg}")
+            self.log(logging.DEBUG, f"Database error: {error_msg}")
             raise DatabaseError(error_msg)
         elif isinstance(error, MySQLOperationalError):
             if "Lock wait timeout exceeded" in error_msg:
-                self.log(logging.ERROR, f"Lock timeout error: {error_msg}")
+                self.log(logging.DEBUG, f"Lock timeout error: {error_msg}")
                 raise OperationalError(error_msg)
-            self.log(logging.ERROR, f"Operational error: {error_msg}")
+            self.log(logging.DEBUG, f"Operational error: {error_msg}")
             raise OperationalError(error_msg)
         elif isinstance(error, MySQLError):
-            self.log(logging.ERROR, f"MySQL error: {error_msg}")
+            self.log(logging.DEBUG, f"MySQL error: {error_msg}")
             raise DatabaseError(error_msg)
         else:
-            self.log(logging.ERROR, f"Unexpected error: {error_msg}")
+            self.log(logging.DEBUG, f"Unexpected error: {error_msg}")
             raise error

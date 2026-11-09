@@ -1,8 +1,14 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/transaction.py
 import logging
-from typing import Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 from rhosocial.activerecord.backend.transaction import IsolationLevel
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.expression.transaction import (
+        BeginTransactionStatement,
+        SetTransactionStatement,
+    )
 
 
 class MySQLTransactionMixin:
@@ -27,16 +33,16 @@ class MySQLTransactionMixin:
 
         self.log(logging.DEBUG, f"Setting isolation level to {level}")
         if self.is_active:
-            self.log(logging.ERROR, "Cannot change isolation level during active transaction")
+            self.log(logging.DEBUG, "Cannot change isolation level during active transaction")
             raise IsolationLevelError("Cannot change isolation level during active transaction")
 
         if level is not None and level not in self._ISOLATION_LEVELS:
             error_msg = f"Unsupported isolation level: {level}"
-            self.log(logging.ERROR, error_msg)
+            self.log(logging.DEBUG, error_msg)
             raise IsolationLevelError(error_msg)
 
         self._isolation_level = level
-        self.log(logging.INFO, f"Isolation level set to {level}")
+        self.log(logging.DEBUG, f"Isolation level set to {level}")
 
     def _build_set_isolation_sql(self, level: IsolationLevel) -> Tuple[str, tuple]:
         """Build SET TRANSACTION ISOLATION LEVEL SQL statement."""
