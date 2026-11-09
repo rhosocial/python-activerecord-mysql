@@ -36,6 +36,8 @@ _TYPE_CAPABILITIES = {
     "indexes": "supports_index_introspection",
     "foreign-keys": "supports_foreign_key_introspection",
     "triggers": "supports_trigger_introspection",
+    "routines": "supports_routine_introspection",
+    "constraints": "supports_constraint_introspection",
     "table-options": "supports_table_options_introspection",
     "partitions": "supports_partition_introspection",
     "unused-indexes": "supports_unused_indexes_detection",
@@ -68,6 +70,8 @@ _NAME_RULE = {
     "indexes": "required",
     "foreign-keys": "required",
     "triggers": "optional",
+    "routines": "optional",
+    "constraints": "optional",
     "table-options": "optional",
     "partitions": "required",
     "unused-indexes": "forbidden",
@@ -125,6 +129,14 @@ def create_parser(subparsers):
   %(prog)s views --database mydb
   %(prog)s views users_v --database mydb
 
+  # Stored procedures and functions, with their arguments and return type
+  %(prog)s routines --database mydb
+  %(prog)s routines order_workflow --database mydb
+
+  # Table constraints; CHECK constraints exist from 8.0.16 on
+  %(prog)s constraints --database mydb
+  %(prog)s constraints orders --database mydb
+
   # Get column details for a table
   %(prog)s columns users --database mydb
 
@@ -159,10 +171,10 @@ def create_parser(subparsers):
   %(prog)s tables --database mydb -o json
 
   # NAME is a table for columns/indexes/foreign-keys/partitions/ddl/
-  # column-profiles/value-samples, the object itself for views/triggers/
-  # table-options/dependencies, and is refused for the families that answer
-  # for the whole database (tables, database, unused-indexes, table-stats,
-  # runtime, index-stats, join-coverage).
+  # column-profiles/value-samples/constraints, the object itself for views/
+  # triggers/routines/table-options/dependencies, and is refused for the
+  # families that answer for the whole database (tables, database,
+  # unused-indexes, table-stats, runtime, index-stats, join-coverage).
 
   # Using environment variables for connection
   export MYSQL_HOST=localhost MYSQL_DATABASE=mydb MYSQL_USER=root MYSQL_PASSWORD=secret
@@ -477,6 +489,30 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
             data = _serialize_for_output(triggers)
             provider.display_results(data, title="Triggers")
 
+        elif args.type == "routines":
+            if args.name:
+                routine = introspector.get_routine_info(args.name, schema=None)
+                if routine is None:
+                    print(f"Error: Routine '{args.name}' not found", file=sys.stderr)
+                    sys.exit(1)
+                provider.display_results(
+                    _serialize_for_output([routine]), title=f"Routine {args.name}"
+                )
+            else:
+                routines = introspector.list_routines(schema=None)
+                provider.display_results(
+                    _serialize_for_output(routines), title="Routines"
+                )
+
+        elif args.type == "constraints":
+            constraints = introspector.list_constraints(args.name, schema=None)
+            provider.display_results(
+                _serialize_for_output(constraints),
+                title=(
+                    f"Constraints of {args.name}" if args.name else "Constraints"
+                ),
+            )
+
         elif args.type == "table-options":
             if args.name:
                 options = introspector.get_table_options(args.name, schema=None)
@@ -648,6 +684,30 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
             triggers = await introspector.list_triggers(table_name=args.name, schema=None)
             data = _serialize_for_output(triggers)
             provider.display_results(data, title="Triggers")
+
+        elif args.type == "routines":
+            if args.name:
+                routine = await introspector.get_routine_info(args.name, schema=None)
+                if routine is None:
+                    print(f"Error: Routine '{args.name}' not found", file=sys.stderr)
+                    sys.exit(1)
+                provider.display_results(
+                    _serialize_for_output([routine]), title=f"Routine {args.name}"
+                )
+            else:
+                routines = await introspector.list_routines(schema=None)
+                provider.display_results(
+                    _serialize_for_output(routines), title="Routines"
+                )
+
+        elif args.type == "constraints":
+            constraints = await introspector.list_constraints(args.name, schema=None)
+            provider.display_results(
+                _serialize_for_output(constraints),
+                title=(
+                    f"Constraints of {args.name}" if args.name else "Constraints"
+                ),
+            )
 
         elif args.type == "table-options":
             if args.name:

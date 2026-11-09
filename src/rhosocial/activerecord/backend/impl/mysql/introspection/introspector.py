@@ -34,6 +34,9 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLPartitionListQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
         MySQLTableOptionsListQueryStatement,
+        MySQLRoutineListQueryStatement,
+        MySQLRoutineInfoQueryStatement,
+        MySQLConstraintListQueryStatement,
     )
 
 from rhosocial.activerecord.backend.introspection.base import (
@@ -63,7 +66,13 @@ from rhosocial.activerecord.backend.introspection.types import (
     DDLStatement,
 )
 from rhosocial.activerecord.backend.expression.types import DataType
-from .types import MySQLPartitionInfo, MySQLTableOptions
+from .types import (
+    MySQLPartitionInfo,
+    MySQLTableOptions,
+    MySQLRoutineInfo,
+    MySQLRoutineParameter,
+    MySQLConstraintInfo,
+)
 from .show_introspector import (
     ShowIntrospector,
     AsyncShowIntrospector,
@@ -403,6 +412,41 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             self.dialect, table_name=table_name, schema=target_db
         )
 
+    def routine_list_statement(
+        self, *, schema: Optional[str]
+    ) -> "MySQLRoutineListQueryStatement":
+        """Return the statement that lists every routine in a database."""
+        from ..expression.introspection import MySQLRoutineListQueryStatement
+
+        target_db = schema if schema is not None else self.default_schema
+        return MySQLRoutineListQueryStatement(self.dialect, schema=target_db)
+
+    def routine_info_statement(
+        self,
+        *,
+        routine_name: str,
+        schema: Optional[str],
+        kind: Optional[str] = None,
+    ) -> "MySQLRoutineInfoQueryStatement":
+        """Return the statement that reads one routine, optionally by kind."""
+        from ..expression.introspection import MySQLRoutineInfoQueryStatement
+
+        target_db = schema if schema is not None else self.default_schema
+        return MySQLRoutineInfoQueryStatement(
+            self.dialect, routine_name=routine_name, kind=kind, schema=target_db
+        )
+
+    def constraint_list_statement(
+        self, *, table_name: Optional[str], schema: Optional[str]
+    ) -> "MySQLConstraintListQueryStatement":
+        """Return the statement that lists constraints, for one table or all."""
+        from ..expression.introspection import MySQLConstraintListQueryStatement
+
+        target_db = schema if schema is not None else self.default_schema
+        return MySQLConstraintListQueryStatement(
+            self.dialect, table_name=table_name, schema=target_db
+        )
+
     # ------------------------------------------------------------------ #
     # Table storage options and partitions — parsing
     # ------------------------------------------------------------------ #
@@ -442,6 +486,159 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             )
             for row in rows
         ]
+
+    # ------------------------------------------------------------------ #
+    # Routines and constraints — parsing
+    # ------------------------------------------------------------------ #
+
+    def parse_routines(self, rows: List[Dict[str, Any]]) -> List[MySQLRoutineInfo]:
+        """Group the routine/parameter join into one record per routine.
+
+        The join returns one row per argument, plus an argument-less row for a
+        routine that takes none; the key is ``(schema, name, kind)`` because
+        MySQL keeps procedures and functions in separate namespaces. Ordinal
+        zero is a function's return value, not an argument, so it fills
+        ``return_type`` and is left out of ``parameters``.
+        """
+        grouped: Dict[tuple, Dict[str, Any]] = {}
+        for row in rows:
+            key = (
+                row.get("ROUTINE_SCHEMA", ""),
+                row.get("ROUTINE_NAME", ""),
+                row.get("ROUTINE_TYPE", ""),
+            )
+            entry = grouped.get(key)
+            if entry is None:
+                entry = {"row": row, "parameters": []}
+                grouped[key] = entry
+
+            ordinal = row.get("PARAM_ORDINAL_POSITION")
+            if ordinal is None:
+                continue
+            ordinal = int(ordinal)
+            if ordinal == 0:
+                # The function's return value; the routine row's own DTD is
+                # the same fact, so this is only a fallback when the parameter
+                # relation did not report it.
+                if not entry.get("return_type"):
+                    entry["return_type"] = (
+                        row.get("PARAM_DTD_IDENTIFIER")
+                        or row.get("PARAM_DATA_TYPE")
+                        or None
+                    )
+                continue
+            entry["parameters"].append(
+                MySQLRoutineParameter(
+                    ordinal_position=ordinal,
+                    mode=row.get("PARAMETER_MODE"),
+                    name=row.get("PARAMETER_NAME"),
+                    data_type=row.get("PARAM_DATA_TYPE"),
+                    data_type_full=row.get("PARAM_DTD_IDENTIFIER")
+                    or row.get("PARAM_DATA_TYPE"),
+                )
+            )
+
+        routines: List[MySQLRoutineInfo] = []
+        for entry in grouped.values():
+            row = entry["row"]
+            kind = (row.get("ROUTINE_TYPE") or "").upper()
+            return_type = entry.get("return_type")
+            if kind == "FUNCTION":
+                return_type = return_type or row.get("DTD_IDENTIFIER") or row.get("DATA_TYPE")
+            else:
+                return_type = None
+            deterministic_raw = row.get("IS_DETERMINISTIC")
+            deterministic = (
+                None
+                if deterministic_raw is None
+                else str(deterministic_raw).upper() == "YES"
+            )
+            language = row.get("EXTERNAL_LANGUAGE") or row.get("ROUTINE_BODY") or None
+            routines.append(
+                MySQLRoutineInfo(
+                    schema=row.get("ROUTINE_SCHEMA", ""),
+                    name=row.get("ROUTINE_NAME", ""),
+                    kind=kind,
+                    parameters=tuple(
+                        sorted(entry["parameters"], key=lambda p: p.ordinal_position)
+                    ),
+                    return_type=return_type or None,
+                    language=language,
+                    is_deterministic=deterministic,
+                    sql_data_access=row.get("SQL_DATA_ACCESS"),
+                    security_type=row.get("SECURITY_TYPE"),
+                    comment=row.get("ROUTINE_COMMENT"),
+                    definer=row.get("DEFINER"),
+                    created=str(row["CREATED"]) if row.get("CREATED") else None,
+                    last_altered=(
+                        str(row["LAST_ALTERED"]) if row.get("LAST_ALTERED") else None
+                    ),
+                    sql_mode=row.get("SQL_MODE"),
+                )
+            )
+        return routines
+
+    def parse_constraints(self, rows: List[Dict[str, Any]]) -> List[MySQLConstraintInfo]:
+        """Group the constraint join into one record per constraint.
+
+        The key includes the constraint type because MySQL keeps the kinds in
+        separate namespaces: a ``UNIQUE`` index and a ``CHECK`` constraint can
+        share a name. The CHECK expression is only read for a ``CHECK`` row --
+        a name collision would otherwise attach another table's clause to a
+        unique key. ``columns`` is ordered by the catalogue's ordinal so the
+        declaration order survives into the result.
+        """
+        grouped: Dict[tuple, Dict[str, Any]] = {}
+        for row in rows:
+            constraint_type = (row.get("CONSTRAINT_TYPE") or "").upper()
+            key = (
+                row.get("CONSTRAINT_SCHEMA", ""),
+                row.get("TABLE_NAME", ""),
+                row.get("CONSTRAINT_NAME", ""),
+                constraint_type,
+            )
+            entry = grouped.get(key)
+            if entry is None:
+                enforced_raw = row.get("ENFORCED")
+                entry = {
+                    "row": row,
+                    "columns": [],
+                    "expression": (
+                        row.get("CHECK_CLAUSE") if constraint_type == "CHECK" else None
+                    ),
+                    "enforced": (
+                        None
+                        if enforced_raw is None
+                        else str(enforced_raw).upper() == "YES"
+                    ),
+                }
+                grouped[key] = entry
+
+            column_name = row.get("COLUMN_NAME")
+            if column_name:
+                ordinal = row.get("ORDINAL_POSITION")
+                entry["columns"].append(
+                    (int(ordinal) if ordinal is not None else len(entry["columns"]), column_name)
+                )
+
+        constraints: List[MySQLConstraintInfo] = []
+        for entry in grouped.values():
+            row = entry["row"]
+            columns = tuple(
+                name for _ordinal, name in sorted(entry["columns"], key=lambda pair: pair[0])
+            )
+            constraints.append(
+                MySQLConstraintInfo(
+                    schema=row.get("CONSTRAINT_SCHEMA", ""),
+                    table_name=row.get("TABLE_NAME", ""),
+                    name=row.get("CONSTRAINT_NAME", ""),
+                    constraint_type=(row.get("CONSTRAINT_TYPE") or "").upper(),
+                    columns=columns,
+                    expression=entry["expression"],
+                    enforced=entry["enforced"],
+                )
+            )
+        return constraints
 
 
 class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
@@ -568,6 +765,85 @@ class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
         self._cache.set(key, result)
         return result
 
+    # ------------------------------------------------------------------ #
+    # MySQL-specific: routines and constraints
+    # ------------------------------------------------------------------ #
+
+    def list_routines(self, schema: Optional[str] = None) -> List[MySQLRoutineInfo]:
+        """List every procedure and function in *schema*.
+
+        Each record carries its arguments and, for a function, its return
+        type. A procedure and a function may share a name; both are listed and
+        told apart by ``kind``.
+        """
+        key = self._cache.key(
+            IntrospectionScope.DATABASE, schema=schema, extra="routines"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self.routine_list_statement(schema=schema).to_sql()
+        result = self.parse_routines(self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
+    def get_routine_info(
+        self,
+        routine_name: str,
+        schema: Optional[str] = None,
+        kind: Optional[str] = None,
+    ) -> Optional[MySQLRoutineInfo]:
+        """Return one routine by name, or ``None`` when no such routine exists.
+
+        ``kind`` narrows a name that exists as both a procedure and a function;
+        without it the first matching kind in the engine's ordering is
+        returned, which is why the parameter exists on the question.
+        """
+        key = self._cache.key(
+            IntrospectionScope.DATABASE,
+            routine_name,
+            schema=schema,
+            extra=f"routine:{kind or '*'}",
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self.routine_info_statement(
+            routine_name=routine_name, schema=schema, kind=kind
+        ).to_sql()
+        result = next(iter(self.parse_routines(self._executor.execute(sql, params))), None)
+        if result is not None:
+            self._cache.set(key, result)
+        return result
+
+    def list_constraints(
+        self, table_name: Optional[str] = None, schema: Optional[str] = None
+    ) -> List[MySQLConstraintInfo]:
+        """List table constraints, for one table or for the whole database.
+
+        The family follows the server's capability: CHECK constraints exist
+        from MySQL 8.0.16, and below that floor the CLI refuses the family
+        before this method runs.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE,
+            table_name or "*",
+            schema=schema,
+            extra="constraints",
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self.constraint_list_statement(
+            table_name=table_name, schema=schema
+        ).to_sql()
+        result = self.parse_constraints(self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
 
 class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
     """Asynchronous introspector for MySQL backends.
@@ -691,5 +967,85 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
 
         sql, params = self.partition_list_statement(table_name=table_name, schema=schema).to_sql()
         result = self.parse_partitions(await self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
+    # ------------------------------------------------------------------ #
+    # MySQL-specific: routines and constraints
+    # ------------------------------------------------------------------ #
+
+    async def list_routines(self, schema: Optional[str] = None) -> List[MySQLRoutineInfo]:
+        """List every procedure and function in *schema* asynchronously.
+
+        Each record carries its arguments and, for a function, its return
+        type. A procedure and a function may share a name; both are listed and
+        told apart by ``kind``.
+        """
+        key = self._cache.key(
+            IntrospectionScope.DATABASE, schema=schema, extra="routines"
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self.routine_list_statement(schema=schema).to_sql()
+        result = self.parse_routines(await self._executor.execute(sql, params))
+        self._cache.set(key, result)
+        return result
+
+    async def get_routine_info(
+        self,
+        routine_name: str,
+        schema: Optional[str] = None,
+        kind: Optional[str] = None,
+    ) -> Optional[MySQLRoutineInfo]:
+        """Return one routine by name asynchronously, or ``None``.
+
+        ``kind`` narrows a name that exists as both a procedure and a function;
+        without it the first matching kind in the engine's ordering is
+        returned, which is why the parameter exists on the question.
+        """
+        key = self._cache.key(
+            IntrospectionScope.DATABASE,
+            routine_name,
+            schema=schema,
+            extra=f"routine:{kind or '*'}",
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self.routine_info_statement(
+            routine_name=routine_name, schema=schema, kind=kind
+        ).to_sql()
+        rows = await self._executor.execute(sql, params)
+        result = next(iter(self.parse_routines(rows)), None)
+        if result is not None:
+            self._cache.set(key, result)
+        return result
+
+    async def list_constraints(
+        self, table_name: Optional[str] = None, schema: Optional[str] = None
+    ) -> List[MySQLConstraintInfo]:
+        """List table constraints asynchronously, for one table or all.
+
+        The family follows the server's capability: CHECK constraints exist
+        from MySQL 8.0.16, and below that floor the CLI refuses the family
+        before this method runs.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE,
+            table_name or "*",
+            schema=schema,
+            extra="constraints",
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        sql, params = self.constraint_list_statement(
+            table_name=table_name, schema=schema
+        ).to_sql()
+        result = self.parse_constraints(await self._executor.execute(sql, params))
         self._cache.set(key, result)
         return result
