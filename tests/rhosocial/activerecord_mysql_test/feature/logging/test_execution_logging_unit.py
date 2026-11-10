@@ -114,6 +114,8 @@ class FakeCursor:
 
     def execute(self, sql, params=None, *args, **kwargs):
         self.executed.append((sql, params))
+        # mysql-connector < 9.2 returns an iterable when multi=True.
+        return [self]
 
     def fetchall(self):
         return []
