@@ -63,10 +63,8 @@ class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManage
         # Step 1: Set isolation level if needed
         if self._isolation_level is not None:
             sql, params = self._build_set_isolation_sql(self._isolation_level)
-            self.log(logging.DEBUG, f"Executing: {sql}")
             await self._backend.execute(sql, params)
 
         # Step 2: Execute START TRANSACTION
         sql, params = self._build_begin_sql()
-        self.log(logging.DEBUG, f"Executing: {sql}")
         await self._backend.execute(sql, params)
