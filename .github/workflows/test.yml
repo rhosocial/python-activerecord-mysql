@@ -405,15 +405,15 @@ jobs:
           export PYTHONPATH=src:tests
           python -m pytest tests/ -n auto --dist=loadgroup --tb=short -x
 
-      - name: Run tests with coverage (only for MySQL 9.6)
-        if: matrix.mysql-version == '9.6'
+      - name: Run tests with coverage (only for MySQL 9.7 on Python 3.14)
+        if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
           python -m pytest tests/ -n auto --dist=loadgroup --cov=src --cov-branch --cov-report=xml --tb=short
 
       - name: Upload coverage to Codecov
-        if: matrix.mysql-version == '9.6'
+        if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
