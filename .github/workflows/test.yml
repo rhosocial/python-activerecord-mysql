@@ -423,6 +423,5 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
-          flags: unittests,python-${{ matrix.python-version }},mysql-${{ matrix.mysql-version }}
           name: codecov-mysql-${{ matrix.python-version }}-${{ matrix.mysql-version }}
           fail_ci_if_error: false
