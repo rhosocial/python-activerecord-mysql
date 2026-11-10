@@ -52,7 +52,7 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/logging-execution"  # NOSONAR
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"  # NOSONAR
           pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
 
       - name: Install dependencies
@@ -247,7 +247,7 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/logging-execution"  # NOSONAR
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"  # NOSONAR
           pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
 
       - name: Install dependencies
@@ -354,7 +354,7 @@ jobs:
 
       - name: Install activerecord and testsuite
         run: |
-          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@feature/logging-execution"  # NOSONAR
+          pip install "rhosocial-activerecord @ git+https://github.com/rhosocial/python-activerecord.git@release/v1.0.0.dev30"  # NOSONAR
           pip install "rhosocial-activerecord-testsuite @ git+https://github.com/rhosocial/python-activerecord-testsuite.git@release/v1.0.0.dev17"
 
       - name: Install dependencies
@@ -411,18 +411,6 @@ jobs:
           export PYTHONPATH=src:tests
           pip install codecov
           python -m pytest tests/ -n auto --dist=loadgroup --cov=src/rhosocial --cov-branch --cov-report=xml --tb=short
-
-      - name: Debug coverage report
-        if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
-        run: |
-          python -m coverage report -m --include="src/rhosocial/activerecord/backend/impl/mysql/*" || true
-
-      - name: Upload coverage XML artifact
-        if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
-        uses: actions/upload-artifact@v4
-        with:
-          name: mysql-coverage-xml
-          path: coverage.xml
 
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
