@@ -412,6 +412,11 @@ jobs:
           pip install codecov
           python -m pytest tests/ -n auto --dist=loadgroup --cov=src --cov-branch --cov-report=xml --tb=short
 
+      - name: Debug coverage report
+        if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
+        run: |
+          python -m coverage report -m --include="src/rhosocial/activerecord/backend/impl/mysql/*" || true
+
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
         uses: codecov/codecov-action@v5
