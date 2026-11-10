@@ -4,20 +4,82 @@
 These tests never open a connection. They import every module touched by the
 logging change, use synthetic connections/cursors to drive the batch and
 script logging paths, and exercise the error/isolation branches directly.
+
+The module itself must import even when ``mysql-connector-python`` cannot be
+imported (for example on a free-threaded interpreter).  A lightweight stub is
+installed into ``sys.modules`` only when the real driver is unavailable; the
+tests that need driver error classes resolve them lazily from whichever
+package is loaded.
 """
 
 import importlib
 import logging
+import sys
+import types
 
 import pytest
 
-pytest.importorskip("mysql.connector")
+LIBRARY_LOGGER = "rhosocial.activerecord.backend.mysql"
 
-from mysql.connector.errors import (  # noqa: E402
-    DatabaseError as MySQLDatabaseError,
-    Error as MySQLError,
-    IntegrityError as MySQLIntegrityError,
-)
+
+def _install_mysql_stub() -> None:
+    """Register a minimal mysql.connector package in ``sys.modules``."""
+    mysql_module = types.ModuleType("mysql")
+    mysql_module.__path__ = []
+
+    connector_module = types.ModuleType("mysql.connector")
+    connector_module.__path__ = []
+
+    class StubError(Exception):
+        def __str__(self):
+            return str(self.args[-1]) if self.args else ""
+
+    class StubDatabaseError(StubError):
+        pass
+
+    class StubIntegrityError(StubDatabaseError):
+        pass
+
+    class StubOperationalError(StubDatabaseError):
+        pass
+
+    errors_module = types.ModuleType("mysql.connector.errors")
+    errors_module.Error = StubError
+    errors_module.DatabaseError = StubDatabaseError
+    errors_module.IntegrityError = StubIntegrityError
+    errors_module.OperationalError = StubOperationalError
+    errors_module.PoolError = StubError
+
+    aio_module = types.ModuleType("mysql.connector.aio")
+    version_module = types.ModuleType("mysql.connector.version")
+    version_module.VERSION = (9, 2, 0)
+
+    connector_module.errors = errors_module
+    connector_module.aio = aio_module
+    connector_module.version = version_module
+    connector_module.threadsafety = 2
+
+    mysql_module.connector = connector_module
+
+    sys.modules["mysql"] = mysql_module
+    sys.modules["mysql.connector"] = connector_module
+    sys.modules["mysql.connector.errors"] = errors_module
+    sys.modules["mysql.connector.aio"] = aio_module
+    sys.modules["mysql.connector.version"] = version_module
+
+
+def _ensure_mysql_driver() -> None:
+    """Use the real driver when importable, otherwise install the stub."""
+    try:
+        importlib.import_module("mysql.connector")
+        importlib.import_module("mysql.connector.aio")
+        importlib.import_module("mysql.connector.errors")
+    except ImportError:
+        _install_mysql_stub()
+
+
+_ensure_mysql_driver()
+
 from rhosocial.activerecord.backend.errors import (  # noqa: E402
     DatabaseError,
     DeadlockError,
@@ -39,8 +101,6 @@ from rhosocial.activerecord.backend.transaction import (  # noqa: E402
     IsolationLevelError,
 )
 from rhosocial.activerecord.logging.redaction import SensitiveValue  # noqa: E402
-
-LIBRARY_LOGGER = "rhosocial.activerecord.backend.mysql"
 
 
 class FakeCursor:
@@ -128,6 +188,21 @@ def make_async_backend():
     return AsyncMySQLBackend(version=(8, 0, 36), host="localhost", database="test")
 
 
+def make_driver_error(error_name, message, errno=None):
+    """Build an instance of the currently loaded mysql driver error class."""
+    if error_name is None:
+        return ValueError(message)
+
+    errors = importlib.import_module("mysql.connector.errors")
+    error_class = getattr(errors, error_name)
+    if errno is None:
+        return error_class(message)
+    try:
+        return error_class(errno, message)
+    except TypeError:
+        return error_class(message)
+
+
 class TestBackendWiring:
     """Module imports and the shared canonical logger name."""
 
@@ -154,6 +229,11 @@ class TestBackendWiring:
 
         assert info.logger.name == f"{LIBRARY_LOGGER}.cli.info"
         assert query.logger.name == f"{LIBRARY_LOGGER}.cli.query"
+
+    def test_driver_stub_has_the_error_attributes_handle_error_needs(self):
+        errors = importlib.import_module("mysql.connector.errors")
+        for name in ("Error", "DatabaseError", "IntegrityError", "OperationalError"):
+            assert issubclass(getattr(errors, name), Exception)
 
 
 class TestExecuteManyLogging:
@@ -246,47 +326,64 @@ class TestHandleError:
     """MySQL driver exceptions map to the library error classes."""
 
     @pytest.mark.parametrize(
-        ("error", "expected", "log_fragment"),
+        ("error_name", "message", "errno", "expected", "log_fragment"),
         [
             (
-                MySQLIntegrityError(1062, "Duplicate entry 'x' for key 'uniq'"),
+                "IntegrityError",
+                "Duplicate entry 'x' for key 'uniq'",
+                1062,
                 IntegrityError,
                 "Unique constraint violation",
             ),
             (
-                MySQLIntegrityError(1451, "Cannot delete or update a parent row"),
+                "IntegrityError",
+                "Cannot delete or update a parent row",
+                1451,
                 IntegrityError,
                 "Foreign key constraint violation",
             ),
             (
-                MySQLIntegrityError(1062, "some other integrity failure"),
+                "IntegrityError",
+                "some other integrity failure",
+                1062,
                 IntegrityError,
                 "Integrity error",
             ),
             (
-                MySQLDatabaseError("Deadlock found when trying to get lock"),
+                "DatabaseError",
+                "Deadlock found when trying to get lock",
+                None,
                 DeadlockError,
                 "Deadlock error",
             ),
             (
-                MySQLDatabaseError("generic database failure"),
+                "DatabaseError",
+                "generic database failure",
+                None,
                 DatabaseError,
                 "Database error",
             ),
             (
-                MySQLError("plain mysql failure"),
+                "Error",
+                "plain mysql failure",
+                None,
                 DatabaseError,
                 "MySQL error",
             ),
             (
-                ValueError("unexpected failure"),
+                None,
+                "unexpected failure",
+                None,
                 ValueError,
                 "Unexpected error",
             ),
         ],
     )
-    def test_driver_errors_map_and_log(self, caplog, error, expected, log_fragment):
+    def test_driver_errors_map_and_log(
+        self, caplog, error_name, message, errno, expected, log_fragment
+    ):
         backend = make_backend()
+        error = make_driver_error(error_name, message, errno)
 
         with caplog.at_level(logging.DEBUG, logger=LIBRARY_LOGGER):
             with pytest.raises(expected):
