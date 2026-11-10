@@ -417,6 +417,13 @@ jobs:
         run: |
           python -m coverage report -m --include="src/rhosocial/activerecord/backend/impl/mysql/*" || true
 
+      - name: Upload coverage XML artifact
+        if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mysql-coverage-xml
+          path: coverage.xml
+
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
         uses: codecov/codecov-action@v5
