@@ -113,6 +113,7 @@ markers = [
 [tool.coverage.run]
 source = ["rhosocial.activerecord.backend.impl.mysql"]
 branch = true
+relative_files = true
 
 [tool.coverage.report]
 exclude_lines = [
