@@ -410,9 +410,7 @@ jobs:
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
-          python -m pytest tests/ -n auto --dist=loadgroup --cov=src --cov-branch --cov-report= --tb=short
-          python -m coverage combine || true
-          python -m coverage xml -o coverage.xml
+          python -m pytest tests/ -n auto --dist=loadgroup --cov=src/rhosocial --cov-branch --cov-report=xml --tb=short
 
       - name: Debug coverage report
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
