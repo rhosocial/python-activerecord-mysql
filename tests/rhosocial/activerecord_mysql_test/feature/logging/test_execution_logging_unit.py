@@ -84,7 +84,6 @@ from rhosocial.activerecord.backend.errors import (  # noqa: E402
     DatabaseError,
     DeadlockError,
     IntegrityError,
-    QueryError,
 )
 from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import (  # noqa: E402
     AsyncMySQLBackend,
@@ -432,9 +431,9 @@ class TestTransactionIsolationGuard:
 
 
 class TestExecuteManyFailureLogging:
-    """Batch failures log a redaction-safe note and re-raise a QueryError."""
+    """Batch failures log a redaction-safe note and re-raise the original error."""
 
-    def test_unexpected_batch_error_is_wrapped(self, caplog):
+    def test_unexpected_batch_error_is_reraised(self, caplog):
         backend = make_backend()
 
         class ExplodingCursor(FakeCursor):
@@ -444,7 +443,7 @@ class TestExecuteManyFailureLogging:
         backend._connection = FakeConnection(ExplodingCursor())
 
         with caplog.at_level(logging.DEBUG, logger=LIBRARY_LOGGER):
-            with pytest.raises(QueryError):
+            with pytest.raises(RuntimeError, match="boom after password=secret"):
                 backend.execute_many("INSERT INTO users VALUES (%s)", [(1,)])
 
         messages = "\n".join(caplog.messages)
