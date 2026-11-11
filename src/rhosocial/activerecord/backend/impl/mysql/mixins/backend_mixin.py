@@ -159,46 +159,119 @@ class MySQLBackendMixin:
         return any(pattern in error_str for pattern in connection_error_patterns)
 
     def _handle_error(self, error: Exception) -> None:
-        """Handle MySQL-specific errors."""
+        """Handle MySQL-specific errors.
+
+        Recognition order: driver exception class, then error code, then
+        message text. Codes are the stable signal across driver versions.
+        """
         from mysql.connector.errors import (
             DatabaseError as MySQLDatabaseError,
             Error as MySQLError,
             IntegrityError as MySQLIntegrityError,
             OperationalError as MySQLOperationalError,
+            ProgrammingError as MySQLProgrammingError,
         )
         from rhosocial.activerecord.backend.errors import (
             DatabaseError,
             DeadlockError,
             IntegrityError,
+            LockError,
             OperationalError,
+            QueryError,
+            attach_diagnostics,
         )
 
         error_msg = str(error)
+        errno = getattr(error, "errno", None)
+        backend = "mysql"
 
         if isinstance(error, MySQLIntegrityError):
-            if "Duplicate entry" in error_msg:
+            if errno == 1062 or "Duplicate entry" in error_msg:
                 self.log(logging.DEBUG, f"Unique constraint violation: {error_msg}")
-                raise IntegrityError(f"Unique constraint violation: {error_msg}")
-            elif "Cannot delete or update" in error_msg or "a foreign key constraint fails" in error_msg:
+                raise attach_diagnostics(
+                    IntegrityError(f"Unique constraint violation: {error_msg}"),
+                    operation="execute",
+                    driver_code=errno or 1062,
+                    backend=backend,
+                ) from error
+            elif (
+                errno in (1451, 1452)
+                or "Cannot delete or update" in error_msg
+                or "a foreign key constraint fails" in error_msg
+            ):
                 self.log(logging.DEBUG, f"Foreign key constraint violation: {error_msg}")
-                raise IntegrityError(f"Foreign key constraint violation: {error_msg}")
+                raise attach_diagnostics(
+                    IntegrityError(f"Foreign key constraint violation: {error_msg}"),
+                    operation="execute",
+                    driver_code=errno,
+                    backend=backend,
+                ) from error
             self.log(logging.DEBUG, f"Integrity error: {error_msg}")
-            raise IntegrityError(error_msg)
-        elif isinstance(error, MySQLDatabaseError):
-            if "Deadlock found" in error_msg:
-                self.log(logging.DEBUG, f"Deadlock error: {error_msg}")
-                raise DeadlockError(error_msg)
-            self.log(logging.DEBUG, f"Database error: {error_msg}")
-            raise DatabaseError(error_msg)
+            raise attach_diagnostics(
+                IntegrityError(error_msg),
+                operation="execute",
+                driver_code=errno,
+                backend=backend,
+            ) from error
         elif isinstance(error, MySQLOperationalError):
-            if "Lock wait timeout exceeded" in error_msg:
+            if errno == 1213 or "Deadlock found" in error_msg:
+                self.log(logging.DEBUG, f"Deadlock error: {error_msg}")
+                raise attach_diagnostics(
+                    DeadlockError(error_msg),
+                    operation="execute",
+                    driver_code=errno or 1213,
+                    backend=backend,
+                    transient=True,
+                ) from error
+            if errno == 1205 or "Lock wait timeout exceeded" in error_msg:
                 self.log(logging.DEBUG, f"Lock timeout error: {error_msg}")
-                raise OperationalError(error_msg)
+                raise attach_diagnostics(
+                    LockError(error_msg),
+                    operation="execute",
+                    driver_code=errno or 1205,
+                    backend=backend,
+                    transient=True,
+                ) from error
+            transient = errno in (2006, 2013, 2055) or "Lost connection" in error_msg
             self.log(logging.DEBUG, f"Operational error: {error_msg}")
-            raise OperationalError(error_msg)
+            raise attach_diagnostics(
+                OperationalError(error_msg),
+                operation="execute",
+                driver_code=errno,
+                backend=backend,
+                transient=transient,
+            ) from error
+        elif isinstance(error, MySQLProgrammingError):
+            self.log(logging.DEBUG, f"Programming error: {error_msg}")
+            raise attach_diagnostics(
+                QueryError(error_msg),
+                operation="execute",
+                driver_code=errno,
+                backend=backend,
+            ) from error
+        elif isinstance(error, MySQLDatabaseError):
+            if errno == 1290 or "read-only" in error_msg.lower():
+                self.log(logging.DEBUG, f"Read-only server: {error_msg}")
+                raise attach_diagnostics(
+                    OperationalError(error_msg),
+                    operation="execute",
+                    sqlstate="HY000",
+                    driver_code=errno or 1290,
+                    backend=backend,
+                    transient=False,
+                ) from error
+            self.log(logging.DEBUG, f"Database error: {error_msg}")
+            raise attach_diagnostics(
+                DatabaseError(error_msg),
+                operation="execute",
+                driver_code=errno,
+                backend=backend,
+            ) from error
         elif isinstance(error, MySQLError):
             self.log(logging.DEBUG, f"MySQL error: {error_msg}")
-            raise DatabaseError(error_msg)
+            raise attach_diagnostics(
+                DatabaseError(error_msg), operation="execute", backend=backend
+            ) from error
         else:
             self.log(logging.DEBUG, f"Unexpected error: {error_msg}")
             raise error
