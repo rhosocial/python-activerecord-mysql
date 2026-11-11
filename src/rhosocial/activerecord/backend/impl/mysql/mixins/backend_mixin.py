@@ -161,8 +161,11 @@ class MySQLBackendMixin:
     def _handle_error(self, error: Exception) -> None:
         """Handle MySQL-specific errors.
 
-        Recognition order: driver exception class, then error code, then
-        message text. Codes are the stable signal across driver versions.
+        Deadlock and lock-wait are recognized first by error code or message,
+        because the driver reports them under more than one exception class.
+        Everything else is recognized by driver exception class, then error
+        code, then message text; codes are the stable signal across driver
+        versions.
         """
         from mysql.connector.errors import (
             DatabaseError as MySQLDatabaseError,
@@ -181,9 +184,37 @@ class MySQLBackendMixin:
             attach_diagnostics,
         )
 
+        # Framework errors are already translated; translating them again would
+        # rewrite their semantic type. Let them pass through unchanged.
+        if isinstance(error, DatabaseError):
+            raise error
+
         error_msg = str(error)
         errno = getattr(error, "errno", None)
         backend = "mysql"
+
+        # Deadlock and lock-wait signatures take precedence over the driver
+        # exception class: mysql-connector reports them as both
+        # OperationalError and DatabaseError depending on the code path, and
+        # classifying by code/message keeps the concurrency semantics stable.
+        if errno == 1213 or "Deadlock found" in error_msg:
+            self.log(logging.DEBUG, f"Deadlock error: {error_msg}")
+            raise attach_diagnostics(
+                DeadlockError(error_msg),
+                operation="execute",
+                driver_code=errno or 1213,
+                backend=backend,
+                transient=True,
+            ) from error
+        if errno == 1205 or "Lock wait timeout exceeded" in error_msg:
+            self.log(logging.DEBUG, f"Lock timeout error: {error_msg}")
+            raise attach_diagnostics(
+                LockError(error_msg),
+                operation="execute",
+                driver_code=errno or 1205,
+                backend=backend,
+                transient=True,
+            ) from error
 
         if isinstance(error, MySQLIntegrityError):
             if errno == 1062 or "Duplicate entry" in error_msg:
@@ -214,24 +245,6 @@ class MySQLBackendMixin:
                 backend=backend,
             ) from error
         elif isinstance(error, MySQLOperationalError):
-            if errno == 1213 or "Deadlock found" in error_msg:
-                self.log(logging.DEBUG, f"Deadlock error: {error_msg}")
-                raise attach_diagnostics(
-                    DeadlockError(error_msg),
-                    operation="execute",
-                    driver_code=errno or 1213,
-                    backend=backend,
-                    transient=True,
-                ) from error
-            if errno == 1205 or "Lock wait timeout exceeded" in error_msg:
-                self.log(logging.DEBUG, f"Lock timeout error: {error_msg}")
-                raise attach_diagnostics(
-                    LockError(error_msg),
-                    operation="execute",
-                    driver_code=errno or 1205,
-                    backend=backend,
-                    transient=True,
-                ) from error
             transient = errno in (2006, 2013, 2055) or "Lost connection" in error_msg
             self.log(logging.DEBUG, f"Operational error: {error_msg}")
             raise attach_diagnostics(

@@ -13,11 +13,7 @@ import logging
 from typing import Any, List, Optional, Tuple
 
 import mysql.connector.aio as mysql_async
-from mysql.connector.errors import (
-    Error as MySQLError,
-    IntegrityError as MySQLIntegrityError,
-    OperationalError as MySQLOperationalError,
-)
+from mysql.connector.errors import Error as MySQLError
 
 from rhosocial.activerecord.backend.base import AsyncStorageBackend
 from rhosocial.activerecord.backend.base.execution_logging import (
@@ -28,8 +24,8 @@ from rhosocial.activerecord.backend.base.execution_logging import (
 from rhosocial.activerecord.backend.errors import (
     ConnectionError,
     DatabaseError,
-    IntegrityError,
-    QueryError,
+    OperationalError,
+    TransactionError,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions, StatementType
 from rhosocial.activerecord.backend.result import QueryResult
@@ -354,21 +350,27 @@ class AsyncMySQLBackend(
 
             result = QueryResult(affected_rows=affected_rows, data=None, duration=duration)
 
+            # Surface commit failures as TransactionError instead of returning a
+            # result for a batch that was never persisted.
+            await self._handle_auto_commit_if_needed()
             log_batch_summary(self, sql, params_list, affected_rows, duration, options)
             return result
 
-        except MySQLIntegrityError as e:
-            log_execution_error(self, e, options)
-            raise IntegrityError(str(e)) from e
-        except MySQLError as e:
-            log_execution_error(self, e, options)
-            raise DatabaseError(str(e)) from e
         except Exception as e:
             log_execution_error(self, e, options)
-            raise QueryError(str(e)) from e
+            if isinstance(e, DatabaseError):
+                raise
+            self._handle_error(e)
+            raise DatabaseError(str(e)) from e
         finally:
             if cursor:
-                await cursor.close()
+                try:
+                    await cursor.close()
+                except Exception as close_error:
+                    self.log(
+                        logging.WARNING,
+                        f"Error closing batch cursor (ignored): {str(close_error)}",
+                    )
 
     async def get_server_version(self) -> Tuple[int, int, int]:
         """Get MySQL server version asynchronously."""
@@ -509,20 +511,20 @@ class AsyncMySQLBackend(
         It's used by insert/update/delete operations to ensure changes are
         persisted immediately when auto_commit=True is specified.
         """
-        try:
-            # Check if connection exists
-            if not self._connection:
-                return
+        if not self._connection:
+            return
 
-            # Check if we're not in an active transaction
-            if not self.in_transaction:
-                # For MySQL, if autocommit is disabled, we need to commit explicitly
-                if not getattr(self.config, "autocommit", True):
+        # Check if we're not in an active transaction
+        if not self.in_transaction:
+            # For MySQL, if autocommit is disabled, we need to commit explicitly
+            if not getattr(self.config, "autocommit", True):
+                try:
                     await self._connection.commit()
-                    self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
-        except Exception as e:
-            # Just log the error but don't raise - this is a convenience feature
-            self.log(logging.WARNING, f"Failed to auto-commit: {str(e)}")
+                except Exception as exc:
+                    # A batch or statement the caller believes succeeded must not
+                    # be reported as success when the commit failed.
+                    raise TransactionError("Auto-commit failed") from exc
+                self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
 
     async def _handle_auto_commit_if_needed(self) -> None:
         """
@@ -530,10 +532,7 @@ class AsyncMySQLBackend(
 
         MySQL respects the autocommit setting, but we also need to handle explicit commits.
         """
-        if not self.in_transaction and self._connection:
-            if not getattr(self.config, "autocommit", True):
-                await self._connection.commit()
-                self.log(logging.DEBUG, "Auto-committed operation (not in active transaction)")
+        await self._handle_auto_commit()
 
     async def execute(
         self,
@@ -595,34 +594,24 @@ class AsyncMySQLBackend(
             if "column_adapters" in kwargs:
                 options.column_adapters = kwargs["column_adapters"]
 
-        # Execute with retry logic for connection errors
-        last_error = None
-
+        # Execute with retry logic for transient connection errors. The core
+        # execute already translates driver exceptions, so retry on the
+        # framework errors and never translate an already-translated error again.
         for attempt in range(max_retries + 1):
             try:
                 return await super().execute(sql, params, options=options)
-            except (MySQLOperationalError, MySQLError) as e:
-                last_error = e
-
-                # Check if this is a connection error that warrants retry
-                if self._is_connection_error(e) and attempt < max_retries:
-                    self.log(logging.WARNING, f"Connection error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}")
-
-                    # Attempt to reconnect
+            except (ConnectionError, OperationalError) as exc:
+                if exc.transient is True and attempt < max_retries:
+                    self.log(
+                        logging.WARNING,
+                        f"Transient error on attempt {attempt + 1}/{max_retries + 1}: {str(exc)}",
+                    )
                     if await self._reconnect():
                         continue
-                    else:
-                        self.log(logging.WARNING, "Reconnection failed, aborting retry")
-                        break
-                else:
-                    # Not a connection error or max retries reached
-                    break
+                    self.log(logging.WARNING, "Reconnection failed, aborting retry")
+                raise
 
-        # All retries exhausted or non-connection error
-        if last_error:
-            self._handle_error(last_error)
-
-        # This should not be reached, but for type safety
+        # Only reachable when max_retries is negative; keep the defensive raise.
         raise DatabaseError(f"Execution failed after {max_retries + 1} attempts")
 
     async def executescript(self, sql_script: str) -> None:
@@ -670,7 +659,13 @@ class AsyncMySQLBackend(
             self._handle_error(e)
         finally:
             if cursor:
-                await cursor.close()
+                try:
+                    await cursor.close()
+                except Exception as close_error:
+                    self.log(
+                        logging.WARNING,
+                        f"Error closing script cursor (ignored): {str(close_error)}",
+                    )
 
     def _parse_explain_result(self, raw_rows, sql, duration):
         """Return a typed MySQLExplainResult for MySQL's tabular EXPLAIN output.
