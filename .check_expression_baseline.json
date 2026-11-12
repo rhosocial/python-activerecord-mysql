@@ -1,0 +1,158 @@
+{
+  "entries": {
+    "1ed29036faf46a82": 2,
+    "27df13aa97e8f397": 2,
+    "3ed8ec0dc8194acc": 4,
+    "558ff589c7816db1": 1,
+    "585e34e100bdd398": 2,
+    "5ae1f677effad792": 1,
+    "93794eba1e84abdf": 1,
+    "96b19532f33d13aa": 1,
+    "acf9357340ec4b2e": 1,
+    "b6b323654639d84e": 1,
+    "b865f866dd599e89": 1,
+    "c8cba7dd7eafe9d9": 2,
+    "d3b3e3d27e7e76ad": 2,
+    "e62ffd51c027b61a": 4,
+    "edb1d2cceabc1515": 1,
+    "f1167066a3660d0e": 1
+  },
+  "findings": [
+    {
+      "found": "if_not_exists: Optional[bool]",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/expression/alter_column.py",
+      "rule": "ED-10.2"
+    },
+    {
+      "found": "invisible: Optional[bool]",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/expression/column.py",
+      "rule": "ED-10.2"
+    },
+    {
+      "found": "invisible: Optional[bool]",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/expression/column.py",
+      "rule": "ED-10.2"
+    },
+    {
+      "found": "kwargs: Any",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/expression/json.py",
+      "rule": "ED-KWARGS"
+    },
+    {
+      "found": "getattr(action, \"if_not_exists\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(action, \"after\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(action, \"if_exists\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(action, \"if_exists\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(action.operation, \"value\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(action, \"new_value\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_column.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"table_options\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"table_options\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(table_options, \"comment\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"options\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/maintenance.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"option\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/maintenance.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"options\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/maintenance.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"subpartition_by\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"partitions\", [])",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"subpartition_by\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"partitions\", [])",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"subpartition_by\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"partitions\", [])",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"subpartition_by\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"partitions\", [])",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"partitions_count\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(expr, \"partitions_count\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    },
+    {
+      "found": "getattr(definition, \"subpartition_definitions\", None)",
+      "path": "src/rhosocial/activerecord/backend/impl/mysql/mixins/partition.py",
+      "rule": "ED-11.2"
+    }
+  ],
+  "format": 1
+}

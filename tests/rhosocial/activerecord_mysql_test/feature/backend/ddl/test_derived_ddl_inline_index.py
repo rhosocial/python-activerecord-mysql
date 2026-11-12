@@ -22,7 +22,9 @@ from rhosocial.activerecord.backend.expression.objects import Table
 
 
 class Indexed(ActiveRecord):
-    __table_name__ = "indexed"
+    @classmethod
+    def table_name(cls):
+        return "indexed"
 
     id: int
     email: Annotated[str, UseIndex("idx_indexed_email", unique=True)]
@@ -36,7 +38,7 @@ def _create_indexed_table():
     dialect = mysql_dialect()
     return CreateTableStatement(
         dialect,
-        Table(dialect, Indexed.__table_name__),
+        Table(dialect, Indexed.table_name()),
         columns=[
             ColumnDefinition(dialect, "id", IntegerType(dialect)),
             ColumnDefinition(dialect, "email", VarCharType(dialect, 255)),
