@@ -1114,9 +1114,10 @@ _NOT_RENDERED = {
         "string.",
     ),
     "statements.ddl_trigger.CreateTriggerStatement": (
-        "AttributeError",
-        "timing must be a TriggerTiming member; the generic constructor "
-        "supplies a string.",
+        "TypeError",
+        "the generic constructor supplies a string for the required ``function`` "
+        "parameter, and the MySQL formatter refuses anything that is not a "
+        "Function; a body-only trigger declares ``function=None`` explicitly.",
     ),
     "statements.ddl_table.ReferencesClause": (
         "ValueError",
