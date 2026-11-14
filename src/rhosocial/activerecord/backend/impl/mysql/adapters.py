@@ -2,11 +2,24 @@
 import datetime
 import json
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List, Tuple, Type, Union, Optional
-from datetime import timedelta
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
+from rhosocial.activerecord.backend.adapters import (
+    BitString,
+    BitStringAdapterBase,
+    Geometry,
+    GeometryAdapterBase,
+    MacAddress,
+    MacAddressAdapterBase,
+    Multirange,
+    Range,
+    RangeAdapterBase,
+    Vector,
+    VectorAdapterBase,
+)
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
 from .mixins.vector import MySQLVectorMixin
@@ -21,7 +34,9 @@ class MySQLBlobAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {bytes: [bytes]}
 
-    def to_database(self, value: bytes, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: bytes, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         return value
@@ -43,17 +58,28 @@ class MySQLJSONAdapter(SQLTypeAdapter):
     """
     Adapts Python dict/list to MySQL JSON and vice-versa.
     Serializes to JSON string when writing, deserializes from JSON string when reading.
+
+    ``default`` / ``object_hook`` are forwarded to ``json.dumps`` / ``json.loads``
+    so callers can plug in neutral-type codecs (see
+    ``rhosocial.activerecord.backend.adapters.json_codec``) without changing the
+    default behaviour.
     """
+
+    def __init__(self, default=None, object_hook=None):
+        self._json_default = default
+        self._json_object_hook = object_hook
 
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {dict: [str], list: [str]}
 
-    def to_database(self, value: Union[dict, list], target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: Union[dict, list], target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         # MySQL JSON type often stores as TEXT, so we serialize to string
-        return json.dumps(value, ensure_ascii=False)
+        return json.dumps(value, ensure_ascii=False, default=self._json_default)
 
     def from_database(
         self, value: Any, target_type: Type, options: Optional[Dict[str, Any]] = None, **kwargs
@@ -63,21 +89,33 @@ class MySQLJSONAdapter(SQLTypeAdapter):
         # MySQL connector might return str for JSON, or already dict/list for some drivers
         if isinstance(value, (dict, list)):
             return value
-        return json.loads(value)
+        return json.loads(value, object_hook=self._json_object_hook)
 
 
 class MySQLUUIDAdapter(SQLTypeAdapter):
     """
-    Adapts Python UUID to MySQL CHAR(36) and vice-versa.
+    Adapts Python UUID to MySQL and vice-versa.
+
+    Two carriers are supported, because MySQL has no UUID type and both are in
+    use: the canonical text in ``CHAR(36)`` (target ``str``) and the raw 16
+    bytes in ``BINARY(16)`` (target ``bytes``).  ``UUID_TO_BIN``/``BIN_TO_UUID``
+    are the server-side spellings of the same pair.
     """
+
+    #: A UUID is 128 bits; the binary carrier is exactly this many bytes.
+    BYTE_LENGTH = 16
 
     @property
     def supported_types(self) -> Dict[Type, List[Any]]:
-        return {uuid.UUID: [str]}
+        return {uuid.UUID: [str, bytes]}
 
-    def to_database(self, value: uuid.UUID, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: uuid.UUID, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
+        if target_type is bytes:
+            return value.bytes
         return str(value)
 
     def from_database(
@@ -87,6 +125,13 @@ class MySQLUUIDAdapter(SQLTypeAdapter):
             return None
         if isinstance(value, uuid.UUID):
             return value
+        if isinstance(value, (bytes, bytearray)):
+            data = bytes(value)
+            if len(data) != self.BYTE_LENGTH:
+                raise ValueError(
+                    f"binary UUID carrier must be {self.BYTE_LENGTH} bytes, got {len(data)}"
+                )
+            return uuid.UUID(bytes=data)
         return uuid.UUID(value)
 
 
@@ -99,7 +144,9 @@ class MySQLBooleanAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {bool: [int]}
 
-    def to_database(self, value: bool, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: bool, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         return 1 if value else 0
@@ -126,7 +173,9 @@ class MySQLDecimalAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {Decimal: [Decimal, float, str]}
 
-    def to_database(self, value: Decimal, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: Decimal, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         if target_type is Decimal:
@@ -157,7 +206,9 @@ class MySQLDateAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {datetime.date: [datetime.date]}
 
-    def to_database(self, value: datetime.date, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: datetime.date, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         return value.isoformat()  # "YYYY-MM-DD"
@@ -184,7 +235,9 @@ class MySQLTimeAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {datetime.time: [datetime.timedelta, str]}
 
-    def to_database(self, value: datetime.time, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: datetime.time, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         return value.isoformat(timespec="microseconds")  # "HH:MM:SS.ffffff"
@@ -222,7 +275,9 @@ class MySQLDatetimeAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {datetime.datetime: [datetime.datetime, str]}
 
-    def to_database(self, value: datetime.datetime, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: datetime.datetime, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         if value is None:
             return None
         # If the datetime object is timezone-aware, normalize to UTC and make it naive
@@ -285,7 +340,9 @@ class MySQLEnumAdapter(SQLTypeAdapter):
     def supported_types(self) -> Dict[Type, List[Any]]:
         return {Enum: [str, int]}
 
-    def to_database(self, value: Enum, target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: Enum, target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """
         Convert Python Enum to database value.
 
@@ -323,7 +380,11 @@ class MySQLEnumAdapter(SQLTypeAdapter):
         # This option is just for documentation/validation purposes
 
         # Determine which representation to use
-        use_int = options.get("use_int_storage", self._use_int_storage) if options else self._use_int_storage
+        use_int = (
+            options.get("use_int_storage", self._use_int_storage)
+            if options
+            else self._use_int_storage
+        )
 
         if target_type is str:
             # Default: use string representation (enum member value)
@@ -434,7 +495,10 @@ class MySQLSetAdapter(SQLTypeAdapter):
         return {set: [str], frozenset: [str]}
 
     def to_database(
-        self, value: Union[set, frozenset], target_type: Type, options: Optional[Dict[str, Any]] = None
+        self,
+        value: Union[set, frozenset],
+        target_type: Type,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """
         Convert Python set/frozenset to MySQL SET string.
@@ -456,18 +520,24 @@ class MySQLSetAdapter(SQLTypeAdapter):
             return None
 
         if target_type is not str:
-            raise TypeError(f"MySQL SET adapter only supports str target type, got {target_type.__name__}")
+            raise TypeError(
+                f"MySQL SET adapter only supports str target type, got {target_type.__name__}"
+            )
 
         if len(value) > 64:
             raise ValueError(f"MySQL SET supports maximum 64 members, got {len(value)}")
 
         # Get allowed values from options or instance
-        allowed_values = options.get("allowed_values", self._allowed_values) if options else self._allowed_values
+        allowed_values = (
+            options.get("allowed_values", self._allowed_values) if options else self._allowed_values
+        )
 
         if allowed_values is not None:
             invalid_values = [v for v in value if v not in allowed_values]
             if invalid_values:
-                raise ValueError(f"Invalid SET values: {invalid_values}. Allowed values: {allowed_values}")
+                raise ValueError(
+                    f"Invalid SET values: {invalid_values}. Allowed values: {allowed_values}"
+                )
 
         # MySQL automatically sorts SET values on storage
         sorted_values = sorted(str(v) for v in value)
@@ -528,10 +598,11 @@ class MySQLSetAdapter(SQLTypeAdapter):
         **kwargs,
     ) -> Optional[Union[set, frozenset]]:
         """
-        Convert MySQL SET string to Python set/frozenset.
+        Convert a MySQL SET value to Python set/frozenset.
 
         Args:
-            value: Database value (str or int)
+            value: Database value -- the driver's native ``set``, or the
+                comma-separated string / bit-flag integer other callers hand back
             target_type: Target Python type (set or frozenset)
             options: Optional settings (currently unused)
 
@@ -544,9 +615,18 @@ class MySQLSetAdapter(SQLTypeAdapter):
         if value is None:
             return None
 
+        # mysql-connector-python returns a native Python set for a SET column;
+        # the earlier string/int branches cover the wire forms other callers
+        # (and the same driver for older server series) hand back.
+        if isinstance(value, (set, frozenset)):
+            members = set(value)
+            return frozenset(members) if target_type is frozenset else members
+
         # Handle integer storage (bit flags)
         if isinstance(value, int):
-            allowed_values = self._allowed_values or (options.get("allowed_values") if options else None)
+            allowed_values = self._allowed_values or (
+                options.get("allowed_values") if options else None
+            )
             return self._decode_set_from_int(value, target_type, allowed_values)
 
         # Handle string storage (comma-separated)
@@ -593,7 +673,9 @@ class MySQLVectorAdapter(SQLTypeAdapter):
         # list[float] -> VECTOR (stored as binary or string)
         return {list: [bytes, str]}
 
-    def to_database(self, value: List[float], target_type: Type, options: Optional[Dict[str, Any]] = None) -> Any:
+    def to_database(
+        self, value: List[float], target_type: Type, options: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """
         Convert Python list of floats to MySQL VECTOR format.
 
@@ -621,7 +703,9 @@ class MySQLVectorAdapter(SQLTypeAdapter):
             )
 
         if dimension is not None and len(value) != dimension:
-            raise ValueError(f"Vector dimension {len(value)} doesn't match expected dimension {dimension}")
+            raise ValueError(
+                f"Vector dimension {len(value)} doesn't match expected dimension {dimension}"
+            )
 
         # Validate all elements are floats or can be converted
         for i, v in enumerate(value):
@@ -718,7 +802,9 @@ class MySQLVectorAdapter(SQLTypeAdapter):
             return None
 
         if target_type is not list:
-            raise TypeError(f"MySQL VECTOR adapter only supports list target type, got {target_type.__name__}")
+            raise TypeError(
+                f"MySQL VECTOR adapter only supports list target type, got {target_type.__name__}"
+            )
 
         # Already a list (some drivers might parse it)
         if isinstance(value, list):
@@ -733,3 +819,298 @@ class MySQLVectorAdapter(SQLTypeAdapter):
             return self._decode_vector_from_string(value)
 
         raise TypeError(f"Cannot convert {type(value).__name__} to vector (list of floats)")
+
+
+# ---------------------------------------------------------------------------
+# Neutral-type adapters (their neutral types live in the core package)
+# ---------------------------------------------------------------------------
+#
+# MySQL has no range or MAC address column types, so those adapters carry
+# their values in TEXT/BINARY columns. The spatial types are native to the
+# server, but the adapter deliberately speaks WKT text rather than the
+# server's internal binary geometry layout (see MySQLGeometryAdapter).
+
+
+class MySQLGeometryAdapter(GeometryAdapterBase):
+    """Carries neutral :class:`Geometry` values as WKT text.
+
+    **This is not native geometry binding.** The adapter emits plain WKT, with
+    an ``SRID=<n>;`` prefix when an SRID is known, and binds it as ``str``
+    (or UTF-8 ``bytes``). It does not wrap the value in ``ST_GeomFromText``.
+
+    Consequences, stated plainly rather than implied:
+
+    * Whether a bound WKT string is accepted by a ``POINT``/``GEOMETRY`` column
+      depends on the server's implicit string-to-geometry conversion. That
+      conversion is **not** guaranteed for parameter placeholders. When the
+      server rejects it, the value must go through
+      ``ST_GeomFromText(?, srid)`` at the expression layer. No live-server
+      verification of plain-text binding was done in this change.
+    * ``SRID=n;`` is the EWKT spelling. MySQL's own spatial functions normally
+      take the SRID as a second argument (``ST_GeomFromText(wkt, srid)``), so
+      an EWKT-prefixed string is only usable where the server parses the
+      prefix itself.
+    * ``_decode`` reads WKT text only. MySQL drivers commonly return geometry
+      columns in the server's internal binary format; that is not WKT and is
+      rejected with :class:`TypeConversionError`. Select ``ST_AsText(col)``
+      to read a geometry column through this adapter.
+
+    Use this adapter when a WKT/TEXT carrier is acceptable, and treat native
+    spatial-column round-trips as a follow-up (see the backend type-adapter
+    plan's MySQL spatial gap).
+    """
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {Geometry: [str]}
+
+    def _effective_srid(self, geometry: Geometry, options: Dict[str, Any]) -> Optional[int]:
+        """Column SRID from the options, unless the value carries its own."""
+        if geometry.srid is not None:
+            return geometry.srid
+        srid = options.get("srid")
+        if srid is None:
+            return None
+        if isinstance(srid, bool) or not isinstance(srid, int):
+            self._conversion_error(geometry, "srid option must be int or None")
+        if srid < 0:
+            self._conversion_error(geometry, f"srid must be non-negative, got {srid}")
+        return srid
+
+    def _encode(self, geometry: Geometry, target_type: Type, options: Dict[str, Any]) -> Any:
+        if target_type is not str and target_type is not bytes:
+            raise TypeError(
+                f"WKT text can only be bound as str or bytes, got {target_type.__name__}"
+            )
+        text = geometry.to_wkt()
+        srid = self._effective_srid(geometry, options)
+        if srid is not None:
+            text = f"SRID={srid};{text}"
+        if target_type is bytes:
+            return text.encode("utf-8")
+        return text
+
+    def _decode(self, value: Any, options: Dict[str, Any]) -> Geometry:
+        if isinstance(value, Geometry):
+            return value
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                text = bytes(value).decode("utf-8")
+            except UnicodeDecodeError:
+                self._conversion_error(
+                    value,
+                    "driver returned binary geometry (not WKT text); "
+                    "select ST_AsText(col) or bind a WKT string",
+                )
+        elif isinstance(value, str):
+            text = value
+        else:
+            raise TypeError(f"expected WKT str or UTF-8 bytes, got {type(value).__name__}")
+
+        return Geometry.from_wkt(text, srid=options.get("srid"))
+
+
+class MySQLNeutralVectorAdapter(VectorAdapterBase):
+    """Adapts neutral :class:`Vector` values to MySQL ``VECTOR``/TEXT columns.
+
+    MySQL's ``VECTOR`` type is a MySQL 9.0+ native type; older servers and
+    TEXT/JSON carriers store the same textual form. This adapter reuses the
+    wire format already defined by :class:`MySQLVectorAdapter`
+    (``'[1.0,2.0,3.0]'``, or that text UTF-8 encoded when the target is
+    ``bytes``), so there is exactly one format definition in this module.
+
+    The pre-existing :class:`MySQLVectorAdapter` remains the ``list``-based
+    adapter and is **not** registered: it claims ``list`` -> ``str``, which
+    would silently replace ``MySQLJSONAdapter`` for every JSON list column.
+    This neutral adapter registers only ``Vector`` -> ``str``/``bytes``.
+    """
+
+    def __init__(self, dimension: Optional[int] = None):
+        super().__init__()
+        self._dimension = dimension
+        self._format = MySQLVectorAdapter(dimension)
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {Vector: [str, bytes]}
+
+    def _encode(self, vector: Vector, target_type: Type, options: Optional[Dict[str, Any]]) -> Any:
+        if target_type is not str and target_type is not bytes:
+            raise TypeError(
+                f"VECTOR text can only be bound as str or bytes, got {target_type.__name__}"
+            )
+        return self._format.to_database(list(vector.values), target_type, options)
+
+    def _decode(self, value: Any, options: Optional[Dict[str, Any]]) -> Vector:
+        if isinstance(value, Vector):
+            return value
+        decoded = self._format.from_database(value, list, options)
+        return Vector.from_json_value(decoded)
+
+
+class MySQLBitStringAdapter(BitStringAdapterBase):
+    """Adapts neutral :class:`BitString` values to MySQL ``BIT``/binary columns.
+
+    Encoding targets:
+
+    * ``bytes`` -- the significant bits as a **big-endian unsigned number**,
+      right-aligned (`to_int().to_bytes(ceil(n/8))`). MySQL interprets a binary
+      parameter bound to ``BIT(n)`` as that number, so this form works for
+      any width; for widths that are multiples of 8 it is identical to
+      :attr:`BitString.data`. (``data`` itself pads the low bits of the last
+      byte, which is right for a raw bit-preserving byte carrier but reads as
+      a larger number to ``BIT(n)``: 13 bits worth ``0xA068`` is 41064, not
+      5133.)
+    * ``int`` -- :meth:`BitString.to_int`, the significant bits as an integer.
+    * ``str`` -- :meth:`BitString.to_bits`, e.g. ``"10101"``. MySQL accepts a
+      ``b'...'`` *literal* in SQL, not a text bind parameter, so the text form
+      is a carrier, not a value this column accepts.
+
+    Decoding reads bytes/int as a big-endian unsigned number and takes the
+    declared width as the significant bits. A width can come from the
+    constructor (``bit_length=...``) or per-call ``options={"bit_length": n}``.
+
+    **A declared width is required to restore leading zeros** when the column
+    width is not a multiple of 8; without one, decoding assumes the whole
+    byte length is significant (``8 * len(data)`` bits), which is correct for
+    BLOB carriers and for ``BIT(n)`` with ``n % 8 == 0`` only. The adapter
+    cannot read the width back from the value, because a ``BIT`` value carries
+    no length metadata.
+    """
+
+    def __init__(self, bit_length: Optional[int] = None):
+        super().__init__()
+        if bit_length is not None:
+            if isinstance(bit_length, bool) or not isinstance(bit_length, int):
+                raise TypeError(f"bit_length must be int or None, got {type(bit_length).__name__}")
+            if bit_length < 1:
+                raise ValueError(f"bit_length must be at least 1, got {bit_length}")
+        self._bit_length = bit_length
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {BitString: [bytes, int, str]}
+
+    def _resolve_bit_length(self, options: Optional[Dict[str, Any]]) -> Optional[int]:
+        length = self._bit_length
+        if options and "bit_length" in options:
+            length = options["bit_length"]
+        if length is not None:
+            if isinstance(length, bool) or not isinstance(length, int):
+                raise TypeError(f"bit_length option must be int, got {type(length).__name__}")
+            if length < 1:
+                raise ValueError(f"bit_length option must be at least 1, got {length}")
+        return length
+
+    def _encode(self, bits: BitString, target_type: Type, options: Optional[Dict[str, Any]]) -> Any:
+        if target_type is bytes:
+            # Big-endian unsigned value, right-aligned: a binary parameter binds
+            # as the number MySQL compares against BIT(n), and `data` would pad
+            # the low end (turning 13 bits into a larger number).
+            return bits.to_int().to_bytes((bits.bit_length + 7) // 8, "big")
+        if target_type is int:
+            return bits.to_int()
+        if target_type is str:
+            return bits.to_bits()
+        raise TypeError(
+            f"BIT values can only be bound as bytes, int or str, got {target_type.__name__}"
+        )
+
+    def _decode(self, value: Any, options: Optional[Dict[str, Any]]) -> BitString:
+        if isinstance(value, BitString):
+            return value
+        length = self._resolve_bit_length(options)
+        if isinstance(value, (bytes, bytearray)):
+            data = bytes(value)
+            if not data:
+                raise ValueError("BIT/BLOB value is empty bytes")
+            number = int.from_bytes(data, "big")
+            return BitString.from_int(number, length if length is not None else len(data) * 8)
+        if isinstance(value, int) and not isinstance(value, bool):
+            if value < 0:
+                raise ValueError(f"BIT value must be non-negative, got {value}")
+            if length is None:
+                raise ValueError("a declared bit_length is required to decode an int BIT value")
+            return BitString.from_int(value, length)
+        if isinstance(value, str):
+            return BitString.from_bits(value)
+        raise TypeError(f"expected bytes, int or bit text, got {type(value).__name__}")
+
+
+class MySQLRangeAdapter(RangeAdapterBase):
+    """Carries neutral :class:`Range`/:class:`Multirange` as JSON text.
+
+    MySQL has no range column type, so values live in ``TEXT``/``JSON``
+    columns. The payload is :meth:`Range.to_json_value` /
+    :meth:`Multirange.to_json_value` (lossless, including ``element_type``).
+
+    Multirange values require the target type to be ``Multirange`` or an
+    untyped target; a bare JSON array cannot be restored as a ``Range``.
+    """
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {Range: [str], Multirange: [str]}
+
+    def _encode(
+        self, value: Union[Range, Multirange], target_type: Type, options: Optional[Dict[str, Any]]
+    ) -> Any:
+        if target_type is not str and target_type is not bytes:
+            raise TypeError(
+                f"range JSON text can only be bound as str or bytes, got {target_type.__name__}"
+            )
+        text = json.dumps(value.to_json_value(), ensure_ascii=False, separators=(",", ":"))
+        if target_type is bytes:
+            return text.encode("utf-8")
+        return text
+
+    def _decode(
+        self, value: Any, target_type: Type, options: Optional[Dict[str, Any]]
+    ) -> Union[Range, Multirange]:
+        if isinstance(value, (Range, Multirange)):
+            return value
+        if isinstance(value, (bytes, bytearray)):
+            try:
+                value = bytes(value).decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ValueError(f"range JSON text is not UTF-8: {exc}") from exc
+        if isinstance(value, str):
+            value = json.loads(value)
+        if target_type is Range:
+            return Range.from_json_value(value)
+        if target_type is Multirange:
+            return Multirange.from_json_value(value)
+        if isinstance(value, dict):
+            return Range.from_json_value(value)
+        if isinstance(value, (list, tuple)):
+            return Multirange.from_json_value(value)
+        raise TypeError(f"expected range JSON object or array, got {type(value).__name__}")
+
+
+class MySQLMacAddressAdapter(MacAddressAdapterBase):
+    """Adapts neutral :class:`MacAddress` to text/binary MySQL columns.
+
+    MySQL has no MAC address column type. The canonical text form (lowercase,
+    colon separated) is used for ``CHAR``/``VARCHAR`` columns; the raw 6/8
+    octets are used when the target is ``bytes`` (``BINARY``/``VARBINARY``).
+    """
+
+    @property
+    def supported_types(self) -> Dict[Type, List[Any]]:
+        return {MacAddress: [str, bytes]}
+
+    def _encode(self, mac: MacAddress, target_type: Type, options: Optional[Dict[str, Any]]) -> Any:
+        if target_type is str:
+            return str(mac)
+        if target_type is bytes:
+            return mac.octets
+        raise TypeError(
+            f"MAC address can only be bound as str or bytes, got {target_type.__name__}"
+        )
+
+    def _decode(self, value: Any, options: Optional[Dict[str, Any]]) -> MacAddress:
+        if isinstance(value, MacAddress):
+            return value
+        if isinstance(value, (str, bytes, bytearray, int)) and not isinstance(value, bool):
+            return MacAddress.parse(value)
+        raise TypeError(f"expected MAC address text or bytes, got {type(value).__name__}")

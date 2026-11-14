@@ -23,6 +23,13 @@ from rhosocial.activerecord.connection.pool import (
     AsyncBackendPool,
 )
 
+from pool_definitions import (
+    AsyncConcurrentTestPostsDefinition,
+    AsyncConcurrentTestUsersDefinition,
+    ConcurrentTestPostsDefinition,
+    ConcurrentTestUsersDefinition,
+)
+
 
 
 
@@ -256,76 +263,56 @@ async def async_mysql_pool_large(request) -> AsyncBackendPool:
 @pytest.fixture(scope="function")
 def mysql_pool_with_tables(mysql_pool: BackendPool) -> Generator[BackendPool, None, None]:
     """Create a pool with test tables initialized."""
+    definitions = (
+        ConcurrentTestPostsDefinition,
+        ConcurrentTestUsersDefinition,
+    )
     with mysql_pool.connection() as backend:
-        backend.execute("DROP TABLE IF EXISTS concurrent_test_users")
-        backend.execute("DROP TABLE IF EXISTS concurrent_test_posts")
-        backend.execute("""
-            CREATE TABLE concurrent_test_users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                thread_id INTEGER,
-                name VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        backend.execute("""
-            CREATE TABLE concurrent_test_posts (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                thread_id INTEGER,
-                user_id INTEGER,
-                title VARCHAR(255),
-                content TEXT
-            )
-        """)
+        fixtures = [definition(backend.dialect) for definition in definitions]
+        for fixture in fixtures:
+            backend.execute(*fixture.drop_table.to_sql())
+            backend.execute(*fixture.create_table.to_sql())
 
     yield mysql_pool
 
     with mysql_pool.connection() as backend:
-        backend.execute("DROP TABLE IF EXISTS concurrent_test_posts")
-        backend.execute("DROP TABLE IF EXISTS concurrent_test_users")
+        for fixture in reversed(fixtures):
+            backend.execute(*fixture.drop_table.to_sql())
 
 
 @pytest_asyncio.fixture(scope="function")
 async def async_mysql_pool_with_tables(async_mysql_pool: AsyncBackendPool) -> AsyncBackendPool:
     """Create an async pool with test tables initialized."""
+    definitions = (
+        AsyncConcurrentTestPostsDefinition,
+        AsyncConcurrentTestUsersDefinition,
+    )
     async with async_mysql_pool.connection() as backend:
-        await backend.execute("DROP TABLE IF EXISTS concurrent_test_users")
-        await backend.execute("DROP TABLE IF EXISTS concurrent_test_posts")
-        await backend.execute("""
-            CREATE TABLE concurrent_test_users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                task_id INTEGER,
-                name VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        await backend.execute("""
-            CREATE TABLE concurrent_test_posts (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                task_id INTEGER,
-                user_id INTEGER,
-                title VARCHAR(255),
-                content TEXT
-            )
-        """)
+        fixtures = [definition(backend.dialect) for definition in definitions]
+        for fixture in fixtures:
+            await backend.execute(*fixture.drop_table.to_sql())
+            await backend.execute(*fixture.create_table.to_sql())
 
     yield async_mysql_pool
 
     async with async_mysql_pool.connection() as backend:
-        await backend.execute("DROP TABLE IF EXISTS concurrent_test_posts")
-        await backend.execute("DROP TABLE IF EXISTS concurrent_test_users")
+        for fixture in reversed(fixtures):
+            await backend.execute(*fixture.drop_table.to_sql())
 
 
 
 
-# --- directory contract: keep this directory on one worker per scenario ---
-def ensure_database(environment):
-    """The pool fixtures create their own database on first use."""
-    return
+# --- directory contract: this directory's identity for xdist grouping ---
+@pytest.fixture(scope="session")
+def database_config(backend_scenario):
+    """The scenario, its connection configuration, and the directory name.
 
+    The pool fixtures above own their databases (``test_connection_{scenario}``)
+    and are deliberately left unchanged, so this directory does not create a
+    shared ``database`` backend.  The fixture declares which directory and
+    scenario the tests belong to, which is what keeps a directory's tests on one
+    worker per scenario.
+    """
+    name = "test_connection"
+    return backend_scenario, backend_scenario.make_config(name), name
 
-def prepare(environment):
-    return
-
-
-def teardown(environment):
-    return

@@ -1,6 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/backend_mixin.py
 import logging
-from typing import Dict, Tuple, Type
+from typing import Dict, List, Tuple, Type
 
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
@@ -22,26 +22,40 @@ class MySQLBackendMixin:
     def _register_mysql_adapters(self):
         """Register MySQL-specific type adapters."""
         from ..adapters import (
+            MySQLBitStringAdapter,
             MySQLBlobAdapter,
             MySQLBooleanAdapter,
             MySQLDateAdapter,
             MySQLDatetimeAdapter,
             MySQLDecimalAdapter,
             MySQLEnumAdapter,
+            MySQLGeometryAdapter,
             MySQLJSONAdapter,
+            MySQLMacAddressAdapter,
+            MySQLNeutralVectorAdapter,
+            MySQLRangeAdapter,
             MySQLSetAdapter,
             MySQLTimeAdapter,
             MySQLUUIDAdapter,
         )
 
         mysql_adapters = [
+            MySQLBitStringAdapter(),
             MySQLBlobAdapter(),
             MySQLBooleanAdapter(),
             MySQLDateAdapter(),
             MySQLDatetimeAdapter(self._version),
             MySQLDecimalAdapter(),
             MySQLEnumAdapter(use_int_storage=False),
+            # Neutral adapters are keyed by their neutral Python type, so they
+            # cannot shadow the JSON/date/... adapters above. The legacy
+            # list-based MySQLVectorAdapter is intentionally not registered:
+            # it claims list -> str and would replace MySQLJSONAdapter.
+            MySQLGeometryAdapter(),
             MySQLJSONAdapter(),
+            MySQLMacAddressAdapter(),
+            MySQLNeutralVectorAdapter(),
+            MySQLRangeAdapter(),
             MySQLSetAdapter(),
             MySQLTimeAdapter(),
             MySQLUUIDAdapter(),
@@ -98,13 +112,27 @@ class MySQLBackendMixin:
             )
 
     def get_default_adapter_suggestions(self) -> Dict[Type, Tuple[SQLTypeAdapter, Type]]:
-        """Provides default type adapter suggestions for MySQL."""
+        """Provides default type adapter suggestions for MySQL.
+
+        The framework defaults (:meth:`TypeAdaptionMixin.get_default_adapter_suggestions`)
+        are the base; MySQL merges its own pairs on top, including the neutral
+        families it carries as TEXT/BLOB.
+        """
         from datetime import date, datetime, time
         from decimal import Decimal
-        from uuid import UUID
         from enum import Enum
+        from uuid import UUID
 
-        suggestions: Dict[Type, Tuple[SQLTypeAdapter, Type]] = {}
+        from rhosocial.activerecord.backend.adapters.bitstring import BitString
+        from rhosocial.activerecord.backend.adapters.geometry import Geometry
+        from rhosocial.activerecord.backend.adapters.network import MacAddress
+        from rhosocial.activerecord.backend.adapters.range import Multirange, Range
+        from rhosocial.activerecord.backend.adapters.vector import Vector
+        from rhosocial.activerecord.backend.base.type_adaption import (
+            merge_adapter_suggestions,
+        )
+
+        base = super().get_default_adapter_suggestions()
 
         type_mappings = [
             (bool, int),
@@ -118,20 +146,37 @@ class MySQLBackendMixin:
             (Enum, str),
             (set, str),
             (frozenset, str),
+            # Neutral families: MySQL carries them as TEXT/BLOB text.
+            (Geometry, str),
+            (Vector, str),
+            (BitString, str),
+            (Range, str),
+            (Multirange, str),
+            (MacAddress, str),
         ]
 
+        suggestions = merge_adapter_suggestions(base, type_mappings, self.adapter_registry)
         for py_type, db_type in type_mappings:
-            adapter = self.adapter_registry.get_adapter(py_type, db_type)
-            if adapter:
-                suggestions[py_type] = (adapter, db_type)
-            else:
+            if py_type not in suggestions:
                 self.log(
                     logging.DEBUG,
                     f"No adapter found for ({py_type.__name__}, {db_type.__name__}). "
                     "Suggestion will not be provided for this type.",
                 )
-
         return suggestions
+
+    def get_type_adapters(self) -> List["SQLTypeAdapter"]:
+        """Return the adapter instances this backend provides.
+
+        This is a plain inventory: it says which adapters exist for this backend.
+        It carries no suggestion/default/priority semantics; the caller decides.
+        """
+        registered = self.adapter_registry.get_all_adapters().values()
+        unique: Dict[Tuple[str, str], SQLTypeAdapter] = {}
+        for adapter in registered:
+            adapter_cls = adapter.__class__
+            unique[(adapter_cls.__module__, adapter_cls.__qualname__)] = adapter
+        return [unique[key] for key in sorted(unique)]
 
     CONNECTION_ERROR_CODES = {
         2003,
