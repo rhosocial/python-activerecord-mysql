@@ -179,10 +179,10 @@ def create_async_mysql_backend_factory(config_dict: Dict[str, Any]):
     return factory
 
 
-@pytest.fixture(scope="function", params=get_scenario_names())
-def mysql_pool(request) -> Generator[BackendPool, None, None]:
+@pytest.fixture(scope="function")
+def mysql_pool(database_config) -> Generator[BackendPool, None, None]:
     """Create a BackendPool with MySQL backends for testing."""
-    scenario_name = request.param
+    scenario_name = database_config[0].name
     config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
@@ -199,10 +199,10 @@ def mysql_pool(request) -> Generator[BackendPool, None, None]:
     pool.close(timeout=5.0, force=True)
 
 
-@pytest_asyncio.fixture(scope="function", params=get_scenario_names())
-async def async_mysql_pool(request) -> AsyncBackendPool:
+@pytest_asyncio.fixture(scope="function")
+async def async_mysql_pool(database_config) -> AsyncBackendPool:
     """Create an AsyncBackendPool with MySQL backends for testing."""
-    scenario_name = request.param
+    scenario_name = database_config[0].name
     config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
@@ -219,10 +219,10 @@ async def async_mysql_pool(request) -> AsyncBackendPool:
     await pool.close(timeout=5.0, force=True)
 
 
-@pytest.fixture(scope="function", params=get_scenario_names())
-def mysql_pool_large(request) -> Generator[BackendPool, None, None]:
+@pytest.fixture(scope="function")
+def mysql_pool_large(database_config) -> Generator[BackendPool, None, None]:
     """Create a larger BackendPool for stress testing."""
-    scenario_name = request.param
+    scenario_name = database_config[0].name
     config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
@@ -238,10 +238,10 @@ def mysql_pool_large(request) -> Generator[BackendPool, None, None]:
     pool.close(timeout=5.0, force=True)
 
 
-@pytest_asyncio.fixture(scope="function", params=get_scenario_names())
-async def async_mysql_pool_large(request) -> AsyncBackendPool:
+@pytest_asyncio.fixture(scope="function")
+async def async_mysql_pool_large(database_config) -> AsyncBackendPool:
     """Create a larger AsyncBackendPool for stress testing."""
-    scenario_name = request.param
+    scenario_name = database_config[0].name
     config_dict = scenario_config_for_test(scenario_name)
 
     pool_config = PoolConfig(
