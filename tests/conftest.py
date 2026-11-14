@@ -1,38 +1,23 @@
 # tests/conftest.py
-"""
-This is the root pytest configuration file for the rhosocial-activerecord-mysql package's test suite.
+"""Root configuration for the MySQL backend's test tree.
 
-Its primary responsibility is to configure the environment so that the external
-`rhosocial-activerecord-testsuite` can find and use the backend-specific
-implementations (Providers) defined within this project.
+The backend knows its own classes and how a scenario maps to a connection, so
+no declaration table is needed here: the scenario is exposed as a parameterized
+pytest fixture that the testsuite environment consumes.
 """
-
-import os
-import sys
 import asyncio
+
 import pytest
 
-# Set the environment variable that the testsuite uses to locate the provider registry.
-# The testsuite is a generic package and doesn't know the specific location of the
-# provider implementations for this backend (MySQL). This environment variable
-# acts as a bridge, pointing the testsuite to the correct import path.
-#
-# `setdefault` is used to ensure that this value is set only if it hasn't been
-# set already, allowing for overrides in different environments if needed.
-os.environ.setdefault("TESTSUITE_PROVIDER_REGISTRY", "providers.registry:provider_registry")
+import support.mysql
 
-# Early-parse --scenarios from sys.argv and set MYSQL_ACTIVE_SCENARIOS env var.
-# This must happen before providers.scenarios is imported (it filters its
-# SCENARIO_MAP at import time).
-_argv_scenarios = None
-for _i, _arg in enumerate(sys.argv):
-    if _arg.startswith("--scenarios="):
-        _argv_scenarios = _arg.split("=", 1)[1]
-    elif _arg == "--scenarios" and _i + 1 < len(sys.argv):
-        _argv_scenarios = sys.argv[_i + 1]
+_SCENARIOS = [support.mysql.scenario(name) for name in support.mysql.SCENARIOS]
 
-if _argv_scenarios:
-    os.environ["MYSQL_ACTIVE_SCENARIOS"] = _argv_scenarios
+
+@pytest.fixture(scope="session", params=_SCENARIOS, ids=lambda scenario: scenario.name)
+def backend_scenario(request):
+    """Return the scenario the tests run against; its id is the scenario name."""
+    return request.param
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -70,28 +55,4 @@ def setup_asyncio_broken_pipe_handler():
         if original_handler:
             loop.set_exception_handler(original_handler)
     except RuntimeError:
-        pass
-
-
-# The scenario-parallel scheduling plugin lives in providers/scenario_parallel.py
-# so it can be loaded with `-p providers.scenario_parallel` when running the
-# external testsuite tests (where this conftest is not on the collection path).
-#
-# Usage (MySQL project's own tests):
-#   pytest --scenario-parallel -n 7 --dist=loadgroup tests/
-pytest_plugins = ["providers.scenario_parallel"]
-
-
-def pytest_addoption(parser):
-    # The generic --scenarios option is registered by the testsuite conftest
-    # (loaded via ``addopts``); register it here only when it is not already
-    # present so the two conftests can coexist.
-    try:
-        parser.addoption(
-            "--scenarios",
-            default=None,
-            help="Comma-separated list of scenario names to run (e.g., --scenarios=mysql_97,mysql_80). "
-            "Compatible with pytest -k '<scenario_name>' as a native alternative.",
-        )
-    except ValueError:
         pass

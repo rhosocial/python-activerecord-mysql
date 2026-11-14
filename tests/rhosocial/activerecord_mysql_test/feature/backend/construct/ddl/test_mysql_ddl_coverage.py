@@ -1,0 +1,315 @@
+# tests/rhosocial/activerecord_mysql_test/feature/backend/construct/ddl/test_mysql_ddl_coverage.py
+"""
+MySQL DDL / statement coverage gap-completion tests.
+
+Covers the missing SQL statements identified in the coverage-gap analysis:
+
+- RENAME TABLE (atomic multi-table rename)
+- TRUNCATE TABLE (option guards)
+- ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}
+- ANALYZE / CHECK / CHECKSUM / OPTIMIZE / REPAIR TABLE (whole-table)
+- CREATE/DROP PROCEDURE, CREATE/DROP FUNCTION (stored), CALL
+- TABLE statement and VALUES table value constructor
+- LOAD XML
+- Administrative utility commands (FLUSH, RESET, KILL, INSTALL, GRANT, ...)
+"""
+
+import pytest
+
+from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+    AlterColumnAction,
+    AlterTableStatement,
+    ColumnAlterOperation,
+)
+from rhosocial.activerecord.backend.expression.statements.ddl_truncate import TruncateStatement
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
+from rhosocial.activerecord.backend.expression.objects import Function, Procedure, Table
+from rhosocial.activerecord.backend.impl.mysql import expression as mysql_expr
+from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+
+
+@pytest.fixture(scope="module")
+def dialect():
+    return MySQLDialect()
+
+
+class TestRenameTable:
+    """Test MySQL RENAME TABLE statement."""
+
+    def test_single_rename(self, dialect):
+        expr = mysql_expr.MySQLRenameTableStatement(
+            dialect, [(Table(dialect, "old_name"), Table(dialect, "new_name"))]
+        )
+        sql, params = expr.to_sql()
+        assert sql == "RENAME TABLE `old_name` TO `new_name`"
+        assert params == ()
+
+    def test_multi_rename(self, dialect):
+        expr = mysql_expr.MySQLRenameTableStatement(
+            dialect, [(Table(dialect, "a"), Table(dialect, "b")), (Table(dialect, "c"), Table(dialect, "d"))]
+        )
+        sql, params = expr.to_sql()
+        assert sql == "RENAME TABLE `a` TO `b`, `c` TO `d`"
+
+    def test_cross_database_rename(self, dialect):
+        expr = mysql_expr.MySQLRenameTableStatement(
+            dialect, [(Table(dialect, "t", catalog_name="src"), Table(dialect, "t", catalog_name="dst"))]
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "RENAME TABLE `src`.`t` TO `dst`.`t`"
+
+    def test_empty_raises(self, dialect):
+        expr = mysql_expr.MySQLRenameTableStatement(dialect, [])
+        with pytest.raises(ValueError, match="at least one"):
+            expr.to_sql()
+
+    def test_supports_flags(self, dialect):
+        assert dialect.supports_rename_table() is True
+        assert dialect.supports_multi_table_rename() is True
+        assert dialect.supports_cross_database_rename() is True
+
+
+class TestTruncateTable:
+    """Test MySQL TRUNCATE TABLE statement."""
+
+    def test_basic(self, dialect):
+        sql, params = TruncateStatement(dialect, table=Table(dialect, "users")).to_sql()
+        assert sql == "TRUNCATE TABLE `users`"
+        assert params == ()
+
+    def test_supports_flags(self, dialect):
+        assert dialect.supports_truncate() is True
+        assert dialect.supports_truncate_table_keyword() is True
+        assert dialect.supports_truncate_restart_identity() is False
+        assert dialect.supports_truncate_cascade() is False
+        assert dialect.supports_truncate_restrict() is False
+
+    def test_restart_identity_unsupported(self, dialect):
+        with pytest.raises(UnsupportedFeatureError, match="RESTART IDENTITY"):
+            TruncateStatement(dialect, table=Table(dialect, "users"), restart_identity=True).to_sql()
+
+    def test_continue_identity_unsupported(self, dialect):
+        with pytest.raises(UnsupportedFeatureError, match="CONTINUE IDENTITY"):
+            TruncateStatement(dialect, table=Table(dialect, "users"), continue_identity=True).to_sql()
+
+    def test_cascade_unsupported(self, dialect):
+        with pytest.raises(UnsupportedFeatureError, match="CASCADE"):
+            TruncateStatement(dialect, table=Table(dialect, "users"), cascade=True).to_sql()
+
+    def test_restrict_unsupported(self, dialect):
+        with pytest.raises(UnsupportedFeatureError, match="RESTRICT"):
+            TruncateStatement(dialect, table=Table(dialect, "users"), restrict=True).to_sql()
+
+
+class TestAlterColumnDefault:
+    """Test ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}."""
+
+    def test_set_default_string(self, dialect):
+        action = AlterColumnAction(dialect, "col", ColumnAlterOperation.SET_DEFAULT, new_value="ABC")
+        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
+        assert "ALTER COLUMN `col` SET DEFAULT 'ABC'" in sql
+        assert params == ()
+
+    def test_set_default_integer(self, dialect):
+        action = AlterColumnAction(dialect, "num", ColumnAlterOperation.SET_DEFAULT, new_value=5)
+        sql, _ = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
+        assert "ALTER COLUMN `num` SET DEFAULT 5" in sql
+
+    def test_drop_default(self, dialect):
+        action = AlterColumnAction(dialect, "col", ColumnAlterOperation.DROP_DEFAULT)
+        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
+        assert "ALTER COLUMN `col` DROP DEFAULT" in sql
+        assert params == ()
+
+
+class TestTableMaintenance:
+    """Test MySQL whole-table maintenance statements."""
+
+    def test_analyze_table(self, dialect):
+        expr = mysql_expr.MySQLAnalyzeTableStatement(dialect, [Table(dialect, "t1"), Table(dialect, "t2")])
+        sql, params = expr.to_sql()
+        assert sql == "ANALYZE TABLE `t1`, `t2`"
+        assert params == ()
+
+    def test_check_table(self, dialect):
+        expr = mysql_expr.MySQLCheckTableStatement(
+            dialect, [Table(dialect, "t1")], options=[mysql_expr.CheckTableOption.QUICK]
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "CHECK TABLE `t1` QUICK"
+
+    def test_checksum_table(self, dialect):
+        """The (schema, table) tuple is replaced by the object's catalog slot."""
+        expr = mysql_expr.MySQLChecksumTableStatement(
+            dialect, [Table(dialect, "t", catalog_name="db")]
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "CHECKSUM TABLE `db`.`t`"
+
+    def test_optimize_table(self, dialect):
+        expr = mysql_expr.MySQLOptimizeTableStatement(dialect, [Table(dialect, "t1")])
+        sql, _ = expr.to_sql()
+        assert sql == "OPTIMIZE TABLE `t1`"
+
+    def test_repair_table(self, dialect):
+        expr = mysql_expr.MySQLRepairTableStatement(
+            dialect, [Table(dialect, "t1")], options=[mysql_expr.RepairTableOption.USE_FRM]
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "REPAIR TABLE `t1` USE_FRM"
+
+    def test_no_write_to_binlog(self, dialect):
+        expr = mysql_expr.MySQLAnalyzeTableStatement(
+            dialect, [Table(dialect, "t1")], no_write_to_binlog=mysql_expr.NoWriteToBinlogOption.LOCAL
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "ANALYZE TABLE LOCAL `t1`"
+
+    def test_support_flags(self, dialect):
+        for method in (
+            dialect.supports_analyze_table,
+            dialect.supports_check_table,
+            dialect.supports_checksum_table,
+            dialect.supports_optimize_table,
+            dialect.supports_repair_table,
+        ):
+            assert method() is True
+
+
+class TestStoredRoutines:
+    """Test MySQL stored procedure / function / CALL statements."""
+
+    def test_create_procedure(self, dialect):
+        expr = mysql_expr.MySQLCreateProcedureStatement(
+            dialect, Procedure(dialect, "sp"), params=[("IN", "x", "INT")], body="BEGIN END"
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "CREATE PROCEDURE `sp` (IN `x` INT) BEGIN END"
+
+    def test_drop_procedure(self, dialect):
+        expr = mysql_expr.MySQLDropProcedureStatement(dialect, Procedure(dialect, "sp"), if_exists=True)
+        sql, _ = expr.to_sql()
+        assert sql == "DROP PROCEDURE IF EXISTS `sp`"
+
+    def test_create_function(self, dialect):
+        expr = mysql_expr.MySQLCreateFunctionStatement(
+            dialect, Function(dialect, "fn"), returns="INT", deterministic=True, body="RETURN 1"
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "CREATE FUNCTION `fn` () RETURNS INT DETERMINISTIC RETURN 1"
+
+    def test_drop_function(self, dialect):
+        expr = mysql_expr.MySQLDropFunctionStatement(dialect, Function(dialect, "fn"))
+        sql, _ = expr.to_sql()
+        assert sql == "DROP FUNCTION `fn`"
+
+    def test_call(self, dialect):
+        expr = mysql_expr.MySQLCallStatement(dialect, Procedure(dialect, "sp"), [1, "a"])
+        sql, params = expr.to_sql()
+        assert sql == "CALL `sp` (%s, %s)"
+        assert params == (1, "a")
+
+    def test_call_qualified_database(self, dialect):
+        expr = mysql_expr.MySQLCallStatement(
+            dialect, Procedure(dialect, "sp", catalog_name="app"), [1]
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "CALL `app`.`sp` (%s)"
+
+    def test_supports_flags(self, dialect):
+        assert dialect.supports_procedure() is True
+        assert dialect.supports_stored_function() is True
+        assert dialect.supports_call() is True
+
+
+class TestTableStatement:
+    """Test MySQL TABLE statement and VALUES constructor."""
+
+    def test_table_statement(self, dialect):
+        expr = mysql_expr.MySQLTableStatement(dialect, Table(dialect, "users"))
+        sql, params = expr.to_sql()
+        assert sql == "TABLE `users`"
+        assert params == ()
+
+    def test_table_statement_qualified(self, dialect):
+        expr = mysql_expr.MySQLTableStatement(dialect, Table(dialect, "users", catalog_name="app"))
+        sql, _ = expr.to_sql()
+        assert sql == "TABLE `app`.`users`"
+
+    def test_table_statement_with_limit(self, dialect):
+        expr = mysql_expr.MySQLTableStatement(dialect, Table(dialect, "users"), limit=10)
+        sql, _ = expr.to_sql()
+        assert sql == "TABLE `users` LIMIT 10"
+
+    def test_values_constructor(self, dialect):
+        expr = mysql_expr.MySQLValuesExpression(dialect, [[1, "x"], [2, "y"]])
+        sql, params = expr.to_sql()
+        assert sql == "VALUES (%s, %s), (%s, %s)"
+        assert params == (1, "x", 2, "y")
+
+
+class TestLoadXML:
+    """Test MySQL LOAD XML statement."""
+
+    def test_basic(self, dialect):
+        expr = mysql_expr.MySQLLoadXMLStatement(dialect, "/tmp/data.xml", Table(dialect, "t"))
+        sql, _ = expr.to_sql()
+        assert sql == "LOAD XML INFILE '/tmp/data.xml' INTO TABLE `t`"
+
+    def test_qualified_database(self, dialect):
+        expr = mysql_expr.MySQLLoadXMLStatement(
+            dialect, "/tmp/data.xml", Table(dialect, "t", catalog_name="app")
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "LOAD XML INFILE '/tmp/data.xml' INTO TABLE `app`.`t`"
+
+    def test_local(self, dialect):
+        expr = mysql_expr.MySQLLoadXMLStatement(
+            dialect, "/tmp/data.xml", Table(dialect, "t"), local=True
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "LOAD XML LOCAL INFILE '/tmp/data.xml' INTO TABLE `t`"
+
+
+class TestAdminCommands:
+    """Test MySQL administrative utility commands."""
+
+    def test_flush(self, dialect):
+        expr = mysql_expr.MySQLFlushStatement(dialect, [mysql_expr.FlushOption.PRIVILEGES])
+        sql, _ = expr.to_sql()
+        assert sql == "FLUSH PRIVILEGES"
+
+    def test_reset(self, dialect):
+        expr = mysql_expr.MySQLResetStatement(dialect, mysql_expr.ResetOption.MASTER)
+        sql, _ = expr.to_sql()
+        assert sql == "RESET MASTER"
+
+    def test_kill(self, dialect):
+        expr = mysql_expr.MySQLKillStatement(dialect, 42)
+        sql, _ = expr.to_sql()
+        assert sql == "KILL CONNECTION 42"
+
+    def test_install_plugin(self, dialect):
+        expr = mysql_expr.MySQLInstallPluginStatement(dialect, "p", "libp.so")
+        sql, _ = expr.to_sql()
+        assert sql == "INSTALL PLUGIN `p` SONAME 'libp.so'"
+
+    def test_grant(self, dialect):
+        expr = mysql_expr.MySQLGrantStatement(
+            dialect,
+            [mysql_expr.GrantPrivilege("SELECT")],
+            [mysql_expr.AccountSpec("u", "localhost")],
+            on_object="db.*",
+        )
+        sql, _ = expr.to_sql()
+        assert sql == "GRANT SELECT ON db.* TO 'u'@'localhost'"
+
+    def test_supports_flags(self, dialect):
+        for method in (
+            dialect.supports_flush,
+            dialect.supports_reset,
+            dialect.supports_kill,
+            dialect.supports_install_plugin,
+            dialect.supports_grant,
+        ):
+            assert method() is True

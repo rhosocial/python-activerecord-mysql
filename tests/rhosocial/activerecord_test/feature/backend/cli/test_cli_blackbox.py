@@ -14,7 +14,7 @@ import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.__main__ import main
-from providers.scenarios import get_scenario_raw
+from support.mysql import get_scenario_raw
 
 COMMANDS = [
     "info",

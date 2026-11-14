@@ -1,9 +1,17 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/conftest.py
+"""Fixtures for the backend-owned tests.
+
+The backend runs these against a real server. The scenario supplies the
+connection parameters; the database name is derived from the directory that
+owns the test, so two directories never share tables.
+"""
+import os
+from typing import Any, Dict, Tuple, Type
+
 import pytest
 import pytest_asyncio
-import yaml
-import os
-from typing import Dict, Any, Tuple, Type
+
+import support.mysql
 
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
@@ -11,63 +19,14 @@ from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConf
 
 # --- Scenario Loading Logic ---
 
-SCENARIO_MAP: Dict[str, Dict[str, Any]] = {}
-
-
-def register_scenario(name: str, config: Dict[str, Any]):
-    SCENARIO_MAP[name] = config
-
-
-def _load_scenarios_from_config():
-    """
-    Load scenarios from a configuration file with the following priority:
-    1. Environment variable specified path (highest priority)
-    2. Default path tests/config/mysql_scenarios.yaml (lowest priority)
-    If no valid configuration file is found, terminate with an error.
-    """
-    config_path = None
-    env_config_path = os.getenv("MYSQL_SCENARIOS_CONFIG_PATH")
-
-    if env_config_path and os.path.exists(env_config_path):
-        print(f"Loading MySQL scenarios from environment-specified path: {env_config_path}")
-        config_path = env_config_path
-    else:
-        default_path = os.path.join(os.path.dirname(__file__), "../../../../config", "mysql_scenarios.yaml")
-        if os.path.exists(default_path):
-            config_path = default_path
-        elif env_config_path:
-            # Path from env var was given but not found
-            print(f"Warning: Scenario file specified in MYSQL_SCENARIOS_CONFIG_PATH not found: {env_config_path}")
-            return
-
-    if not config_path:
-        raise FileNotFoundError(
-            "No MySQL scenarios configuration file found. "
-            "Either set MYSQL_SCENARIOS_CONFIG_PATH to a valid YAML file "
-            "or place mysql_scenarios.yaml in the tests/config directory."
-        )
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config_data = yaml.safe_load(f)
-
-        if "scenarios" not in config_data:
-            raise ValueError(f"Configuration file {config_path} does not contain 'scenarios' key")
-
-        for scenario_name, config in config_data["scenarios"].items():
-            register_scenario(scenario_name, config)
-
-        _apply_scenario_filter()
-
-    except ImportError:
-        raise ImportError("PyYAML is required to load MySQL scenario configuration files")  # noqa: B904
+SCENARIO_MAP: Dict[str, Dict[str, Any]] = dict(support.mysql.SCENARIO_MAP)
 
 
 def _apply_scenario_filter():
     """Filter SCENARIO_MAP based on the active scenarios env var.
 
     Keeps the backend-feature scenarios consistent with the scenarios active
-    for the rest of the test run (set via ``--scenarios``).
+    for the rest of the test run.
     """
     filter_str = os.getenv("MYSQL_ACTIVE_SCENARIOS") or os.getenv("TESTSUITE_ACTIVE_SCENARIOS")
     if not filter_str:
@@ -79,33 +38,65 @@ def _apply_scenario_filter():
         del SCENARIO_MAP[name]
 
 
-_load_scenarios_from_config()
+_apply_scenario_filter()
 
 
-def get_scenario(name: str) -> Tuple[Type[MySQLBackend], MySQLConnectionConfig]:
+def get_enabled_scenarios() -> Dict[str, Any]:
+    return SCENARIO_MAP
+
+
+def get_scenario_names():
+    return list(get_enabled_scenarios().keys())
+
+
+_PREPARED_DATABASES = set()
+
+
+def _database_for(request) -> str:
+    """Derive the logical database the directory owning the test runs in."""
+    parts = list(request.node.path.parts)
+    try:
+        index = max(i for i, part in enumerate(parts) if part == "backend")
+        names = [part for part in parts[index + 1 : -1] if part]
+        return "test_backend" + "".join("_" + name for name in names)
+    except ValueError:
+        if "feature" in parts:
+            index = max(i for i, part in enumerate(parts) if part == "feature")
+            names = [part for part in parts[index + 1 : -1] if part]
+            return "test_" + "_".join(names) if names else "test_misc"
+        return "test_backend"
+
+
+def _prepare_database(scenario_name: str, database: str) -> None:
+    """Create the directory's database once per scenario."""
+    key = (scenario_name, database)
+    if key in _PREPARED_DATABASES:
+        return
+    support.mysql.scenario(scenario_name).reset_database(database)
+    _PREPARED_DATABASES.add(key)
+
+
+def get_scenario(name: str, database: str = "test_backend") -> Tuple[Type[MySQLBackend], MySQLConnectionConfig]:
     if name not in SCENARIO_MAP:
         if SCENARIO_MAP:
             name = next(iter(SCENARIO_MAP))
         else:
             raise ValueError("No scenarios registered")
-    scenario_config = SCENARIO_MAP[name].copy()
-    # Apply the pooled database name so parallel workers never share a schema.
-    from providers.pooling import resolve_database_name
-
-    pooled_db = resolve_database_name(name)
-    if pooled_db:
-        scenario_config["database"] = pooled_db
-    # Extract ssl_disabled if present, otherwise it will be None
-    ssl_disabled = scenario_config.pop("ssl_disabled", None)
-    config = MySQLConnectionConfig(**scenario_config)
-    # Re-add ssl_disabled to config if it was present
-    if ssl_disabled is not None:
-        config.ssl_disabled = ssl_disabled
-    return MySQLBackend, config
+    _prepare_database(name, database)
+    return MySQLBackend, support.mysql.scenario(name).make_config(database)
 
 
-def get_enabled_scenarios() -> Dict[str, Any]:
-    return SCENARIO_MAP
+def pytest_collection_modifyitems(config, items):
+    """Pin a backend directory's tests to one worker.
+
+    These directories create and drop tables in the directory's own database,
+    so two workers must never run tests from the same directory at once.
+    """
+    for item in items:
+        parts = item.path.parts
+        if "backend" not in parts:
+            continue
+        item.add_marker(pytest.mark.xdist_group("mysql-backend::" + str(item.path.parent)))
 
 
 # --- Provider Logic ---
@@ -116,19 +107,19 @@ class BackendFeatureProvider:
         self._backend = None
         self._async_backend = None
 
-    def setup_backend(self, scenario_name: str):
+    def setup_backend(self, scenario_name: str, database: str):
         if self._backend:
             return self._backend
-        backend_class, config = get_scenario(scenario_name)
+        backend_class, config = get_scenario(scenario_name, database)
         self._backend = backend_class(connection_config=config)
         self._backend.connect()
         self._backend.introspect_and_adapt()
         return self._backend
 
-    async def setup_async_backend(self, scenario_name: str):
+    async def setup_async_backend(self, scenario_name: str, database: str):
         if self._async_backend:
             return self._async_backend
-        _, config = get_scenario(scenario_name)
+        _, config = get_scenario(scenario_name, database)
         self._async_backend = AsyncMySQLBackend(connection_config=config)
         await self._async_backend.connect()
         await self._async_backend.introspect_and_adapt()
@@ -148,21 +139,17 @@ class BackendFeatureProvider:
 # --- Fixtures ---
 
 
-def get_scenario_names():
-    return list(get_enabled_scenarios().keys())
-
-
 @pytest.fixture(scope="function", params=get_scenario_names())
 def mysql_backend(request):
     scenario_name = request.param
     provider = BackendFeatureProvider()
-    backend = provider.setup_backend(scenario_name)
+    backend = provider.setup_backend(scenario_name, _database_for(request))
     yield backend
     provider.cleanup()
 
 
 @pytest.fixture(scope="function")
-def mysql_backend_single():
+def mysql_backend_single(request):
     """Non-parameterized fixture using the first available scenario.
 
     Use this for tests whose results do not vary across database versions
@@ -175,7 +162,7 @@ def mysql_backend_single():
         pytest.skip("No MySQL scenarios configured")
     scenario_name = scenario_names[0]
     provider = BackendFeatureProvider()
-    backend = provider.setup_backend(scenario_name)
+    backend = provider.setup_backend(scenario_name, _database_for(request))
     yield backend
     provider.cleanup()
 
@@ -184,13 +171,13 @@ def mysql_backend_single():
 async def async_mysql_backend(request):
     scenario_name = request.param
     provider = BackendFeatureProvider()
-    backend = await provider.setup_async_backend(scenario_name)
+    backend = await provider.setup_async_backend(scenario_name, _database_for(request))
     yield backend
     await provider.async_cleanup()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_mysql_backend_single():
+async def async_mysql_backend_single(request):
     """Non-parameterized async fixture using the first available scenario.
 
     Use this for tests whose results do not vary across database versions.
@@ -201,7 +188,7 @@ async def async_mysql_backend_single():
         pytest.skip("No MySQL scenarios configured")
     scenario_name = scenario_names[0]
     provider = BackendFeatureProvider()
-    backend = await provider.setup_async_backend(scenario_name)
+    backend = await provider.setup_async_backend(scenario_name, _database_for(request))
     yield backend
     await provider.async_cleanup()
 

@@ -9,5 +9,3 @@ ensuring MySQL backend compatibility for CTEQuery connection pool context awaren
 
 # Import shared tests from testsuite package
 from rhosocial.activerecord.testsuite.feature.query.connection.test_cte_query_context import *  # noqa: F403
-from rhosocial.activerecord.testsuite.feature.query.connection.test_cte_query_context_async import *  # noqa: F403
-

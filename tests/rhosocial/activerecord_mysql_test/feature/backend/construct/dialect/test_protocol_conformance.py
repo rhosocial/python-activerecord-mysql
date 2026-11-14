@@ -1,0 +1,699 @@
+# tests/rhosocial/activerecord_mysql_test/feature/backend/construct/dialect/test_protocol_conformance.py
+"""
+Tests to verify MySQLDialect protocol conformance and protocol non-overlap.
+
+This test ensures:
+1. MySQLDialect implements all methods defined in the protocols it claims to support
+2. All protocols have at least one member
+3. No two protocols share the same method name (no overlap)
+"""
+
+import inspect
+import sys
+from itertools import combinations
+
+if sys.version_info >= (3, 13):
+    from typing import get_protocol_members
+elif sys.version_info >= (3, 12):
+    from typing import _get_protocol_attrs as get_protocol_members
+
+import pytest
+from rhosocial.activerecord.backend.dialect import protocols as dialect_protocols
+from rhosocial.activerecord.backend.impl.mysql import dialect as mysql_dialect
+from rhosocial.activerecord.backend.impl.mysql import mixins as mysql_mixins
+from rhosocial.activerecord.backend.impl.mysql import protocols as mysql_protocols
+
+
+def get_all_protocol_methods(proto: type) -> set:
+    """Extract all public method names from a protocol, including inherited."""
+    members = set()
+    if sys.version_info >= (3, 13):
+        members = get_protocol_members(proto)
+    elif sys.version_info >= (3, 12):
+        members = get_protocol_members(proto)
+    else:
+        # Walk MRO to include methods from parent protocols
+        for cls in proto.__mro__:
+            if cls is object:
+                continue
+            for name in cls.__dict__:
+                if name.startswith("_"):
+                    continue
+                val = cls.__dict__[name]
+                if callable(val) or isinstance(val, (property, classmethod, staticmethod)):
+                    members.add(name)
+            members.update(k for k in getattr(cls, "__annotations__", {}) if not k.startswith("_"))
+    return members
+
+
+def get_own_protocol_methods(proto: type) -> set:
+    """Extract public method names declared directly on a protocol (not inherited).
+
+    Used for forward coverage: only checks methods the protocol itself declares,
+    since parent protocol methods are typically implemented by generic mixins.
+    """
+    members = set()
+    for name in proto.__dict__:
+        if name.startswith("_"):
+            continue
+        val = proto.__dict__[name]
+        if callable(val) or isinstance(val, (property, classmethod, staticmethod)):
+            members.add(name)
+    members.update(k for k in getattr(proto, "__annotations__", {}) if not k.startswith("_"))
+    return members
+
+
+MYSQL_PROTOCOLS = [
+    # --- Query features ---
+    dialect_protocols.CTESupport,
+    dialect_protocols.FilterClauseSupport,
+    dialect_protocols.WindowFunctionSupport,
+    dialect_protocols.AdvancedGroupingSupport,
+    dialect_protocols.SetOperationSupport,
+    dialect_protocols.QualifyClauseSupport,
+    dialect_protocols.WildcardSupport,
+    dialect_protocols.JSONSupport,
+    dialect_protocols.ArraySupport,
+    dialect_protocols.GraphSupport,
+    dialect_protocols.ExplainSupport,
+    dialect_protocols.TimestampSupport,
+    dialect_protocols.DqlOrderSupport,
+    dialect_protocols.CollationSupport,
+    dialect_protocols.DataTypeSupport,
+    # Column classes: which operations a value carries, where
+    # DataTypeSupport above answers how it is stored.
+    # MySQLColumnTypeMixin supplies the table.
+    dialect_protocols.ColumnTypeSupport,
+    # --- DML / locking / transactions ---
+    dialect_protocols.ReturningSupport,
+    dialect_protocols.UpsertSupport,
+    dialect_protocols.MergeSupport,
+    dialect_protocols.OrderedSetAggregationSupport,
+    dialect_protocols.LockingSupport,
+    dialect_protocols.TemporalTableSupport,
+    dialect_protocols.LateralJoinSupport,
+    dialect_protocols.JoinSupport,
+    dialect_protocols.TransactionControlSupport,
+    dialect_protocols.IntrospectionSupport,
+    dialect_protocols.SQLFunctionSupport,
+    # --- Naming: which namespace levels a name may be qualified with ---
+    # MySQL's database is the catalog and there is no inner schema, so this is
+    # answered True for the catalog and False for schema qualification. It is
+    # the base every *ObjectSupport below inherits.
+    dialect_protocols.NamespaceSupport,
+    dialect_protocols.TableObjectSupport,
+    dialect_protocols.ViewObjectSupport,
+    dialect_protocols.MaterializedViewObjectSupport,
+    dialect_protocols.ForeignTableObjectSupport,
+    dialect_protocols.IndexObjectSupport,
+    dialect_protocols.SequenceObjectSupport,
+    dialect_protocols.TriggerObjectSupport,
+    dialect_protocols.TypeObjectSupport,
+    dialect_protocols.SynonymObjectSupport,
+    # A routine names the function or procedure it calls, so spelling one is
+    # required even by a dialect that manages routines through its own
+    # protocol. Whether MySQL *manages* routines is asked separately, by
+    # CreateRoutineSupport and DropRoutineSupport below.
+    dialect_protocols.RoutineObjectSupport,
+    # --- DDL: table ---
+    dialect_protocols.CreateTableSupport,
+    dialect_protocols.CreateTableAsSupport,
+    dialect_protocols.CreateTableLikeSupport,
+    dialect_protocols.CreateTableCloneSupport,
+    dialect_protocols.CreateTableUsingTemplateSupport,
+    dialect_protocols.DropTableSupport,
+    dialect_protocols.AlterTableSupport,
+    dialect_protocols.AlterTableModifierSupport,
+    dialect_protocols.TruncateSupport,
+    dialect_protocols.TransactionalDDLSupport,
+    dialect_protocols.ConstraintSupport,
+    dialect_protocols.ColumnAttributeSupport,
+    # Two mechanisms, two protocols, and MySQL answers them differently.
+    # AUTO_INCREMENT is a real MySQL column marker, so the dialect declares it
+    # and renders it. The SQL-standard GENERATED ... AS IDENTITY clause is not:
+    # every MySQL version measured rejects the grammar, so the dialect carries
+    # the protocol's methods and declines the capability (supports_identity_column
+    # answers False, the formatter refuses by name). It is listed positive
+    # because the declaration *is* the answer -- the same way core's SQLite
+    # satisfies IdentityColumnSupport while answering False.
+    dialect_protocols.AutoIncrementColumnSupport,
+    dialect_protocols.IdentityColumnSupport,
+    dialect_protocols.GeneratedColumnSupport,
+    dialect_protocols.PartitionSupport,
+    # --- DDL: view / index ---
+    dialect_protocols.CreateViewSupport,
+    dialect_protocols.DropViewSupport,
+    dialect_protocols.MaterializedViewSupport,
+    dialect_protocols.CreateIndexSupport,
+    dialect_protocols.DropIndexSupport,
+    dialect_protocols.FulltextIndexSupport,
+    # --- DDL: trigger / type / domain ---
+    dialect_protocols.CreateTriggerSupport,
+    dialect_protocols.CreateTypeSupport,
+    dialect_protocols.AlterTypeSupport,
+    dialect_protocols.DropTypeSupport,
+    dialect_protocols.CreateDomainSupport,
+    dialect_protocols.AlterDomainSupport,
+    dialect_protocols.DropDomainSupport,
+    dialect_protocols.AlterDatabaseSupport,
+    # --- MySQL-specific protocols ---
+    mysql_protocols.MySQLDMLOperationSupport,
+    mysql_protocols.MySQLTriggerSupport,
+    mysql_protocols.MySQLTableSupport,
+    mysql_protocols.MySQLSetTypeSupport,
+    mysql_protocols.MySQLJSONFunctionSupport,
+    mysql_protocols.MySQLSpatialSupport,
+    mysql_protocols.MySQLVectorSupport,
+    mysql_protocols.MySQLFullTextSearchSupport,
+    mysql_protocols.MySQLLockingSupport,
+    mysql_protocols.MySQLModifyColumnSupport,
+    mysql_protocols.MySQLJsonDualityViewSupport,
+    mysql_protocols.MySQLOptimizerHintSupport,
+    mysql_protocols.MySQLPartitionSupport,
+    mysql_protocols.MySQLRenameTableSupport,
+    mysql_protocols.MySQLTableStatementSupport,
+    mysql_protocols.MySQLMaintenanceSupport,
+    mysql_protocols.MySQLRoutineSupport,
+    mysql_protocols.MySQLLoadXMLSupport,
+    mysql_protocols.MySQLAdminCommandSupport,
+]
+
+
+class TestDialectProtocolConformance:
+    """Assert MySQLDialect implements all protocols it declares to support."""
+
+    @pytest.fixture
+    def dialect(self):
+        """Create a MySQLDialect instance for testing."""
+        return mysql_dialect.MySQLDialect()
+
+    @pytest.mark.parametrize("protocol", MYSQL_PROTOCOLS)
+    def test_implements_protocol(self, dialect, protocol):
+        """MySQLDialect should implement each protocol in MYSQL_PROTOCOLS."""
+        assert isinstance(dialect, protocol), (
+            f"MySQLDialect does not implement protocol {protocol.__name__}, "
+            f"missing methods: {get_all_protocol_methods(protocol) - set(dir(dialect))}"
+        )
+
+
+# Generic protocols MySQLDialect intentionally does NOT implement.
+#
+# Listing them makes the omission a deliberate, tested contract: if MySQL ever
+# satisfies one by accident, the negative test fails and forces a conscious
+# decision (move to MYSQL_PROTOCOLS or revert).
+#
+# Each entry below is unsatisfied for a *stated* reason. Where MySQL plainly
+# does have the feature but not every probe the generic protocol asks for, the
+# comment says so: the missing probes are named, because "MySQL has no CREATE
+# DATABASE" would be false and would make this list a place where drift hides.
+MYSQL_NOT_IMPLEMENTED = [
+    # UUID value expressions (generation / nil-max constants / cast) are not
+    # implemented yet on this dialect. Listed here so the omission is a
+    # recorded decision rather than a gap; move it to the implemented list
+    # when the mixin lands.
+    dialect_protocols.UUIDSupport,
+    # --- Intentional non-support ---
+    # MySQL has no standalone COMMENT ON statement; inline table/column
+    # comments are rendered by CREATE TABLE instead.
+    dialect_protocols.CommentSupport,
+    # MySQL spells CREATE SCHEMA as a synonym for CREATE DATABASE and renders
+    # it through the database formatter, so no schema statement exists.
+    dialect_protocols.CreateSchemaSupport,
+    dialect_protocols.DropSchemaSupport,
+    # MySQL does have CREATE/DROP DATABASE. MySQLDatabaseMixin implements the
+    # formatters but not every probe these protocols require:
+    #   CreateDatabaseSupport -- supports_database_owner, _template,
+    #     _tablespace, _comment, _connection_limit, _or_replace
+    #   DropDatabaseSupport -- supports_undrop_database, _database_force_drop
+    # Until those probes exist MySQL satisfies neither, which is why
+    # AlterDatabaseSupport (complete enough) is in the positive list and these
+    # two are here. Adding the probes moves them across.
+    dialect_protocols.CreateDatabaseSupport,
+    dialect_protocols.DropDatabaseSupport,
+    # MySQL does have stored routines, through MySQLRoutineMixin. The generic
+    # protocols ask for probes MySQL does not answer:
+    #   CreateRoutineSupport -- supports_function, _create_function,
+    #     _function_parameters, _function_or_replace
+    #   DropRoutineSupport -- supports_drop_function, _drop_function_if_exists,
+    #     _drop_function_cascade
+    dialect_protocols.CreateRoutineSupport,
+    dialect_protocols.DropRoutineSupport,
+    # MySQL does have DROP TRIGGER. DropTriggerSupport additionally requires
+    # supports_trigger_if_exists, which MySQLTriggerMixin does not answer.
+    # CreateTriggerSupport is satisfied and is in the positive list.
+    dialect_protocols.DropTriggerSupport,
+    # MySQL has no SQL/PGQ property-graph tables.
+    dialect_protocols.GraphTableSupport,
+    # MySQL LIKE is case-insensitive by default; there is no ILIKE operator.
+    dialect_protocols.ILIKESupport,
+    # MySQL has no PIVOT / UNPIVOT.
+    dialect_protocols.PivotSupport,
+    # MySQL has no SQL/XML support.
+    dialect_protocols.SQLXMLSupport,
+    dialect_protocols.SQLXMLParsingSupport,
+    dialect_protocols.SQLXMLSerializationSupport,
+    dialect_protocols.SQLXMLConstructionSupport,
+    dialect_protocols.SQLXMLAggregationSupport,
+    dialect_protocols.SQLXMLQueryingSupport,
+    # MySQL has no sequence object -- it numbers rows with AUTO_INCREMENT
+    # columns -- so sequence DDL is absent from the base list rather than
+    # inherited and declined, and these three protocols name formatters that
+    # therefore do not exist. Naming a sequence is a different capability and is
+    # still met: SequenceObjectSupport above is satisfied by SequenceNameMixin,
+    # so a Sequence is accepted as an identifier.
+    dialect_protocols.CreateSequenceSupport,
+    dialect_protocols.AlterSequenceSupport,
+    dialect_protocols.DropSequenceSupport,
+]
+
+
+def get_all_generic_protocols() -> set:
+    """Discover every generic dialect protocol defined in the protocols package."""
+    from typing import Protocol
+
+    discovered = set()
+    for name, obj in inspect.getmembers(dialect_protocols, inspect.isclass):
+        if Protocol not in getattr(obj, "__mro__", []) or not name.endswith("Support"):
+            continue
+        if name == "DDLTypeSupport":
+            continue
+        assert name == obj.__name__, f"unexpected protocol alias: {name}"
+        discovered.add(name)
+    return discovered
+
+
+class TestDialectNegativeProtocolConformance:
+    """Assert MySQLDialect does not implement intentionally-unsupported protocols."""
+
+    @pytest.fixture
+    def dialect(self):
+        return mysql_dialect.MySQLDialect()
+
+    @pytest.mark.parametrize("protocol", MYSQL_NOT_IMPLEMENTED)
+    def test_does_not_implement_protocol(self, dialect, protocol):
+        """MySQLDialect must NOT implement any protocol in MYSQL_NOT_IMPLEMENTED."""
+        assert not isinstance(dialect, protocol), (
+            f"MySQLDialect unexpectedly implements {protocol.__name__}. "
+            f"If intentional, move it from MYSQL_NOT_IMPLEMENTED to MYSQL_PROTOCOLS "
+            f"(and implement the behaviour fully)."
+        )
+
+    def test_positive_and_negative_lists_partition_all_protocols(self):
+        """Every generic protocol must be classified for MySQL."""
+        all_protos = get_all_generic_protocols()
+        # Each protocol lives in a submodule of the protocols package, so the
+        # generic ones are identified by the package they live in rather than by
+        # an exact module path.
+        generic = [p for p in MYSQL_PROTOCOLS
+                   if p.__module__.startswith(dialect_protocols.__name__ + ".")]
+        positive = {p.__name__ for p in generic}
+        negative = {p.__name__ for p in MYSQL_NOT_IMPLEMENTED}
+
+        overlap = positive & negative
+        assert not overlap, f"Protocols in BOTH lists: {sorted(overlap)}"
+
+        unclassified = all_protos - positive - negative
+        assert not unclassified, (
+            f"Generic protocols not classified for MySQL: {sorted(unclassified)}. "
+            f"Add each to MYSQL_PROTOCOLS or MYSQL_NOT_IMPLEMENTED."
+        )
+
+        stale = (positive | negative) - all_protos
+        assert not stale, f"Stale protocol classifications for MySQL: {sorted(stale)}"
+
+
+class TestProtocolNonOverlap:
+    """Assert protocols do not have overlapping method names."""
+
+    def test_no_interface_overlap_between_protocols(self):
+        """No two protocols should share the same method name."""
+        # Own members only: the named-object protocols share NamespaceSupport by
+        # design, and shared base members are not a collision.
+        member_map = {proto.__name__: get_own_protocol_methods(proto) for proto in MYSQL_PROTOCOLS}
+
+        for name, members in member_map.items():
+            assert len(members) > 0, f"Protocol {name} has no members defined"
+
+        excluded_overlaps = {
+
+            # The CTAS bind-parameter probe: the backend's table protocol
+
+            # derives from the generic CTAS protocol, so both declare it.
+
+            ('CreateTableAsSupport', 'MySQLTableSupport'),
+
+            ('MySQLTableSupport', 'CreateTableAsSupport'),
+            # Each pair below is a MySQL-specific protocol deliberately
+            # restating part of a generic one, which is the whole point of a
+            # backend protocol: MySQL's spelling and capability probes differ,
+            # and the generic protocol stays untouched.
+            ("JSONSupport", "MySQLJSONFunctionSupport"),
+            ("JSONSupport", "MySQLSetTypeSupport"),
+            ("LockingSupport", "MySQLLockingSupport"),
+            ("CreateTableSupport", "MySQLTableSupport"),
+            ("CreateTableLikeSupport", "MySQLTableSupport"),
+            # The sibling of the CreateTableSupport pair above: MySQL's table DDL
+            # surface is one protocol, so it carries both halves of the
+            # IF [NOT] EXISTS story that the generic side splits across a create
+            # protocol and a drop one.
+            ("DropTableSupport", "MySQLTableSupport"),
+            ("ConstraintSupport", "MySQLTableSupport"),
+            ("CreateTriggerSupport", "MySQLTriggerSupport"),
+            ("FulltextIndexSupport", "MySQLFullTextSearchSupport"),
+            ("PartitionSupport", "MySQLPartitionSupport"),
+            ("AlterTableSupport", "MySQLRenameTableSupport"),
+            ("UpsertSupport", "MySQLDMLOperationSupport"),
+        }
+
+        violations = []
+        for (name_a, members_a), (name_b, members_b) in combinations(member_map.items(), 2):
+            if (name_a, name_b) in excluded_overlaps or (name_b, name_a) in excluded_overlaps:
+                continue
+            overlap = members_a & members_b
+            if overlap:
+                violations.append(f"{name_a} ∩ {name_b} = {overlap}")
+
+        assert not violations, (
+            "The following protocols have overlapping interfaces, need to merge or rename:\n"
+            + "\n".join(f"  • {v}" for v in violations)
+        )
+
+
+class TestProtocolDerivation:
+    """Verify MySQL-specific protocols derive from their generic counterparts.
+
+    This ensures that backend-specific protocols inherit the standard interface,
+    allowing isinstance() checks against generic protocols to work correctly.
+    """
+
+    PROTOCOL_DERIVATIONS = [
+        ("MySQLTableSupport", "TableObjectSupport"),
+        ("MySQLPartitionSupport", "PartitionSupport"),
+        ("MySQLLockingSupport", "LockingSupport"),
+        ("MySQLJSONFunctionSupport", "JSONSupport"),
+    ]
+
+    @pytest.mark.parametrize("mysql_name,generic_name", PROTOCOL_DERIVATIONS)
+    def test_protocol_derives_from_generic(self, mysql_name, generic_name):
+        """Backend-specific protocol should derive from its generic counterpart."""
+        mysql_proto = getattr(mysql_protocols, mysql_name)
+        generic_proto = getattr(dialect_protocols, generic_name)
+        assert issubclass(mysql_proto, generic_proto), f"{mysql_name} does not derive from {generic_name}"
+
+    def test_dialect_satisfies_generic_protocols_via_derivation(self):
+        """MySQLDialect should satisfy generic protocols through derived protocols."""
+        dialect = mysql_dialect.MySQLDialect()
+        for mysql_name, generic_name in self.PROTOCOL_DERIVATIONS:
+            generic_proto = getattr(dialect_protocols, generic_name)
+            if getattr(generic_proto, "_is_runtime_protocol", False):
+                assert isinstance(dialect, generic_proto), (
+                    f"MySQLDialect does not satisfy {generic_name} (should be inherited via {mysql_name})"
+                )
+
+
+class TestExpressionDialectSeparation:
+    """Verify MySQL-specific expression classes delegate to dialect for SQL generation.
+
+    Expression-Dialect separation means expression classes collect parameters
+    and delegate to_sql() to dialect.format_*() methods, never directly
+    constructing SQL strings.
+    """
+
+    EXPRESSION_DIALECT_PAIRS = [
+        ("MySQLLoadDataStatement", "format_mysql_load_data_statement"),
+        ("MySQLJSONTableExpression", "format_mysql_json_table_expression"),
+        ("MySQLJSONExtractExpression", "format_mysql_json_extract_expression"),
+        ("MySQLJSONObjectExpression", "format_mysql_json_object_expression"),
+        ("MySQLJSONArrayExpression", "format_mysql_json_array_expression"),
+        ("MySQLJSONContainsExpression", "format_mysql_json_contains_expression"),
+        ("MySQLSTGeomFromTextExpression", "format_mysql_st_geom_from_text_expression"),
+        ("MySQLSTDistanceExpression", "format_mysql_st_distance_expression"),
+        ("MySQLSTWithinExpression", "format_mysql_st_within_expression"),
+        ("MySQLSTContainsExpression", "format_mysql_st_contains_expression"),
+        ("MySQLVectorExpression", "format_mysql_vector_expression"),
+        ("MySQLDistanceEuclideanExpression", "format_mysql_distance_euclidean_expression"),
+        ("MySQLDistanceCosineExpression", "format_mysql_distance_cosine_expression"),
+        ("MySQLDistanceDotExpression", "format_mysql_distance_dot_expression"),
+        ("MySQLMatchAgainstExpression", "format_mysql_match_against_expression"),
+        ("MySQLOptimizerHintExpression", "format_mysql_optimizer_hint_expression"),
+        ("MySQLPartitionMaxValue", "format_mysql_partition_max_value"),
+        ("MySQLPartitionValue", "format_mysql_partition_value"),
+        ("MySQLAddPartitionExpression", "format_mysql_add_partition_expression"),
+        ("MySQLDropPartitionExpression", "format_mysql_drop_partition_expression"),
+        ("MySQLTruncatePartitionExpression", "format_mysql_truncate_partition_expression"),
+        ("MySQLReorganizePartitionExpression", "format_mysql_reorganize_partition_expression"),
+        ("MySQLExchangePartitionExpression", "format_mysql_exchange_partition_expression"),
+        ("MySQLRenameTableStatement", "format_mysql_rename_table_statement"),
+        ("MySQLTableStatement", "format_mysql_table_statement"),
+        ("MySQLValuesExpression", "format_mysql_values_expression"),
+        ("MySQLAnalyzeTableStatement", "format_mysql_analyze_table_statement"),
+        ("MySQLCheckTableStatement", "format_mysql_check_table_statement"),
+        ("MySQLChecksumTableStatement", "format_mysql_checksum_table_statement"),
+        ("MySQLOptimizeTableStatement", "format_mysql_optimize_table_statement"),
+        ("MySQLRepairTableStatement", "format_mysql_repair_table_statement"),
+        ("MySQLCreateProcedureStatement", "format_mysql_create_procedure_statement"),
+        ("MySQLDropProcedureStatement", "format_mysql_drop_procedure_statement"),
+        ("MySQLCreateFunctionStatement", "format_mysql_create_function_statement"),
+        ("MySQLDropFunctionStatement", "format_mysql_drop_function_statement"),
+        ("MySQLCallStatement", "format_mysql_call_statement"),
+        ("MySQLLoadXMLStatement", "format_mysql_load_xml_statement"),
+        ("MySQLFlushStatement", "format_mysql_flush_statement"),
+        ("MySQLResetStatement", "format_mysql_reset_statement"),
+        ("MySQLCacheIndexStatement", "format_mysql_cache_index_statement"),
+        ("MySQLKillStatement", "format_mysql_kill_statement"),
+        ("MySQLInstallPluginStatement", "format_mysql_install_plugin_statement"),
+        ("MySQLGrantStatement", "format_mysql_grant_statement"),
+        ("MySQLCreateUserStatement", "format_mysql_create_user_statement"),
+        ("MySQLCloneStatement", "format_mysql_clone_statement"),
+        ("MySQLRestartStatement", "format_mysql_restart_statement"),
+        ("MySQLHandlerOpenStatement", "format_mysql_handler_open_statement"),
+        ("MySQLDoStatement", "format_mysql_do_statement"),
+    ]
+
+    @pytest.mark.parametrize("expr_name,format_method", EXPRESSION_DIALECT_PAIRS)
+    def test_expression_delegates_to_dialect(self, expr_name, format_method):
+        """Expression.to_sql() should delegate to dialect.format_*() method."""
+        from rhosocial.activerecord.backend.impl.mysql import expression as mysql_expr
+
+        # Find the expression class
+        expr_class = None
+        for module_name in dir(mysql_expr):
+            module = getattr(mysql_expr, module_name)
+            if hasattr(module, expr_name):
+                expr_class = getattr(module, expr_name)
+                break
+
+        # Also check top-level imports
+        if expr_class is None:
+            expr_class = getattr(mysql_expr, expr_name, None)
+
+        assert expr_class is not None, f"Expression class {expr_name} not found"
+
+        # Verify the dialect has the corresponding format method
+        dialect = mysql_dialect.MySQLDialect()
+        assert hasattr(dialect, format_method), (
+            f"MySQLDialect missing format method {format_method} for expression {expr_name}"
+        )
+
+
+# ============================================================================
+# Phase -1: Protocol Implementation Completeness Tests
+# ============================================================================
+
+# Map from MySQL-specific Protocol → corresponding Mixin class
+MYSQL_PROTOCOL_MIXIN_PAIRS = [
+    (mysql_protocols.MySQLDMLOperationSupport, mysql_mixins.MySQLDMLOperationMixin),
+    (mysql_protocols.MySQLTriggerSupport, mysql_mixins.MySQLTriggerMixin),
+    (mysql_protocols.MySQLTableSupport, mysql_mixins.MySQLTableMixin),
+    (mysql_protocols.MySQLSetTypeSupport, mysql_mixins.MySQLSetTypeMixin),
+    (mysql_protocols.MySQLJSONFunctionSupport, mysql_mixins.MySQLJSONFunctionMixin),
+    (mysql_protocols.MySQLSpatialSupport, mysql_mixins.MySQLSpatialMixin),
+    (mysql_protocols.MySQLVectorSupport, mysql_mixins.MySQLVectorMixin),
+    (mysql_protocols.MySQLFullTextSearchSupport, mysql_mixins.MySQLFullTextSearchMixin),
+    (mysql_protocols.MySQLLockingSupport, mysql_mixins.MySQLLockingMixin),
+    (mysql_protocols.MySQLModifyColumnSupport, mysql_mixins.MySQLModifyColumnMixin),
+    (mysql_protocols.MySQLJsonDualityViewSupport, mysql_mixins.MySQLJsonDualityViewMixin),
+    (mysql_protocols.MySQLOptimizerHintSupport, mysql_mixins.MySQLOptimizerHintMixin),
+    (mysql_protocols.MySQLPartitionSupport, mysql_mixins.MySQLPartitionMixin),
+    (mysql_protocols.MySQLRenameTableSupport, mysql_mixins.MySQLRenameTableMixin),
+    (mysql_protocols.MySQLTableStatementSupport, mysql_mixins.MySQLTableStatementMixin),
+    (mysql_protocols.MySQLMaintenanceSupport, mysql_mixins.MySQLMaintenanceMixin),
+    (mysql_protocols.MySQLRoutineSupport, mysql_mixins.MySQLRoutineMixin),
+    (mysql_protocols.MySQLLoadXMLSupport, mysql_mixins.MySQLLoadXMLLMixin),
+    (mysql_protocols.MySQLAdminCommandSupport, mysql_mixins.MySQLAdminCommandMixin),
+]
+
+
+class TestProtocolMethodSignatureConformance:
+    """Verify MySQLDialect method signatures match Protocol declarations.
+
+    Python's @runtime_checkable Protocol only checks method existence,
+    not signature compatibility. This test catches parameter mismatches.
+    """
+
+    @pytest.fixture
+    def dialect(self):
+        """Create a MySQLDialect instance for testing."""
+        return mysql_dialect.MySQLDialect()
+
+    # Known signature mismatches between the MySQL dialect and the generic
+    # protocols. MySQL takes **kwargs for EXPLAIN options where the protocol
+    # names them positionally; every other protocol pair matches.
+    _SIGNATURE_MISMATCH_EXCLUSIONS = {
+        ("ExplainSupport", "format_explain_statement"),
+    }
+
+    @pytest.mark.parametrize("protocol", MYSQL_PROTOCOLS)
+    def test_method_signatures_match_protocol(self, dialect, protocol):
+        """Each method on MySQLDialect must have a compatible signature
+        with the corresponding Protocol method."""
+        proto_methods = get_all_protocol_methods(protocol)
+        missing = []
+        signature_mismatch = []
+
+        for method_name in proto_methods:
+            # Check existence
+            if not hasattr(dialect, method_name):
+                missing.append(method_name)
+                continue
+
+            # Check signature compatibility
+            # Skip known mismatches between MySQL and generic protocols
+            if (protocol.__name__, method_name) in self._SIGNATURE_MISMATCH_EXCLUSIONS:
+                continue
+
+            proto_method = getattr(protocol, method_name, None)
+            dialect_method = getattr(dialect, method_name)
+
+            if proto_method is not None and callable(proto_method):
+                try:
+                    proto_sig = inspect.signature(proto_method)
+                    dialect_sig = inspect.signature(dialect_method)
+
+                    # Compare parameter names (excluding 'self')
+                    proto_params = [p for p in proto_sig.parameters.values() if p.name != "self"]
+                    dialect_params = [p for p in dialect_sig.parameters.values() if p.name != "self"]
+
+                    # Dialect must accept at least all required proto params
+                    proto_required = [
+                        p
+                        for p in proto_params
+                        if p.default is inspect.Parameter.empty
+                        and p.kind
+                        not in (
+                            inspect.Parameter.VAR_POSITIONAL,
+                            inspect.Parameter.VAR_KEYWORD,
+                        )
+                    ]
+                    dialect_param_names = {p.name for p in dialect_params}
+
+                    for req_param in proto_required:
+                        if req_param.name not in dialect_param_names:
+                            signature_mismatch.append(
+                                f"{method_name}: missing required param '{req_param.name}' from protocol"
+                            )
+                except (ValueError, TypeError):
+                    pass  # Some protocol methods can't be inspected
+
+        assert not missing, f"MySQLDialect missing methods for {protocol.__name__}: {missing}"
+        assert not signature_mismatch, f"Signature mismatches for {protocol.__name__}: {signature_mismatch}"
+
+
+class TestProtocolMixinForwardCoverage:
+    """Verify every method declared in Protocol is implemented in Mixin.
+
+    This catches the failure mode where a Protocol declares format_* or
+    supports_* methods but the corresponding Mixin doesn't implement them.
+    """
+
+    @pytest.mark.parametrize("protocol,mixin", MYSQL_PROTOCOL_MIXIN_PAIRS)
+    def test_protocol_declared_methods_are_implemented(self, protocol, mixin):
+        """Every format_* / supports_* in Protocol must exist in Mixin.
+
+        Only checks methods declared directly on the protocol (not inherited
+        from parent protocols), since parent protocol methods are typically
+        implemented by generic mixins rather than the MySQL-specific one.
+        """
+        proto_methods = get_own_protocol_methods(protocol)
+        mixin_methods = {name for name in dir(mixin) if not name.startswith("_")}
+        missing = proto_methods - mixin_methods
+        assert not missing, (
+            f"{mixin.__name__} does not implement these methods declared in {protocol.__name__}: {missing}"
+        )
+
+
+class TestProtocolMixinReverseCoverage:
+    """Verify every format_*/supports_* in Mixin is declared in Protocol.
+
+    This catches the failure mode where a Mixin implements format_* or
+    supports_* methods but the corresponding Protocol doesn't declare them.
+    This is the exact problem we're fixing: Mixin has format_* methods
+    that Protocol doesn't know about.
+    """
+
+    @pytest.mark.parametrize("protocol,mixin", MYSQL_PROTOCOL_MIXIN_PAIRS)
+    def test_mixin_public_methods_are_declared_in_protocol(self, protocol, mixin):
+        """Every format_*/supports_*/get_* in Mixin must be declared in Protocol.
+
+        Only checks methods defined on the Mixin itself (not inherited
+        from object or other generic bases), and only public methods
+        with the format_*/supports_*/get_* prefix pattern.
+        """
+        proto_methods = get_all_protocol_methods(protocol)
+
+        # Collect Mixin's own public format_*, supports_*, get_* methods
+        mixin_own_methods = set()
+        for name in dir(mixin):
+            if name.startswith("_"):
+                continue
+            if not (name.startswith("format_") or name.startswith("supports_") or name.startswith("get_")):
+                continue
+            # Only include methods defined on the mixin itself, not inherited
+            # from object or other generic bases
+            if name in mixin.__dict__:
+                mixin_own_methods.add(name)
+
+        undeclared = mixin_own_methods - proto_methods
+        assert not undeclared, (
+            f"{mixin.__name__} implements these methods not declared in {protocol.__name__}: {undeclared}"
+        )
+
+
+class TestTheBackendOwnAnswersAreTheEffectiveOnes:
+    """A backend mixin's method must resolve to a backend class.
+
+    The other checks in this file are about the *declaration*: the mixin
+    declares the method, and the protocol declares it too. This one is
+    about the *resolution*. A core class that wins the MRO makes the
+    backend's implementation dead code, and the answer a caller gets is
+    core's rather than the backend's -- so the backend never says what it
+    means about itself, and nothing else in the suite notices: the
+    declaration is there either way.
+
+    A protocol class is a declaration rather than an implementation (its
+    body is ``...``), so a core class may legitimately precede it; only
+    the mixins are held to this.
+    """
+
+    def test_no_backend_method_is_shadowed_by_a_core_class(self):
+        mro = type(mysql_dialect.MySQLDialect()).__mro__
+        own = "rhosocial.activerecord.backend.impl.mysql"
+        shadowed = []
+        for klass in mro:
+            if not klass.__module__.startswith(own):
+                continue
+            if not klass.__name__.endswith("Mixin"):
+                continue
+            for name in vars(klass):
+                if not name.startswith(("format_", "supports_", "get_")):
+                    continue
+                if not callable(vars(klass)[name]):
+                    continue
+                winner = next((k for k in mro if name in k.__dict__), None)
+                if winner is None or winner.__module__.startswith(own):
+                    continue
+                shadowed.append(f"{klass.__name__}.{name} -> {winner.__name__}")
+        assert not shadowed, (
+            "a core class wins these backend methods, so the backend's "
+            f"implementation is dead code: {shadowed}"
+        )

@@ -35,6 +35,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     IntrospectionSupport,
     TruncateSupport,
     TransactionControlSupport,
+    TransactionalDDLSupport,
     SQLFunctionSupport,
     DataTypeSupport,
     TypeObjectSupport,
@@ -374,6 +375,7 @@ class MySQLDialect(
     IntrospectionSupport,
     TruncateSupport,
     TransactionControlSupport,
+    TransactionalDDLSupport,
     MySQLTriggerSupport,
     MySQLSetTypeSupport,
     MySQLTypeSupport,
@@ -456,6 +458,10 @@ class MySQLDialect(
     def get_server_version(self) -> Tuple[int, int, int]:
         """Return the MySQL version this dialect is configured for."""
         return self.version
+
+    def supports_transactional_ddl(self) -> bool:
+        """MySQL commits each DDL statement implicitly."""
+        return False
 
     def create_schema_differ(self):
         """Return the MySQL schema differ (ordinal-position aware)."""

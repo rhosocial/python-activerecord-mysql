@@ -68,3 +68,7 @@ class AsyncMySQLTransactionManager(MySQLTransactionMixin, AsyncTransactionManage
         # Step 2: Execute START TRANSACTION
         sql, params = self._build_begin_sql()
         await self._backend.execute(sql, params)
+
+    async def supports_savepoint(self) -> bool:
+        """Async counterpart of the sync capability probe."""
+        return self._backend.dialect.supports_savepoint()

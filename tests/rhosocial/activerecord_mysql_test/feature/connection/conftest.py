@@ -1,3 +1,5 @@
+def resolve_database_name(scenario_name: str) -> str:
+    return f"test_connection_{scenario_name}"
 # tests/rhosocial/activerecord_mysql_test/feature/connection/conftest.py
 """
 Pytest configuration for connection pool tests.
@@ -21,7 +23,7 @@ from rhosocial.activerecord.connection.pool import (
     AsyncBackendPool,
 )
 
-from providers.pooling import resolve_database_name
+
 
 
 # No event loop workaround is needed on Windows. This backend's async driver
@@ -114,6 +116,11 @@ def get_scenario_names():
     return list(SCENARIO_MAP.keys())
 
 
+from support.mysql import scenario as _support_scenario
+
+_PREPARED_DATABASES = set()
+
+
 def scenario_config_for_test(scenario_name: str) -> Dict[str, Any]:
     """Return the scenario config with the pooled database name applied.
 
@@ -124,6 +131,9 @@ def scenario_config_for_test(scenario_name: str) -> Dict[str, Any]:
     pooled = resolve_database_name(scenario_name)
     if pooled:
         config_dict["database"] = pooled
+        if pooled not in _PREPARED_DATABASES:
+            _support_scenario(scenario_name).reset_database(pooled)
+            _PREPARED_DATABASES.add(pooled)
     return config_dict
 
 
@@ -303,3 +313,19 @@ async def async_mysql_pool_with_tables(async_mysql_pool: AsyncBackendPool) -> As
     async with async_mysql_pool.connection() as backend:
         await backend.execute("DROP TABLE IF EXISTS concurrent_test_posts")
         await backend.execute("DROP TABLE IF EXISTS concurrent_test_users")
+
+
+
+
+# --- directory contract: keep this directory on one worker per scenario ---
+def ensure_database(environment):
+    """The pool fixtures create their own database on first use."""
+    return
+
+
+def prepare(environment):
+    return
+
+
+def teardown(environment):
+    return
