@@ -11,9 +11,9 @@ real value rather than a guess.
 
 
 def _session_reports_explicit(backend) -> bool:
-    """The session's own answer, read directly for comparison."""
+    """The server's own answer, read directly for comparison."""
     row = backend.execute(
-        "SELECT @@SESSION.explicit_defaults_for_timestamp AS v", ()
+        "SELECT @@explicit_defaults_for_timestamp AS v", ()
     ).data[0]
     return str(row["v"]).strip().upper() in ("ON", "1", "TRUE")
 

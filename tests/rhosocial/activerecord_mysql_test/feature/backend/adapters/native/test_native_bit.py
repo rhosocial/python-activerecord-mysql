@@ -22,6 +22,10 @@ from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLBitStringAda
 
 from native_helpers import mark_for_write
 
+#: The native tables this module uses.  ``schema`` creates only these, so
+#: a server missing another family's type does not fail this module's setup.
+TABLES = ("native_bit",)
+
 BITS_8 = BitString.from_bits("10101010")
 BITS_13 = BitString.from_bits("1010000001101")
 BITS_13_INT = 5133

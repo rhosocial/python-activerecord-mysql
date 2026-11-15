@@ -15,6 +15,10 @@ from rhosocial.activerecord.backend.impl.mysql.adapters import MySQLUUIDAdapter
 
 from native_helpers import mark_for_write
 
+#: The native tables this module uses.  ``schema`` creates only these, so
+#: a server missing another family's type does not fail this module's setup.
+TABLES = ("native_uuid",)
+
 VALUE = uuid.UUID("12345678-1234-5678-1234-567812345678")
 VALUE_HEX = VALUE.hex
 

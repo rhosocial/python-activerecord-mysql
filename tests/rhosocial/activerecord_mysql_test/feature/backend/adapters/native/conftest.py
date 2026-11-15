@@ -2,10 +2,14 @@
 """L2 backend fixtures for the MySQL native-type tests.
 
 - ``database``: one database per directory (session scope, emptied at start);
-- ``schema``: the native family tables, plus the ``VECTOR`` table only when the
-  scenario's server reports the type, dropped and recreated for every test
-  (function scope), so each test starts from empty tables;
+- ``schema``: only the tables this module declares in ``TABLES``, dropped and
+  recreated for every test (function scope), so each test starts from empty
+  tables;
 - one fixture per model, each configured against this directory's database.
+
+A module declares what it needs and nothing else: MySQL 5.6 has no ``JSON``
+column, so a directory-wide "create every family" would abort a ``BIT`` test's
+setup with a syntax error from a table it never touches.
 """
 
 from pathlib import Path
@@ -15,7 +19,7 @@ import pytest
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
-from native_capabilities import supports_vector, vector_skip_reason
+from native_capabilities import supports_uuid_functions, uuid_functions_skip_reason
 from native_models import (
     NativeBit,
     NativeBitDefinition,
@@ -33,13 +37,17 @@ from native_models import (
 
 DDL = ExecutionOptions(stmt_type=StatementType.DDL)
 
-DEFINITIONS = (
-    NativeBitDefinition,
-    NativeSetEnumDefinition,
-    NativeJsonDefinition,
-    NativeUuidDefinition,
-    NativeGeometryDefinition,
-)
+#: Table name -> (definition, capability gate).  A gate of ``None`` means the
+#: columns exist on every supported server; a gate that answers ``no`` skips
+#: the module and names the probe in the reason.
+FAMILIES = {
+    "native_bit": (NativeBitDefinition, None),
+    "native_set_enum": (NativeSetEnumDefinition, None),
+    "native_json": (NativeJsonDefinition, "supports_json_type"),
+    "native_uuid": (NativeUuidDefinition, None),
+    "native_geometry": (NativeGeometryDefinition, None),
+    "native_vector": (NativeVectorDefinition, "supports_vector_type"),
+}
 
 
 def _database_name() -> str:
@@ -47,6 +55,17 @@ def _database_name() -> str:
     parts = Path(__file__).parent.parts
     start = parts.index("feature") + 1
     return "test_" + "_".join(parts[start:])
+
+
+def _declared(request) -> tuple:
+    """The families the module declares in ``TABLES``."""
+    names = tuple(getattr(request.module, "TABLES", ()))
+    unknown = [name for name in names if name not in FAMILIES]
+    if unknown:
+        raise LookupError(
+            f"{request.module.__name__} declares unknown native families: {unknown}"
+        )
+    return names
 
 
 @pytest.fixture(scope="session")
@@ -69,11 +88,14 @@ def database(database_config):
 
 
 @pytest.fixture(scope="function", autouse=True)
-def schema(database):
-    """Drop and recreate the native tables this directory uses, before every test."""
-    fixtures = [definition(database.dialect) for definition in DEFINITIONS]
-    if supports_vector(database):
-        fixtures.append(NativeVectorDefinition(database.dialect))
+def schema(database, request):
+    """Drop and recreate only the tables this module declares, before every test."""
+    fixtures = []
+    for name in _declared(request):
+        definition, probe = FAMILIES[name]
+        if probe is not None and not getattr(database.dialect, probe)():
+            pytest.skip(f"this server cannot hold a {name} column set ({probe} is False)")
+        fixtures.append(definition(database.dialect))
     for fixture in fixtures:
         database.execute(*fixture.create_table.to_sql(), options=DDL)
     yield
@@ -109,8 +131,10 @@ def native_json(database_config):
 
 
 @pytest.fixture(name="native_uuid")
-def native_uuid(database_config):
-    """``NativeUUID`` configured against this directory's database."""
+def native_uuid(database_config, database):
+    """``NativeUUID``, skipped when the server has no ``BIN_TO_UUID``."""
+    if not supports_uuid_functions(database):
+        pytest.skip(uuid_functions_skip_reason(database))
     scenario, config, _name = database_config
     NativeUUID.configure(config, scenario.backend_class)
     yield NativeUUID
@@ -129,8 +153,11 @@ def native_geometry(database_config):
 @pytest.fixture(name="native_vector")
 def native_vector(database_config, database):
     """``NativeVector``, skipped when the server has no ``VECTOR`` type."""
-    if not supports_vector(database):
-        pytest.skip(vector_skip_reason(database))
+    if not database.dialect.supports_vector_type():
+        pytest.skip(
+            "this server cannot hold a native VECTOR column "
+            "(supports_vector_type() -> False)"
+        )
     scenario, config, _name = database_config
     NativeVector.configure(config, scenario.backend_class)
     yield NativeVector

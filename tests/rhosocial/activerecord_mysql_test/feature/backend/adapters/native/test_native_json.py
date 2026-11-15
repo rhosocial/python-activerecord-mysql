@@ -15,6 +15,10 @@ from rhosocial.activerecord.backend.errors import DatabaseError
 
 from native_helpers import mark_for_write
 
+#: The native tables this module uses.  ``schema`` creates only these, so
+#: a server missing another family's type does not fail this module's setup.
+TABLES = ("native_json",)
+
 PAYLOAD = {"a": 1, "b": [1, None, "x"]}
 PAYLOAD_TEXT = '{"a": 1, "b": [1, null, "x"]}'
 

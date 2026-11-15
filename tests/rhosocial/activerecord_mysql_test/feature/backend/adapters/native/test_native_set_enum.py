@@ -23,6 +23,10 @@ from native_helpers import mark_for_write
 
 from native_models import Shade
 
+#: The native tables this module uses.  ``schema`` creates only these, so
+#: a server missing another family's type does not fail this module's setup.
+TABLES = ("native_set_enum",)
+
 SET_FLAGS = {"a", "c"}
 ENUM_LABEL = Shade.GREEN
 YEAR_VALUE = 2024
