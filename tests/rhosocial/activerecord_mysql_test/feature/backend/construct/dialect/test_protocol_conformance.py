@@ -137,6 +137,7 @@ MYSQL_PROTOCOLS = [
     # because the declaration *is* the answer -- the same way core's SQLite
     # satisfies IdentityColumnSupport while answering False.
     dialect_protocols.AutoIncrementColumnSupport,
+    dialect_protocols.DatabaseAssignedColumnSupport,
     dialect_protocols.IdentityColumnSupport,
     dialect_protocols.GeneratedColumnSupport,
     dialect_protocols.PartitionSupport,
