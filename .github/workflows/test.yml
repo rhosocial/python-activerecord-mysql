@@ -299,7 +299,7 @@ jobs:
 
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -312,19 +312,19 @@ jobs:
           # version-specific behaviour (e.g. ``EXPLAIN PARTITIONS`` row
           # format, ``EXCHANGE PARTITION ... WITH VALIDATION``) are skipped
           # inline for unsupported versions.
-          - { python-version: '3.8', mysql-version: '5.6', port: 3306 }
-          - { python-version: '3.9', mysql-version: '5.7', port: 3307 }
-          - { python-version: '3.10', mysql-version: '8.0', port: 3308 }
-          - { python-version: '3.11', mysql-version: '8.4', port: 3309 }
-          - { python-version: '3.12', mysql-version: '9.0', port: 3310 }
-          - { python-version: '3.13', mysql-version: '9.1', port: 3311 }
-          - { python-version: '3.14', mysql-version: '9.2', port: 3312 }
-          - { python-version: '3.13t', mysql-version: '9.3', port: 3313 }
-          - { python-version: '3.14t', mysql-version: '9.4', port: 3314 }
-          - { python-version: '3.14', mysql-version: '9.5', port: 3315 }
-          - { python-version: '3.14t', mysql-version: '9.6', port: 3316 }
-          - { python-version: '3.13', mysql-version: '9.7', port: 3317 }
-          - { python-version: '3.14', mysql-version: '9.7', port: 3318 }
+          - { python-version: '3.8', mysql-version: '5.6', port: 3306, os: ubuntu-22.04 }
+          - { python-version: '3.9', mysql-version: '5.7', port: 3307, os: ubuntu-22.04 }
+          - { python-version: '3.10', mysql-version: '8.0', port: 3308, os: ubuntu-latest }
+          - { python-version: '3.11', mysql-version: '8.4', port: 3309, os: ubuntu-latest }
+          - { python-version: '3.12', mysql-version: '9.0', port: 3310, os: ubuntu-latest }
+          - { python-version: '3.13', mysql-version: '9.1', port: 3311, os: ubuntu-latest }
+          - { python-version: '3.14', mysql-version: '9.2', port: 3312, os: ubuntu-latest }
+          - { python-version: '3.13t', mysql-version: '9.3', port: 3313, os: ubuntu-latest }
+          - { python-version: '3.14t', mysql-version: '9.4', port: 3314, os: ubuntu-latest }
+          - { python-version: '3.14', mysql-version: '9.5', port: 3315, os: ubuntu-latest }
+          - { python-version: '3.14t', mysql-version: '9.6', port: 3316, os: ubuntu-latest }
+          - { python-version: '3.13', mysql-version: '9.7', port: 3317, os: ubuntu-latest }
+          - { python-version: '3.14', mysql-version: '9.7', port: 3318, os: ubuntu-latest }
 
     services:
       mysql:
