@@ -164,6 +164,7 @@ MYSQL_PROTOCOLS = [
     mysql_protocols.MySQLSetTypeSupport,
     mysql_protocols.MySQLJSONFunctionSupport,
     mysql_protocols.MySQLSpatialSupport,
+    mysql_protocols.MySQLServerParametersSupport,
     mysql_protocols.MySQLVectorSupport,
     mysql_protocols.MySQLFullTextSearchSupport,
     mysql_protocols.MySQLLockingSupport,

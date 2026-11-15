@@ -36,6 +36,7 @@ from ..config import MySQLConnectionConfig
 from ..dialect import MySQLDialect
 from ..async_transaction import AsyncMySQLTransactionManager
 from ..mixins import MySQLBackendMixin, AsyncMySQLConcurrencyMixin
+from .backend import _SERVER_PARAMETERS_QUERY
 
 
 class AsyncMySQLBackend(
@@ -171,6 +172,31 @@ class AsyncMySQLBackend(
             )
             self._register_mysql_adapters()
             self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
+        await self._record_server_parameters()
+
+    async def _record_server_parameters(self) -> None:
+        """Record the session parameters the dialect answers from.
+
+        Same contract as the synchronous method: the values belong to the
+        session, so they are read once here rather than guessed from the
+        version.
+        """
+        if self._dialect is None:
+            return
+        try:
+            rows = (await self.execute(_SERVER_PARAMETERS_QUERY, ())).data
+        except Exception as error:  # noqa: BLE001 - reported, then left unrecorded
+            self.log(
+                logging.WARNING,
+                f"could not read the MySQL session variables: {error}",
+            )
+            return
+        self._dialect.set_server_parameters(
+            {
+                row["Variable_name"]: row["Value"]
+                for row in rows
+            }
+        )
 
     async def connect(self) -> None:
         """Establish async connection to MySQL database."""
