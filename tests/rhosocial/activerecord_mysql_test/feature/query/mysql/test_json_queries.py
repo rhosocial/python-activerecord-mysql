@@ -13,6 +13,9 @@ import pytest
 
 from rhosocial.activerecord.testsuite.utils import requires_json_operations
 
+#: The table this module uses.  ``schema`` creates only these.
+TABLES = ("json_users",)
+
 
 @pytest.mark.mysql_json
 @requires_json_operations()

@@ -25,6 +25,9 @@ would fail on PostgreSQL (which correctly rejects the invalid SQL).
 import pytest
 from decimal import Decimal
 
+#: The tables this module uses.  ``schema`` creates only these.
+TABLES = ("users", "orders", "order_items")
+
 
 
 @pytest.mark.asyncio
