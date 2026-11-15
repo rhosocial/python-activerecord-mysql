@@ -54,7 +54,7 @@ class TestSpatialTypeBackend:
         else:
             assert not dialect.supports_geojson()
 
-    @requires_protocol(MySQLSpatialSupport, "supports_spatial_type")
+    @requires_protocol(MySQLSpatialSupport)
     def test_format_spatial_literal_without_srid(self, mysql_backend):
         """Test format_mysql_spatial_literal_expression generates correct SQL without SRID."""
         mysql_backend.execute("""
@@ -75,7 +75,7 @@ class TestSpatialTypeBackend:
 
         mysql_backend.execute("DROP TEMPORARY TABLE IF EXISTS test_spatial_literal")
 
-    @requires_protocol(MySQLSpatialSupport, "supports_spatial_type")
+    @requires_protocol(MySQLSpatialSupport)
     def test_format_spatial_literal_with_srid(self, mysql_backend):
         """Test format_mysql_spatial_literal_expression generates correct SQL with SRID."""
         mysql_backend.execute("""
