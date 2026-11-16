@@ -64,7 +64,6 @@ from rhosocial.activerecord.backend.expression.column_types import (
     BitStringColumn,
     BooleanColumn,
     ColumnBase,
-    GeometryColumn,
     IntegerColumn,
     IntervalColumn,
     JSONColumn,
@@ -77,6 +76,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
     UUIDColumn,
     VectorColumn,
 )
+from ..column_types import MySQLGeometryColumn
 
 #: MySQL's complete answer for every entry of the framework's common types.
 #:
@@ -204,7 +204,7 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
     # every backend. Richer family operations belong to a MySQL-named
     # subclass in this backend's extra table. Storage is answered in the
     # data-type suggestion module.
-    Geometry: GeometryColumn,
+    Geometry: MySQLGeometryColumn,
     Vector: VectorColumn,
     BitString: BitStringColumn,
     Range: RangeColumn,

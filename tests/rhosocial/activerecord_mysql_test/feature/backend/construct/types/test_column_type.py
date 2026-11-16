@@ -29,7 +29,6 @@ from rhosocial.activerecord.backend.expression.column_types import (
     BooleanColumn,
     ColumnBase,
     TimestampColumn,
-    GeometryColumn,
     IntegerColumn,
     IntervalColumn,
     JSONColumn,
@@ -51,6 +50,7 @@ from rhosocial.activerecord.backend.adapters import (
 )
 from rhosocial.activerecord.base.field_proxy import ColumnTypeResolutionError
 from rhosocial.activerecord.base.fields import UseColumnType
+from rhosocial.activerecord.backend.impl.mysql.column_types import MySQLGeometryColumn
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.mixins.column_type import (
     MYSQL_COLUMN_TYPES,
@@ -249,7 +249,7 @@ class TestMySQLDeviations:
         """Six families, the classes that promise only the column surface."""
         table = dialect.suggested_column_types()
         for entry, klass in (
-            (Geometry, GeometryColumn),
+            (Geometry, MySQLGeometryColumn),
             (Vector, VectorColumn),
             (BitString, BitStringColumn),
             (Range, RangeColumn),
@@ -463,7 +463,7 @@ def test_the_summary_table_reads_the_way_the_spec_writes_it():
         "set": "JSONColumn",
         "frozenset": "JSONColumn",
         "Enum": "StringColumn",
-        "Geometry": "GeometryColumn",
+        "Geometry": "MySQLGeometryColumn",
         "Vector": "VectorColumn",
         "BitString": "BitStringColumn",
         "Range": "RangeColumn",
