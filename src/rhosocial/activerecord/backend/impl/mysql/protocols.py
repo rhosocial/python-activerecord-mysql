@@ -832,7 +832,7 @@ class MySQLTypeSupport(Protocol):
         """
         ...
 
-    def suggested_data_types(self) -> Dict[str, type]:
+    def substitute_data_types(self) -> Dict[str, type]:
         """The core concepts this dialect cannot spell, and what it stores."""
         ...
 

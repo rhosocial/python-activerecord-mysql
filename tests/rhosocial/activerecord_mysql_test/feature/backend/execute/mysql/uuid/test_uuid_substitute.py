@@ -1,7 +1,7 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/execute/mysql/uuid/test_uuid_substitute.py
 """The UUID substitute on a live server: what MySQL actually builds from it.
 
-MySQL has no ``UUID`` data type, so ``suggested_data_types()["uuid"]`` names a
+MySQL has no ``UUID`` data type, so ``substitute_data_types()["uuid"]`` names a
 substitute and that substitute has to be the right *size*. This file checks the
 size against a real server rather than against the manual alone, on every
 scenario the suite is pointed at — the reasoning is in

@@ -9,7 +9,7 @@ system and the MySQL backend:
   correspondence on ``MySQLDialect``;
 - ``supports_data_types()`` merges the ``mysql_*`` namespaced family with
   the core family;
-- ``suggested_data_types()`` values are real ``DataType`` classes and its
+- ``substitute_data_types()`` values are real ``DataType`` classes and its
   keys are disjoint from the supported keys;
 - every core concept is either rendered or substituted (D9), with the
   substitutions MySQL genuinely needs spelled out;
@@ -162,16 +162,16 @@ class TestSupportsDataTypesMapping:
 
 
 class TestSuggestedDataTypes:
-    """suggested_data_types(): real classes, disjoint from supported keys."""
+    """substitute_data_types(): real classes, disjoint from supported keys."""
 
     def test_values_are_data_type_classes(self, dialect):
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         for key, klass in suggestions.items():
             assert isinstance(klass, type), key
             assert issubclass(klass, DataType), key
 
     def test_keys_disjoint_from_supported(self, dialect):
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         supported = dialect.supports_data_types()
         assert not (set(suggestions) & set(supported))
 
@@ -179,7 +179,7 @@ class TestSuggestedDataTypes:
         """MySQL has no UUID type, so the substitute is 16 raw bytes.
 
         **What was wrong.** This used to be
-        ``suggested_data_types()["uuid"] is MySQLBinaryType`` — the *general*
+        ``substitute_data_types()["uuid"] is MySQLBinaryType`` — the *general*
         byte-string class — which renders ``BINARY`` when given no length. MySQL
         defines that: "An optional length *M* represents the column length in
         bytes. **If omitted, *M* defaults to 1.**" (manual §13.3.1). Every
@@ -193,7 +193,7 @@ class TestSuggestedDataTypes:
         carries no length to hand over, so the substitute has to be a class
         whose width is its own: :class:`MySQLUUIDType`.
         """
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         assert "uuid" in suggestions
         assert suggestions["uuid"] is MySQLUUIDType
         # Constructible with no arguments, because the width is a property of
@@ -227,7 +227,7 @@ class TestSuggestedDataTypes:
         backend. What MySQL stores — the 16 bytes — is a rendering detail and
         belongs in the formatter, not in the identity.
         """
-        substitute = dialect.suggested_data_types()["uuid"]
+        substitute = dialect.substitute_data_types()["uuid"]
         assert issubclass(substitute, UUIDType)
         assert isinstance(MySQLUUIDType(dialect), UUIDType)
         assert substitute.name == "mysql_uuid"
@@ -241,7 +241,7 @@ class TestSuggestedDataTypes:
         rendered ``BINARY`` and parsed back to a ``MySQLBinaryType(length=None)``
         — equal by luck, while rendering a column that could not hold a UUID.
         """
-        declared = dialect.suggested_data_types()["uuid"](dialect)
+        declared = dialect.substitute_data_types()["uuid"](dialect)
         rendered = declared.to_sql()[0]
         assert dialect.parse_type(rendered) == declared
         assert type(dialect.parse_type(rendered)) is MySQLUUIDType
@@ -305,18 +305,18 @@ class TestSuggestedDataTypes:
         A name in both sets is one of the two being a lie, so the generic type
         is rendered and the suggestion went.
         """
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         assert "enum" not in suggestions
         assert dialect.supports_data_types()["enum"] is EnumType
 
     def test_xml_is_suggested_as_text(self, dialect):
         """MySQL has no XML type, and stores an XML document as text.
 
-        ``suggested_data_types()["xml"]`` is the honest statement of that: not
+        ``substitute_data_types()["xml"]`` is the honest statement of that: not
         a compromise, and not silence. ``TextType`` is a type this dialect
         really renders, which is what makes the suggestion usable.
         """
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         assert "xml" in suggestions
         assert suggestions["xml"] is TextType
         # The concept itself is *not* renderable — that is why it is suggested,
@@ -327,7 +327,7 @@ class TestSuggestedDataTypes:
 
     def test_array_is_suggested_as_json(self, dialect):
         """MySQL has no array type; a list column is a JSON document."""
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         assert suggestions["array"] is JsonType
 
     def test_interval_is_suggested_as_an_integer_count(self, dialect):
@@ -337,7 +337,7 @@ class TestSuggestedDataTypes:
         DAY`` consumes is a plain number. So the substitute is the numeric
         count, and the unit travels with the expression rather than the type.
         """
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         assert suggestions["interval"] is IntegerType
         assert "interval" not in dialect.supports_data_types()
 
@@ -352,7 +352,7 @@ class TestSuggestedDataTypes:
         *substituted* rather than rendered, and the advice text has to carry
         the vendor fact so the caller can pick the right class.
         """
-        suggestions = dialect.suggested_data_types()
+        suggestions = dialect.substitute_data_types()
         assert suggestions["real"] is DoubleType
         assert "real" not in dialect.supports_data_types()
         with pytest.raises(TypeError) as excinfo:
@@ -367,7 +367,7 @@ class TestSuggestedDataTypes:
     def test_every_suggested_substitute_is_rendered(self, dialect):
         """A suggestion a dialect cannot render is worse than no suggestion."""
         supported = dialect.supports_data_types()
-        for key, substitute in dialect.suggested_data_types().items():
+        for key, substitute in dialect.substitute_data_types().items():
             assert issubclass(substitute, DataType), key
             assert substitute.name in supported, (
                 f"suggested[{key!r}] is {substitute.__name__}, whose name "
@@ -392,7 +392,7 @@ class TestSuggestedDataTypes:
             ):
                 concrete.append(klass)
         declared = set(dialect.supports_data_types()) | set(
-            dialect.suggested_data_types()
+            dialect.substitute_data_types()
         )
         undeclared = sorted(k.name for k in concrete if k.name not in declared)
         assert not undeclared, undeclared

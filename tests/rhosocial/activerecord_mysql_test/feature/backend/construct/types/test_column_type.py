@@ -179,7 +179,7 @@ class TestBaselineCells:
     def test_uuid_is_not_gated_on_a_storage_fact(self, dialect):
         """MySQL has no native ``UUID`` type on any version, and it must not show.
 
-        The ``BINARY(16)`` substitute is ``suggested_data_types()``'s business.
+        The ``BINARY(16)`` substitute is ``substitute_data_types()``'s business.
         A UUID carries the same operations -- equality and ``IN`` -- wherever it
         is kept, so the column answer is the baseline on every version.
         """
