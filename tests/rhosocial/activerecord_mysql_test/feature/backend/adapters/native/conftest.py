@@ -18,6 +18,7 @@ import pytest
 
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
+from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 from native_capabilities import supports_uuid_functions, uuid_functions_skip_reason
 from native_models import (
@@ -33,6 +34,13 @@ from native_models import (
     NativeUuidDefinition,
     NativeVector,
     NativeVectorDefinition,
+)
+
+DECLARATION = Declaration(
+    parallel=True,
+    purpose="Live MySQL tests under adapters/native; this dir owns one DB per scenario.",
+    passes_means="The backend behaves correctly under adapters/native on the active scenario.",
+    fails_means="A live-server defect breaks MySQL adapters/native behaviour here.",
 )
 
 DDL = ExecutionOptions(stmt_type=StatementType.DDL)

@@ -16,6 +16,14 @@ import support.mysql
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
+from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
+
+DECLARATION = Declaration(
+    parallel=False,
+    purpose="Backend-owned MySQL tests: rendering runs freely; DB dirs declare their own scope.",
+    passes_means="The MySQL backend renders and behaves as expected on the active scenario.",
+    fails_means="A MySQL backend rendering or live-execution defect surfaced on this scenario.",
+)
 
 # --- Scenario Loading Logic ---
 
@@ -84,19 +92,6 @@ def get_scenario(name: str, database: str = "test_backend") -> Tuple[Type[MySQLB
             raise ValueError("No scenarios registered")
     _prepare_database(name, database)
     return MySQLBackend, support.mysql.scenario(name).make_config(database)
-
-
-def pytest_collection_modifyitems(config, items):
-    """Pin a backend directory's tests to one worker.
-
-    These directories create and drop tables in the directory's own database,
-    so two workers must never run tests from the same directory at once.
-    """
-    for item in items:
-        parts = item.path.parts
-        if "backend" not in parts:
-            continue
-        item.add_marker(pytest.mark.xdist_group("mysql-backend::" + str(item.path.parent)))
 
 
 # --- Provider Logic ---
