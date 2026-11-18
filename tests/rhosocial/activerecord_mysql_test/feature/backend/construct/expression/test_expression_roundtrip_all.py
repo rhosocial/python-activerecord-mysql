@@ -822,6 +822,13 @@ _DECLARED_GAP = {
 # the *instance* the generic constructor happened to build, and that is the
 # interesting half -- every row below is a refusal that is the right answer to
 # a wrong value.
+#
+# Core's DDL refactor also introduced ``UnsupportedDataTypeError`` (a
+# ``TypeError`` subclass) for a dialect that declares no rendering for a type
+# concept. Eight core type classes now refuse through it; they stay here with
+# the precise name because this table asserts the exact exception type, and
+# subclassing ``TypeError`` keeps every caller that caught the old spelling
+# working.
 _NOT_RENDERED = {
     # --- The dialect correctly refuses what the harness invented. ---------
     "collation.CollateFunction": (
@@ -856,36 +863,36 @@ _NOT_RENDERED = {
         "string.",
     ),
     "types._base.DataType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "Abstract base whose name is None, so format_data_type cannot "
         "dispatch. No dialect implements a base without a concrete name.",
     ),
     "types.array.ArrayType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL has no array type, so there is no format_data_type_array.",
     ),
     "types.binary.BinaryType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL spells fixed-width binary data VARBINARY/BLOB; there is no "
         "format_data_type_binary.",
     ),
     "types.binary.VarBinaryType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL spells fixed-width binary data VARBINARY/BLOB; there is no "
         "format_data_type_varbinary.",
     ),
     "types.datetime_.IntervalType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL spells intervals with INTERVAL n unit inside a date expression, "
         "not as a column type; no format_data_type_interval.",
     ),
     "types.uuid_.UUIDType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL 8.0 stores a UUID as CHAR(36) or BINARY(16); no "
         "format_data_type_uuid.",
     ),
     "types.numeric.RealType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL's REAL is a synonym for DOUBLE in this server's grammar (only "
         "under REAL_AS_FLOAT does it mean FLOAT), so every wired server reports "
         "a REAL column as double and the single-precision concept cannot "
@@ -898,7 +905,7 @@ _NOT_RENDERED = {
         "declare itself.",
     ),
     "types.xml_.XmlType": (
-        "TypeError",
+        "UnsupportedDataTypeError",
         "MySQL has no XML type; the dialect suggests TextType, which is what "
         "this backend uses.",
     ),
@@ -943,72 +950,16 @@ _NOT_RENDERED = {
         "table must be a Table object; the generic constructor supplies a "
         "string, and the dialect's object-kind guard refuses it.",
     ),
-    # --- The declared-result annotations render through a formatter that
-    # --- reads an optional field not every node declares. ----------------
-    # ``format_declared_result`` (a core dialect mixin) reads
-    # ``expr.source.alias`` directly. ``alias`` is an optional field and
-    # not every node declares it -- ``Literal`` has none -- so any
-    # annotation over a bare literal is refused with AttributeError from
-    # inside the renderer. §11.2 spells the expectation: an optional field
-    # is a class attribute with a default, and a formatter reads declared
-    # fields. These rows name the defect so the table says to come back
-    # when the formatter or the base declares it.
+    # --- The abstract declared-result base still cannot render. -----------
+    # The ten concrete annotations used to be pinned here because core's
+    # ``format_declared_result`` read ``expr.source.alias`` off a Literal
+    # that did not declare it. Core has since fixed that, so those classes
+    # render and their rows were retired; only the abstract base, whose
+    # instance shape the formatter still cannot read, remains.
     "declared._Annotation": (
         "AttributeError",
-        "format_declared_result reads expr.source.alias; the annotation's "
-        "source is a Literal, which declares no alias. The same defect sits "
-        "under every row below -- one entry per class because the table is "
-        "keyed by class.",
-    ),
-    "declared.ArrayAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.BinaryAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.BooleanAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.IntegerAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.JSONAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.NumberAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.TemporalAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.TextAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.UUIDAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
-    ),
-    "declared.XMLAnnotation": (
-        "AttributeError",
-        "format_declared_result reads expr.source.alias; a Literal source "
-        "declares no alias.",
+        "format_declared_result reads expr.source.alias; the abstract "
+        "annotation's source is a Literal, which declares no alias.",
     ),
     "alter_column.MySQLAddColumn": (
         "AttributeError",
