@@ -16,6 +16,7 @@ The directory exists to reproduce that behaviour, so a server without it has
 nothing to reproduce here and skips the whole directory -- the mirror image of
 the shared suite, which skips itself on the servers that do have it.
 """
+from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 from datetime import datetime
 from types import SimpleNamespace
@@ -24,7 +25,6 @@ import pytest
 
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
-from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 DECLARATION = Declaration(
     parallel=True,

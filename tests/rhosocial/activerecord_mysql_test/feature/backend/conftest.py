@@ -5,6 +5,7 @@ The backend runs these against a real server. The scenario supplies the
 connection parameters; the database name is derived from the directory that
 owns the test, so two directories never share tables.
 """
+from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 import os
 from typing import Any, Dict, Tuple, Type
 
@@ -16,7 +17,6 @@ import support.mysql
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import AsyncMySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 DECLARATION = Declaration(
     parallel=False,

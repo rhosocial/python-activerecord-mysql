@@ -11,6 +11,7 @@ A module declares what it needs and nothing else: MySQL 5.6 has no ``JSON``
 column, so a directory-wide "create every family" would abort a ``BIT`` test's
 setup with a syntax error from a table it never touches.
 """
+from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 from pathlib import Path
 
@@ -18,7 +19,6 @@ import pytest
 
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
-from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 from native_capabilities import supports_uuid_functions, uuid_functions_skip_reason
 from native_models import (

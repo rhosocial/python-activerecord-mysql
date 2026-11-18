@@ -13,6 +13,7 @@ A module declares what it needs and nothing else: a dialect-only module needs
 no table at all, and a directory-wide "create every table" would make it fail
 on a server whose index limit refuses ``order_items``.
 """
+from rhosocial.activerecord.testsuite.pytest_plugin import Declaration
 
 from pathlib import Path
 
@@ -68,6 +69,15 @@ def _key_too_long(error) -> bool:
     """
     return getattr(error, "driver_code", None) == 1071 or "1071" in str(error)
 
+
+
+
+# This directory owns a database shared by all its tests within a scenario;
+# pin them to one worker so setup/teardown never races on the same database.
+DECLARATION = Declaration(
+    parallel=True,
+    purpose="Directory-owned database shared by this test group.",
+)
 
 @pytest.fixture(scope="session")
 def database_config(backend_scenario):
