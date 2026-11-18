@@ -19,6 +19,7 @@ from rhosocial.activerecord.backend.impl.mysql.backend.async_backend import Asyn
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
 DECLARATION = Declaration(
+    uses_database=True,
     parallel=False,
     purpose="Backend-owned MySQL tests: rendering runs freely; DB dirs declare their own scope.",
     passes_means="The MySQL backend renders and behaves as expected on the active scenario.",

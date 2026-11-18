@@ -15,6 +15,7 @@ column, the field declares it with ``UseAdapter``:
 * ``BINARY(16)`` holds the raw 16 bytes, so the UUID field binds ``bytes`` while
   the ``CHAR(36)`` field keeps the default canonical text.
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 from enum import Enum
 from typing import Optional, Set
@@ -202,16 +203,11 @@ class Definition:
         return Column(self.dialect, name, sql_type, constraints=constraints or [])
 
     def auto_pk(self, name="id"):
-        return self.column(
-            name,
-            Int(self.dialect),
-            [
-                Constraint(
-                    self.dialect,
-                    branch=PrimaryKey(self.dialect, is_auto_increment=True),
-                )
-            ],
-        )
+        data_type, attributes = auto_increment_parts(self.dialect, Int(self.dialect))
+        return self.column(name, data_type, [
+            Constraint(self.dialect, branch=PrimaryKey(self.dialect)),
+        ], attributes=attributes)
+
 
 
 class NativeBitDefinition(Definition):

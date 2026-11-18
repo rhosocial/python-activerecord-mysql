@@ -23,6 +23,7 @@ helper's third outcome, NOT_RENDERED, is asserted deliberately rather than
 treated as a skip: on MySQL, refusing an identity request is the designed
 answer, and it must stay distinct from "rendered but rejected".
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 import pytest
 
@@ -53,14 +54,14 @@ def _auto_increment_column(dialect, name="id"):
     return ColumnDefinition(
         dialect,
         name,
-        IntegerType(dialect),
+        auto_increment_parts(dialect, IntegerType(dialect))[0],
         constraints=[
             ColumnConstraint(
                 dialect,
-                branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)
+                branch=ColumnPrimaryKeyConstraint(dialect)
             )
         ],
-    )
+     attributes=auto_increment_parts(dialect, IntegerType(dialect))[1])
 
 
 class _DeclinedAutoIncrementDialect(MySQLDialect):
@@ -135,11 +136,10 @@ class TestProbeGatesTheDdl:
 
     def test_withdrawn_probe_refuses_the_column(self):
         dialect = _DeclinedAutoIncrementDialect((8, 0, 36))
-        expression = CreateTableStatement(
-            dialect, Table(dialect, "t"), [_auto_increment_column(dialect)]
-        )
+        # The backend suggestion is consulted when the column definition is
+        # built, so a withdrawn probe refuses there rather than at render time.
         with pytest.raises(UnsupportedFeatureError, match="AUTO_INCREMENT column"):
-            expression.to_sql()
+            _auto_increment_column(dialect)
 
     def test_table_seed_option_is_not_a_column_clause(self):
         """``AUTO_INCREMENT=100`` is a table option, not a column clause.

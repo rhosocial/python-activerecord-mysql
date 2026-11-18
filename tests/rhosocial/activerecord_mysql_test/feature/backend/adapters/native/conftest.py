@@ -37,6 +37,8 @@ from native_models import (
 )
 
 DECLARATION = Declaration(
+    # This scope opens a database; the plugin enforces this declaration.
+    uses_database=True,
     parallel=True,
     purpose="Live MySQL tests under adapters/native; this dir owns one DB per scenario.",
     passes_means="The backend behaves correctly under adapters/native on the active scenario.",

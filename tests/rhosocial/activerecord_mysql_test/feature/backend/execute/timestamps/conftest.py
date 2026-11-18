@@ -27,6 +27,7 @@ from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 DECLARATION = Declaration(
+    uses_database=True,
     parallel=True,
     purpose="Live MySQL tests under execute/timestamps; this dir owns one DB per scenario.",
     passes_means="The backend behaves correctly under execute/timestamps on the active scenario.",

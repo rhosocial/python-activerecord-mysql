@@ -171,6 +171,7 @@ from .mixins import (
     MySQLFunctionMixin,
     MySQLColumnTypeMixin,
     MySQLLiteralValueMixin,
+    MySQLIntegerAutoIncrementColumnSuggestionMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -183,6 +184,8 @@ if TYPE_CHECKING:
 
 
 class MySQLDialect(
+    # Backend suggestion first: no core mixin may shadow its answer.
+    MySQLIntegerAutoIncrementColumnSuggestionMixin,
     # The bases below come in bundles: a backend mixin, then the core bundle
     # it stands in for. The backend's answer has to come first -- a mixin
     # placed after the class it overrides never wins -- so a new mixin goes

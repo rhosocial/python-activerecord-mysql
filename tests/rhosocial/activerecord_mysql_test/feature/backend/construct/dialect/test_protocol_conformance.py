@@ -139,6 +139,7 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.AutoIncrementColumnSupport,
     dialect_protocols.DatabaseAssignedColumnSupport,
     dialect_protocols.IdentityColumnSupport,
+    dialect_protocols.IntegerAutoIncrementColumnSuggestionSupport,
     dialect_protocols.GeneratedColumnSupport,
     dialect_protocols.PartitionSupport,
     # --- DDL: view / index ---

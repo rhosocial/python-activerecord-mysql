@@ -12,6 +12,7 @@ MySQL is unique in accepting both forms:
 
 Both are valid in DDL DEFAULT and SELECT contexts across MySQL 5.6+.
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 import pytest
 
@@ -124,13 +125,13 @@ class TestNiladicDDLContext:
             table=Table(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
-                    "id",
-                    IntegerType(dialect),
+                    "id"[0],
+                    auto_increment_parts(dialect, IntegerType(dialect))[0],
                     constraints=[
-                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                         ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
-                ),
+                 attributes=auto_increment_parts(dialect, IntegerType(dialect))[1]),
                 ColumnDefinition(
                     dialect,
                     "ts",
@@ -168,13 +169,13 @@ class TestNiladicDDLContext:
             table=Table(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
-                    "id",
-                    IntegerType(dialect),
+                    "id"[0],
+                    auto_increment_parts(dialect, IntegerType(dialect))[0],
                     constraints=[
-                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                         ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
-                ),
+                 attributes=auto_increment_parts(dialect, IntegerType(dialect))[1]),
                 ColumnDefinition(
                     dialect,
                     "ts",
@@ -216,13 +217,13 @@ class TestNiladicDDLContext:
             table=Table(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect,
-                    "id",
-                    IntegerType(dialect),
+                    "id"[0],
+                    auto_increment_parts(dialect, IntegerType(dialect))[0],
                     constraints=[
-                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                         ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
-                ),
+                 attributes=auto_increment_parts(dialect, IntegerType(dialect))[1]),
                 ColumnDefinition(
                     dialect,
                     "ts",
@@ -288,13 +289,13 @@ class TestAsyncNiladicDDLContext:
             table=Table(dialect, table_name),
             columns=[
                 ColumnDefinition(dialect, 
-                    "id",
-                    IntegerType(dialect),
+                    "id"[0],
+                    auto_increment_parts(dialect, IntegerType(dialect))[0],
                     constraints=[
-                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True)),
+                        ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                         ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ],
-                ),
+                 attributes=auto_increment_parts(dialect, IntegerType(dialect))[1]),
                 ColumnDefinition(
                     dialect,
                     "ts",

@@ -7,6 +7,7 @@ This example demonstrates:
 3. SERIALIZABLE isolation level
 4. How to set isolation level on a transaction
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
@@ -59,12 +60,12 @@ create_table = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            "INT",
+            auto_increment_parts(None, "INT")[0],
             constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-        ),
+         attributes=auto_increment_parts(None, "INT")[1]),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",

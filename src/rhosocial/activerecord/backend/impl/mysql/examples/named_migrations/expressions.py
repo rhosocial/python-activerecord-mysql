@@ -5,6 +5,7 @@ DDL named expression functions for MySQL migration examples.
 Each function receives a *dialect* and returns a DDL expression object.
 These are the building blocks used by NamedMigration up()/down() methods.
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     ColumnConstraint,
@@ -28,15 +29,15 @@ def create_users_table(dialect):
         columns=[
             ColumnDefinition(
                 dialect,
-                "id",
-                MySQLIntType(dialect),
+                "id"[0],
+                auto_increment_parts(None, MySQLIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(
     None,
-    branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)
+    branch=ColumnPrimaryKeyConstraint(None)
 ),
                 ],
-            ),
+             attributes=auto_increment_parts(None, MySQLIntType(dialect))[1]),
             ColumnDefinition(dialect, "name", MySQLTextType(dialect)),
             ColumnDefinition(dialect, "email", MySQLTextType(dialect)),
         ],
@@ -56,15 +57,15 @@ def create_posts_table(dialect):
         columns=[
             ColumnDefinition(
                 dialect,
-                "id",
-                MySQLIntType(dialect),
+                "id"[0],
+                auto_increment_parts(None, MySQLIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(
     None,
-    branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)
+    branch=ColumnPrimaryKeyConstraint(None)
 ),
                 ],
-            ),
+             attributes=auto_increment_parts(None, MySQLIntType(dialect))[1]),
             ColumnDefinition(dialect, "title", MySQLTextType(dialect)),
             ColumnDefinition(dialect, "user_id", MySQLIntType(dialect)),
         ],
@@ -88,15 +89,15 @@ def create_custom_table(dialect, table_name: str = "custom_table"):
         columns=[
             ColumnDefinition(
                 dialect,
-                "id",
-                MySQLIntType(dialect),
+                "id"[0],
+                auto_increment_parts(None, MySQLIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(
     None,
-    branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)
+    branch=ColumnPrimaryKeyConstraint(None)
 ),
                 ],
-            ),
+             attributes=auto_increment_parts(None, MySQLIntType(dialect))[1]),
             ColumnDefinition(dialect, "value", MySQLTextType(dialect)),
         ],
     )

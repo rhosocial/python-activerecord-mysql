@@ -8,6 +8,7 @@ This example demonstrates:
 4. Inline index definitions
 5. Default values and NOT NULL constraints
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -56,12 +57,12 @@ backend.execute(sql, params)
 columns = [
     ColumnDefinition(
         name="id",
-        data_type="INT",
+        data_type=auto_increment_parts(None, "INT")[0],
         constraints=[
-            ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+            ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
             ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
         ],
-    ),
+     attributes=auto_increment_parts(None, "INT")[1]),
     ColumnDefinition(
         name="name",
         data_type="VARCHAR(200)",

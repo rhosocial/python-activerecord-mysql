@@ -12,6 +12,7 @@ import pytest_asyncio
 
 
 DECLARATION = Declaration(
+    uses_database=True,
     parallel=True,
     purpose="Live MySQL tests under execute/introspection; this dir owns one DB per scenario.",
     passes_means="The backend behaves correctly under execute/introspection on the active scenario.",
