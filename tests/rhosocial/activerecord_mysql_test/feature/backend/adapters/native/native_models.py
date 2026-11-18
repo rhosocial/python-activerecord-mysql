@@ -78,6 +78,8 @@ class Shade(str, Enum):
 class NativeBit(ActiveRecord):
     """``BIT(8)``, ``BIT(13)`` and a 13-bit column bound as raw bytes."""
 
+    __primary_key__ = "id"
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
@@ -99,6 +101,8 @@ class NativeBit(ActiveRecord):
 class NativeSetEnum(ActiveRecord):
     """``SET``, ``ENUM`` and ``YEAR`` columns."""
 
+    __primary_key__ = "id"
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
@@ -114,6 +118,8 @@ class NativeSetEnum(ActiveRecord):
 class NativeJSON(ActiveRecord):
     """A native ``JSON`` column (the driver hands back text)."""
 
+    __primary_key__ = "id"
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
@@ -126,6 +132,8 @@ class NativeJSON(ActiveRecord):
 
 class NativeUUID(ActiveRecord):
     """The two UUID carriers side by side: ``CHAR(36)`` and ``BINARY(16)``."""
+
+    __primary_key__ = "id"
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -141,6 +149,8 @@ class NativeUUID(ActiveRecord):
 class NativeGeometry(ActiveRecord):
     """A generic ``GEOMETRY`` column and a ``POINT`` column."""
 
+    __primary_key__ = "id"
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
@@ -154,6 +164,8 @@ class NativeGeometry(ActiveRecord):
 
 class NativeVector(ActiveRecord):
     """A ``VECTOR(3)`` column (MySQL 9.0+)."""
+
+    __primary_key__ = "id"
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

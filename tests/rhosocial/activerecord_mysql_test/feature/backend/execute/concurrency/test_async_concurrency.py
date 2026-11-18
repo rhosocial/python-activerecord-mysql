@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 class ConcurrentUser(AsyncActiveRecord):
     """User model for concurrency testing."""
 
+    __primary_key__ = "id"
+
     @classmethod
     def table_name(cls):
         return "concurrent_users"
@@ -58,6 +60,8 @@ class ConcurrentUser(AsyncActiveRecord):
 
 class ConcurrentTask(AsyncActiveRecord):
     """Task model for concurrency testing with status tracking."""
+
+    __primary_key__ = "id"
 
     @classmethod
     def table_name(cls):
@@ -279,6 +283,8 @@ async def test_recommended_pattern_independent_backends(mysql_config):
 
             # Configure a task-specific model class
             class WorkerUser(AsyncActiveRecord):
+                __primary_key__ = "id"
+
                 @classmethod
                 def table_name(cls):
                     return "concurrent_users"
@@ -369,6 +375,8 @@ async def test_transaction_isolation_with_independent_backends(mysql_config):
             await backend.connect()
 
             class TxUser(AsyncActiveRecord):
+                __primary_key__ = "id"
+
                 @classmethod
                 def table_name(cls):
                     return "concurrent_users"
@@ -473,6 +481,8 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
     await shared_backend.connect()
 
     class SharedUser(AsyncActiveRecord):
+        __primary_key__ = "id"
+
         @classmethod
         def table_name(cls):
             return "concurrent_users"
@@ -507,6 +517,8 @@ async def test_sequential_vs_concurrent_comparison(mysql_config):
         try:
 
             class ConcurrentUser(AsyncActiveRecord):
+                __primary_key__ = "id"
+
                 @classmethod
                 def table_name(cls):
                     return "concurrent_users"
@@ -595,6 +607,8 @@ async def test_concurrency_best_practices_documentation(mysql_config):
         try:
 
             class SafeUser(AsyncActiveRecord):
+                __primary_key__ = "id"
+
                 @classmethod
                 def table_name(cls):
                     return "concurrent_users"
