@@ -108,7 +108,7 @@ jobs:
           print(pathlib.Path(testsuite.__file__).parent)
           PY
           )
-          python -m pytest \
+          python -m pytest -p tests.benchmark.providers \
             --rootdir=. \
             --confcutdir=. \
             "$TESTSUITE_DIR/benchmark/crud/core/test_delete_async.py" \
