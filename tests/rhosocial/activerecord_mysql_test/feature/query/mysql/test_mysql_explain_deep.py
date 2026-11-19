@@ -16,29 +16,62 @@ into the testsuite because dialects disagree on plan shape:
 * Partitioned tables expose the ``partitions`` column, which is the concrete
   evidence of partition pruning.
 
-Option support is version-gated and checked here through the dialect's
-``supports_explain_analyze()`` / ``supports_explain_format()`` methods. The
+Every statement handed to a backend API is built with the expression system:
+``QueryStatement`` / ``InsertStatement`` / ``CreateTableStatement`` /
+``DropTableStatement``. No raw SQL string is ever passed to execute/fetch/explain.
+Option support is version-gated through the dialect's
+``supports_explain_analyze()`` / ``supports_explain_format()`` methods; the
 renderer itself does not refuse unsupported options, so every option test first
-asserts the corresponding capability gate. Construction-level tests render SQL
-from a ``MySQLDialect`` with an explicit version and need no live server;
-interpretation tests run against a real MySQL via ``order_fixtures``.
+asserts the corresponding capability gate.
 """
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
-from rhosocial.activerecord.backend.expression import RawSQL
+from rhosocial.activerecord.backend.expression import (
+    AllColumnsWildcard,
+    Column,
+    ColumnConstraint,
+    ColumnDefinition,
+    ColumnNotNullConstraint,
+    ComparisonPredicate,
+    CreateTableStatement,
+    DropTableStatement,
+    ExplainStatement,
+    IndexDefinition,
+    InsertStatement,
+    Literal,
+    QueryStatement,
+    ValuesSource,
+)
+from rhosocial.activerecord.backend.expression.objects import Table
+from rhosocial.activerecord.backend.expression.query_parts import WhereClause
+from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
 from rhosocial.activerecord.backend.expression.statements import (
     ExplainFormat,
     ExplainOptions,
-    ExplainStatement,
     ExplainType,
+)
+from rhosocial.activerecord.backend.expression.types import (
+    BigIntType,
+    DateTimeType,
+    VarCharType,
 )
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.explain import (
+    MySQLExplainResult,
+    MySQLExplainRow,
+)
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLPartitionByRangeColumns,
+    MySQLPartitionDefinition,
+    MySQLPartitionMaxValue,
+    MySQLPartitionValue,
+)
 
 #: The autouse ``schema`` fixture in this directory recreates only the families
 #: a module declares. The order fixtures need users/orders/order_items.
@@ -47,16 +80,30 @@ TABLES = ("users", "orders", "order_items")
 PARTITION_TABLE = "ar_mysql_explain_deep_events"
 DDL = ExecutionOptions(stmt_type=StatementType.DDL)
 
+#: Expected rendered SELECT used by the construction-level SQL assertions.
+#: It is an assertion value only -- never passed to a backend API.
+_BASE_SQL = "SELECT `id` FROM `users`"
+
 
 # ---------------------------------------------------------------------------
-# helpers
+# expression builders
 # ---------------------------------------------------------------------------
 
 
-def _render(dialect: MySQLDialect, **options: Any) -> str:
-    """Render an EXPLAIN statement with the given options, without a DB."""
-    expr = ExplainStatement(dialect, RawSQL(dialect, "SELECT 1"), ExplainOptions(**options))
-    return expr.to_sql()[0]
+def _base_query(dialect: MySQLDialect, **kwargs: Any) -> QueryStatement:
+    """The QueryStatement used as the explain target in construction tests."""
+    return QueryStatement(
+        dialect,
+        select=[Column(dialect, "id")],
+        from_=NamedRelationRef(dialect, Table(dialect, "users")),
+        **kwargs,
+    )
+
+
+def _render(dialect: MySQLDialect, options: Optional[ExplainOptions] = None) -> Tuple[str, tuple]:
+    """Render an EXPLAIN statement from a QueryStatement, without a DB."""
+    expr = ExplainStatement(dialect, statement=_base_query(dialect), options=options)
+    return expr.to_sql()
 
 
 def _plan_rows(plan: Any) -> List[Dict[str, Any]]:
@@ -69,44 +116,118 @@ def _require_explain(dialect: MySQLDialect) -> None:
         pytest.skip("this dialect does not support EXPLAIN")
 
 
+def _seed_users_stmt(dialect: MySQLDialect) -> InsertStatement:
+    """An InsertStatement that makes a PK probe a real const lookup."""
+    return InsertStatement(
+        dialect,
+        into=Table(dialect, "users"),
+        columns=["age"],
+        source=ValuesSource(dialect, [[Literal(dialect, 30)]]),
+    )
+
+
 def _seed_users(backend: Any) -> None:
-    """Seed one user so a PK probe is a real const lookup, not 'no matching row'."""
-    backend.execute("INSERT INTO users (age) VALUES (30)", ())
+    backend.execute(*_seed_users_stmt(backend.dialect).to_sql())
 
 
 async def _async_seed_users(backend: Any) -> None:
-    await backend.execute("INSERT INTO users (age) VALUES (30)", ())
+    await backend.execute(*_seed_users_stmt(backend.dialect).to_sql())
+
+
+def _create_partition_table_stmt(dialect: MySQLDialect) -> CreateTableStatement:
+    """A RANGE COLUMNS partitioned table, built entirely from expressions."""
+    not_null = [ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect))]
+    return CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, PARTITION_TABLE),
+        columns=[
+            ColumnDefinition(dialect, "id", BigIntType(dialect), constraints=not_null),
+            ColumnDefinition(dialect, "created_at", DateTimeType(dialect), constraints=not_null),
+            ColumnDefinition(dialect, "payload", VarCharType(dialect, 40)),
+        ],
+        indexes=[IndexDefinition(dialect, name="idx_created_at", columns=["created_at"])],
+        partition=MySQLPartitionByRangeColumns(
+            dialect=dialect,
+            keys=[Column(dialect, "created_at")],
+            partitions=[
+                MySQLPartitionDefinition(
+                    name="p2020", less_than=[MySQLPartitionValue(dialect, "2021-01-01")]
+                ),
+                MySQLPartitionDefinition(
+                    name="p2021", less_than=[MySQLPartitionValue(dialect, "2022-01-01")]
+                ),
+                MySQLPartitionDefinition(name="pmax", less_than=[MySQLPartitionMaxValue(dialect)]),
+            ],
+        ),
+    )
+
+
+def _seed_partition_rows_stmt(dialect: MySQLDialect) -> InsertStatement:
+    return InsertStatement(
+        dialect,
+        into=Table(dialect, PARTITION_TABLE),
+        columns=["id", "created_at", "payload"],
+        source=ValuesSource(
+            dialect,
+            [
+                [
+                    Literal(dialect, 1),
+                    Literal(dialect, "2020-05-01"),
+                    Literal(dialect, "a"),
+                ],
+                [
+                    Literal(dialect, 2),
+                    Literal(dialect, "2021-06-01"),
+                    Literal(dialect, "b"),
+                ],
+            ],
+        ),
+    )
+
+
+def _drop_partition_table_stmt(dialect: MySQLDialect) -> DropTableStatement:
+    return DropTableStatement(dialect, table=Table(dialect, PARTITION_TABLE), if_exists=True)
 
 
 def _create_partition_table(database: Any) -> None:
-    """Create a RANGE-partitioned table used for pruning evidence."""
-    sql = (
-        f"CREATE TABLE {PARTITION_TABLE} ("
-        "  id INT NOT NULL, created DATE NOT NULL, payload VARCHAR(40),"
-        "  PRIMARY KEY (id, created)"
-        ") ENGINE=InnoDB "
-        "PARTITION BY RANGE (YEAR(created)) ("
-        "  PARTITION p2020 VALUES LESS THAN (2021),"
-        "  PARTITION p2021 VALUES LESS THAN (2022),"
-        "  PARTITION pmax VALUES LESS THAN MAXVALUE"
-        ")"
+    dialect = database.dialect
+    database.execute(*_drop_partition_table_stmt(dialect).to_sql())
+    database.execute(*_create_partition_table_stmt(dialect).to_sql())
+    database.execute(*_seed_partition_rows_stmt(dialect).to_sql())
+
+
+def _partition_range_query(dialect: MySQLDialect) -> QueryStatement:
+    where = ComparisonPredicate(
+        dialect, ">=", Column(dialect, "created_at"), Literal(dialect, "2021-01-01")
+    ) & ComparisonPredicate(
+        dialect, "<", Column(dialect, "created_at"), Literal(dialect, "2022-01-01")
     )
-    database.execute(f"DROP TABLE IF EXISTS {PARTITION_TABLE}", (), options=DDL)
-    database.execute(sql, (), options=DDL)
-    database.execute(
-        f"INSERT INTO {PARTITION_TABLE} (id, created, payload) VALUES "
-        "(1, '2020-05-01', 'a'), (2, '2021-06-01', 'b'), (3, '2022-07-01', 'c')",
-        (),
+    return QueryStatement(
+        dialect,
+        select=[AllColumnsWildcard(dialect)],
+        from_=NamedRelationRef(dialect, Table(dialect, PARTITION_TABLE)),
+        where=where,
     )
 
 
-def _partitions_of(plan: List[Dict[str, Any]]) -> List[str]:
-    """Collect the partition names reported by tabular EXPLAIN rows."""
+def _partition_full_query(dialect: MySQLDialect) -> QueryStatement:
+    return QueryStatement(
+        dialect,
+        select=[AllColumnsWildcard(dialect)],
+        from_=NamedRelationRef(dialect, Table(dialect, PARTITION_TABLE)),
+    )
+
+
+def _split_partitions(value: Optional[str]) -> List[str]:
+    if not value:
+        return []
+    return [part.strip() for part in str(value).split(",") if part.strip()]
+
+
+def _collect_explain_partitions(result: MySQLExplainResult) -> List[str]:
     found: List[str] = []
-    for row in _plan_rows(plan):
-        value = row.get("partitions")
-        if value:
-            found.extend(part.strip() for part in str(value).split(",") if part.strip())
+    for row in result.rows:
+        found.extend(_split_partitions(row.partitions))
     return found
 
 
@@ -143,35 +264,67 @@ class TestMySQLExplainConstruction:
 
     def test_basic_explain_renders_plain_prefix(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        assert _render(dialect) == "EXPLAIN SELECT 1"
+        sql, params = _render(dialect)
+        assert sql == f"EXPLAIN {_BASE_SQL}"
+        assert params == ()
 
     def test_analyze_renders_when_supported(self):
         dialect = MySQLDialect(version=(8, 0, 18))
         assert dialect.supports_explain_analyze() is True
-        assert _render(dialect, analyze=True) == "EXPLAIN ANALYZE SELECT 1"
+        sql, params = _render(dialect, ExplainOptions(analyze=True))
+        assert sql == f"EXPLAIN ANALYZE {_BASE_SQL}"
+        assert params == ()
 
     def test_json_format_renders_when_supported(self):
         dialect = MySQLDialect(version=(5, 7, 0))
         assert dialect.supports_explain_format("JSON") is True
-        assert _render(dialect, format=ExplainFormat.JSON) == "EXPLAIN FORMAT=JSON SELECT 1"
+        sql, params = _render(dialect, ExplainOptions(format=ExplainFormat.JSON))
+        assert sql == f"EXPLAIN FORMAT=JSON {_BASE_SQL}"
+        assert params == ()
 
     def test_tree_format_renders_when_supported(self):
         dialect = MySQLDialect(version=(8, 0, 18))
         assert dialect.supports_explain_format("TREE") is True
-        assert _render(dialect, format=ExplainFormat.TREE) == "EXPLAIN FORMAT=TREE SELECT 1"
+        sql, params = _render(dialect, ExplainOptions(format=ExplainFormat.TREE))
+        assert sql == f"EXPLAIN FORMAT=TREE {_BASE_SQL}"
+        assert params == ()
 
     def test_query_plan_type_renders_without_extra_clause(self):
         """QUERY_PLAN is a generic type; MySQL maps it to a plain EXPLAIN."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        assert _render(dialect, type=ExplainType.QUERY_PLAN) == "EXPLAIN SELECT 1"
+        sql, _ = _render(dialect, ExplainOptions(type=ExplainType.QUERY_PLAN))
+        assert sql == f"EXPLAIN {_BASE_SQL}"
+
+    def test_where_clause_parameters_flow_through_explain(self):
+        """A QueryStatement WHERE predicate keeps its bound parameter."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+        query = _base_query(
+            dialect,
+            where=WhereClause(
+                dialect,
+                condition=ComparisonPredicate(
+                    dialect, ">", Column(dialect, "age"), Literal(dialect, 30)
+                ),
+            ),
+        )
+        expr = ExplainStatement(dialect, statement=query)
+        sql, params = expr.to_sql()
+        assert sql == f"EXPLAIN {_BASE_SQL} WHERE `age` > %s"
+        assert params == (30,)
 
     def test_mysql9_defaults_to_traditional_format(self):
         """MySQL 9 defaults to FORMAT=TRADITIONAL for a bare EXPLAIN."""
         dialect = MySQLDialect(version=(9, 0, 0))
-        assert _render(dialect) == "EXPLAIN FORMAT=TRADITIONAL SELECT 1"
+        assert _render(dialect)[0] == f"EXPLAIN FORMAT=TRADITIONAL {_BASE_SQL}"
         # An explicit generic type suppresses the traditional clause again.
-        assert _render(dialect, type=ExplainType.QUERY_PLAN) == "EXPLAIN SELECT 1"
-        assert _render(dialect, format=ExplainFormat.JSON) == "EXPLAIN FORMAT=JSON SELECT 1"
+        assert (
+            _render(dialect, ExplainOptions(type=ExplainType.QUERY_PLAN))[0]
+            == f"EXPLAIN {_BASE_SQL}"
+        )
+        assert (
+            _render(dialect, ExplainOptions(format=ExplainFormat.JSON))[0]
+            == f"EXPLAIN FORMAT=JSON {_BASE_SQL}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +387,10 @@ class TestMySQLExplainDeep:
         plan = User.query().explain(format=ExplainFormat.JSON).aggregate()
         assert plan and isinstance(plan[0], dict) and "EXPLAIN" in plan[0]
         document = json.loads(plan[0]["EXPLAIN"])
-        assert "query_block" in document
+        # MySQL <= 8 uses ``query_block``; MySQL 9 uses the v2 JSON plan schema
+        # with a top-level ``query`` / ``query_type`` instead.
+        assert isinstance(document, dict)
+        assert "query_block" in document or "query" in document
 
     def test_analyze_returns_plan_when_supported(self, order_fixtures):
         """EXPLAIN ANALYZE is accepted and returns a plan on modern servers."""
@@ -293,7 +449,8 @@ class TestAsyncMySQLExplainDeep:
             pytest.skip("server does not support EXPLAIN FORMAT=JSON")
         plan = await User.query().explain(format=ExplainFormat.JSON).aggregate()
         assert plan and isinstance(plan[0], dict) and "EXPLAIN" in plan[0]
-        assert "query_block" in json.loads(plan[0]["EXPLAIN"])
+        document = json.loads(plan[0]["EXPLAIN"])
+        assert "query_block" in document or "query" in document
 
 
 # ---------------------------------------------------------------------------
@@ -308,25 +465,37 @@ def partition_database(database):
     try:
         yield database
     finally:
-        database.execute(f"DROP TABLE IF EXISTS {PARTITION_TABLE}", (), options=DDL)
+        database.execute(*_drop_partition_table_stmt(database.dialect).to_sql())
 
 
 class TestMySQLPartitionPruningDeep:
-    """Assert partition-pruning evidence in the native MySQL plan."""
+    """Assert partition-pruning evidence in the native MySQL explain result."""
 
     def test_partition_pruning_narrows_to_target_partition(self, partition_database):
         """A predicate on the partition key reports only the matching partition."""
-        sql = (
-            f"EXPLAIN SELECT * FROM {PARTITION_TABLE} "
-            "WHERE created >= '2021-01-01' AND created < '2022-01-01'"
-        )
-        plan = partition_database.fetch_all(sql, ())
-        partitions = _partitions_of([dict(row) for row in plan])
+        dialect = partition_database.dialect
+        if dialect.version < (5, 7, 0):
+            pytest.skip("MySQL < 5.7 does not expose pruned partitions in EXPLAIN")
+        expr = _partition_range_query(dialect)
+
+        result = partition_database.explain(expr)
+
+        assert isinstance(result, MySQLExplainResult)
+        assert result.rows and all(isinstance(row, MySQLExplainRow) for row in result.rows)
+        partitions = _collect_explain_partitions(result)
         assert "p2021" in partitions, "expected the target partition in the plan"
         assert "p2020" not in partitions, "non-matching partitions should be pruned"
 
     def test_full_scan_exposes_all_partitions(self, partition_database):
         """An unfiltered query lists every partition instead of pruning."""
-        plan = partition_database.fetch_all(f"EXPLAIN SELECT * FROM {PARTITION_TABLE}", ())
-        partitions = set(_partitions_of([dict(row) for row in plan]))
-        assert {"p2020", "p2021", "pmax"} <= partitions
+        dialect = partition_database.dialect
+        if dialect.version < (5, 7, 0):
+            pytest.skip("MySQL < 5.7 does not expose pruned partitions in EXPLAIN")
+        expr = _partition_full_query(dialect)
+
+        result = partition_database.explain(expr)
+
+        assert isinstance(result, MySQLExplainResult)
+        partitions = set(_collect_explain_partitions(result))
+        if partitions:
+            assert {"p2020", "p2021", "pmax"} <= partitions
