@@ -410,7 +410,7 @@ jobs:
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
-          python -m pytest tests/ -n 8 --dist=loadgroup --cov=src/rhosocial --cov-branch --cov-report=xml --tb=short --ignore=tests/benchmark
+          python -m pytest tests/ -n 8 --dist=loadgroup --cov=rhosocial.activerecord.backend.impl.mysql --cov-branch --cov-report=xml --tb=short --ignore=tests/benchmark
 
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
