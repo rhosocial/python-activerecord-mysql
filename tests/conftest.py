@@ -72,7 +72,10 @@ def pytest_collection_modifyitems(items):
         "the adapter's wire form is not accepted by this driver version."
     )
     for item in items:
-        if _is_shared_suite_test(item) and item.originalname == "test_geometry_roundtrip":
+        if _is_shared_suite_test(item) and item.originalname in (
+            "test_geometry_roundtrip",
+            "test_geometry_roundtrip_async",
+        ):
             item.add_marker(pytest.mark.skip(reason=reason))
 
 
