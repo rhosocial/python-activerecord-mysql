@@ -11,6 +11,9 @@ from rhosocial.activerecord.backend.expression.collation import collate
 from rhosocial.activerecord.backend.impl.mysql.mixins import MySQLCollation
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
+#: This module asks the dialect only; it creates no table.
+TABLES = ()
+
 
 @pytest.fixture
 def dialect():

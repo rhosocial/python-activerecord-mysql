@@ -1,4 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/__init__.py
+from .integer_auto_increment_column_suggestion import MySQLIntegerAutoIncrementColumnSuggestionMixin
 from .introspection import MySQLIntrospectionMixin
 from .transaction import MySQLTransactionMixin
 from .backend_mixin import MySQLBackendMixin
@@ -17,6 +18,7 @@ from .concurrency import MySQLConcurrencyMixin, AsyncMySQLConcurrencyMixin
 from .json_duality_view import MySQLJsonDualityViewMixin
 from .optimizer_hint import MySQLOptimizerHintMixin
 from .types import MySQLTypeSupportMixin
+from .data_type_suggestions import MySQLDataTypeSuggestionsMixin
 from .ddl_rename_table import MySQLRenameTableMixin
 from .truncate import MySQLTruncateMixin
 from .ddl_table_statement import MySQLTableStatementMixin
@@ -55,6 +57,7 @@ from .literal import MySQLLiteralValueMixin
 # explicitly by the modules that use it, which is what every other name here
 # does too.
 __all__ = [
+    'MySQLIntegerAutoIncrementColumnSuggestionMixin',
     "MySQLIntrospectionMixin",
     "MySQLTransactionMixin",
     "MySQLBackendMixin",
@@ -74,6 +77,7 @@ __all__ = [
     "MySQLJsonDualityViewMixin",
     "MySQLOptimizerHintMixin",
     "MySQLTypeSupportMixin",
+    "MySQLDataTypeSuggestionsMixin",
     "MySQLRenameTableMixin",
     "MySQLTruncateMixin",
     "MySQLTableStatementMixin",

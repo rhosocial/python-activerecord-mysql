@@ -656,7 +656,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         writes the word ``real`` back (it reports ``double``, or ``float`` under
         the mode). A ``RealType`` therefore cannot round-trip, so this dialect
         substitutes it; see :meth:`substitute_advice` and
-        :meth:`suggested_data_types`.
+        :meth:`substitute_data_types`.
 
         The numeric-type syntax writes the concept as ``DOUBLE[(M,D)] [UNSIGNED]
         [ZEROFILL]``, so the attribute follows the type word in the same slot the
@@ -755,7 +755,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
     # above (1:1 correspondence contract): every type this mixin renders
     # is genuinely storable in MySQL, so support is honest ``True`` for
     # each, and honestly absent for everything else (e.g. ``xml``,
-    # ``array``, ``interval`` — see ``suggested_data_types()``).
+    # ``array``, ``interval`` — see ``substitute_data_types()``).
     # ------------------------------------------------------------------
 
     def supports_data_type_mysql_tinyint(self) -> bool:
@@ -1082,7 +1082,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             # reaches the FLOAT branch below. The catalog never writes the word
             # ``real``, which is why the dialect refuses RealType and suggests
             # DoubleType for it (see ``substitute_advice`` and
-            # ``suggested_data_types``).
+            # ``substitute_data_types``).
             # https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
             unsigned = "UNSIGNED" in upper
             if upper.startswith("DOUBLE"):
@@ -1348,7 +1348,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             )
         return ""
 
-    def suggested_data_types(self) -> "Dict[str, type]":
+    def substitute_data_types(self) -> "Dict[str, type]":
         """Cross-backend type-consistency suggestions for MySQL.
 
         Every core concept this dialect cannot spell is named here rather than

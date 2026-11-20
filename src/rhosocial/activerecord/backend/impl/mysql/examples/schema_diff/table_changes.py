@@ -3,6 +3,7 @@ Schema diff: detect table-level changes (add, remove, modify).
 
 Supported versions: MySQL 5.6+
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -60,11 +61,11 @@ snapshot_before = builder.build()
 # Create one table, drop another (if it existed)
 expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "users"), columns=[
-        ColumnDefinition(dialect, "id", IntegerType(dialect),
+        ColumnDefinition(dialect, "id"[0], auto_increment_parts(None, IntegerType(dialect))[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
-            ]),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+            ], attributes=auto_increment_parts(None, IntegerType(dialect))[1]),
         ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
     ]
 )
@@ -72,11 +73,11 @@ sql, params = expr.to_sql()
 backend.execute(sql, params)
 expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "orders"), columns=[
-        ColumnDefinition(dialect, "id", IntegerType(dialect),
+        ColumnDefinition(dialect, "id"[0], auto_increment_parts(None, IntegerType(dialect))[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
-            ]),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+            ], attributes=auto_increment_parts(None, IntegerType(dialect))[1]),
         ColumnDefinition(dialect, "user_id", IntegerType(dialect)),
         ColumnDefinition(dialect, "amount", DecimalType(dialect, 10, 2)),
     ]

@@ -1,0 +1,324 @@
+# tests/rhosocial/activerecord_mysql_test/feature/backend/construct/functions/test_json_functions.py
+"""
+MySQL JSON function support tests.
+
+This module tests MySQL-specific JSON function functionality including:
+- Function version detection
+- JSON_EXTRACT formatting
+- JSON_UNQUOTE formatting
+- JSON_OBJECT formatting
+- JSON_ARRAY formatting
+- JSON_CONTAINS formatting
+- JSON_SET formatting
+- JSON_REMOVE formatting
+- JSON_TYPE formatting
+- JSON_VALID formatting
+- JSON_SEARCH formatting
+"""
+
+import pytest
+from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLJSONArrayExpression,
+    MySQLJSONContainsExpression,
+    MySQLJSONExtractExpression,
+    MySQLJSONObjectExpression,
+    MySQLJSONRemoveExpression,
+    MySQLJSONSearchExpression,
+    MySQLJSONSetExpression,
+    MySQLJSONTypeExpression,
+    MySQLJSONUnquoteExpression,
+    MySQLJSONValidExpression,
+)
+
+
+class TestJSONFunctionProtocol:
+    """Test JSON function protocol implementation."""
+
+    def test_supports_json_function_basic(self):
+        """Test basic JSON function support (5.7.8+)."""
+        dialect_56 = MySQLDialect(version=(5, 6, 0))
+        assert not dialect_56.supports_json_function("JSON_EXTRACT")
+
+        dialect_57 = MySQLDialect(version=(5, 7, 8))
+        assert dialect_57.supports_json_function("JSON_EXTRACT")
+
+        dialect_80 = MySQLDialect(version=(8, 0, 0))
+        assert dialect_80.supports_json_function("JSON_EXTRACT")
+
+    def test_supports_json_function_json_table(self):
+        """Test JSON_TABLE support (8.0.4+)."""
+        dialect_57 = MySQLDialect(version=(5, 7, 8))
+        assert not dialect_57.supports_json_function("JSON_TABLE")
+
+        dialect_800 = MySQLDialect(version=(8, 0, 0))
+        assert not dialect_800.supports_json_function("JSON_TABLE")
+
+        dialect_804 = MySQLDialect(version=(8, 0, 4))
+        assert dialect_804.supports_json_function("JSON_TABLE")
+
+    def test_supports_json_function_json_value(self):
+        """Test JSON_VALUE support (8.0.21+)."""
+        dialect_80 = MySQLDialect(version=(8, 0, 0))
+        assert not dialect_80.supports_json_function("JSON_VALUE")
+
+        dialect_8021 = MySQLDialect(version=(8, 0, 21))
+        assert dialect_8021.supports_json_function("JSON_VALUE")
+
+    def test_format_json_extract_single_path(self):
+        """Test JSON_EXTRACT with single path."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONExtractExpression(dialect, "data", "$.name")
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_EXTRACT(data, %s)"
+        assert params == ("$.name",)
+
+    def test_format_json_extract_multiple_paths(self):
+        """Test JSON_EXTRACT with multiple paths."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = dialect._format_json_extract_parts("data", "$.name", ["$.age", "$.city"])
+
+        assert sql == "JSON_EXTRACT(data, %s, %s, %s)"
+        assert params == ("$.name", "$.age", "$.city")
+
+    def test_format_json_unquote(self):
+        """Test JSON_UNQUOTE function."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONUnquoteExpression(dialect, 'data->"$.name"')
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_UNQUOTE(%s)"
+        assert params == ('data->"$.name"',)
+
+    def test_format_json_object_empty(self):
+        """Test JSON_OBJECT with no arguments."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONObjectExpression(dialect, []).to_sql()
+
+        assert sql == "JSON_OBJECT()"
+        assert params == ()
+
+    def test_format_json_object_single_pair(self):
+        """Test JSON_OBJECT with single key-value pair."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONObjectExpression(dialect, [("name", "John")]).to_sql()
+
+        assert sql == "JSON_OBJECT(%s, %s)"
+        assert params == ("name", "John")
+
+    def test_format_json_object_multiple_pairs(self):
+        """Test JSON_OBJECT with multiple key-value pairs."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONObjectExpression(
+            dialect, [("name", "John"), ("age", 30), ("city", "NYC")]
+        ).to_sql()
+
+        assert sql == "JSON_OBJECT(%s, %s, %s, %s, %s, %s)"
+        assert params == ("name", "John", "age", 30, "city", "NYC")
+
+    def test_format_json_array_empty(self):
+        """Test JSON_ARRAY with no arguments."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONArrayExpression(dialect, []).to_sql()
+
+        assert sql == "JSON_ARRAY()"
+        assert params == ()
+
+    def test_format_json_array_single_value(self):
+        """Test JSON_ARRAY with single value."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONArrayExpression(dialect, [1]).to_sql()
+
+        assert sql == "JSON_ARRAY(%s)"
+        assert params == (1,)
+
+    def test_format_json_array_multiple_values(self):
+        """Test JSON_ARRAY with multiple values."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONArrayExpression(dialect, [1, "hello", None, True]).to_sql()
+
+        assert sql == "JSON_ARRAY(%s, %s, %s, %s)"
+        assert params == (1, "hello", None, True)
+
+    def test_format_json_contains_no_path(self):
+        """Test JSON_CONTAINS without path."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONContainsExpression(dialect, "data", '{"name": "John"}').to_sql()
+
+        assert sql == "JSON_CONTAINS(data, %s)"
+        assert params == ('{"name": "John"}',)
+
+    def test_format_json_contains_with_path(self):
+        """Test JSON_CONTAINS with path."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONContainsExpression(dialect, "data", '"John"', "$.name").to_sql()
+
+        assert sql == "JSON_CONTAINS(data, %s, %s)"
+        assert params == ('"John"', "$.name")
+
+    def test_format_json_set_single_pair(self):
+        """Test JSON_SET with single path-value pair."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONSetExpression(dialect, "data", "$.name", "John")
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_SET(data, %s, %s)"
+        assert params == ("$.name", "John")
+
+    def test_format_json_set_multiple_pairs(self):
+        """Test JSON_SET with multiple path-value pairs."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONSetExpression(
+            dialect, "data", "$.name", "John",
+            path_value_pairs=[("$.age", 30), ("$.city", "NYC")],
+        )
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_SET(data, %s, %s, %s, %s, %s, %s)"
+        assert params == ("$.name", "John", "$.age", 30, "$.city", "NYC")
+
+    def test_format_json_remove_single_path(self):
+        """Test JSON_REMOVE with single path."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONRemoveExpression(dialect, "data", "$.temp")
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_REMOVE(data, %s)"
+        assert params == ("$.temp",)
+
+    def test_format_json_remove_multiple_paths(self):
+        """Test JSON_REMOVE with multiple paths."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONRemoveExpression(dialect, "data", "$.temp", paths=["$.cache", "$.old"])
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_REMOVE(data, %s, %s, %s)"
+        assert params == ("$.temp", "$.cache", "$.old")
+
+    def test_format_json_type(self):
+        """Test JSON_TYPE function."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONTypeExpression(dialect, "data")
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_TYPE(%s)"
+        assert params == ("data",)
+
+    def test_format_json_valid(self):
+        """Test JSON_VALID function."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONValidExpression(dialect, "data")
+        sql, params = expr.to_sql()
+
+        assert sql == "JSON_VALID(%s)"
+        assert params == ("data",)
+
+    def test_format_json_search_one(self):
+        """Test JSON_SEARCH with 'one' mode."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONSearchExpression(dialect, "data", "John", all=False)
+        sql, params = expr.to_sql()
+
+        assert "JSON_SEARCH(data, 'one', %s)" in sql
+        assert params == ("John",)
+
+    def test_format_json_search_all(self):
+        """Test JSON_SEARCH with 'all' mode."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONSearchExpression(dialect, "data", "John", all=True)
+        sql, params = expr.to_sql()
+
+        assert "JSON_SEARCH(data, 'all', %s)" in sql
+        assert params == ("John",)
+
+    def test_format_json_search_with_path(self):
+        """Test JSON_SEARCH with path."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONSearchExpression(dialect, "data", "John", path="$.users", all=True)
+        sql, params = expr.to_sql()
+
+        assert "JSON_SEARCH(data, 'all', %s, NULL, %s)" in sql
+        assert params == ("John", "$.users")
+
+
+class TestAsyncJSONFunctionProtocol:
+    """Test async JSON function protocol (same as sync, but verifies parity)."""
+
+    @pytest.mark.asyncio
+    async def test_async_supports_json_function(self):
+        """Test async version of supports_json_function."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+        assert dialect.supports_json_function("JSON_EXTRACT")
+
+    @pytest.mark.asyncio
+    async def test_async_format_json_extract(self):
+        """Test async version of JSON_EXTRACT formatting."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONExtractExpression(dialect, "data", "$.name")
+        sql, params = expr.to_sql()
+
+        assert "JSON_EXTRACT" in sql
+        assert params == ("$.name",)
+
+    @pytest.mark.asyncio
+    async def test_async_format_json_object(self):
+        """Test async version of JSON_OBJECT formatting."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONObjectExpression(dialect, [("key", "value")]).to_sql()
+
+        assert "JSON_OBJECT" in sql
+        assert params == ("key", "value")
+
+    @pytest.mark.asyncio
+    async def test_async_format_json_array(self):
+        """Test async version of JSON_ARRAY formatting."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONArrayExpression(dialect, [1, 2, 3]).to_sql()
+
+        assert "JSON_ARRAY" in sql
+        assert params == (1, 2, 3)
+
+    @pytest.mark.asyncio
+    async def test_async_format_json_contains(self):
+        """Test async version of JSON_CONTAINS formatting."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        sql, params = MySQLJSONContainsExpression(dialect, "data", '"value"', "$.path").to_sql()
+
+        assert "JSON_CONTAINS" in sql
+        assert '"value"' in params
+
+    @pytest.mark.asyncio
+    async def test_async_format_json_set(self):
+        """Test async version of JSON_SET formatting."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+
+        expr = MySQLJSONSetExpression(dialect, "data", "$.key", "value")
+        sql, params = expr.to_sql()
+
+        assert "JSON_SET" in sql
+        assert "$.key" in params

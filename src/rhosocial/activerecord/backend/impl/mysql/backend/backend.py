@@ -36,6 +36,15 @@ from ..dialect import MySQLDialect
 from ..transaction import MySQLTransactionManager
 from ..mixins import MySQLBackendMixin, MySQLConcurrencyMixin
 
+#: The session parameters the dialect answers from.
+#:
+#: ``SHOW SESSION VARIABLES`` returns the whole set in one round trip -- 456
+#: rows on 5.6.51, 648 on 8.4.13 -- so a parameter that matters can be read
+#: without a bespoke query, and one this code has never heard of is still
+#: recorded. The dialect exposes the record and parses the values a caller
+#: asks about; nothing is guessed from the version when the session answered.
+_SERVER_PARAMETERS_QUERY = "SHOW SESSION VARIABLES"
+
 
 class MySQLBackend(
     SyncExplainBackendMixin,
@@ -169,6 +178,33 @@ class MySQLBackend(
             )
             self._register_mysql_adapters()
             self.log(logging.INFO, f"Adapted to MySQL server version {actual_version}")
+        self._record_server_parameters()
+
+    def _record_server_parameters(self) -> None:
+        """Record the session parameters the dialect answers from.
+
+        These belong to the session, not to the version: an operator may have
+        changed them, so a version cannot decide them. Read once here, now that
+        a connection exists, so asking the dialect gets the server's real
+        answer. A server that cannot report them leaves them unrecorded, and
+        the log line says so rather than a guessed value being stored.
+        """
+        if self._dialect is None:
+            return
+        try:
+            rows = self.execute(_SERVER_PARAMETERS_QUERY, ()).data
+        except Exception as error:  # noqa: BLE001 - reported, then left unrecorded
+            self.log(
+                logging.WARNING,
+                f"could not read the MySQL session variables: {error}",
+            )
+            return
+        self._dialect.set_server_parameters(
+            {
+                row["Variable_name"]: row["Value"]
+                for row in rows
+            }
+        )
 
     def connect(self) -> None:
         """Establish connection to MySQL database."""

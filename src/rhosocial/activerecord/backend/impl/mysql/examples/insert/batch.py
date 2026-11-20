@@ -1,6 +1,7 @@
 """
 Batch insert with multiple rows.
 """
+from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -46,12 +47,12 @@ create_table = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            "INT",
+            auto_increment_parts(None, "INT")[0],
             constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None, is_auto_increment=True)),
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-        ),
+         attributes=auto_increment_parts(None, "INT")[1]),
         ColumnDefinition("level", "VARCHAR(20)"),
         ColumnDefinition("message", "TEXT"),
         ColumnDefinition(

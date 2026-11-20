@@ -202,23 +202,6 @@ class MySQLTableMixin:
             if constraint_text:
                 parts.append(constraint_text)
             params.extend(list(cp))
-            from rhosocial.activerecord.backend.expression.statements import (
-                ColumnPrimaryKeyConstraint,
-            )
-
-            if (
-                isinstance(constraint.branch, ColumnPrimaryKeyConstraint)
-                and constraint.branch.is_auto_increment
-            ):
-                # The marker is rendered by the dialect's
-                # format_auto_increment_clause, not spelled here: the formatter
-                # consults supports_auto_increment_column(), so the capability
-                # probe decides, and a dialect that declines the marker refuses
-                # rather than emitting a token its server rejects.
-                marker_sql, marker_params = AutoIncrementClause(self).to_sql()
-                parts.append(marker_sql.strip())
-                params.extend(marker_params)
-
         attr_sql, attr_params = self.format_column_attributes(col_def)
         if attr_sql:
             parts.append(attr_sql.strip())

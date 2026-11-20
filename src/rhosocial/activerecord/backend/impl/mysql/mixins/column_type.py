@@ -25,7 +25,7 @@ What does reach the table is MySQL's lack of a **native array type** -- there is
 none on any version, so a column cannot be declared ``INT[]`` -- and its single
 **version-gated refusal**, the ``dict`` entry below 5.7.
 
-The table answers all eighteen entries of the framework's common Python types
+The table answers all twenty-four entries of the framework's Python types
 (:data:`~rhosocial.activerecord.testsuite.feature.query.typed_column.column_helpers.COMMON_TYPES`
 is where that contract list lives). An entry left out is indistinguishable from
 one nobody thought about, and only the first of those is actionable; where MySQL
@@ -50,24 +50,39 @@ import enum
 import uuid
 from typing import Any, Dict, Optional, Type
 
+from rhosocial.activerecord.backend.adapters import (
+    BitString,
+    Geometry,
+    MacAddress,
+    Multirange,
+    Range,
+    Vector,
+)
 from rhosocial.activerecord.backend.dialect.mixins.column_type import ColumnTypeMixin
 from rhosocial.activerecord.backend.expression.column_types import (
     BinaryColumn,
+    BitStringColumn,
     BooleanColumn,
     ColumnBase,
-    TimestampColumn,
     IntegerColumn,
+    IntervalColumn,
     JSONColumn,
+    MacAddressColumn,
+    MultirangeColumn,
     NumericColumn,
+    RangeColumn,
     StringColumn,
+    TimestampColumn,
     UUIDColumn,
+    VectorColumn,
 )
+from ..column_types import MySQLGeometryColumn
 
 #: MySQL's complete answer for every entry of the framework's common types.
 #:
 #: The deviations from the portable baseline core's :mod:`dummy` dialect states
-#: are the four containers and ``timedelta``, and each is a fact about this
-#: server rather than a preference. ``None`` appears nowhere here: a class
+#: are the four containers, and each is a fact about this server rather than a
+#: preference. ``None`` appears nowhere here: a class
 #: attribute carrying a refusal would make every dialect at every version look
 #: like it refused the entry, so the one version-dependent refusal lives in
 #: :meth:`MySQLColumnTypeMixin.suggested_column_types` alone.
@@ -125,12 +140,13 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
     # A timedelta is a number of seconds here. MySQL's `INTERVAL` is an
     # *expression* keyword (`DATE_ADD(d, INTERVAL 30 DAY)`) and never a
     # column type -- `CREATE TABLE t (c INTERVAL)` is a syntax error -- so
-    # a span must be stored as a count or as its character form. There is
-    # no `IntervalColumn` class yet, which is the same answer core's
-    # baseline gives, reached here from measurement: on 5.7+ and later the
-    # driver rejects a bound timedelta outright (`suggested-mappings.md`
-    # §8.2 item 4), so the value layer serialises it to seconds.
-    datetime.timedelta: NumericColumn,
+    # a span must be stored as a count or as its character form.
+    # `IntervalColumn` names the value without promising numeric arithmetic,
+    # which is the honest answer: the driver rejects a bound timedelta
+    # outright on 5.7+ (`suggested-mappings.md` §8.2 item 4), so the value
+    # layer serialises it to seconds, and the seconds are storage, not the
+    # value's family.
+    datetime.timedelta: IntervalColumn,
     # No native UUID type on any MySQL version (see the module docstring),
     # and the column answer is unchanged by that: equality and `IN` are
     # portable SQL. The `BINARY(16)` substitute and the `CHAR(36)` /
@@ -181,11 +197,24 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
     # server an illegal member is stored as `''` instead of being refused
     # (`suggested-mappings.md` §8.3 row 5).
     enum.Enum: StringColumn,
+    # -- Complex families ------------------------------------------------
+    # Their core classes promise only the surface every column has -- alias,
+    # null tests, casting and collation -- because no distance, containment,
+    # overlap, bitwise or similarity operation is spelled the same way on
+    # every backend. Richer family operations belong to a MySQL-named
+    # subclass in this backend's extra table. Storage is answered in the
+    # data-type suggestion module.
+    Geometry: MySQLGeometryColumn,
+    Vector: VectorColumn,
+    BitString: BitStringColumn,
+    Range: RangeColumn,
+    Multirange: MultirangeColumn,
+    MacAddress: MacAddressColumn,
 }
 
 
 class MySQLColumnTypeMixin(ColumnTypeMixin):
-    """MySQL's full eighteen-entry column-type table, and its narrowing.
+    """MySQL's full twenty-four-entry column-type table, and its narrowing.
 
     Composed into :class:`~...dialect.MySQLDialect` **ahead of** core's
     :class:`ColumnTypeMixin`, so its :meth:`suggested_column_types` is the one a

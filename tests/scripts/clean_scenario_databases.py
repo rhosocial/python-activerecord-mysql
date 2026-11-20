@@ -30,10 +30,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import mysql.connector  # noqa: E402
 
-from rhosocial.activerecord.testsuite.core.pool import base_database  # noqa: E402
+from support.mysql import SCENARIOS, get_scenario_raw  # noqa: E402
 
-from providers import pooling  # noqa: E402,F401  (registers pool base names)
-from providers.scenarios import SCENARIO_MAP, get_scenario_raw  # noqa: E402
+
+def base_database(name: str) -> str:
+    """Logical database name a scenario used before directory-owned databases."""
+    return f"test_{name}"
 
 
 def _escape_identifier(name: str) -> str:
@@ -67,7 +69,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    scenarios = list(SCENARIO_MAP.keys())
+    scenarios = list(SCENARIOS)
     if not scenarios:
         print("No scenarios registered (check scenario filter / config file).")
         return 1

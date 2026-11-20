@@ -6,7 +6,7 @@ This dialect implements protocols for features that MySQL actually supports,
 based on the MySQL version provided at initialization.
 """
 
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.expression.objects import Table
@@ -35,6 +35,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     IntrospectionSupport,
     TruncateSupport,
     TransactionControlSupport,
+    TransactionalDDLSupport,
     SQLFunctionSupport,
     DataTypeSupport,
     TypeObjectSupport,
@@ -143,6 +144,7 @@ from .mixins import (
     MySQLJsonDualityViewMixin,
     MySQLOptimizerHintMixin,
     MySQLPartitionMixin,
+    MySQLDataTypeSuggestionsMixin,
     MySQLTypeSupportMixin,
     MySQLRenameTableMixin,
     MySQLTruncateMixin,
@@ -169,6 +171,7 @@ from .mixins import (
     MySQLFunctionMixin,
     MySQLColumnTypeMixin,
     MySQLLiteralValueMixin,
+    MySQLIntegerAutoIncrementColumnSuggestionMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS
@@ -181,6 +184,8 @@ if TYPE_CHECKING:
 
 
 class MySQLDialect(
+    # Backend suggestion first: no core mixin may shadow its answer.
+    MySQLIntegerAutoIncrementColumnSuggestionMixin,
     # The bases below come in bundles: a backend mixin, then the core bundle
     # it stands in for. The backend's answer has to come first -- a mixin
     # placed after the class it overrides never wins -- so a new mixin goes
@@ -330,6 +335,7 @@ class MySQLDialect(
     MySQLShowDialectMixin,
     MySQLModifyColumnMixin,
     MySQLJsonDualityViewMixin,
+    MySQLDataTypeSuggestionsMixin,
     MySQLTypeSupportMixin,
     UserDefinedTypeMixin,
     DomainMixin,
@@ -374,6 +380,7 @@ class MySQLDialect(
     IntrospectionSupport,
     TruncateSupport,
     TransactionControlSupport,
+    TransactionalDDLSupport,
     MySQLTriggerSupport,
     MySQLSetTypeSupport,
     MySQLTypeSupport,
@@ -456,6 +463,47 @@ class MySQLDialect(
     def get_server_version(self) -> Tuple[int, int, int]:
         """Return the MySQL version this dialect is configured for."""
         return self.version
+
+    def supports_transactional_ddl(self) -> bool:
+        """MySQL commits each DDL statement implicitly."""
+        return False
+
+    #: Server and session parameters recorded during adaptation.
+    #:
+    #: They are not capabilities: an operator can change them, so no version
+    #: decides them. ``introspect_and_adapt`` reads them from the live session
+    #: and records the answers here.
+    _server_parameters: Dict[str, Any] = {}
+
+    def set_server_parameters(self, values: Dict[str, Any]) -> None:
+        """Record what the live server reported about itself."""
+        self._server_parameters = dict(values)
+
+    def server_parameters(self) -> Dict[str, Any]:
+        """Every parameter value recorded, keyed by its MySQL name."""
+        return dict(self._server_parameters)
+
+    def explicit_defaults_for_timestamp(self) -> bool:
+        """Whether TIMESTAMP columns hold only what a statement wrote.
+
+        The session's recorded value wins (MySQL reports ``ON`` / ``OFF``). When
+        no session was read, this answers the server's **measured default**:
+        implicit before 8.0.2, explicit from 8.0.2 on -- measured on 5.6.51,
+        5.7.44 and 8.4.13, each with its factory settings.
+        """
+        recorded = self._server_parameters.get("explicit_defaults_for_timestamp")
+        if recorded is not None:
+            return self._flag(recorded)
+        return self.version_at_least((8, 0, 2))
+
+    def sql_mode(self) -> Optional[str]:
+        """The session's ``sql_mode``, as MySQL spells it."""
+        return self._server_parameters.get("sql_mode")
+
+    @staticmethod
+    def _flag(value: Any) -> bool:
+        """Read MySQL's boolean spelling: ``ON`` / ``1`` are true."""
+        return str(value).strip().upper() in ("ON", "1", "TRUE")
 
     def create_schema_differ(self):
         """Return the MySQL schema differ (ordinal-position aware)."""
