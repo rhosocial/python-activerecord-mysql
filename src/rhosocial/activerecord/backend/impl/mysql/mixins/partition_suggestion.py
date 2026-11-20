@@ -32,6 +32,8 @@ than emitting SQL the server would reject.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import date, datetime, time
+from decimal import Decimal
 from typing import Any, List, Optional, TYPE_CHECKING
 
 from ....expression import (
@@ -59,15 +61,66 @@ from ..expression.partition import (
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
     MySQLPartitionDefinition,
+    MySQLPartitionMaxValue,
     MySQLRemovePartitioningExpression,
     MySQLReorganizePartitionExpression,
 )
-from ..partition_maintenance import _MAXVALUE, _comparable, _compare, _upper_bound_value
 
 if TYPE_CHECKING:  # pragma: no cover
     from ....expression.statements import PartitionStrategy
 
 __all__ = ["MySQLPartitionSuggestionMixin"]
+
+# Boundary-comparison helpers are inlined here (rather than imported from
+# partition_maintenance) so the suggestion mixin stays self-contained: the
+# maintenance module is slated for retirement, and this suggestion is the
+# surviving "how-to" source. Semantics mirror the original helpers exactly.
+_MAXVALUE = object()
+
+
+def _upper_bound_value(definition: "MySQLPartitionDefinition") -> Any:
+    if definition.less_than is None:
+        return None
+    first = definition.less_than[0]
+    if isinstance(first, MySQLPartitionMaxValue):
+        return _MAXVALUE
+    return getattr(first, "value", first)
+
+
+def _comparable(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, time.min)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            return datetime.fromisoformat(text)
+        except ValueError:
+            pass
+        try:
+            return datetime.combine(date.fromisoformat(text), time.min)
+        except ValueError:
+            return text
+    if isinstance(value, (list, tuple)):
+        return tuple(_comparable(item) for item in value)
+    return value
+
+
+def _compare(left: Any, right: Any) -> int:
+    try:
+        if left < right:
+            return -1
+        if left > right:
+            return 1
+        return 0
+    except TypeError as error:
+        raise ValueError(f"partition bound value {left!r} is not comparable to {right!r}") from error
+
 
 _RANGE = frozenset({"RANGE", "RANGE COLUMNS"})
 _LIST = frozenset({"LIST", "LIST COLUMNS"})
