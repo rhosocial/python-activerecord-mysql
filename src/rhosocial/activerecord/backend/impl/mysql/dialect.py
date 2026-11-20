@@ -128,6 +128,7 @@ from .protocols import (
     MySQLAdminCommandSupport,
 )
 from .mixins import (
+    MySQLPartitionSuggestionMixin,
     MySQLNamespaceMixin,
     MySQLTransactionMixin,
     MySQLDMLOperationMixin,
@@ -184,7 +185,9 @@ if TYPE_CHECKING:
 
 
 class MySQLDialect(
-    # Backend suggestion first: no core mixin may shadow its answer.
+    # Backend suggestions first: no core mixin may shadow their answers. Both
+    # sit ahead of every core/base mixin for the C3 reason spelled out below.
+    MySQLPartitionSuggestionMixin,
     MySQLIntegerAutoIncrementColumnSuggestionMixin,
     # The bases below come in bundles: a backend mixin, then the core bundle
     # it stands in for. The backend's answer has to come first -- a mixin

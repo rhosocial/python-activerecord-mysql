@@ -1,5 +1,6 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/__init__.py
 from .integer_auto_increment_column_suggestion import MySQLIntegerAutoIncrementColumnSuggestionMixin
+from .partition_suggestion import MySQLPartitionSuggestionMixin
 from .introspection import MySQLIntrospectionMixin
 from .transaction import MySQLTransactionMixin
 from .backend_mixin import MySQLBackendMixin
@@ -58,6 +59,7 @@ from .literal import MySQLLiteralValueMixin
 # does too.
 __all__ = [
     'MySQLIntegerAutoIncrementColumnSuggestionMixin',
+    "MySQLPartitionSuggestionMixin",
     "MySQLIntrospectionMixin",
     "MySQLTransactionMixin",
     "MySQLBackendMixin",
