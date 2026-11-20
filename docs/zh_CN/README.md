@@ -4,7 +4,7 @@
 
 > **示例：** "MySQL 后端如何处理事务？与 SQLite 有什么区别？"
 
-> 📖 **详细用法请参考**：[AI 辅助开发指南](introduction/ai_assistance.md)
+> 📖 **详细用法请参考**：[AI 辅助开发指南](https://github.com/rhosocial/python-activerecord/blob/main/docs/en_US/introduction/ai_assistance.md)
 
 ## 目录 (Table of Contents)
 
@@ -42,7 +42,7 @@
 
 7. **[测试 (Testing)](testing/README.md)**
     *   **[测试配置](testing/configuration.md)**: 测试环境设置
-    *   **[使用 testsuite 进行测试](testing/testsuite.md)**: 测试套件使用
+    *   **[使用 testsuite 进行测试](https://github.com/rhosocial/python-activerecord-testsuite/blob/main/docs/en_US/README.md)**: 测试套件使用
     *   **[本地 MySQL 测试](testing/local.md)**: 本地数据库测试
 
 8. **[故障排除 (Troubleshooting)](troubleshooting/README.md)**
@@ -53,7 +53,7 @@
 9. **[场景实战 (Scenarios)](scenarios/README.md)**
     *   **[并行 Worker 处理](scenarios/parallel_workers.md)**: 多进程/异步并发场景的正确用法
 
-10. **[Worker 隔离实验](examples/chapter_05_worker_isolation/README.md)**
-    *   **[Worker 连接隔离实验](examples/chapter_05_worker_isolation/README.md)**: Worker 进程隔离实验
+10. **[Worker 隔离实验](../examples/chapter_05_worker_isolation/README.md)**
+    *   **[Worker 连接隔离实验](../examples/chapter_05_worker_isolation/README.md)**: Worker 进程隔离实验
 
 > 📖 **核心库文档**：要了解 ActiveRecord 框架的完整功能，请参考 [rhosocial-activerecord 文档](https://github.com/Rhosocial/python-activerecord/tree/main/docs/zh_CN)。

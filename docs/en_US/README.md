@@ -4,7 +4,7 @@
 
 > **Example:** "How does the MySQL backend handle transactions? How does it differ from SQLite?"
 
-> 📖 **For detailed usage, please refer to**: [AI-Assisted Development Guide](introduction/ai_assistance.md)
+> 📖 **For detailed usage, please refer to**: [AI-Assisted Development Guide](https://github.com/Rhosocial/python-activerecord/blob/main/docs/en_US/introduction/ai_assistance.md)
 
 ## Table of Contents
 
@@ -42,18 +42,18 @@
 
 7. **[Testing](testing/README.md)**
     *   **[Test Configuration](testing/configuration.md)**: test environment setup
-    *   **[Using testsuite for Testing](testing/testsuite.md)**: test suite usage
+    *   **[Using testsuite for Testing](https://github.com/Rhosocial/python-activerecord-testsuite/blob/main/docs/en_US/README.md)**: test suite usage
     *   **[Local MySQL Testing](testing/local.md)**: local database testing
 
 8. **[Troubleshooting](troubleshooting/README.md)**
     *   **[Common Connection Errors](troubleshooting/connection.md)**: connection issue diagnosis
     *   **[Performance Issues](troubleshooting/performance.md)**: performance bottleneck analysis
-    *   **[Character Set Issues](troubleshooting/charset.md)**: encoding problem handling
+    *   **[Character Set Issues](installation_and_configuration/charset.md)**: encoding problem handling
 
 9. **[Scenarios](scenarios/README.md)**
     *   **[Parallel Worker Processing](scenarios/parallel_workers.md)**: correct usage in multi-process/async concurrent scenarios
 
-10. **[Worker Isolation Experiment](examples/chapter_05_worker_isolation/README.md)**
-    *   **[Worker Connection Isolation](examples/chapter_05_worker_isolation/README.md)**: worker process isolation experiment
+10. **[Worker Isolation Experiment](../examples/chapter_05_worker_isolation/README.md)**
+    *   **[Worker Connection Isolation](../examples/chapter_05_worker_isolation/README.md)**: worker process isolation experiment
 
 > 📖 **Core Library Documentation**: To learn about the complete functionality of the ActiveRecord framework, please refer to [rhosocial-activerecord documentation](https://github.com/Rhosocial/python-activerecord/tree/main/docs/en_US).
