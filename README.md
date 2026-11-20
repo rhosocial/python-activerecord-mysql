@@ -57,7 +57,11 @@ from rhosocial.activerecord.field import DefaultTimestampMixin, IntegerPKMixin
 from rhosocial.activerecord.model import ActiveRecord
 
 
-class User(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
+class User(
+    IntegerPKMixin,         # auto-increment integer primary key (`id`)
+    DefaultTimestampMixin,  # injects `created_at` / `updated_at` timestamps
+    ActiveRecord,           # persistence, query builder, relations
+):
     name: Annotated[str, UseSqlType(VarCharType(length=100))]
     email: Annotated[str, UseSqlType(VarCharType(length=255))]
     age: int = 0
@@ -112,7 +116,7 @@ This is a separate package built on the core `rhosocial-activerecord` library; i
 
 Known limits: connection-pool settings in `MySQLConnectionConfig` are not consumed (`connect()` keeps one persistent connection per backend instance); there is no `RETURNING`, so fetch generated ids with a follow-up `SELECT`; generated columns, `SET`, `ENUM`, spatial types, and storage-engine options need backend-specific DDL. See [connection management](docs/en_US/installation_and_configuration/pool.md).
 
-## Contributing, License, Links
+## Documentation
 
 ### Contributing
 
