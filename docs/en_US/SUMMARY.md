@@ -30,6 +30,11 @@
 * [MySQL DDL Overview](ddl/README.md)
 * [DDL Example Code](../examples/chapter_04_ddl/ddl.py)
 
+## Migrations
+
+* [Migrations on MySQL](migration/README.md)
+* [Migration Examples](../examples/migration/README.md)
+
 ## Transaction Support
 
 * [Transaction Support](transaction_support/README.md)
