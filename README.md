@@ -1,3 +1,4 @@
+<!-- README.md -->
 # rhosocial-activerecord-mysql ($\rho_{\mathbf{AR}\text{-mysql}}$)
 
 [![PyPI version](https://badge.fury.io/py/rhosocial-activerecord-mysql.svg)](https://badge.fury.io/py/rhosocial-activerecord-mysql)
@@ -5,6 +6,7 @@
 [![Tests](https://github.com/rhosocial/python-activerecord-mysql/actions/workflows/test.yml/badge.svg)](https://github.com/rhosocial/python-activerecord-mysql/actions)
 [![Coverage Status](https://codecov.io/gh/rhosocial/python-activerecord-mysql/branch/main/graph/badge.svg)](https://app.codecov.io/gh/rhosocial/python-activerecord-mysql/tree/main)
 [![Apache 2.0 License](https://img.shields.io/github/license/rhosocial/python-activerecord-mysql.svg)](https://github.com/rhosocial/python-activerecord-mysql/blob/main/LICENSE)
+[![Supported MySQL versions](https://img.shields.io/badge/MySQL-5.6%7C5.7%7C8.0%7C8.4%7C9.0%7C9.1%7C9.2%7C9.3%7C9.4%7C9.5%7C9.6%7C9.7%7C26.7-blue?logo=mysql)](docs/en_US/introduction/supported_versions.md)
 
 <div align="center">
     <img src="https://raw.githubusercontent.com/rhosocial/python-activerecord/main/docs/images/logo.svg" alt="rhosocial ActiveRecord Logo" width="200"/>
@@ -12,55 +14,59 @@
     <p><b>Full-text search · JSON functions · DDL expressions · Sync &amp; async</b></p>
 </div>
 
-This is a backend implementation for [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord).
-It cannot be used standalone.
+MySQL backend for [rhosocial-activerecord](https://github.com/rhosocial/python-activerecord) — the same standalone ActiveRecord API, backed by MySQL 5.6–26.7 through `mysql-connector-python`.
 
-## Requirements
+**Keywords:** mysql, activerecord, orm, pydantic, python, async, type-safe, mysql-connector-python
 
-- **Python**: `>=3.8`
-- **Core**: `rhosocial-activerecord>=1.0.0.dev0,<2.0.0`
-- **Driver**: `mysql-connector-python` — `==9.0.0` on Python 3.8, `==9.4.0` on 3.9, `>=26.7.0` on 3.10+
-- **CI-tested server versions**: 5.6, 5.7, 8.0, 8.4, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 26.7
+## Why This Project?
 
-> MySQL 5.6 and 5.7 are exercised with a narrowed test schema, because their
-> default `innodb_large_prefix` rejects `VARCHAR(255)` UNIQUE/INDEX columns
-> (255 × 4 = 1020 bytes, over the 767-byte cap). See the CI matrix in
-> `.github/workflows/test.yml`.
+### Bring ActiveRecord to MySQL
 
-## Installation
+A class represents a table; an instance represents a row. Declare a model once and persist it with `save()` — no Session object to manage. This backend binds that model to MySQL, so the same declarative style runs against MySQL 5.6 through 26.7.
+
+### MySQL-native, not a lowest-common-denominator layer
+
+- Full-text search and native JSON operators (`->`, `->>`), rendered by capability version
+- Declarative DDL with `.to_sql()` transparency — preview every statement before it runs
+- Native sync (`MySQLBackend`) and async (`AsyncMySQLBackend`) with identical method names
+- Type-first Pydantic models — `UseSqlType`, mixins, and no `Any` in the public API
+
+Unlike SQLAlchemy's Data Mapper or Django's framework-coupled ORM, this is a standalone ActiveRecord backend you can drop into FastAPI, Flask, or a plain script.
+
+## Quick Start
+
+### Installation
 
 ```bash
 pip install rhosocial-activerecord-mysql
 ```
 
-## Quick Start
+Requires Python 3.8+ (on 3.8, import `Annotated` from `typing_extensions`); the core `rhosocial-activerecord` library is installed as a dependency.
+
+### End-to-End Example
 
 ```python
-from typing import ClassVar, Optional
+"""Save as demo.py and run against a reachable MySQL server."""
+from typing import Annotated, ClassVar
 
-from rhosocial.activerecord.base import FieldProxy
+from rhosocial.activerecord.base import FieldProxy, UseSqlType
+from rhosocial.activerecord.backend.expression.types import VarCharType
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
-from rhosocial.activerecord.backend.expression import CreateTableStatement
-from rhosocial.activerecord.backend.expression.statements import (
-    ColumnConstraint,
-    ColumnDefinition,
-    ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.expression.types import IntegerType, VarCharType
+from rhosocial.activerecord.field import DefaultTimestampMixin, IntegerPKMixin
 from rhosocial.activerecord.model import ActiveRecord
 
 
-class User(ActiveRecord):
-    __table_name__ = "users"
-
-    id: Optional[int] = None
-    name: str
-    email: str
+class User(IntegerPKMixin, DefaultTimestampMixin, ActiveRecord):
+    name: Annotated[str, UseSqlType(VarCharType(length=100))]
+    email: Annotated[str, UseSqlType(VarCharType(length=255))]
     age: int = 0
 
-    # Required: without this, `User.c.age` does not exist.
-    c: ClassVar[FieldProxy] = FieldProxy()
+    c: ClassVar[FieldProxy] = FieldProxy()  # enables User.c.<field> expressions
+
+    @classmethod
+    def table_name(cls) -> str:
+        return "users"
 
 
 User.configure(
@@ -73,156 +79,62 @@ User.configure(
     ),
     MySQLBackend,
 )
+User.create_table()
 
-# DDL is expressed, not stringified. Note that every node takes the dialect as
-# its first argument, and column types are DataType instances, not strings.
-dialect = User.__backend__.dialect
-create_users = CreateTableStatement(
-    dialect,
-    "users",
-    columns=[
-        ColumnDefinition(
-            dialect, "id", IntegerType(dialect),
-            constraints=[
-                ColumnConstraint(
-                    dialect,
-                    branch=ColumnPrimaryKeyConstraint(dialect, is_auto_increment=True),
-                )
-            ],
-        ),
-        ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
-        ColumnDefinition(dialect, "email", VarCharType(dialect, 255)),
-        ColumnDefinition(dialect, "age", IntegerType(dialect)),
-    ],
-)
-# execute() takes SQL text, not an expression node: render it first.
-# CREATE TABLE `users` (`id` INT PRIMARY KEY AUTO_INCREMENT,
-#   `name` VARCHAR(100), `email` VARCHAR(255), `age` INT)
-User.__backend__.execute(*create_users.to_sql())
-
-user = User(name="Alice", email="alice@example.com", age=30)
-user.save()
+alice = User(name="Alice", email="alice@example.com", age=30)
+alice.save()
+print(alice.id)  # database-assigned AUTO_INCREMENT primary key
 
 adults = User.query().where(User.c.age >= 18).all()
+print([user.name for user in adults])
 
-# Inspect the generated SQL without executing it. MySQL placeholders are
-# pyformat, so a literal `%` in a value must be escaped as `%%` by the driver.
+# Inspect the generated SQL without executing it. MySQL uses pyformat
+# placeholders, so a literal `%` in a value must be escaped as `%%`.
 sql, params = User.query().where(User.c.age >= 18).to_sql()
+print(sql, params)
 ```
 
-### Async
+> **Async parity:** use `AsyncActiveRecord` with `AsyncMySQLBackend` for the async model — same method names, same patterns, just add `await`.
 
-The same API surface is available on `AsyncActiveRecord` with
-`AsyncMySQLBackend`. Method names are identical; add `await`.
+## Project Architecture
 
-```python
-from rhosocial.activerecord.backend.impl.mysql.backend import AsyncMySQLBackend
-from rhosocial.activerecord.model import AsyncActiveRecord
+This package is the MySQL dialect and driver adapter layered on the core ActiveRecord library: models and field proxies are declared once, the core builds backend-agnostic statements, and this backend binds them to MySQL SQL and runs them through `mysql-connector-python`.
 
+Start with the [MySQL backend documentation](docs/en_US/README.md) for installation, connection configuration, MySQL-specific field types, DDL, transactions, type adapters, testing, and troubleshooting.
 
-class User(AsyncActiveRecord):
-    ...  # same fields, plus c: ClassVar[FieldProxy] = FieldProxy()
+**MySQL-specific highlights.** Full-text search, native JSON operators, storage-engine and indexing support, and schema introspection are first-class. Capabilities are version-gated — JSON needs 8.0, `JSON_TABLE` and CHECK enforcement need 8.4, vector types need 9.0+ — see [Supported Versions](docs/en_US/introduction/supported_versions.md). MySQL 5.6/5.7 run a narrowed test schema because their default `innodb_large_prefix` rejects `VARCHAR(255)` UNIQUE/INDEX columns.
 
+## Backend Support & Progress
 
-User.configure(config, AsyncMySQLBackend)
-adults = await User.query().where(User.c.age >= 18).all()
-```
+This is a separate package built on the core `rhosocial-activerecord` library; it cannot be used standalone. Supported, CI-tested MySQL versions: **5.6, 5.7, 8.0, 8.4, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 26.7**. MySQL 8.0+ is recommended for JSON features and 8.4 is the current LTS. Requires Python 3.8+.
 
-## MySQL-Specific Features
+> **⚠️ Development Stage:** This project is under active development. APIs may change, and some features are not yet production-ready.
 
-### Full-text search
+Known limits: connection-pool settings in `MySQLConnectionConfig` are not consumed (`connect()` keeps one persistent connection per backend instance); there is no `RETURNING`, so fetch generated ids with a follow-up `SELECT`; generated columns, `SET`, `ENUM`, spatial types, and storage-engine options need backend-specific DDL. See [connection management](docs/en_US/installation_and_configuration/pool.md).
 
-```python
-Article.query().where(
-    "MATCH(title, content) AGAINST(? IN BOOLEAN MODE)",
-    ("+python -java",),
-).all()
-```
+## Contributing, License, Links
 
-### JSON operators
+### Contributing
 
-The backend renders `->` and `->>` natively on MySQL 8.0+.
+We welcome contributions! Please see [CONTRIBUTING.md](https://github.com/rhosocial/python-activerecord/blob/main/CONTRIBUTING.md) for guidelines.
 
-```python
-User.query().where("settings->>'$.theme' = ?", ("dark",)).all()
-Product.query().where("JSON_CONTAINS(tags, ?)", ('"featured"',)).all()
-```
-
-## Version Gates
-
-<!-- Generated by tools/gen_backend_matrix.py; do not edit by hand. -->
-
-_reported above from `supports_*` switches probed at 5.6, 5.7, 8.0, 8.4, 9.0, 9.7._
-
-Switches already `True` at the oldest probe carry no gate and are omitted.
-Switches `False` at every probe are not supported by this backend.
-
-| Capability | Min version |
-|---|---|
-| `fulltext_search` | 5.7 |
-| `json_type` | 8 |
-| `window_functions` | 8 |
-| `lateral_join` | 8 |
-| `json_table` | 8.4 |
-| `check_constraint` | 8.4 |
-| `functional_index` | 8.4 |
-| `invisible_index` | 8.4 |
-| `window_frame_clause` | 8.4 |
-| `vector_type` | 9 |
-| `vector_index` | 9.7 |
-
-For the full switch list, including capabilities that are `False` at every
-version, see `.claude/mysql_backend.md` and the dialect source.
-
-## Known Limitations
-
-- **No connection pooling.** `MySQLConnectionConfig` accepts `pool_size`,
-  `pool_timeout`, `pool_name` and friends, but the backend does not consume
-  them: `connect()` opens one persistent connection per backend instance.
-  See [connection management](docs/en_US/installation_and_configuration/pool.md).
-- **No `RETURNING` clause.** `supports_returning_*` are `False` at every
-  MySQL version. Fetch the generated id with a follow-up `SELECT`.
-- Generated columns, `SET`, `ENUM`, spatial types and storage-engine options
-  need backend-specific DDL expressions rather than plain column types.
-- **No `types` introspection family.** MySQL has no standalone user-defined
-  types: `ENUM` and `SET` are column types, not catalog objects. Their
-  definitions are already readable from `information_schema.COLUMNS` /
-  `introspect columns`, so there is nothing for a `types` family to list.
-- **`constraints` covers CHECK from 8.0.16.** `CHECK_CONSTRAINTS` is the
-  relation that holds a CHECK expression, and it arrived with enforcement in
-  8.0.16; below that floor the CLI refuses the family rather than returning an
-  empty listing. Primary-key, unique and foreign-key constraints are in the
-  same family, with their columns read from `KEY_COLUMN_USAGE`.
-
-## Testing
-
-Tests require a reachable MySQL server and must run serially.
-
-```bash
-export PYTHONPATH=src:tests
-.venv3.14-ubuntu26.04/bin/pytest tests/
-```
-
-The shared contract suite lives in
-[python-activerecord-testsuite](https://github.com/rhosocial/python-activerecord-testsuite):
-
-```bash
-PYTHONPATH=tests .venv3.14-ubuntu26.04/bin/pytest \
-  ../python-activerecord-testsuite/src/rhosocial/activerecord/testsuite/feature/
-```
-
-## Documentation
-
-- **[Getting started](docs/en_US/installation_and_configuration/)** — installation, connection configuration, SSL, character set
-- **[MySQL features](docs/en_US/mysql_specific_features/)** — field types, dialect expressions, storage engines, indexing
-- **[Type adapters](docs/en_US/type_adapters/)** — MySQL ↔ Python type mapping, custom adapters, timezones
-- **[Transactions](docs/en_US/transaction_support/)** — isolation levels, savepoints, deadlock retry
-- **[Troubleshooting](docs/en_US/troubleshooting/)** — connection, performance and character-set issues
-
-## Contributing
-
-See [CONTRIBUTING.md](https://github.com/rhosocial/python-activerecord/blob/main/CONTRIBUTING.md).
-
-## License
+### License
 
 [Apache License 2.0](LICENSE) — Copyright © 2026 [vistart](https://github.com/vistart)
+
+### Documentation
+
+* **[MySQL Backend Documentation Home](docs/en_US/README.md)** — the full documentation table of contents
+* **[Supported Versions](docs/en_US/introduction/supported_versions.md)** — MySQL, MariaDB, Python, and driver version matrix
+* **[Getting Started](docs/en_US/installation_and_configuration/)** — installation, connection configuration, SSL, character set
+* **[MySQL Features](docs/en_US/mysql_specific_features/)** — field types, dialect expressions, storage engines, indexing
+* **[Type Adapters](docs/en_US/type_adapters/)** — MySQL ↔ Python type mapping, custom adapters, timezones
+* **[Transactions](docs/en_US/transaction_support/)** — isolation levels, savepoints, deadlock retry
+* **[Troubleshooting](docs/en_US/troubleshooting/)** — connection, performance and character-set issues
+
+---
+
+<div align="center">
+    <p><b>Built with ❤️ by the rhosocial team</b></p>
+    <p><a href="https://github.com/rhosocial/python-activerecord-mysql">GitHub</a> · <a href="docs/en_US/README.md">Documentation</a> · <a href="https://pypi.org/project/rhosocial-activerecord-mysql/">PyPI</a></p>
+</div>
