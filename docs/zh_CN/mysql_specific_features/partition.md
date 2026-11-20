@@ -106,56 +106,53 @@ for expr in helper:
 | 重建 | `MySQLRebuildPartitionExpression` | 重建分区 |
 | 修复 | `MySQLRepairPartitionExpression` | 修复损坏 |
 
-## 后端级维护
+## 分区能力：建议与内省
 
-`MySQLPartitionMaintenance` 把调用方自有的计划变成四个操作：补建缺失分区、
-报告分区树、校验目录与计划、按截止时间回收旧分区。它不包含表名、日历词汇或
-保留策略默认值。
+MySQL 不提供独立的分区维护辅助类。分区 DDL 通过后端的**分区建议**协议提供，
+目录侧由引擎自身的**分区内省**家族回答；二者共同构成本后端处理分区的唯一来源。
+
+调用方把目标布局描述为一个不透明的 plan —— 可以是映射，也可以是带 `table`、
+`keys`、`definitions`、`partitions_count`、`partition`、`into`、`names`、`cutoff`
+等属性的对象。dialect 把该 plan 转成真实的 MySQL 语句链：
 
 ```python
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionDefinition, MySQLPartitionValue,
-)
-from rhosocial.activerecord.backend.impl.mysql.partition_maintenance import (
-    MySQLPartitionMaintenance, MySQLPartitionPlan,
+    MySQLPartitionDefinition, MySQLPartitionStrategy, MySQLPartitionValue,
 )
 
-plan = MySQLPartitionPlan(
-    "orders",
-    (
-        MySQLPartitionDefinition("p2026_01", less_than=[MySQLPartitionValue(dialect, "2026-02-01")]),
-        MySQLPartitionDefinition("p2026_02", less_than=[MySQLPartitionValue(dialect, "2026-03-01")]),
-    ),
-)
-maintenance = MySQLPartitionMaintenance(backend)
+plan = {
+    "table": "orders",
+    "definitions": [
+        MySQLPartitionDefinition("p2026", less_than=[MySQLPartitionValue(dialect, "2027-01-01")]),
+        MySQLPartitionDefinition("p2027", less_than=[MySQLPartitionValue(dialect, "2028-01-01")]),
+    ],
+}
 
-report = maintenance.ensure(plan)                 # 补建缺失分区
-report = maintenance.list("orders", plan=plan)    # 分区树 + missing + orphans
-report = maintenance.validate(plan)               # 只读校验结果
-report = maintenance.drop_before(plan, cutoff, dry_run=True)
+build = dialect.suggest_partition_build(MySQLPartitionStrategy.RANGE, plan)
+add = dialect.suggest_partition_add(MySQLPartitionStrategy.RANGE, plan)
+retention = dialect.suggest_partition_retention(
+    MySQLPartitionStrategy.RANGE, {**plan, "cutoff": "2027-01-01"}
+)
 ```
 
-规则会写进报告，而不是被悄悄绕过：
+每个建议都是冻结值，其 `operations` 有三种可能：可由 dialect 渲染、由调用方执行的
+真实 MySQL 表达式节点元组；本后端对该策略/plan 没有相应机制时的 `False`；
+以及无需操作时返回的 `None`。八个方法覆盖 `build`、`add`、`drop`、`retention`、
+`split`、`merge`、`table_alter` 与 `table_drop`，SQL 的具体拼写由 dialect 格式化器负责。
+对 RANGE 保留策略，上界小于等于截止时间的分区视为过期，且始终保留表的最后一个分区。
 
-- 高于当前最大边界的缺失 RANGE 分区用 `ADD PARTITION` 追加；
-- 落在已有分区区间内部的缺失分区，通过 `REORGANIZE PARTITION` 拆分该分区；
-- 已存在 `MAXVALUE` 分区时，新分区会通过 `REORGANIZE PARTITION` 折叠进去，
-  并保留末尾的 `MAXVALUE` 定义；
-- 目录边界或分区方式与计划不一致时，所有拆分区间的依据都不再可靠，
-  `ensure` 会拒绝执行，并把每个缺失分区写入 `skipped`；它不会把未执行的
-  新增报告为成功；
-- `drop_before` 认为上界等于截止时间的分区已经完全过期（上界小于等于截止时间），
-  与 PostgreSQL、Oracle 一致；始终保留表的最后一个分区；
-- `drop_before` 默认 dry-run，只有传入 `dry_run=False` 才执行。
+目录侧通过内省回答：
 
-`validate` 比较 `PARTITION_NAME`、`PARTITION_METHOD` 与
-`PARTITION_DESCRIPTION`。缺失定义写入 `missing`，计划未命名的目录分区写入
-`orphans`，分区方式或边界漂移写入 `issues`。它不发送任何 DDL，也不修复任何
-东西。`list("orders", plan=plan)` 也会填好 `missing` 与 `orphans`，供只需要
-盘点结果的调用方使用。
+```python
+if dialect.supports_partition_introspection():
+    partitions = backend.introspector.list_partitions("orders")
+    for part in partitions:
+        print(part.name, part.description)
+```
 
-`ensure` / `drop_before` 是语句级而非事务级：MySQL 分区 DDL 会隐式提交。
-`AsyncMySQLPartitionMaintenance` 提供同名异步方法。
+`list_partitions()` 返回本后端的 `MySQLPartitionInfo` 记录（空结果表示该表未分区）。
+核心库的分区信息探针保持 `False`，因为 MySQL 通过自己的开关回答；完整的探针表见
+[数据库内省](introspection.md)。
 
 ## 子分区
 

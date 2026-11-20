@@ -71,10 +71,9 @@ if TYPE_CHECKING:  # pragma: no cover
 
 __all__ = ["MySQLPartitionSuggestionMixin"]
 
-# Boundary-comparison helpers are inlined here (rather than imported from
-# partition_maintenance) so the suggestion mixin stays self-contained: the
-# maintenance module is slated for retirement, and this suggestion is the
-# surviving "how-to" source. Semantics mirror the original helpers exactly.
+# Boundary-comparison helpers live here so the suggestion mixin stays
+# self-contained: with the partition-maintenance protocol retired, this mixin
+# is the single source for how MySQL performs each partition operation.
 _MAXVALUE = object()
 
 

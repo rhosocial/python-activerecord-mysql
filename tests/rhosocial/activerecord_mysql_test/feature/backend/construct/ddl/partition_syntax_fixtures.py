@@ -1,18 +1,18 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/construct/ddl/partition_syntax_fixtures.py
 """Fixture-driven MySQL partition syntax matrix.
 
-Each case describes one MySQL partition syntax family: how to build it,
-which fragments its rendered SQL must contain, which must not appear, and
-which planning, refusal or maintenance contract it exercises.
-``partition_syntax_case`` turns that description into a pytest parameter, so
-the test module stays free of per-family branches.
+Each case describes one MySQL partition syntax family: how to build it, which
+fragments its rendered SQL must contain, which must not appear, and which
+unsupported feature it must refuse by name. ``partition_syntax_case`` turns that
+description into a pytest parameter, so the test module stays free of per-family
+branches.
 
-The matrix is offline.  ``live_setup`` and ``live_check`` are reserved for a
+The matrix is offline. ``live_setup`` and ``live_check`` are reserved for a
 server-backed extension; every case leaves them unset today.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import pytest
 
@@ -45,40 +45,8 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLSubpartitionStrategy,
     MySQLTruncatePartitionExpression,
 )
-from rhosocial.activerecord.backend.impl.mysql.partition_maintenance import (
-    MySQLPartitionPlan,
-)
 
 Builder = Callable[[MySQLDialect], Any]
-
-
-@dataclass(frozen=True)
-class MaintenanceScenario:
-    """Offline expectation for ``ensure`` / ``list`` / ``drop_before``.
-
-    Attributes:
-        rows: Callable returning ``information_schema.PARTITIONS``-shaped rows.
-        plan: Callable building the caller-owned plan for the fake backend.
-        cutoff: Inclusive retention cutoff passed to ``drop_before``.
-        expected_existing: Top-level names the fake table currently has.
-        expected_missing: Names ``ensure`` must report missing.
-        expected_added: Names ``ensure`` must add in its one DDL statement.
-        expected_skipped: Names the planner must report as skipped.
-        expected_dropped: Names ``drop_before`` must report as dropped.
-        expected_ensure_fragments: Fragments the ADD statement must contain.
-        expected_drop_fragments: Fragments the DROP statement must contain.
-    """
-
-    rows: Callable[[], Sequence[Mapping[str, Any]]]
-    plan: Callable[[MySQLDialect], MySQLPartitionPlan]
-    cutoff: Any
-    expected_existing: Tuple[str, ...]
-    expected_missing: Tuple[str, ...]
-    expected_added: Tuple[str, ...]
-    expected_skipped: Tuple[str, ...]
-    expected_dropped: Tuple[str, ...]
-    expected_ensure_fragments: Tuple[str, ...]
-    expected_drop_fragments: Tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -94,10 +62,6 @@ class PartitionSyntaxCase:
         ordered_fragments: Substrings that must appear in this order.
         refusal_feature: When set, the builder must raise
             ``UnsupportedFeatureError`` whose ``feature_name`` contains it.
-        plan: Optional valid :class:`MySQLPartitionPlan` factory.
-        invalid_plan: Optional factory that must raise ``ValueError``.
-        invalid_plan_match: ``ValueError`` message fragment for ``invalid_plan``.
-        maintenance: Optional offline maintenance scenario.
         live_setup: Optional hook for a server-backed extension.
         live_check: Optional hook for a server-backed extension.
     """
@@ -109,10 +73,6 @@ class PartitionSyntaxCase:
     forbidden_fragments: Tuple[str, ...] = ()
     ordered_fragments: Tuple[str, ...] = ()
     refusal_feature: Optional[str] = None
-    plan: Optional[Callable[[MySQLDialect], MySQLPartitionPlan]] = None
-    invalid_plan: Optional[Callable[[MySQLDialect], MySQLPartitionPlan]] = None
-    invalid_plan_match: str = ""
-    maintenance: Optional[MaintenanceScenario] = None
     live_setup: Optional[Callable[..., Any]] = None
     live_check: Optional[Callable[..., Any]] = None
 
@@ -142,7 +102,7 @@ def _range_definition(
 def _list_definition(
     dialect: MySQLDialect,
     name: str,
-    values: Sequence[Any],
+    values: Any,
 ) -> MySQLPartitionDefinition:
     """Build a LIST definition with one boundary row of literal values."""
     return MySQLPartitionDefinition(
@@ -390,167 +350,6 @@ def _maintenance_statements(
     )
 
 
-# --- Plan factories --------------------------------------------------------
-
-
-def _range_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "p2026", "2026-01-01"),
-            _range_definition(dialect, "p2027", "2027-01-01"),
-        ),
-    )
-
-
-def _range_columns_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            MySQLPartitionDefinition(
-                "p2026",
-                less_than=[_value(dialect, 2026), _value(dialect, 6)],
-            ),
-            MySQLPartitionDefinition(
-                "p2027",
-                less_than=[_value(dialect, 2027), _value(dialect, 6)],
-            ),
-        ),
-    )
-
-
-def _list_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _list_definition(dialect, "p_active", ["active"]),
-            _list_definition(dialect, "p_pending", ["pending"]),
-        ),
-    )
-
-
-def _list_columns_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            MySQLPartitionDefinition(
-                "p_us",
-                in_values=[[_value(dialect, "us"), _value(dialect, "active")]],
-            ),
-            MySQLPartitionDefinition(
-                "p_eu",
-                in_values=[[_value(dialect, "eu"), _value(dialect, "active")]],
-            ),
-        ),
-    )
-
-
-def _maxvalue_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "p2026", "2027-01-01"),
-            _range_definition(dialect, "pmax", None),
-        ),
-    )
-
-
-def _maintenance_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "p2026_01", "2026-02-01"),
-            _range_definition(dialect, "p2026_02", "2026-03-01"),
-            _range_definition(dialect, "p2026_03", "2026-04-01"),
-            _range_definition(dialect, "p2026_04", "2026-05-01"),
-        ),
-    )
-
-
-def _unsorted_range_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "p2027", "2027-01-01"),
-            _range_definition(dialect, "p2026", "2026-01-01"),
-        ),
-    )
-
-
-def _duplicate_name_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "p2026", "2027-01-01"),
-            _range_definition(dialect, "p2026", "2028-01-01"),
-        ),
-    )
-
-
-def _mixed_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "p2026", "2027-01-01"),
-            _list_definition(dialect, "p_active", ["active"]),
-        ),
-    )
-
-
-def _maxvalue_not_last_plan(dialect: MySQLDialect) -> MySQLPartitionPlan:
-    return MySQLPartitionPlan(
-        "events",
-        (
-            _range_definition(dialect, "pmax", None),
-            _range_definition(dialect, "p2026", "2027-01-01"),
-        ),
-    )
-
-
-# --- Maintenance rows ------------------------------------------------------
-
-
-def _row(name: str, description: str) -> Mapping[str, Any]:
-    """Build one ``information_schema.PARTITIONS`` row for the fake backend."""
-    return {
-        "name": name,
-        "subname": None,
-        "method": "RANGE",
-        "submethod": None,
-        "description": description,
-        "table_rows": 1,
-        "data_length": 2,
-        "index_length": 3,
-    }
-
-
-def _existing_rows() -> Tuple[Mapping[str, Any], ...]:
-    return (
-        _row("p2026_01", "2026-02-01"),
-        _row("p2026_02", "2026-03-01"),
-        _row("p2026_03", "2026-04-01"),
-    )
-
-
-_MAINTENANCE_SCENARIO = MaintenanceScenario(
-    rows=_existing_rows,
-    plan=_maintenance_plan,
-    cutoff="2026-02-01",
-    expected_existing=("p2026_01", "p2026_02", "p2026_03"),
-    expected_missing=("p2026_04",),
-    expected_added=("p2026_04",),
-    expected_skipped=(),
-    expected_dropped=("p2026_01",),
-    expected_ensure_fragments=(
-        "ALTER TABLE `events` ADD PARTITION",
-        "PARTITION `p2026_04` VALUES LESS THAN ('2026-05-01')",
-    ),
-    expected_drop_fragments=(
-        "ALTER TABLE `events` DROP PARTITION `p2026_01`",
-    ),
-)
-
-
 CASES: List[PartitionSyntaxCase] = [
     PartitionSyntaxCase(
         name="range",
@@ -562,9 +361,6 @@ CASES: List[PartitionSyntaxCase] = [
             "PARTITION `p2027` VALUES LESS THAN ('2027-01-01')",
         ),
         forbidden_fragments=("MAXVALUE",),
-        plan=_range_plan,
-        invalid_plan=_unsorted_range_plan,
-        invalid_plan_match="ascending order",
     ),
     PartitionSyntaxCase(
         name="range_columns",
@@ -575,9 +371,6 @@ CASES: List[PartitionSyntaxCase] = [
             "PARTITION `p2026` VALUES LESS THAN (2026, 6)",
         ),
         forbidden_fragments=("PARTITION BY RANGE (",),
-        plan=_range_columns_plan,
-        invalid_plan=_duplicate_name_plan,
-        invalid_plan_match="must be unique",
     ),
     PartitionSyntaxCase(
         name="list",
@@ -588,9 +381,6 @@ CASES: List[PartitionSyntaxCase] = [
             "PARTITION `p_active` VALUES IN ('active', 'pending')",
         ),
         forbidden_fragments=("PARTITION BY LIST COLUMNS",),
-        plan=_list_plan,
-        invalid_plan=_mixed_plan,
-        invalid_plan_match="not both",
     ),
     PartitionSyntaxCase(
         name="list_columns",
@@ -601,7 +391,6 @@ CASES: List[PartitionSyntaxCase] = [
             "PARTITION `p_us` VALUES IN (('us', 'active'), ('eu', 'active'))",
         ),
         forbidden_fragments=("PARTITION BY LIST (`",),
-        plan=_list_columns_plan,
     ),
     PartitionSyntaxCase(
         name="hash",
@@ -657,9 +446,6 @@ CASES: List[PartitionSyntaxCase] = [
             "PARTITION `pmax`",
             "MAXVALUE",
         ),
-        plan=_maxvalue_plan,
-        invalid_plan=_maxvalue_not_last_plan,
-        invalid_plan_match="MAXVALUE partition must be the last",
     ),
     PartitionSyntaxCase(
         name="hash_subpartition",
@@ -784,11 +570,6 @@ CASES: List[PartitionSyntaxCase] = [
             "REBUILD PARTITION",
             "REPAIR PARTITION",
         ),
-    ),
-    PartitionSyntaxCase(
-        name="maintenance_ensure_list_drop_before",
-        description="Plan-driven ensure, list and drop_before with a fake backend",
-        maintenance=_MAINTENANCE_SCENARIO,
     ),
 ]
 

@@ -58,63 +58,60 @@ exchange = MySQLExchangePartitionExpression(
 )
 ```
 
-## Backend-Level Maintenance
+## Partition Capabilities: Suggestions and Introspection
 
-`MySQLPartitionMaintenance` turns a caller-owned plan into the four operations
-an application needs: add missing partitions, report the partition tree,
-validate the catalogue against the plan, and drop partitions older than a
-cutoff.  It carries no table names, calendar vocabulary, or retention defaults.
+MySQL does not ship a separate partition-maintenance helper.  Partition DDL is
+offered through the backend's **partition-suggestion** protocol, and the
+catalogue side through the engine's own **partition introspection** family.
+Together they are the single source for how this backend handles partitions.
+
+A caller describes the target layout as an opaque plan -- a mapping or an object
+with attributes such as `table`, `keys`, `definitions`, `partitions_count`,
+`partition`, `into`, `names` and `cutoff`.  The dialect turns that plan into real
+MySQL statement chains:
 
 ```python
-from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionDefinition, MySQLPartitionValue,
-)
-from rhosocial.activerecord.backend.impl.mysql.partition_maintenance import (
-    MySQLPartitionMaintenance, MySQLPartitionPlan,
+    MySQLPartitionDefinition, MySQLPartitionStrategy, MySQLPartitionValue,
 )
 
-plan = MySQLPartitionPlan(
-    "orders",
-    (
-        MySQLPartitionDefinition("p2026_01", less_than=[MySQLPartitionValue(dialect, "2026-02-01")]),
-        MySQLPartitionDefinition("p2026_02", less_than=[MySQLPartitionValue(dialect, "2026-03-01")]),
-    ),
-)
-maintenance = MySQLPartitionMaintenance(backend)
+plan = {
+    "table": "orders",
+    "definitions": [
+        MySQLPartitionDefinition("p2026", less_than=[MySQLPartitionValue(dialect, "2027-01-01")]),
+        MySQLPartitionDefinition("p2027", less_than=[MySQLPartitionValue(dialect, "2028-01-01")]),
+    ],
+}
 
-report = maintenance.ensure(plan)                 # add what is missing
-report = maintenance.list("orders", plan=plan)    # tree + missing + orphans
-report = maintenance.validate(plan)               # read-only findings
-report = maintenance.drop_before(plan, cutoff, dry_run=True)
+build = dialect.suggest_partition_build(MySQLPartitionStrategy.RANGE, plan)
+add = dialect.suggest_partition_add(MySQLPartitionStrategy.RANGE, plan)
+retention = dialect.suggest_partition_retention(
+    MySQLPartitionStrategy.RANGE, {**plan, "cutoff": "2027-01-01"}
+)
 ```
 
-Planning rules are reported rather than hidden:
+Each suggestion is a frozen value whose `operations` is one of three things: a
+tuple of real MySQL expression nodes the dialect can render and the caller can
+execute, `False` when this backend has no such mechanism for the strategy/plan,
+or `None` when nothing needs doing.  The eight methods cover `build`, `add`,
+`drop`, `retention`, `split`, `merge`, `table_alter` and `table_drop`; the dialect
+formatter owns the exact SQL spelling.  For RANGE retention, a partition whose
+upper bound is less than or equal to the cutoff is considered old, and the last
+partition of a table is never dropped.
 
-- a missing RANGE partition above the current maximum is appended with
-  `ADD PARTITION`;
-- a missing RANGE partition inside an existing partition's range is created by
-  `REORGANIZE PARTITION` on that partition;
-- a new partition after an existing `MAXVALUE` partition is folded into it by
-  `REORGANIZE PARTITION`, which keeps a trailing `MAXVALUE` definition;
-- a catalogue boundary or method that disagrees with the plan makes every
-  split point uncertain, so `ensure` refuses and reports each missing
-  definition in `skipped`; it never claims an addition it did not send;
-- `drop_before` treats a partition ending exactly at the cutoff as older than
-  it (upper bound less than or equal to the cutoff), matching PostgreSQL and
-  Oracle, and never drops the last partition of a table;
-- `drop_before` is a dry run unless `dry_run=False` is passed.
+The catalogue side is answered by introspection:
 
-`validate` compares `PARTITION_NAME`, `PARTITION_METHOD` and
-`PARTITION_DESCRIPTION` with the plan.  Missing definitions appear in
-`missing`, catalogue partitions the plan does not name appear in `orphans`,
-and method or boundary drift appears in `issues`.  It sends no DDL and
-repairs nothing.  `list("orders", plan=plan)` fills the same `missing` and
-`orphans` collections for callers that only want an inventory.
+```python
+if dialect.supports_partition_introspection():
+    partitions = backend.introspector.list_partitions("orders")
+    for part in partitions:
+        print(part.name, part.description)
+```
 
-`ensure` and `drop_before` are statement-level, not transaction-level: MySQL
-partition DDL implicitly commits.  A report describes what one statement did.
-`AsyncMySQLPartitionMaintenance` offers the same methods with `await`.
+`list_partitions()` returns this backend's `MySQLPartitionInfo` records (an
+empty result means the table is not partitioned).  Core's partition-info probe
+stays `False` because MySQL answers through its own switch; see
+[Database Introspection](introspection.md) for the full probe table.
 
 ## Subpartitioning
 
