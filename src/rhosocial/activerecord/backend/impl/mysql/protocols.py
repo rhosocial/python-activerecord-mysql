@@ -13,7 +13,12 @@ the MySQL-specific protocol - isinstance checks for the generic protocol will st
 from typing import Protocol, runtime_checkable, Tuple, Any, Dict, Sequence, FrozenSet, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.statements import OnConflictClause
+    from rhosocial.activerecord.backend.expression.statements import (
+        OnConflictClause,
+        PartitionDefinitionExpression,
+        PartitionOptionsExpression,
+        SubpartitionDefinitionExpression,
+    )
     from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
         ChangeColumnAction,
         ModifyColumnAction,
@@ -79,16 +84,13 @@ if TYPE_CHECKING:
         MySQLPartitionByListColumns,
         MySQLPartitionByRange,
         MySQLPartitionByRangeColumns,
-        MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
-        MySQLPartitionOptions,
         MySQLPartitionValue,
         MySQLRebuildPartitionExpression,
         MySQLReorganizePartitionExpression,
         MySQLRemovePartitioningExpression,
         MySQLRepairPartitionExpression,
         MySQLSubpartitionClause,
-        MySQLSubpartitionDefinition,
         MySQLTruncatePartitionExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
@@ -526,12 +528,14 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Whether ALTER TABLE ... REPAIR PARTITION is supported."""
         ...
 
-    def format_partition_definition(self, definition: "MySQLPartitionDefinition") -> Tuple[str, tuple]:
+    def format_partition_definition(
+        self, definition: "PartitionDefinitionExpression"
+    ) -> Tuple[str, tuple]:
         """Format a MySQL PARTITION definition."""
         ...
 
     def format_partition_definition_options(
-        self, options: "MySQLPartitionOptions"
+        self, options: "PartitionOptionsExpression"
     ) -> Tuple[str, tuple]:
         """Format MySQL PARTITION definition options."""
         ...
@@ -570,12 +574,14 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """
         ...
 
-    def format_subpartition_definition(self, definition: "MySQLSubpartitionDefinition") -> Tuple[str, tuple]:
+    def format_subpartition_definition(
+        self, definition: "SubpartitionDefinitionExpression"
+    ) -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
-            definition: MySQLSubpartitionDefinition with name and typed
-                        partition options.
+            definition: a subpartition definition expression carrying a name
+                        and optional partition options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).

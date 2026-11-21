@@ -21,7 +21,7 @@ from ._common import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionSplitSuggestionMixin"]
 
@@ -30,7 +30,7 @@ class MySQLPartitionSplitSuggestionMixin(MySQLPartitionSuggestionBase):
     """Suggest REORGANIZE PARTITION to split a RANGE/LIST partition."""
 
     def suggest_partition_split(
-        self, strategy: "PartitionStrategy", plan: object
+        self, strategy: "PartitionByClause", plan: object
     ) -> PartitionSplitSuggestion:
         """Suggest REORGANIZE PARTITION -- MySQL's way to split a partition."""
         table = self._suggestion_table(plan)

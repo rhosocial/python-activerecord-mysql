@@ -21,7 +21,7 @@ from ._common import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionDropSuggestionMixin"]
 
@@ -30,7 +30,7 @@ class MySQLPartitionDropSuggestionMixin(MySQLPartitionSuggestionBase):
     """Suggest DROP PARTITION for named RANGE/LIST partitions."""
 
     def suggest_partition_drop(
-        self, strategy: "PartitionStrategy", plan: object
+        self, strategy: "PartitionByClause", plan: object
     ) -> PartitionDropSuggestion:
         """Suggest DROP PARTITION for one or more named partitions."""
         table = self._suggestion_table(plan)

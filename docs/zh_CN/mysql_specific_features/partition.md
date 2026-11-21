@@ -18,9 +18,9 @@ MySQL 支持以下分区策略：
 ### 创建分区表
 
 ```python
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionByRange, MySQLPartitionDefinition, MySQLPartitionValue,
-    MySQLPartitionMaxValue,
+    MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 
 # RANGE 分区
@@ -28,8 +28,8 @@ partition_by = MySQLPartitionByRange(
     dialect,
     keys=["created_at"],
     partitions=[
-        MySQLPartitionDefinition("p_old", less_than=MySQLPartitionValue("2024-01-01")),
-        MySQLPartitionDefinition("p_current", less_than=MySQLPartitionMaxValue()),
+        PartitionDefinitionExpression(dialect, "p_old", less_than=[MySQLPartitionValue(dialect, "2024-01-01")]),
+        PartitionDefinitionExpression(dialect, "p_current", less_than=[MySQLPartitionMaxValue(dialect)]),
     ]
 )
 
@@ -50,7 +50,7 @@ add_part = MySQLAddPartitionExpression(
     dialect,
     table="orders",
     partitions=[
-        MySQLPartitionDefinition("p_new", less_than=MySQLPartitionValue("2025-01-01")),
+        PartitionDefinitionExpression(dialect, "p_new", less_than=[MySQLPartitionValue(dialect, "2025-01-01")]),
     ]
 )
 # sql: 'ALTER TABLE orders ADD PARTITION (PARTITION p_new VALUES LESS THAN ("2025-01-01"))'
@@ -116,22 +116,23 @@ MySQL 不提供独立的分区维护辅助类。分区 DDL 通过后端的**分�
 等属性的对象。dialect 把该 plan 转成真实的 MySQL 语句链：
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionDefinition, MySQLPartitionStrategy, MySQLPartitionValue,
-)
+from rhosocial.activerecord.backend.expression import Column, PartitionByRangeClause
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
+from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionValue
 
+strategy = PartitionByRangeClause(dialect, [Column(dialect, "id")])
 plan = {
     "table": "orders",
     "definitions": [
-        MySQLPartitionDefinition("p2026", less_than=[MySQLPartitionValue(dialect, "2027-01-01")]),
-        MySQLPartitionDefinition("p2027", less_than=[MySQLPartitionValue(dialect, "2028-01-01")]),
+        PartitionDefinitionExpression(dialect, "p2026", less_than=[MySQLPartitionValue(dialect, "2027-01-01")]),
+        PartitionDefinitionExpression(dialect, "p2027", less_than=[MySQLPartitionValue(dialect, "2028-01-01")]),
     ],
 }
 
-build = dialect.suggest_partition_build(MySQLPartitionStrategy.RANGE, plan)
-add = dialect.suggest_partition_add(MySQLPartitionStrategy.RANGE, plan)
+build = dialect.suggest_partition_build(strategy, plan)
+add = dialect.suggest_partition_add(strategy, plan)
 retention = dialect.suggest_partition_retention(
-    MySQLPartitionStrategy.RANGE, {**plan, "cutoff": "2027-01-01"}
+    strategy, {**plan, "cutoff": "2027-01-01"}
 )
 ```
 

@@ -11,16 +11,18 @@ maintenance protocol; suggestion behaviour is covered by test_partition_suggesti
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.statements import (
+    PartitionDefinitionExpression,
+    SubpartitionDefinitionExpression,
+)
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionValue,
     MySQLSubpartitionClause,
-    MySQLSubpartitionDefinition,
     MySQLSubpartitionStrategy,
 )
 
@@ -75,19 +77,21 @@ def test_explicit_per_partition_subpartition_definitions(dialect):
         dialect,
         [Column(dialect, "created_at")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(
+                dialect,
                 "p2026",
                 less_than=[_value(dialect, "2027-01-01")],
-                subpartition_definitions=[
-                    MySQLSubpartitionDefinition("p2026_s0"),
-                    MySQLSubpartitionDefinition("p2026_s1"),
+                subpartitions=[
+                    SubpartitionDefinitionExpression(dialect, "p2026_s0"),
+                    SubpartitionDefinitionExpression(dialect, "p2026_s1"),
                 ],
             ),
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(
+                dialect,
                 "p2027",
                 less_than=[_value(dialect, "2028-01-01")],
-                subpartition_definitions=[
-                    MySQLSubpartitionDefinition("p2027_s0"),
+                subpartitions=[
+                    SubpartitionDefinitionExpression(dialect, "p2027_s0"),
                 ],
             ),
         ],
@@ -112,10 +116,11 @@ def test_subpartition_definition_options_still_render_after_rejection(dialect):
         dialect,
         [Column(dialect, "created_at")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(
+                dialect,
                 "p0",
                 less_than=[_value(dialect, "2026-01-01")],
-                subpartition_definitions=[MySQLSubpartitionDefinition("s0")],
+                subpartitions=[SubpartitionDefinitionExpression(dialect, "s0")],
             )
         ],
         subpartition_by=MySQLSubpartitionClause(

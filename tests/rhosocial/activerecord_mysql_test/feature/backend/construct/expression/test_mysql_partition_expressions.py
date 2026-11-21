@@ -4,6 +4,11 @@ from decimal import Decimal
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.statements import (
+    PartitionDefinitionExpression,
+    SubpartitionDefinitionExpression,
+    PartitionOptionsExpression,
+)
 from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import (
@@ -29,13 +34,10 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByListColumns,
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
-    MySQLPartitionOptions,
     MySQLPartitionValue,
     MySQLSubpartitionStrategy,
     MySQLSubpartitionClause,
-    MySQLSubpartitionDefinition,
     MySQLTruncatePartitionExpression,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
@@ -64,7 +66,7 @@ def test_partition_by_range_expression(dialect):
         dialect=dialect,
         keys=[Column(dialect, "created_year")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p2026",
                 less_than=[_partition_value(dialect, 2027)],
             )
@@ -89,7 +91,7 @@ def test_partition_by_range_expression(dialect):
                 dialect=dialect,
                 keys=[Column(dialect, "tenant_id")],
                 partitions=[
-                    MySQLPartitionDefinition(
+                    PartitionDefinitionExpression(dialect, 
                         name="p_tenant_10_20",
                         in_values=[_partition_value(dialect, 10), _partition_value(dialect, 20)],
                     )
@@ -102,7 +104,7 @@ def test_partition_by_range_expression(dialect):
                 dialect=dialect,
                 keys=[Column(dialect, "status")],
                 partitions=[
-                    MySQLPartitionDefinition(
+                    PartitionDefinitionExpression(dialect, 
                         name="p_active",
                         in_values=[_partition_value(dialect, "active"), _partition_value(dialect, "pending")],
                     )
@@ -165,8 +167,8 @@ def test_linear_hash_and_key_partition_counts(dialect):
 def test_multiple_partition_maintenance_statements(dialect):
     """ADD, DROP, and TRUNCATE should format multiple partitions."""
     partitions = [
-        MySQLPartitionDefinition(name="p2026_03", less_than=[_partition_value(dialect, "2026-04-01")]),
-        MySQLPartitionDefinition(name="p2026_04", less_than=[_partition_value(dialect, "2026-05-01")]),
+        PartitionDefinitionExpression(dialect, name="p2026_03", less_than=[_partition_value(dialect, "2026-04-01")]),
+        PartitionDefinitionExpression(dialect, name="p2026_04", less_than=[_partition_value(dialect, "2026-05-01")]),
     ]
 
     add_sql, add_params = MySQLAddPartitionExpression(dialect, Table(dialect, "events"), partitions).to_sql()
@@ -250,14 +252,14 @@ def test_exchange_partition_validation_spellings_are_mutually_exclusive(dialect)
 def test_partition_definition_rejects_invalid_value_mode_combinations(dialect):
     """Partition definitions require exactly one value mode."""
     with pytest.raises(ValueError, match="mutually exclusive"):
-        MySQLPartitionDefinition(
+        PartitionDefinitionExpression(dialect, 
             name="p_bad",
             less_than=[_partition_value(dialect, 10)],
             in_values=[_partition_value(dialect, 1)],
         )
 
     with pytest.raises(ValueError, match="requires less_than or in_values"):
-        MySQLPartitionDefinition(name="p_bad")
+        dialect.format_partition_definition(PartitionDefinitionExpression(dialect, name="p_bad"))
 
 
 def test_partition_value_rejects_unsafe_or_invalid_values(dialect):
@@ -294,14 +296,17 @@ def test_maxvalue_uses_capability(dialect):
 
 def test_partition_definition_options_are_formatted(dialect):
     """Supported partition definition options should render explicitly."""
-    definition = MySQLPartitionDefinition(
+    definition = PartitionDefinitionExpression(dialect, 
         name="p2026",
         less_than=[_partition_value(dialect, "2027-01-01")],
-        partition_options=MySQLPartitionOptions(
-            engine="InnoDB",
-            comment="tenant's partition",
-            max_rows=1000,
-            tablespace="ts_hot",
+        options=PartitionOptionsExpression(
+            dialect,
+            {
+                "engine": "InnoDB",
+                "comment": "tenant's partition",
+                "max_rows": 1000,
+                "tablespace": "ts_hot",
+            },
         ),
     )
 
@@ -317,10 +322,10 @@ def test_partition_definition_options_are_formatted(dialect):
 def test_partition_definition_options_reject_invalid_options(dialect):
     """Unsupported or invalid partition options should fail clearly."""
     with pytest.raises(TypeError, match="engine option must be a non-empty string"):
-        dialect.format_partition_definition_options(MySQLPartitionOptions(engine=""))
+        dialect.format_partition_definition_options(PartitionOptionsExpression(dialect, {"engine": ""}))
 
     with pytest.raises(TypeError, match="max_rows option"):
-        dialect.format_partition_definition_options(MySQLPartitionOptions(max_rows=-1))
+        dialect.format_partition_definition_options(PartitionOptionsExpression(dialect, {"max_rows": -1}))
 
 def test_extended_partition_maintenance_expressions(dialect):
     """MySQL maintenance expressions should delegate to public formatters."""
@@ -360,7 +365,7 @@ def test_partition_by_list_columns_multi_column_row_tuples(dialect):
         dialect=dialect,
         keys=[Column(dialect, "col_a"), Column(dialect, "col_b")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p1",
                 in_values=[
                     [_partition_value(dialect, 1), _partition_value(dialect, "a")],
@@ -397,8 +402,8 @@ def test_subpartition_by_hash_with_expression(dialect):
         dialect=dialect,
         keys=[Column(dialect, "created_at")],
         partitions=[
-            MySQLPartitionDefinition("p0", less_than=[_partition_value(dialect, "2026-01-01")]),
-            MySQLPartitionDefinition("p1", less_than=[_partition_value(dialect, "2027-01-01")]),
+            PartitionDefinitionExpression(dialect, "p0", less_than=[_partition_value(dialect, "2026-01-01")]),
+            PartitionDefinitionExpression(dialect, "p1", less_than=[_partition_value(dialect, "2027-01-01")]),
         ],
         subpartition_by=MySQLSubpartitionClause(
             dialect=dialect,
@@ -480,12 +485,12 @@ def test_subpartition_by_linear_key(dialect):
 
 def test_subpartition_with_explicit_definitions(dialect):
     """Explicit subpartition definitions within a RANGE partition should format correctly."""
-    definition = MySQLPartitionDefinition(
+    definition = PartitionDefinitionExpression(dialect, 
         name="p0",
         less_than=[_partition_value(dialect, "2026-01-01")],
-        subpartition_definitions=[
-            MySQLSubpartitionDefinition(name="sp0"),
-            MySQLSubpartitionDefinition(name="sp1"),
+        subpartitions=[
+            SubpartitionDefinitionExpression(dialect, name="sp0"),
+            SubpartitionDefinitionExpression(dialect, name="sp1"),
         ],
     )
 
@@ -500,7 +505,7 @@ def test_subpartition_with_explicit_definitions(dialect):
 def test_subpartition_definition_rejects_empty_name(dialect):
     """Subpartition definition should reject empty names at construction."""
     with pytest.raises(ValueError, match="non-empty string"):
-        MySQLSubpartitionDefinition(name="")
+        SubpartitionDefinitionExpression(dialect, name="")
 
 
 def test_subpartition_clause_accepts_strategy_word(dialect):
@@ -534,10 +539,13 @@ def test_subpartition_clause_rejects_invalid_count(dialect):
 
 
 def test_subpartition_preserves_partition_options_on_subpartition_definitions(dialect):
-    """Subpartition definitions should accept typed partition_options."""
-    sub_def = MySQLSubpartitionDefinition(
+    """A subpartition node carrying storage options still renders them."""
+    sub_def = PartitionDefinitionExpression(
+        dialect,
         name="sp_active",
-        partition_options=MySQLPartitionOptions(engine="InnoDB", comment="active subpartition"),
+        options=PartitionOptionsExpression(
+            dialect, {"engine": "InnoDB", "comment": "active subpartition"}
+        ),
     )
 
     sql, params = dialect.format_subpartition_definition(sub_def)
@@ -639,8 +647,8 @@ def test_drop_oldest_partition_helper_rejects_empty_names(dialect):
 def test_reorganize_partition_helper_generates_sql(dialect):
     """ReorganizePartitionHelper should generate REORGANIZE PARTITION SQL."""
     new_partitions = [
-        MySQLPartitionDefinition(name="p2020a", less_than=[MySQLPartitionValue(dialect, 2021)]),
-        MySQLPartitionDefinition(name="p2020b", less_than=[MySQLPartitionValue(dialect, 2022)]),
+        PartitionDefinitionExpression(dialect, name="p2020a", less_than=[MySQLPartitionValue(dialect, 2021)]),
+        PartitionDefinitionExpression(dialect, name="p2020b", less_than=[MySQLPartitionValue(dialect, 2022)]),
     ]
     expr = MySQLReorganizePartitionHelper(dialect, Table(dialect, "orders"), "p2020", into=new_partitions)
 
@@ -704,13 +712,9 @@ def test_partition_value_with_datetime(dialect):
 
 
 def test_partition_definition_rejects_invalid_partition_options(dialect):
-    """MySQLPartitionDefinition should reject non-MySQLPartitionOptions values."""
-    with pytest.raises(TypeError, match="partition_options must be a MySQLPartitionOptions"):
-        MySQLPartitionDefinition(
-            name="p0",
-            less_than=[MySQLPartitionValue(dialect, 100)],
-            partition_options="invalid",  # type: ignore[arg-type]
-        )
+    """The formatter refuses option payloads that are not an expression node."""
+    with pytest.raises(TypeError, match="partition options must be a PartitionOptionsExpression"):
+        dialect.format_partition_definition_options("invalid")  # type: ignore[arg-type]
 
 
 def test_partition_by_range_rejects_invalid_subpartition_by(dialect):
@@ -780,7 +784,7 @@ def test_partition_by_range_columns_expression(dialect):
         dialect=dialect,
         keys=[Column(dialect, "created_year"), Column(dialect, "created_month")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p2026",
                 less_than=[_partition_value(dialect, 2026), _partition_value(dialect, 6)],
             )
@@ -805,7 +809,7 @@ def test_partition_by_range_columns_with_subpartition(dialect):
         dialect=dialect,
         keys=[Column(dialect, "created_year")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p2026",
                 less_than=[_partition_value(dialect, 2026)],
             )
@@ -833,7 +837,7 @@ def test_partition_by_list_with_subpartition(dialect):
         dialect=dialect,
         keys=[Column(dialect, "status")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p_active",
                 in_values=[_partition_value(dialect, "active")],
             )
@@ -861,7 +865,7 @@ def test_partition_by_list_columns_with_subpartition(dialect):
         dialect=dialect,
         keys=[Column(dialect, "status")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p_active",
                 in_values=[_partition_value(dialect, "active")],
             )

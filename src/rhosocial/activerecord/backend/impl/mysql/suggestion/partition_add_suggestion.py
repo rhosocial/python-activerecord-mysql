@@ -24,7 +24,7 @@ from ._common import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionAddSuggestionMixin"]
 
@@ -33,7 +33,7 @@ class MySQLPartitionAddSuggestionMixin(MySQLPartitionSuggestionBase):
     """Suggest ADD PARTITION or REORGANIZE PARTITION for a RANGE/LIST table."""
 
     def suggest_partition_add(
-        self, strategy: "PartitionStrategy", plan: object
+        self, strategy: "PartitionByClause", plan: object
     ) -> PartitionAddSuggestion:
         """Suggest ADD PARTITION above the maximum, or REORGANIZE inside a range."""
         table = self._suggestion_table(plan)

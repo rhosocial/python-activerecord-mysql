@@ -4,6 +4,7 @@ from typing import Sequence
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.expression import (
     Column,
     ColumnConstraint,
@@ -34,7 +35,6 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByListColumns,
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
     MySQLPartitionValue,
     MySQLTruncatePartitionExpression,
@@ -90,8 +90,8 @@ def _create_range_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "shard_id")],
             partitions=[
-                MySQLPartitionDefinition("p_low", less_than=[_partition_value(dialect, 100)]),
-                MySQLPartitionDefinition("p_mid", less_than=[_partition_value(dialect, 200)]),
+                PartitionDefinitionExpression(dialect, "p_low", less_than=[_partition_value(dialect, 100)]),
+                PartitionDefinitionExpression(dialect, "p_mid", less_than=[_partition_value(dialect, 200)]),
             ],
         ),
     )
@@ -106,15 +106,15 @@ def _create_range_columns_multi_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "shard_id"), Column(dialect, "id")],
             partitions=[
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_low",
                     less_than=[_partition_value(dialect, 100), _partition_value(dialect, 100)],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_mid",
                     less_than=[_partition_value(dialect, 200), _partition_value(dialect, 500)],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_high",
                     less_than=[MySQLPartitionMaxValue(dialect), MySQLPartitionMaxValue(dialect)],
                 ),
@@ -132,14 +132,14 @@ def _create_list_columns_multi_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "category"), Column(dialect, "payload")],
             partitions=[
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_group_a",
                     in_values=[
                         [_partition_value(dialect, "active"), _partition_value(dialect, "alpha")],
                         [_partition_value(dialect, "active"), _partition_value(dialect, "beta")],
                     ],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_group_b",
                     in_values=[
                         [_partition_value(dialect, "closed"), _partition_value(dialect, "gamma")],
@@ -160,11 +160,11 @@ def _create_list_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "shard_id")],
             partitions=[
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_small",
                     in_values=[_partition_value(dialect, 1), _partition_value(dialect, 2)],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_large",
                     in_values=[_partition_value(dialect, 3), _partition_value(dialect, 4)],
                 ),
@@ -182,11 +182,11 @@ def _create_list_columns_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "category")],
             partitions=[
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_active",
                     in_values=[_partition_value(dialect, "active"), _partition_value(dialect, "pending")],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     "p_closed",
                     in_values=[_partition_value(dialect, "closed"), _partition_value(dialect, "archived")],
                 ),
@@ -414,11 +414,11 @@ class TestPartitionStrategies:
                     mysql_backend.dialect,
                     Table(mysql_backend.dialect, RANGE_TABLE),
                     [
-                        MySQLPartitionDefinition(
+                        PartitionDefinitionExpression(mysql_backend.dialect, 
                             "p_high",
                             less_than=[_partition_value(mysql_backend.dialect, 300)],
                         ),
-                        MySQLPartitionDefinition(
+                        PartitionDefinitionExpression(mysql_backend.dialect, 
                             "p_higher",
                             less_than=[_partition_value(mysql_backend.dialect, 400)],
                         ),
@@ -583,8 +583,12 @@ class TestPartitionStrategies:
                     dialect=mysql_backend.dialect,
                     keys=[Column(mysql_backend.dialect, "shard_id")],
                     partitions=[
-                        MySQLPartitionDefinition("p_low", less_than=[_partition_value(mysql_backend.dialect, 100)]),
-                        MySQLPartitionDefinition("p_high", less_than=[_partition_value(mysql_backend.dialect, 200)]),
+                        PartitionDefinitionExpression(
+                            dialect, "p_low", less_than=[_partition_value(mysql_backend.dialect, 100)]
+                        ),
+                        PartitionDefinitionExpression(
+                            dialect, "p_high", less_than=[_partition_value(mysql_backend.dialect, 200)]
+                        ),
                     ],
                 ),
             ).to_sql()
@@ -628,11 +632,11 @@ class TestPartitionStrategies:
                     dialect=mysql_backend.dialect,
                     keys=[Column(mysql_backend.dialect, "shard_id")],
                     partitions=[
-                        MySQLPartitionDefinition(
+                        PartitionDefinitionExpression(dialect, 
                             name="p_null",
                             in_values=[_partition_value(mysql_backend.dialect, None)],
                         ),
-                        MySQLPartitionDefinition(
+                        PartitionDefinitionExpression(dialect, 
                             name="p_val",
                             in_values=[_partition_value(mysql_backend.dialect, 1)],
                         ),

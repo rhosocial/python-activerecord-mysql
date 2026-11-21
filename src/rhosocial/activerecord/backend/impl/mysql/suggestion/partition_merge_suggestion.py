@@ -14,7 +14,7 @@ from ....suggestion import PartitionMergeSuggestion
 from ._common import MySQLPartitionSuggestionBase
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionMergeSuggestionMixin"]
 
@@ -23,7 +23,7 @@ class MySQLPartitionMergeSuggestionMixin(MySQLPartitionSuggestionBase):
     """Answer MySQL's lack of MERGE PARTITION explicitly."""
 
     def suggest_partition_merge(
-        self, strategy: "PartitionStrategy", plan: object
+        self, strategy: "PartitionByClause", plan: object
     ) -> PartitionMergeSuggestion:
         """MySQL has no MERGE PARTITION; COALESCE only shrinks HASH/KEY by count."""
         return PartitionMergeSuggestion(False)

@@ -43,10 +43,10 @@ Use the worktree's own interpreter, e.g.
   `{"keys": [Column(d, "id")], "definitions": [...]}`; HASH/KEY use
   `"partitions_count"` instead of definitions. Lifecycle plans use `"table"` plus
   `"definitions"` / `"names"` / `"cutoff"` / `"partition"` + `"into"`.
-- **Strategy enum**: `MySQLPartitionStrategy` has 8 members —
+- **Strategy clause**: a core `PartitionBy*Clause` node with a word —
   `RANGE`, `RANGE COLUMNS`, `LIST`, `LIST COLUMNS`, `HASH`, `LINEAR HASH`,
-  `KEY`, `LINEAR KEY`.
-- **Definitions**: `MySQLPartitionDefinition(name=..., less_than=[MySQLPartitionValue(d, bound)])`
+  `KEY`, `LINEAR KEY`. The examples carry the word on a `PartitionByRangeClause`.
+- **Definitions**: `PartitionDefinitionExpression(d, name=..., less_than=[MySQLPartitionValue(d, bound)])`
   for RANGE, or `in_values=[...]` for LIST.
 - **Tri-state**: `suggestion.operations` is a tuple of expression nodes when a
   real chain exists, `False` when MySQL has no such mechanism for that

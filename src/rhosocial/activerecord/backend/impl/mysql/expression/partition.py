@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 from math import isfinite
@@ -13,26 +12,28 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.statements import (
     PartitionClause,
-    PartitionDefinition,
-    SubpartitionDefinition,
+    PartitionDefinitionExpression,
+    SubpartitionDefinitionExpression,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 
 
-class MySQLPartitionStrategy(str, Enum):
-    """MySQL table partitioning strategies supported by MySQLPartitionMixin."""
-
-    #: A member *is* the word it carries; see ``SortDirection.__str__``.
-    __str__ = str.__str__
-
-    RANGE = "RANGE"
-    RANGE_COLUMNS = "RANGE COLUMNS"
-    LIST = "LIST"
-    LIST_COLUMNS = "LIST COLUMNS"
-    HASH = "HASH"
-    LINEAR_HASH = "LINEAR HASH"
-    KEY = "KEY"
-    LINEAR_KEY = "LINEAR KEY"
+#: The strategy words MySQL spells. A strategy is now expressed by a core
+#: ``PartitionBy*Clause`` node, so the words travel as plain strings that an
+#: artifact can round-trip; this frozenset is only the vocabulary a dialect
+#: checks a clause word against.
+MYSQL_PARTITION_WORDS = frozenset(
+    {
+        "RANGE",
+        "RANGE COLUMNS",
+        "LIST",
+        "LIST COLUMNS",
+        "HASH",
+        "LINEAR HASH",
+        "KEY",
+        "LINEAR KEY",
+    }
+)
 
 
 class MySQLSubpartitionStrategy(str, Enum):
@@ -49,59 +50,6 @@ class MySQLSubpartitionStrategy(str, Enum):
     KEY = "KEY"
     LINEAR_HASH = "LINEAR HASH"
     LINEAR_KEY = "LINEAR KEY"
-
-
-@dataclass
-class MySQLPartitionOptions:
-    """Typed MySQL storage options for a partition or subpartition definition.
-
-    Replaces the generic ``dialect_options`` bag with one attribute per MySQL
-    ``PARTITION`` option keyword rendered by the MySQL formatter.
-
-    Attributes:
-        engine: Storage engine name (``ENGINE``).
-        comment: Free-form comment (``COMMENT``).
-        data_directory: Data directory path (``DATA DIRECTORY``).
-        index_directory: Index directory path (``INDEX DIRECTORY``).
-        max_rows: Maximum number of rows (``MAX_ROWS``).
-        min_rows: Minimum number of rows (``MIN_ROWS``).
-        tablespace: Tablespace name (``TABLESPACE``).
-    """
-
-    engine: Optional[str] = None
-    comment: Optional[str] = None
-    data_directory: Optional[str] = None
-    index_directory: Optional[str] = None
-    max_rows: Optional[int] = None
-    min_rows: Optional[int] = None
-    tablespace: Optional[str] = None
-
-
-@dataclass
-class MySQLSubpartitionDefinition(SubpartitionDefinition):
-    """A single named subpartition within a partition definition.
-
-    MySQL subpartitions carry no explicit boundary (the ``SUBPARTITION BY``
-    template applies), so this subclass adds nothing beyond the base name and
-    options. It exists as the MySQL-owned type derived from the generic
-    :class:`~rhosocial.activerecord.backend.expression.statements.SubpartitionDefinition`.
-
-    Raises:
-        TypeError: if ``partition_options`` is not a :class:`MySQLPartitionOptions`
-            when provided.
-    """
-
-    partition_options: Optional[MySQLPartitionOptions] = None
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if self.partition_options is not None and not isinstance(
-            self.partition_options, MySQLPartitionOptions
-        ):
-            raise TypeError(
-                "partition_options must be a MySQLPartitionOptions value, "
-                f"got {type(self.partition_options).__name__}"
-            )
 
 
 def _normalize_subpartition_strategy(
@@ -152,7 +100,7 @@ class MySQLSubpartitionClause(BaseExpression):
         *,
         expression: Optional[BaseExpression] = None,
         count: Optional[int] = None,
-        definitions: Optional[Sequence[MySQLSubpartitionDefinition]] = None,
+        definitions: Optional[Sequence[SubpartitionDefinitionExpression]] = None,
     ):
         super().__init__(dialect)
         # The member or the word it spells (§10: wide entry, normalised
@@ -219,54 +167,29 @@ class MySQLPartitionValue(BaseExpression):
 
 
 
-@dataclass
-class MySQLPartitionDefinition(PartitionDefinition):
-    """A MySQL ``PARTITION ... VALUES ...`` definition.
+class MySQLPartitionClause(PartitionClause):
+    """Base MySQL partition clause; the strategy is a fixed word, not an enum.
 
-    Derives from the generic
-    :class:`~rhosocial.activerecord.backend.expression.statements.PartitionDefinition`
-    and tightens validation: MySQL requires exactly one boundary form.
-
-    For single-column LIST COLUMNS, ``in_values`` accepts a flat sequence
-    of ``BaseExpression`` (e.g. ``[val('a'), val('b')]`` → ``VALUES IN ('a', 'b')``).
-
-    For multi-column LIST COLUMNS, ``in_values`` accepts a sequence where
-    each element is itself a sequence of ``BaseExpression`` values, representing
-    a row tuple (e.g. ``[(val('a'), val('x')), (val('b'), val('y'))]`` →
-    ``VALUES IN (('a', 'x'), ('b', 'y'))``).
-
-    When subpartitioning is used, ``subpartition_definitions`` optionally
-    overrides the template from the ``SUBPARTITION BY`` clause for this
-    specific partition. ``partition_options`` carries MySQL-only storage
-    options typed on :class:`MySQLPartitionOptions`.
-
-    Raises:
-        ValueError: if both ``less_than`` and ``in_values`` are provided,
-                    or if neither is provided.
-        TypeError: if ``partition_options`` is not a
-                   :class:`MySQLPartitionOptions` when provided.
+    Core's :class:`~...statements.PartitionClause` validates ``method`` against
+    its own narrow vocabulary (RANGE/LIST/HASH). MySQL spells eight words, so
+    this override stores the word directly while keeping the same key checks.
+    Both ``.method`` (what the formatters read) and ``.word`` (the artifact form)
+    carry it.
     """
 
-    subpartition_definitions: Optional[Sequence["MySQLSubpartitionDefinition"]] = None
-    partition_options: Optional[MySQLPartitionOptions] = None
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if self.partition_options is not None and not isinstance(
-            self.partition_options, MySQLPartitionOptions
-        ):
-            raise TypeError(
-                "partition_options must be a MySQLPartitionOptions value, "
-                f"got {type(self.partition_options).__name__}"
-            )
-        if self.less_than is None and self.in_values is None:
-            raise ValueError("partition definition requires less_than or in_values")
-
-
-class MySQLPartitionClause(PartitionClause):
-    """Base MySQL partition clause with MySQL-specific strategy enum."""
-
-    strategy_type = MySQLPartitionStrategy
+    def __init__(self, dialect: "MySQLDialect", method: str, keys: Sequence[BaseExpression]):
+        BaseExpression.__init__(self, dialect)
+        word = getattr(method, "value", method)
+        self.method = str(word).strip().upper()
+        self.word = self.method
+        if not keys:
+            raise ValueError("keys are required")
+        for key in keys:
+            if not isinstance(key, BaseExpression):
+                raise TypeError(
+                    f"keys must contain BaseExpression instances, got {type(key).__name__}"
+                )
+        self.keys = list(keys)
 
 
 class MySQLPartitionByRange(MySQLPartitionClause):
@@ -285,10 +208,10 @@ class MySQLPartitionByRange(MySQLPartitionClause):
         dialect: "MySQLDialect",
         keys: Sequence[BaseExpression],
         *,
-        partitions: Optional[Sequence[MySQLPartitionDefinition]] = None,
+        partitions: Optional[Sequence[PartitionDefinitionExpression]] = None,
         subpartition_by: Optional[MySQLSubpartitionClause] = None,
     ):
-        super().__init__(dialect, MySQLPartitionStrategy.RANGE, keys)
+        super().__init__(dialect, "RANGE", keys)
         if subpartition_by is not None and not isinstance(subpartition_by, MySQLSubpartitionClause):
             raise TypeError("subpartition_by must be a MySQLSubpartitionClause")
         self.partitions = list(partitions or [])
@@ -314,10 +237,10 @@ class MySQLPartitionByRangeColumns(MySQLPartitionClause):
         dialect: "MySQLDialect",
         keys: Sequence[BaseExpression],
         *,
-        partitions: Optional[Sequence[MySQLPartitionDefinition]] = None,
+        partitions: Optional[Sequence[PartitionDefinitionExpression]] = None,
         subpartition_by: Optional[MySQLSubpartitionClause] = None,
     ):
-        super().__init__(dialect, MySQLPartitionStrategy.RANGE_COLUMNS, keys)
+        super().__init__(dialect, "RANGE COLUMNS", keys)
         if subpartition_by is not None and not isinstance(subpartition_by, MySQLSubpartitionClause):
             raise TypeError("subpartition_by must be a MySQLSubpartitionClause")
         self.partitions = list(partitions or [])
@@ -343,10 +266,10 @@ class MySQLPartitionByList(MySQLPartitionClause):
         dialect: "MySQLDialect",
         keys: Sequence[BaseExpression],
         *,
-        partitions: Optional[Sequence[MySQLPartitionDefinition]] = None,
+        partitions: Optional[Sequence[PartitionDefinitionExpression]] = None,
         subpartition_by: Optional[MySQLSubpartitionClause] = None,
     ):
-        super().__init__(dialect, MySQLPartitionStrategy.LIST, keys)
+        super().__init__(dialect, "LIST", keys)
         if subpartition_by is not None and not isinstance(subpartition_by, MySQLSubpartitionClause):
             raise TypeError("subpartition_by must be a MySQLSubpartitionClause")
         self.partitions = list(partitions or [])
@@ -372,10 +295,10 @@ class MySQLPartitionByListColumns(MySQLPartitionClause):
         dialect: "MySQLDialect",
         keys: Sequence[BaseExpression],
         *,
-        partitions: Optional[Sequence[MySQLPartitionDefinition]] = None,
+        partitions: Optional[Sequence[PartitionDefinitionExpression]] = None,
         subpartition_by: Optional[MySQLSubpartitionClause] = None,
     ):
-        super().__init__(dialect, MySQLPartitionStrategy.LIST_COLUMNS, keys)
+        super().__init__(dialect, "LIST COLUMNS", keys)
         if subpartition_by is not None and not isinstance(subpartition_by, MySQLSubpartitionClause):
             raise TypeError("subpartition_by must be a MySQLSubpartitionClause")
         self.partitions = list(partitions or [])
@@ -398,7 +321,7 @@ class MySQLPartitionByHash(MySQLPartitionClause):
         partitions_count: Optional[int] = None,
         linear: bool = False,
     ):
-        method = MySQLPartitionStrategy.LINEAR_HASH if linear else MySQLPartitionStrategy.HASH
+        method = "LINEAR HASH" if linear else "HASH"
         super().__init__(dialect, method, keys)
         self.partitions_count = partitions_count
         self.linear = linear
@@ -426,13 +349,14 @@ class MySQLPartitionByKey(MySQLPartitionClause):
         partitions_count: Optional[int] = None,
         linear: bool = False,
     ):
-        method = MySQLPartitionStrategy.LINEAR_KEY if linear else MySQLPartitionStrategy.KEY
+        method = "LINEAR KEY" if linear else "KEY"
         if keys:
             super().__init__(dialect, method, keys)
         else:
             BaseExpression.__init__(self, dialect)
-            self.method = method.value
-            self.keys = list(keys) if keys else []
+            self.method = method
+            self.word = method
+            self.keys = []
         self.partitions_count = partitions_count
         self.linear = linear
 
@@ -491,7 +415,7 @@ class MySQLAddPartitionExpression(MySQLPartitionTableExpression):
         self,
         dialect: "MySQLDialect",
         table: Table,
-        partitions: List[MySQLPartitionDefinition],
+        partitions: List[PartitionDefinitionExpression],
     ):
         super().__init__(dialect, table)
         self.partitions = partitions
@@ -539,7 +463,7 @@ class MySQLReorganizePartitionExpression(MySQLPartitionTableExpression):
         dialect: "MySQLDialect",
         table: Table,
         partition: str,
-        into: List[MySQLPartitionDefinition],
+        into: List[PartitionDefinitionExpression],
     ):
         super().__init__(dialect, table)
         self.partition = partition

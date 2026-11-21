@@ -26,16 +26,17 @@ The MySQL backend supports the same type-safe DDL expressions as the core librar
 MySQL supports rich table partitioning strategies. See [Partition Documentation](../mysql_specific_features/partition.md).
 
 ```python
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionByRange, MySQLPartitionDefinition, MySQLPartitionValue,
+    MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 
 partition = MySQLPartitionByRange(
     dialect,
     keys=["created_at"],
     partitions=[
-        MySQLPartitionDefinition("p1", less_than=MySQLPartitionValue("2024-01-01")),
-        MySQLPartitionDefinition("p2", less_than=MySQLPartitionMaxValue()),
+        PartitionDefinitionExpression(dialect, "p1", less_than=[MySQLPartitionValue(dialect, "2024-01-01")]),
+        PartitionDefinitionExpression(dialect, "p2", less_than=[MySQLPartitionMaxValue(dialect)]),
     ],
 )
 

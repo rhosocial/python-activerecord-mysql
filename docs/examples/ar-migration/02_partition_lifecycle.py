@@ -15,20 +15,27 @@ Run from the repository root with ``PYTHONPATH=src``:
     python docs/examples/ar-migration/02_partition_lifecycle.py
 """
 
+from rhosocial.activerecord.backend.expression import Column, PartitionByRangeClause
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionDefinition,
-    MySQLPartitionStrategy,
-    MySQLPartitionValue,
-)
+from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionValue
 
 DIALECT = MySQLDialect(version=(8, 0, 0))
-STRATEGY = MySQLPartitionStrategy
 TABLE = "orders"
 
 
-def _range(name: str, bound: int) -> MySQLPartitionDefinition:
-    return MySQLPartitionDefinition(name=name, less_than=[MySQLPartitionValue(DIALECT, bound)])
+def _strategy(word: str) -> PartitionByRangeClause:
+    """A strategy clause carrying the given MySQL word."""
+    clause = PartitionByRangeClause(DIALECT, [Column(DIALECT, "id")])
+    clause.method = word
+    clause.word = word
+    return clause
+
+
+def _range(name: str, bound: int) -> PartitionDefinitionExpression:
+    return PartitionDefinitionExpression(
+        DIALECT, name=name, less_than=[MySQLPartitionValue(DIALECT, bound)]
+    )
 
 
 def _show(title: str, suggestion: object) -> None:
@@ -53,7 +60,7 @@ def main() -> None:
     _show(
         "add (append above the maximum)",
         d.suggest_partition_add(
-            STRATEGY.RANGE,
+            _strategy("RANGE"),
             {"table": TABLE, "definitions": [_range("p3", 400)]},
         ),
     )
@@ -61,7 +68,7 @@ def main() -> None:
     _show(
         "add (reorganize inside a range)",
         d.suggest_partition_add(
-            STRATEGY.RANGE,
+            _strategy("RANGE"),
             {
                 "table": TABLE,
                 "partition": "p0",
@@ -73,28 +80,28 @@ def main() -> None:
     # DROP: named partitions.
     _show(
         "drop (named partitions)",
-        d.suggest_partition_drop(STRATEGY.RANGE, {"table": TABLE, "names": ["p0", "p1"]}),
+        d.suggest_partition_drop(_strategy("RANGE"), {"table": TABLE, "names": ["p0", "p1"]}),
     )
 
     # RETENTION: drop everything at/below a cutoff, but never the last partition.
     _show(
         "retention (cutoff=250 keeps p2)",
         d.suggest_partition_retention(
-            STRATEGY.RANGE,
+            _strategy("RANGE"),
             {"table": TABLE, "definitions": ranges, "cutoff": 250},
         ),
     )
     _show(
         "retention (all old -> newest kept)",
         d.suggest_partition_retention(
-            STRATEGY.RANGE,
+            _strategy("RANGE"),
             {"table": TABLE, "definitions": ranges, "cutoff": 300},
         ),
     )
     _show(
         "retention (nothing old -> no-op)",
         d.suggest_partition_retention(
-            STRATEGY.RANGE,
+            _strategy("RANGE"),
             {"table": TABLE, "definitions": ranges, "cutoff": 50},
         ),
     )
@@ -103,7 +110,7 @@ def main() -> None:
     _show(
         "split (reorganize p0)",
         d.suggest_partition_split(
-            STRATEGY.RANGE,
+            _strategy("RANGE"),
             {
                 "table": TABLE,
                 "partition": "p0",
@@ -115,37 +122,37 @@ def main() -> None:
     # TABLE ALTER: remove partitioning, or COALESCE for HASH/KEY.
     _show(
         "table_alter (remove partitioning)",
-        d.suggest_partition_table_alter(STRATEGY.RANGE, {"table": TABLE}),
+        d.suggest_partition_table_alter(_strategy("RANGE"), {"table": TABLE}),
     )
     _show(
         "table_alter (coalesce HASH by 2)",
         d.suggest_partition_table_alter(
-            STRATEGY.HASH, {"table": TABLE, "mode": "coalesce", "count": 2}
+            _strategy("HASH"), {"table": TABLE, "mode": "coalesce", "count": 2}
         ),
     )
 
     # TABLE DROP: drop the whole partitioned table.
     _show(
         "table_drop",
-        d.suggest_partition_table_drop(STRATEGY.RANGE, {"table": TABLE}),
+        d.suggest_partition_table_drop(_strategy("RANGE"), {"table": TABLE}),
     )
 
     # MERGE: MySQL has no MERGE PARTITION -- always declined.
-    _show("merge (always declined)", d.suggest_partition_merge(STRATEGY.RANGE, {}))
+    _show("merge (always declined)", d.suggest_partition_merge(_strategy("RANGE"), {}))
 
     # A few declined/no-op paths for completeness.
     _show(
         "drop without names (no-op)",
-        d.suggest_partition_drop(STRATEGY.RANGE, {"table": TABLE}),
+        d.suggest_partition_drop(_strategy("RANGE"), {"table": TABLE}),
     )
     _show(
         "drop on HASH (declined)",
-        d.suggest_partition_drop(STRATEGY.HASH, {"table": TABLE, "names": ["p0"]}),
+        d.suggest_partition_drop(_strategy("HASH"), {"table": TABLE, "names": ["p0"]}),
     )
     _show(
         "add on HASH (declined)",
         d.suggest_partition_add(
-            STRATEGY.HASH,
+            _strategy("HASH"),
             {"table": TABLE, "definitions": [_range("p3", 400)]},
         ),
     )

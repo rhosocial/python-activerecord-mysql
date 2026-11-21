@@ -16,6 +16,10 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.statements import (
+    PartitionDefinitionExpression,
+    PartitionOptionsExpression,
+)
 from rhosocial.activerecord.backend.expression import Column
 from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -33,9 +37,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByListColumns,
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
-    MySQLPartitionOptions,
     MySQLPartitionValue,
     MySQLRebuildPartitionExpression,
     MySQLRemovePartitioningExpression,
@@ -86,14 +88,16 @@ def _range_definition(
     dialect: MySQLDialect,
     name: str,
     upper_bound: Any,
-) -> MySQLPartitionDefinition:
+) -> PartitionDefinitionExpression:
     """Build a RANGE definition, using MAXVALUE when ``upper_bound`` is None."""
     if upper_bound is None:
-        return MySQLPartitionDefinition(
+        return PartitionDefinitionExpression(
+            dialect,
             name,
             less_than=[MySQLPartitionMaxValue(dialect)],
         )
-    return MySQLPartitionDefinition(
+    return PartitionDefinitionExpression(
+        dialect,
         name,
         less_than=[_value(dialect, upper_bound)],
     )
@@ -103,9 +107,10 @@ def _list_definition(
     dialect: MySQLDialect,
     name: str,
     values: Any,
-) -> MySQLPartitionDefinition:
+) -> PartitionDefinitionExpression:
     """Build a LIST definition with one boundary row of literal values."""
-    return MySQLPartitionDefinition(
+    return PartitionDefinitionExpression(
+        dialect,
         name,
         in_values=[_value(dialect, value) for value in values],
     )
@@ -130,7 +135,8 @@ def _range_columns_builder(dialect: MySQLDialect) -> MySQLPartitionByRangeColumn
         dialect,
         [Column(dialect, "created_year"), Column(dialect, "created_month")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(
+                dialect,
                 "p2026",
                 less_than=[_value(dialect, 2026), _value(dialect, 6)],
             ),
@@ -153,7 +159,8 @@ def _list_columns_builder(dialect: MySQLDialect) -> MySQLPartitionByListColumns:
         dialect,
         [Column(dialect, "region"), Column(dialect, "status")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(
+                dialect,
                 "p_us",
                 in_values=[
                     [_value(dialect, "us"), _value(dialect, "active")],
@@ -258,14 +265,18 @@ def _partition_options_builder(dialect: MySQLDialect) -> MySQLPartitionByRange:
         dialect,
         [Column(dialect, "created_at")],
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(
+                dialect,
                 "p2026",
                 less_than=[_value(dialect, 2027)],
-                partition_options=MySQLPartitionOptions(
-                    engine="InnoDB",
-                    comment="hot tenant",
-                    max_rows=1000,
-                    tablespace="ts_hot",
+                options=PartitionOptionsExpression(
+                    dialect,
+                    {
+                        "engine": "InnoDB",
+                        "comment": "hot tenant",
+                        "max_rows": 1000,
+                        "tablespace": "ts_hot",
+                    },
                 ),
             ),
         ],

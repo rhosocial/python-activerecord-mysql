@@ -29,6 +29,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.expression import (
     AllColumnsWildcard,
     Column,
@@ -68,7 +69,6 @@ from rhosocial.activerecord.backend.impl.mysql.explain import (
 )
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
     MySQLPartitionValue,
 )
@@ -150,13 +150,15 @@ def _create_partition_table_stmt(dialect: MySQLDialect) -> CreateTableStatement:
             dialect=dialect,
             keys=[Column(dialect, "created_at")],
             partitions=[
-                MySQLPartitionDefinition(
-                    name="p2020", less_than=[MySQLPartitionValue(dialect, "2021-01-01")]
+                PartitionDefinitionExpression(
+                    dialect, name="p2020", less_than=[MySQLPartitionValue(dialect, "2021-01-01")]
                 ),
-                MySQLPartitionDefinition(
-                    name="p2021", less_than=[MySQLPartitionValue(dialect, "2022-01-01")]
+                PartitionDefinitionExpression(
+                    dialect, name="p2021", less_than=[MySQLPartitionValue(dialect, "2022-01-01")]
                 ),
-                MySQLPartitionDefinition(name="pmax", less_than=[MySQLPartitionMaxValue(dialect)]),
+                PartitionDefinitionExpression(
+                    dialect, name="pmax", less_than=[MySQLPartitionMaxValue(dialect)]
+                ),
             ],
         ),
     )

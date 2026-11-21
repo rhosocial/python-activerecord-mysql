@@ -6,6 +6,7 @@ from typing import Any, List, Optional, Sequence
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.expression import (
     AllColumnsWildcard,
     Column,
@@ -39,12 +40,10 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByHash,
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
     MySQLPartitionValue,
     MySQLReorganizePartitionExpression,
     MySQLSubpartitionClause,
-    MySQLSubpartitionDefinition,
     MySQLSubpartitionStrategy,
     MySQLTruncatePartitionExpression,
 )
@@ -58,13 +57,13 @@ def _drop_table_expression(dialect):
     return DropTableStatement(dialect=dialect, table=Table(dialect, PARTITION_TABLE), if_exists=True)
 
 
-def _base_partition_definitions(dialect: MySQLDialect) -> List[MySQLPartitionDefinition]:
+def _base_partition_definitions(dialect: MySQLDialect) -> List[PartitionDefinitionExpression]:
     return [
-        MySQLPartitionDefinition(
+        PartitionDefinitionExpression(dialect, 
             name="p2026_01",
             less_than=[MySQLPartitionValue(dialect, "2026-02-01")],
         ),
-        MySQLPartitionDefinition(
+        PartitionDefinitionExpression(dialect, 
             name="p2026_02",
             less_than=[MySQLPartitionValue(dialect, "2026-03-01")],
         ),
@@ -178,7 +177,7 @@ def _add_future_partition_expression(dialect):
         dialect=dialect,
         table=Table(dialect, PARTITION_TABLE),
         partitions=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p2026_03",
                 less_than=[MySQLPartitionValue(dialect, "2026-04-01")],
             )
@@ -200,11 +199,11 @@ def _reorganize_partition_expression(dialect):
         table=Table(dialect, PARTITION_TABLE),
         partition="p2026_02",
         into=[
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p2026_02a",
                 less_than=[MySQLPartitionValue(dialect, "2026-02-15")],
             ),
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="p2026_02b",
                 less_than=[MySQLPartitionValue(dialect, "2026-03-01")],
             ),
@@ -319,8 +318,8 @@ def _create_negative_partitioned_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "shard_id")],
             partitions=[
-                MySQLPartitionDefinition("p_low", less_than=[MySQLPartitionValue(dialect, 100)]),
-                MySQLPartitionDefinition("p_mid", less_than=[MySQLPartitionValue(dialect, 200)]),
+                PartitionDefinitionExpression(dialect, "p_low", less_than=[MySQLPartitionValue(dialect, 100)]),
+                PartitionDefinitionExpression(dialect, "p_mid", less_than=[MySQLPartitionValue(dialect, 200)]),
             ],
         ),
     )
@@ -407,7 +406,7 @@ def _production_table_constraints(dialect):
 
 
 def _partition_definition(dialect, name: str, upper_bound: str):
-    return MySQLPartitionDefinition(
+    return PartitionDefinitionExpression(dialect, 
         name=name,
         less_than=[MySQLPartitionValue(dialect, upper_bound)],
     )
@@ -453,7 +452,7 @@ def _create_production_maxvalue_partitioned_table_expression(dialect):
             keys=[Column(dialect, "created_at")],
             partitions=[
                 _partition_definition(dialect, "p2026", "2027-01-01 00:00:00.000000"),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     name="pmax",
                     less_than=[MySQLPartitionMaxValue(dialect)],
                 ),
@@ -589,7 +588,7 @@ def _reorganize_maxvalue_partition_expression(dialect):
         partition="pmax",
         into=[
             _partition_definition(dialect, "p2027", "2028-01-01 00:00:00.000000"),
-            MySQLPartitionDefinition(
+            PartitionDefinitionExpression(dialect, 
                 name="pmax",
                 less_than=[MySQLPartitionMaxValue(dialect)],
             ),
@@ -864,7 +863,7 @@ class TestPartitionOperationsNegative:
                         mysql_backend.dialect,
                         Table(mysql_backend.dialect, NEGATIVE_TABLE),
                         [
-                            MySQLPartitionDefinition(
+                            PartitionDefinitionExpression(mysql_backend.dialect, 
                                 "p_extra", less_than=[MySQLPartitionValue(mysql_backend.dialect, 300)]
                             ),
                         ],
@@ -924,7 +923,7 @@ class TestPartitionOperationsNegative:
                         mysql_backend.dialect,
                         Table(mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                         [
-                            MySQLPartitionDefinition(
+                            PartitionDefinitionExpression(mysql_backend.dialect, 
                                 "p_overlap",
                                 less_than=[MySQLPartitionValue(mysql_backend.dialect, 150)],
                             ),
@@ -1000,7 +999,7 @@ class TestPartitionOperationsNegative:
                         Table(mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                         partition="p_nonexistent",
                         into=[
-                            MySQLPartitionDefinition(
+                            PartitionDefinitionExpression(mysql_backend.dialect, 
                                 "p_new", less_than=[MySQLPartitionValue(mysql_backend.dialect, 150)]
                             ),
                         ],
@@ -1024,7 +1023,7 @@ class TestPartitionOperationsNegative:
                         Table(mysql_backend.dialect, NEGATIVE_TABLE),
                         partition="p_low",
                         into=[
-                            MySQLPartitionDefinition(
+                            PartitionDefinitionExpression(mysql_backend.dialect, 
                                 "p_new", less_than=[MySQLPartitionValue(mysql_backend.dialect, 150)]
                             ),
                         ],
@@ -1102,7 +1101,7 @@ class TestPartitionOperationsConcurrency:
                     mysql_control_backend.dialect,
                     Table(mysql_control_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                     [
-                        MySQLPartitionDefinition(
+                        PartitionDefinitionExpression(mysql_backend.dialect, 
                             "p_high",
                             less_than=[MySQLPartitionValue(mysql_control_backend.dialect, 300)],
                         ),
@@ -1136,7 +1135,7 @@ class TestAsyncPartitionOperationsNegative:
                         async_mysql_backend.dialect,
                         Table(async_mysql_backend.dialect, NEGATIVE_TABLE),
                         [
-                            MySQLPartitionDefinition(
+                            PartitionDefinitionExpression(async_mysql_backend.dialect,
                                 "p_extra",
                                 less_than=[MySQLPartitionValue(async_mysql_backend.dialect, 300)],
                             ),
@@ -1171,7 +1170,7 @@ class TestAsyncPartitionOperationsNegative:
                         async_mysql_backend.dialect,
                         Table(async_mysql_backend.dialect, NEGATIVE_PARTITIONED_TABLE),
                         [
-                            MySQLPartitionDefinition(
+                            PartitionDefinitionExpression(async_mysql_backend.dialect,
                                 "p_overlap",
                                 less_than=[MySQLPartitionValue(async_mysql_backend.dialect, 150)],
                             ),
@@ -1243,15 +1242,15 @@ def _create_subpartitioned_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "created_at")],
             partitions=[
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     name="p2026",
                     less_than=[MySQLPartitionValue(dialect, "2027-01-01")],
-                    subpartition_definitions=None,
+                    subpartitions=None,
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     name="p2027",
                     less_than=[MySQLPartitionValue(dialect, "2028-01-01")],
-                    subpartition_definitions=None,
+                    subpartitions=None,
                 ),
             ],
             subpartition_by=MySQLSubpartitionClause(

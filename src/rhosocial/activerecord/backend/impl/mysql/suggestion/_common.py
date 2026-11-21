@@ -24,10 +24,11 @@ from typing import TYPE_CHECKING, Any, List, Optional
 from ....expression import Column
 from ....expression.bases import BaseExpression
 from ....expression.objects import Table
-from ..expression.partition import MySQLPartitionDefinition, MySQLPartitionMaxValue
+from ....expression.statements import PartitionDefinitionExpression
+from ..expression.partition import MySQLPartitionMaxValue
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionSuggestionBase"]
 
@@ -37,7 +38,7 @@ __all__ = ["MySQLPartitionSuggestionBase"]
 _MAXVALUE = object()
 
 
-def _upper_bound_value(definition: "MySQLPartitionDefinition") -> Any:
+def _upper_bound_value(definition: "PartitionDefinitionExpression") -> Any:
     if definition.less_than is None:
         return None
     first = definition.less_than[0]
@@ -99,9 +100,19 @@ def _get(plan: Any, name: str, default: Any = None) -> Any:
     return getattr(plan, name, default)
 
 
-def _word(strategy: "PartitionStrategy") -> str:
-    """Normalise a strategy member or its spelling to an upper-case word."""
-    value = getattr(strategy, "value", strategy)
+def _word(strategy: "PartitionByClause") -> str:
+    """Normalise a strategy clause (or a legacy str Enum) to an upper-case word.
+
+    A strategy clause carries its word on ``.word`` (the artifact form) and
+    ``.method`` (what the formatters read). A legacy str Enum instead carries
+    ``.value``; accepting it keeps older callers working while the annotation
+    moves to the expression node.
+    """
+    value = getattr(strategy, "word", None)
+    if value is None:
+        value = getattr(strategy, "method", None)
+    if value is None:
+        value = getattr(strategy, "value", strategy)
     return str(value).strip().upper()
 
 
@@ -123,12 +134,14 @@ class MySQLPartitionSuggestionBase:
 
     def _suggestion_definitions(
         self, plan: Any, name: str = "definitions"
-    ) -> Optional[List[MySQLPartitionDefinition]]:
+    ) -> Optional[List[PartitionDefinitionExpression]]:
         raw = _get(plan, name)
         if raw is None:
             return None
         values = list(raw)
-        if not values or not all(isinstance(value, MySQLPartitionDefinition) for value in values):
+        if not values or not all(
+            isinstance(value, PartitionDefinitionExpression) for value in values
+        ):
             return None
         return values
 

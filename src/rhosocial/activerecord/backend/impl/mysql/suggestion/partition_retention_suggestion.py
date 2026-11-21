@@ -26,7 +26,7 @@ from ._common import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionRetentionSuggestionMixin"]
 
@@ -35,7 +35,7 @@ class MySQLPartitionRetentionSuggestionMixin(MySQLPartitionSuggestionBase):
     """Suggest DROP PARTITION for RANGE partitions older than a cutoff."""
 
     def suggest_partition_retention(
-        self, strategy: "PartitionStrategy", plan: object
+        self, strategy: "PartitionByClause", plan: object
     ) -> PartitionRetentionSuggestion:
         """Suggest a DROP PARTITION chain for RANGE partitions older than the cutoff."""
         table = self._suggestion_table(plan)

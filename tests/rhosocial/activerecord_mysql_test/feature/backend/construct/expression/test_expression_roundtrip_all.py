@@ -74,6 +74,14 @@ from rhosocial.activerecord.backend.expression.core import Column, Literal
 from rhosocial.activerecord.backend.expression.introspection import (
     DDLStatementQueryStatement,
 )
+from rhosocial.activerecord.backend.expression.statements import (
+    PartitionByHashClause,
+    PartitionByListClause,
+    PartitionByRangeClause,
+    PartitionDefinitionExpression,
+    PartitionOptionsExpression,
+    SubpartitionDefinitionExpression,
+)
 from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.expression.predicates import (
     ComparisonPredicate,
@@ -192,8 +200,14 @@ _MISREAD_AND_CONTRACT_CONSTRUCTORS = {
     "Sequence[BaseExpression]`` is read as the catalogue object Sequence, and "
     "keys must be non-empty afterwards.",
     "partition.MySQLPartitionClause": "``keys: Sequence[BaseExpression]`` is "
-    "read as the catalogue object Sequence, and method must additionally be a "
-    "MySQLPartitionStrategy member or its string value.",
+    "read as the catalogue object Sequence, and method must additionally be one "
+    "of MySQL's partition words.",
+    "statements.ddl_partition.PartitionByRangeClause": "``keys: "
+    "Sequence[BaseExpression]`` is read as the catalogue object Sequence.",
+    "statements.ddl_partition.PartitionByListClause": "``keys: "
+    "Sequence[BaseExpression]`` is read as the catalogue object Sequence.",
+    "statements.ddl_partition.PartitionByHashClause": "``keys: "
+    "Sequence[BaseExpression]`` is read as the catalogue object Sequence.",
     "partition_lifecycle.MySQLAddPartitionHelper": "``partition_values: "
     "Sequence[...]`` is read as the catalogue object Sequence, and "
     "partition_values must be non-empty afterwards.",
@@ -203,6 +217,11 @@ _MISREAD_AND_CONTRACT_CONSTRUCTORS = {
 }
 
 _EXPRESSION_CONTRACT_CONSTRUCTORS = {
+    "statements.ddl_partition.PartitionDefinitionExpression": "requires a name and one boundary form.",
+    "statements.ddl_partition.SubpartitionDefinitionExpression": "requires a non-empty name.",
+    "statements.ddl_partition.PartitionOptionsExpression": "requires an options mapping.",
+    "partition.MySQLAddPartitionExpression": "``partitions`` must be real definition nodes.",
+    "partition.MySQLReorganizePartitionExpression": "``into`` must be real definition nodes.",
     "column.MySQLColumnDefinition": "data_type must be a DataType instance; the "
     "generic constructor supplies a string.",
     "dml.MySQLInsertExpression": "into and source are unannotated, so the "
@@ -339,6 +358,7 @@ def _register_mysql_specials():
         MySQLMatchAgainstExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        MySQLAddPartitionExpression,
         MySQLCoalescePartitionExpression,
         MySQLPartitionByHash,
         MySQLPartitionByList,
@@ -346,6 +366,7 @@ def _register_mysql_specials():
         MySQLPartitionByRange,
         MySQLPartitionByRangeColumns,
         MySQLPartitionClause,
+        MySQLReorganizePartitionExpression,
         MySQLSubpartitionClause,
         MySQLSubpartitionStrategy,
     )
@@ -443,6 +464,26 @@ def _register_mysql_specials():
             lambda d: MySQLJSONContainsExpression(d, "data", "x", "$.a"),
         "spatial.MySQLSTDistanceExpression":
             lambda d: MySQLSTDistanceExpression(d, "g1", "g2"),
+        "statements.ddl_partition.PartitionByRangeClause":
+            lambda d: PartitionByRangeClause(d, [Column(d, "id")]),
+        "statements.ddl_partition.PartitionByListClause":
+            lambda d: PartitionByListClause(d, [Column(d, "id")]),
+        "statements.ddl_partition.PartitionByHashClause":
+            lambda d: PartitionByHashClause(d, [Column(d, "id")]),
+        "statements.ddl_partition.PartitionDefinitionExpression":
+            lambda d: PartitionDefinitionExpression(d, "p0", less_than=[Literal(d, 1)]),
+        "statements.ddl_partition.SubpartitionDefinitionExpression":
+            lambda d: SubpartitionDefinitionExpression(d, "sp0"),
+        "statements.ddl_partition.PartitionOptionsExpression":
+            lambda d: PartitionOptionsExpression(d, {"engine": "InnoDB"}),
+        "partition.MySQLAddPartitionExpression":
+            lambda d: MySQLAddPartitionExpression(
+                d, Table(d, "t"), [PartitionDefinitionExpression(d, "p0", less_than=[Literal(d, 1)])]
+            ),
+        "partition.MySQLReorganizePartitionExpression":
+            lambda d: MySQLReorganizePartitionExpression(
+                d, Table(d, "t"), "p0", [PartitionDefinitionExpression(d, "p1", less_than=[Literal(d, 2)])]
+            ),
         "partition.MySQLPartitionClause":
             lambda d: MySQLPartitionClause(d, "RANGE", [Column(d, "id")]),
         "partition.MySQLPartitionByRange":
@@ -1018,16 +1059,6 @@ _NOT_RENDERED = {
         "AttributeError",
         "hints must be objects carrying variable / value; the generic "
         "constructor supplies strings.",
-    ),
-    "partition.MySQLAddPartitionExpression": (
-        "AttributeError",
-        "partitions must be partition definitions; the generic constructor "
-        "supplies strings.",
-    ),
-    "partition.MySQLReorganizePartitionExpression": (
-        "AttributeError",
-        "into must be partition definitions; the generic constructor supplies "
-        "strings.",
     ),
     "partition_lifecycle.MySQLAddSubpartitionHelper": (
         "ValueError",

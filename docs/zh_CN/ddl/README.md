@@ -26,16 +26,17 @@ MySQL 后端支持与核心库相同的类型安全 DDL 表达式。
 MySQL 支持丰富的表分区策略。详见 [分区文档](../mysql_specific_features/partition.md)。
 
 ```python
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionByRange, MySQLPartitionDefinition, MySQLPartitionValue,
+    MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 
 partition = MySQLPartitionByRange(
     dialect,
     keys=["created_at"],
     partitions=[
-        MySQLPartitionDefinition("p1", less_than=MySQLPartitionValue("2024-01-01")),
-        MySQLPartitionDefinition("p2", less_than=MySQLPartitionMaxValue()),
+        PartitionDefinitionExpression(dialect, "p1", less_than=[MySQLPartitionValue(dialect, "2024-01-01")]),
+        PartitionDefinitionExpression(dialect, "p2", less_than=[MySQLPartitionMaxValue(dialect)]),
     ]
 )
 

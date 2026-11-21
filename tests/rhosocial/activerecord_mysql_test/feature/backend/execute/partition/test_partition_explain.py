@@ -8,6 +8,7 @@ from typing import Optional
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.expression import (
     AllColumnsWildcard,
     Column,
@@ -27,7 +28,6 @@ from rhosocial.activerecord.backend.expression.types import BigIntType, DateTime
 from rhosocial.activerecord.backend.impl.mysql.explain import MySQLExplainResult, MySQLExplainRow
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionValue,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
@@ -66,15 +66,15 @@ def _create_partition_explain_table_expression(dialect):
             dialect=dialect,
             keys=[Column(dialect, "created_at")],
             partitions=[
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     name="p2026_01",
                     less_than=[_partition_value(dialect, "2026-02-01")],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     name="p2026_02",
                     less_than=[_partition_value(dialect, "2026-03-01")],
                 ),
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(dialect, 
                     name="p2026_03",
                     less_than=[_partition_value(dialect, "2026-04-01")],
                 ),

@@ -6,13 +6,18 @@ from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
 from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionStrategy,
+    MYSQL_PARTITION_WORDS,
 )
 
 from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.expression.statements import PartitionClause
+    from rhosocial.activerecord.backend.expression.statements import (
+        PartitionClause,
+        PartitionDefinitionExpression,
+        PartitionOptionsExpression,
+        SubpartitionDefinitionExpression,
+    )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
         MySQLDropPartitionExpression,
@@ -23,9 +28,7 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLPartitionByListColumns,
         MySQLPartitionByRange,
         MySQLPartitionByRangeColumns,
-        MySQLPartitionDefinition,
         MySQLPartitionMaxValue,
-        MySQLPartitionOptions,
         MySQLPartitionValue,
         MySQLExchangePartitionExpression,
         MySQLReorganizePartitionExpression,
@@ -38,7 +41,6 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLRebuildPartitionExpression,
         MySQLRepairPartitionExpression,
         MySQLSubpartitionClause,
-        MySQLSubpartitionDefinition,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition_lifecycle import (
         MySQLAddPartitionHelper,
@@ -183,9 +185,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "partitioned table creation")
 
         method = expr.method.upper()
-        if not any(
-            method == strategy.value for strategy in MySQLPartitionStrategy
-        ):
+        if method not in MYSQL_PARTITION_WORDS:
             raise ValueError("Invalid MySQL partition method")
 
         key_sql_parts = []
@@ -360,11 +360,13 @@ class MySQLPartitionMixin:
             sql = f"{sql} PARTITIONS {partitions_count}"
         return sql, tuple(params)
 
-    def format_partition_definition(self, definition: "MySQLPartitionDefinition") -> Tuple[str, tuple]:
+    def format_partition_definition(
+        self, definition: "PartitionDefinitionExpression"
+    ) -> Tuple[str, tuple]:
         """Format a MySQL partition definition."""
         params: List[Any] = []
         parts = ["PARTITION", self.format_identifier(definition.name)]
-        partition_options = definition.partition_options
+        partition_options = definition.options
         if partition_options is not None:
             if not self.supports_partition_definition_options():
                 raise UnsupportedFeatureError(self.name, "partition definition options")
@@ -400,7 +402,7 @@ class MySQLPartitionMixin:
             if options_sql:
                 parts.append(options_sql)
             params.extend(options_params)
-        subpartition_defs = definition.subpartition_definitions
+        subpartition_defs = definition.subpartitions
         if subpartition_defs:
             if not self.supports_subpartitioning():
                 raise UnsupportedFeatureError(self.name, "subpartition definitions")
@@ -413,20 +415,20 @@ class MySQLPartitionMixin:
         return " ".join(parts), tuple(params)
 
     def format_partition_definition_options(
-        self, options: Optional["MySQLPartitionOptions"]
+        self, options: Optional["PartitionOptionsExpression"]
     ) -> Tuple[str, tuple]:
-        """Format MySQL partition definition options from typed options."""
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-            MySQLPartitionOptions,
+        """Format MySQL partition definition options from an expression node."""
+        from rhosocial.activerecord.backend.expression.statements import (
+            PartitionOptionsExpression,
         )
 
         if not self.supports_partition_definition_options():
             raise UnsupportedFeatureError(self.name, "partition definition options")
         if options is None:
             return "", ()
-        if not isinstance(options, MySQLPartitionOptions):
+        if not isinstance(options, PartitionOptionsExpression):
             raise TypeError(
-                "partition_options must be a MySQLPartitionOptions value, "
+                "partition options must be a PartitionOptionsExpression value, "
                 f"got {type(options).__name__}"
             )
 
@@ -439,9 +441,12 @@ class MySQLPartitionMixin:
             "min_rows": "MIN_ROWS",
             "tablespace": "TABLESPACE",
         }
+        unknown = set(options.options) - set(keyword_by_option)
+        if unknown:
+            raise ValueError(f"unsupported partition options: {', '.join(sorted(unknown))}")
         parts: List[str] = []
         for name, keyword in keyword_by_option.items():
-            value = getattr(options, name)
+            value = options.options.get(name)
             if value is None:
                 continue
             if name in {"engine", "tablespace"}:
@@ -596,12 +601,14 @@ class MySQLPartitionMixin:
             sql = f"{sql} SUBPARTITIONS {expr.count}"
         return sql, tuple(params)
 
-    def format_subpartition_definition(self, definition: "MySQLSubpartitionDefinition") -> Tuple[str, tuple]:
+    def format_subpartition_definition(
+        self, definition: "SubpartitionDefinitionExpression"
+    ) -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
-            definition: MySQLSubpartitionDefinition with name and optional
-                        typed partition_options.
+            definition: a subpartition definition expression carrying a name
+                        and, optionally, partition options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
@@ -613,7 +620,7 @@ class MySQLPartitionMixin:
             raise ValueError("subpartition name must not be empty")
         parts = ["SUBPARTITION", self.format_identifier(definition.name)]
         params: List[Any] = []
-        partition_options = definition.partition_options
+        partition_options = getattr(definition, "options", None)
         if partition_options is not None:
             options_sql, options_params = self.format_partition_definition_options(
                 partition_options
@@ -924,9 +931,11 @@ class MySQLPartitionMixin:
 
     def format_mysql_add_partition_helper(self, expr: "MySQLAddPartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLAddPartitionHelper` (generated partition names)."""
+        from rhosocial.activerecord.backend.expression.statements import (
+            PartitionDefinitionExpression,
+        )
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
             MySQLAddPartitionExpression,
-            MySQLPartitionDefinition,
             MySQLPartitionValue,
         )
 
@@ -934,7 +943,8 @@ class MySQLPartitionMixin:
         for value in expr.partition_values:
             name = expr.name_template.format(value=value)
             partitions.append(
-                MySQLPartitionDefinition(
+                PartitionDefinitionExpression(
+                    self,
                     name=name,
                     less_than=[MySQLPartitionValue(self, value)],
                 )
@@ -978,20 +988,20 @@ class MySQLPartitionMixin:
 
     def format_mysql_add_subpartition_helper(self, expr: "MySQLAddSubpartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLAddSubpartitionHelper` (partition + subpartitions)."""
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-            MySQLAddPartitionExpression,
-            MySQLPartitionDefinition,
-            MySQLPartitionValue,
+        from rhosocial.activerecord.backend.expression.statements import (
+            PartitionDefinitionExpression,
+            SubpartitionDefinitionExpression,
         )
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-            MySQLSubpartitionDefinition,
+            MySQLAddPartitionExpression,
+            MySQLPartitionValue,
         )
 
         sub_defs = None
         if expr.subpartition_names:
-            sub_defs = [MySQLSubpartitionDefinition(name=sn) for sn in expr.subpartition_names]
+            sub_defs = [SubpartitionDefinitionExpression(self, sn) for sn in expr.subpartition_names]
 
-        kwargs = {"name": expr.partition_name, "subpartition_definitions": sub_defs}
+        kwargs = {"name": expr.partition_name, "subpartitions": sub_defs}
         if expr.less_than is not None:
             kwargs["less_than"] = [
                 MySQLPartitionValue(self, v) if not isinstance(v, BaseExpression) else v
@@ -1003,6 +1013,6 @@ class MySQLPartitionMixin:
                 for v in expr.in_values
             ]
 
-        definition = MySQLPartitionDefinition(**kwargs)
+        definition = PartitionDefinitionExpression(self, **kwargs)
         add_expr = MySQLAddPartitionExpression(self, expr.table, [definition])
         return add_expr.to_sql()

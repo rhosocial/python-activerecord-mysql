@@ -15,7 +15,7 @@ from ....suggestion import PartitionTableDropSuggestion
 from ._common import MySQLPartitionSuggestionBase
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ....expression.statements import PartitionStrategy
+    from ....expression.statements import PartitionByClause
 
 __all__ = ["MySQLPartitionTableDropSuggestionMixin"]
 
@@ -24,7 +24,7 @@ class MySQLPartitionTableDropSuggestionMixin(MySQLPartitionSuggestionBase):
     """Suggest dropping the whole partitioned table."""
 
     def suggest_partition_table_drop(
-        self, strategy: "PartitionStrategy", plan: object
+        self, strategy: "PartitionByClause", plan: object
     ) -> PartitionTableDropSuggestion:
         """Suggest dropping the whole partitioned table (not REMOVE PARTITIONING)."""
         table = self._suggestion_table(plan)

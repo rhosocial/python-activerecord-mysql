@@ -12,24 +12,37 @@ Run from the repository root with ``PYTHONPATH=src``:
     python docs/examples/ar-migration/01_partition_build.py
 """
 
-from rhosocial.activerecord.backend.expression import Column
+from rhosocial.activerecord.backend.expression import Column, PartitionByRangeClause
+from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-    MySQLPartitionDefinition,
-    MySQLPartitionStrategy,
-    MySQLPartitionValue,
-)
+from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionValue
 
 DIALECT = MySQLDialect(version=(8, 0, 0))
-STRATEGY = MySQLPartitionStrategy
 
 
-def _range(name: str, bound: int) -> MySQLPartitionDefinition:
-    return MySQLPartitionDefinition(name=name, less_than=[MySQLPartitionValue(DIALECT, bound)])
+def _strategy(word: str, key: str = "id") -> PartitionByRangeClause:
+    """A strategy clause carrying the given MySQL word.
+
+    Core offers the three base RANGE/LIST/HASH clause classes; MySQL's COLUMNS
+    and LINEAR variants share the clause shape, so the word is overridden here.
+    The suggestion methods read the word off the clause.
+    """
+    clause = PartitionByRangeClause(DIALECT, [Column(DIALECT, key)])
+    clause.method = word
+    clause.word = word
+    return clause
 
 
-def _list(name: str, value: str) -> MySQLPartitionDefinition:
-    return MySQLPartitionDefinition(name=name, in_values=[MySQLPartitionValue(DIALECT, value)])
+def _range(name: str, bound: int) -> PartitionDefinitionExpression:
+    return PartitionDefinitionExpression(
+        DIALECT, name=name, less_than=[MySQLPartitionValue(DIALECT, bound)]
+    )
+
+
+def _list(name: str, value: str) -> PartitionDefinitionExpression:
+    return PartitionDefinitionExpression(
+        DIALECT, name=name, in_values=[MySQLPartitionValue(DIALECT, value)]
+    )
 
 
 def _show(title: str, suggestion: object) -> None:
@@ -55,26 +68,26 @@ def main() -> None:
     _show(
         "RANGE",
         d.suggest_partition_build(
-            STRATEGY.RANGE, {"keys": [Column(d, "id")], "definitions": ranges}
+            _strategy("RANGE"), {"keys": [Column(d, "id")], "definitions": ranges}
         ),
     )
     _show(
         "RANGE COLUMNS",
         d.suggest_partition_build(
-            STRATEGY.RANGE_COLUMNS,
+            _strategy("RANGE COLUMNS", "created_at"),
             {"keys": [Column(d, "created_at")], "definitions": ranges},
         ),
     )
     _show(
         "LIST",
         d.suggest_partition_build(
-            STRATEGY.LIST, {"keys": [Column(d, "region")], "definitions": lists}
+            _strategy("LIST", "region"), {"keys": [Column(d, "region")], "definitions": lists}
         ),
     )
     _show(
         "LIST COLUMNS",
         d.suggest_partition_build(
-            STRATEGY.LIST_COLUMNS,
+            _strategy("LIST COLUMNS", "region"),
             {"keys": [Column(d, "region")], "definitions": lists},
         ),
     )
@@ -83,23 +96,25 @@ def main() -> None:
     _show(
         "HASH",
         d.suggest_partition_build(
-            STRATEGY.HASH, {"keys": [Column(d, "id")], "partitions_count": 4}
+            _strategy("HASH"), {"keys": [Column(d, "id")], "partitions_count": 4}
         ),
     )
     _show(
         "LINEAR HASH",
         d.suggest_partition_build(
-            STRATEGY.LINEAR_HASH, {"keys": [Column(d, "id")], "partitions_count": 4}
+            _strategy("LINEAR HASH"), {"keys": [Column(d, "id")], "partitions_count": 4}
         ),
     )
     _show(
         "KEY",
-        d.suggest_partition_build(STRATEGY.KEY, {"keys": [Column(d, "id")], "partitions_count": 4}),
+        d.suggest_partition_build(
+            _strategy("KEY"), {"keys": [Column(d, "id")], "partitions_count": 4}
+        ),
     )
     _show(
         "LINEAR KEY",
         d.suggest_partition_build(
-            STRATEGY.LINEAR_KEY, {"keys": [Column(d, "id")], "partitions_count": 4}
+            _strategy("LINEAR KEY"), {"keys": [Column(d, "id")], "partitions_count": 4}
         ),
     )
 
@@ -110,7 +125,7 @@ def main() -> None:
     )
     _show(
         "declined (RANGE without definitions)",
-        d.suggest_partition_build(STRATEGY.RANGE, {"keys": [Column(d, "id")]}),
+        d.suggest_partition_build(_strategy("RANGE"), {"keys": [Column(d, "id")]}),
     )
 
 

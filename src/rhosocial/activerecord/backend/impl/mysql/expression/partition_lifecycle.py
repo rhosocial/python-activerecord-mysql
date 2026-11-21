@@ -15,40 +15,43 @@ from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
 if TYPE_CHECKING:  # pragma: no cover
+    from rhosocial.activerecord.backend.expression.statements import (
+        PartitionDefinitionExpression,
+    )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
         MySQLDropPartitionExpression,
         MySQLCoalescePartitionExpression,
         MySQLReorganizePartitionExpression,
-        MySQLPartitionDefinition,
-        MySQLSubpartitionDefinition,
     )
 
 
 def _import_partition_exprs():
     """Lazy import of partition expressions to avoid circular dependency."""
+    from rhosocial.activerecord.backend.expression.statements import (
+        PartitionDefinitionExpression,
+    )
     from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
         MySQLAddPartitionExpression,
         MySQLCoalescePartitionExpression,
         MySQLDropPartitionExpression,
-        MySQLPartitionDefinition,
         MySQLReorganizePartitionExpression,
     )
     return (
         MySQLAddPartitionExpression,
         MySQLCoalescePartitionExpression,
         MySQLDropPartitionExpression,
-        MySQLPartitionDefinition,
+        PartitionDefinitionExpression,
         MySQLReorganizePartitionExpression,
     )
 
 
 def _import_subpartition():
     """Lazy import of subpartition definitions."""
-    from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
-        MySQLSubpartitionDefinition,
+    from rhosocial.activerecord.backend.expression.statements import (
+        SubpartitionDefinitionExpression,
     )
-    return MySQLSubpartitionDefinition
+    return SubpartitionDefinitionExpression
 
 
 class MySQLAddPartitionHelper(BaseExpression):
@@ -167,7 +170,7 @@ class MySQLReorganizePartitionHelper(BaseExpression):
         dialect: "MySQLDialect",
         table: Table,
         partition: str,
-        into: List["MySQLPartitionDefinition"],
+        into: List["PartitionDefinitionExpression"],
     ):
         super().__init__(dialect)
         self.table = table

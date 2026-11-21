@@ -4,6 +4,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from rhosocial.activerecord.backend.expression.statements import (
+    PartitionDefinitionExpression,
+    SubpartitionDefinitionExpression,
+    PartitionOptionsExpression,
+)
+from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnDefaultConstraint,
     ColumnDefinition,
@@ -58,14 +63,11 @@ from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
     MySQLPartitionByListColumns,
     MySQLPartitionByRange,
     MySQLPartitionByRangeColumns,
-    MySQLPartitionDefinition,
     MySQLPartitionMaxValue,
-    MySQLPartitionOptions,
     MySQLPartitionValue,
     MySQLReorganizePartitionExpression,
     MySQLTruncatePartitionExpression,
     MySQLSubpartitionClause,
-    MySQLSubpartitionDefinition,
     MySQLSubpartitionStrategy,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression.partition_lifecycle import (
@@ -1047,7 +1049,7 @@ class TestMySQLPartitionExpressionEdgeCases:
         mixin.version = (8, 0, 0)
         from unittest.mock import MagicMock
         mixin.format_identifier = MagicMock(side_effect=lambda x: f"`{x}`")
-        defn = MySQLSubpartitionDefinition(name="subp_1")
+        defn = SubpartitionDefinitionExpression(dialect, name="subp_1")
         sql, params = mixin.format_subpartition_definition(defn)
         assert "SUBPARTITION `subp_1`" in sql
 
@@ -1068,11 +1070,10 @@ class TestMySQLPartitionExpressionEdgeCases:
         mixin.format_identifier = MagicMock(side_effect=lambda x: f"`{x}`")
         mixin.escape_sql_string = MagicMock(side_effect=lambda x: x.replace("'", "\\'"))
 
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionDefinition
-        defn = MySQLPartitionDefinition(
+        defn = PartitionDefinitionExpression(dialect, 
             name="p_2024",
             in_values=[MySQLPartitionValue(dialect, "2024-01-01")],
-            partition_options=MySQLPartitionOptions(comment="Partition for 2024 data"),
+            options=PartitionOptionsExpression(dialect, {"comment": "Partition for 2024 data"}),
         )
         sql, params = mixin.format_partition_definition(defn)
         assert "COMMENT" in sql
