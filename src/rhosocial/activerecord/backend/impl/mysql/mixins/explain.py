@@ -1,6 +1,9 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/explain.py
 from enum import Enum
-from typing import Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from rhosocial.activerecord.backend.expression.statements import ExplainStatement
 
 
 class MySQLExplainMixin:
@@ -22,12 +25,12 @@ class MySQLExplainMixin:
         else:
             return False
 
-    def format_explain_statement(self, explain_expr: "ExplainStatement") -> tuple:
+    def format_explain_statement(self, expr: "ExplainStatement") -> tuple:
         """Build the MySQL EXPLAIN SQL string and return (sql, params)."""
         from rhosocial.activerecord.backend.expression.statements import ExplainType
 
-        statement_sql, statement_params = explain_expr.statement.to_sql()
-        options = explain_expr.options
+        statement_sql, statement_params = expr.statement.to_sql()
+        options = expr.options
         parts = ["EXPLAIN"]
 
         needs_traditional_format = False

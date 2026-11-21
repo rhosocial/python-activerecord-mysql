@@ -372,7 +372,7 @@ class MySQLTableSupport(TableObjectSupport, Protocol):
         """Format CREATE TABLE ... LIKE statement."""
         ...
 
-    def format_column_definition(self, col_def: Any) -> Tuple[str, tuple]:
+    def format_column_definition(self, expr: Any) -> Tuple[str, tuple]:
         """Format a column definition with MySQL-specific syntax (AUTO_INCREMENT, etc.)."""
         ...
 
@@ -381,18 +381,18 @@ class MySQLTableSupport(TableObjectSupport, Protocol):
         ...
 
     def format_table_check_constraint(
-        self, constraint: "TableCheckConstraint"
+        self, expr: "TableCheckConstraint"
     ) -> Tuple[str, tuple]:
         """Format the table-level ``CHECK`` body, refusing it below 8.0.16."""
         ...
 
     def format_table_foreign_key_constraint(
-        self, constraint: "TableForeignKeyConstraint"
+        self, expr: "TableForeignKeyConstraint"
     ) -> Tuple[str, tuple]:
         """Format the table-level ``FOREIGN KEY`` with MySQL's spaced column list."""
         ...
 
-    def format_index_definition(self, idx_def: Any) -> Tuple[str, tuple]:
+    def format_index_definition(self, expr: Any) -> Tuple[str, tuple]:
         """Format an inline INDEX definition inside CREATE TABLE."""
         ...
 
@@ -529,13 +529,13 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         ...
 
     def format_partition_definition(
-        self, definition: "PartitionDefinitionExpression"
+        self, expr: "PartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a MySQL PARTITION definition."""
         ...
 
     def format_partition_definition_options(
-        self, options: "PartitionOptionsExpression"
+        self, expr: "PartitionOptionsExpression"
     ) -> Tuple[str, tuple]:
         """Format MySQL PARTITION definition options."""
         ...
@@ -575,13 +575,13 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         ...
 
     def format_subpartition_definition(
-        self, definition: "SubpartitionDefinitionExpression"
+        self, expr: "SubpartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
-            definition: a subpartition definition expression carrying a name
-                        and optional partition options.
+            expr: a subpartition definition expression carrying a name
+                  and optional partition options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
@@ -710,7 +710,7 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Format ALTER TABLE ... REPAIR PARTITION."""
         ...
 
-    def format_partition_name_list(self, partitions: Sequence[str]) -> str:
+    def render_partition_name_list(self, expr: Sequence[str]) -> str:
         """Format a list of partition names: `p0`, `p1`, ..."""
         ...
 
@@ -848,7 +848,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the ``mysql_tinyint`` type is supported."""
         ...
 
-    def format_data_type_mysql_tinyint(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinyint(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``TINYINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
         ...
 
@@ -856,7 +856,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the ``mysql_smallint`` type is supported."""
         ...
 
-    def format_data_type_mysql_smallint(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_smallint(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``SMALLINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
         ...
 
@@ -864,7 +864,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the ``mysql_mediumint`` type is supported."""
         ...
 
-    def format_data_type_mysql_mediumint(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumint(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``MEDIUMINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
         ...
 
@@ -872,7 +872,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the ``mysql_int`` type is supported."""
         ...
 
-    def format_data_type_mysql_int(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_int(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``INT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
         ...
 
@@ -880,7 +880,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the ``mysql_bigint`` type is supported."""
         ...
 
-    def format_data_type_mysql_bigint(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_bigint(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``BIGINT`` with its ``UNSIGNED`` / ``ZEROFILL`` attributes."""
         ...
 
@@ -890,7 +890,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``CAST(x AS SIGNED)`` is supported."""
         ...
 
-    def format_data_type_mysql_signed(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_signed(self, expr: Any) -> Tuple[str, tuple]:
         """Render the ``SIGNED`` cast target."""
         ...
 
@@ -898,7 +898,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``CAST(x AS UNSIGNED)`` is supported."""
         ...
 
-    def format_data_type_mysql_unsigned(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_unsigned(self, expr: Any) -> Tuple[str, tuple]:
         """Render the ``UNSIGNED`` cast target."""
         ...
 
@@ -908,7 +908,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``TINYBLOB`` is supported."""
         ...
 
-    def format_data_type_mysql_tinyblob(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinyblob(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``TINYBLOB`` (max 255 bytes)."""
         ...
 
@@ -916,7 +916,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the bare ``BLOB`` variant is supported."""
         ...
 
-    def format_data_type_mysql_blob(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_blob(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``BLOB`` (max 65,535 bytes)."""
         ...
 
@@ -924,7 +924,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``MEDIUMBLOB`` is supported."""
         ...
 
-    def format_data_type_mysql_mediumblob(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumblob(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``MEDIUMBLOB`` (max 16,777,215 bytes)."""
         ...
 
@@ -932,7 +932,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``LONGBLOB`` is supported."""
         ...
 
-    def format_data_type_mysql_longblob(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_longblob(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``LONGBLOB`` (max 4,294,967,295 bytes)."""
         ...
 
@@ -942,7 +942,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``TINYTEXT`` is supported."""
         ...
 
-    def format_data_type_mysql_tinytext(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinytext(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``TINYTEXT`` (max 255 bytes)."""
         ...
 
@@ -950,7 +950,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the bare ``TEXT`` variant is supported."""
         ...
 
-    def format_data_type_mysql_text(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_text(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``TEXT`` (max 65,535 bytes)."""
         ...
 
@@ -958,7 +958,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``MEDIUMTEXT`` is supported."""
         ...
 
-    def format_data_type_mysql_mediumtext(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumtext(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``MEDIUMTEXT`` (max 16,777,215 bytes)."""
         ...
 
@@ -966,7 +966,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``LONGTEXT`` is supported."""
         ...
 
-    def format_data_type_mysql_longtext(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_longtext(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``LONGTEXT`` (max 4,294,967,295 bytes)."""
         ...
 
@@ -976,7 +976,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``BIT(n)`` is supported."""
         ...
 
-    def format_data_type_mysql_bit(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_bit(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``BIT`` / ``BIT(n)`` — a bit string, not a boolean."""
         ...
 
@@ -984,7 +984,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``YEAR`` is supported."""
         ...
 
-    def format_data_type_mysql_year(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_year(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``YEAR`` / ``YEAR(n)``."""
         ...
 
@@ -992,7 +992,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the fixed-length byte-string type is supported."""
         ...
 
-    def format_data_type_mysql_binary(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_binary(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``BINARY`` / ``BINARY(n)``.
 
         The lengthless ``BINARY`` is a real column and really is one byte
@@ -1005,7 +1005,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the variable-length byte-string type is supported."""
         ...
 
-    def format_data_type_mysql_varbinary(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_varbinary(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``VARBINARY(n)``.
 
         Always with the length: ``VARBINARY``'s grammar is ``VARBINARY(M)`` with
@@ -1017,7 +1017,7 @@ class MySQLTypeSupport(Protocol):
         """Whether the UUID substitute — a 16-byte column — is supported."""
         ...
 
-    def format_data_type_mysql_uuid(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_uuid(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``BINARY(16)`` — MySQL's storage for a UUID.
 
         MySQL has no UUID type; a UUID is 128 bits and is kept as those 16 raw
@@ -1029,7 +1029,7 @@ class MySQLTypeSupport(Protocol):
         """Whether ``ENUM('a','b')`` with charset/collation is supported."""
         ...
 
-    def format_data_type_mysql_enum(self, data_type: Any) -> Tuple[str, tuple]:
+    def format_data_type_mysql_enum(self, expr: Any) -> Tuple[str, tuple]:
         """Render ``ENUM(...)`` with its optional ``CHARACTER SET`` /
         ``COLLATE``."""
         ...
@@ -1576,7 +1576,7 @@ class MySQLLockingSupport(LockingSupport, Protocol):
         """Whether FOR UPDATE SKIP LOCKED is supported (MySQL 8.0+)."""
         ...
 
-    def format_for_update_clause(self, clause: Any) -> Tuple[str, tuple]:
+    def format_for_update_clause(self, expr: Any) -> Tuple[str, tuple]:
         """Format MySQL-specific FOR UPDATE clause.
 
         Args:
@@ -1615,7 +1615,7 @@ class MySQLModifyColumnSupport(Protocol):
         """Whether CHANGE COLUMN is supported."""
         ...
 
-    def format_modify_column_action(self, action: "ModifyColumnAction") -> Tuple[str, tuple]:
+    def format_modify_column_action(self, expr: "ModifyColumnAction") -> Tuple[str, tuple]:
         """Format MODIFY COLUMN action for ALTER TABLE.
 
         Args:
@@ -1626,7 +1626,7 @@ class MySQLModifyColumnSupport(Protocol):
         """
         ...
 
-    def format_change_column_action(self, action: "ChangeColumnAction") -> Tuple[str, tuple]:
+    def format_change_column_action(self, expr: "ChangeColumnAction") -> Tuple[str, tuple]:
         """Format CHANGE COLUMN action for ALTER TABLE.
 
         Args:
@@ -1680,15 +1680,15 @@ class MySQLJsonDualityViewSupport(Protocol):
         """Format DROP VIEW statement for a JSON Duality View."""
         ...
 
-    def format_mysql_duality_object_select_expression(self, spec: Any) -> str:
+    def render_mysql_duality_object_select_expression(self, expr: Any) -> str:
         """Format SELECT JSON_DUALITY_OBJECT(...) FROM table clause."""
         ...
 
-    def format_mysql_duality_object_body_expression(self, spec: Any) -> str:
+    def render_mysql_duality_object_body_expression(self, expr: Any) -> str:
         """Format JSON_DUALITY_OBJECT(...) body."""
         ...
 
-    def format_mysql_nested_duality_expression(self, nested: Any) -> str:
+    def render_mysql_nested_duality_expression(self, expr: Any) -> str:
         """Format nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery."""
         ...
 

@@ -87,7 +87,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
 
     # --- MySQL-specific type formatters (dispatch key = type name) ---
 
-    def format_data_type_mysql_signed(self, data_type: MySQLSignedType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_signed(self, expr: MySQLSignedType) -> Tuple[str, tuple]:
         """``CAST(x AS SIGNED)`` -- MySQL's spelling of a signed integer.
 
         Not an alias for INTEGER: the server treats the two as different types
@@ -97,7 +97,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         """
         return "SIGNED", ()
 
-    def format_data_type_mysql_unsigned(self, data_type: MySQLUnsignedType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_unsigned(self, expr: MySQLUnsignedType) -> Tuple[str, tuple]:
         """``CAST(x AS UNSIGNED)`` -- the unsigned counterpart.
 
         A cast target like ``SIGNED``, not an unsigned column type: see
@@ -169,7 +169,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             sql = f"{sql} ZEROFILL"
         return sql, ()
 
-    def format_data_type_mysql_tinyint(self, data_type: MySQLTinyIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinyint(self, expr: MySQLTinyIntType) -> Tuple[str, tuple]:
         """MySQL ``TINYINT``.
 
         Both spellings of the concept are accepted — MySQL's own manual lists
@@ -177,19 +177,19 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         rendered word is MySQL's own canonical one, since ``TINYINT`` is what
         the server reports back from ``SHOW CREATE TABLE``.
         """
-        self.check_spelling(data_type, MySQLTinyIntType)
-        return self._format_mysql_integer("TINYINT", data_type)
+        self.check_spelling(expr, MySQLTinyIntType)
+        return self._format_mysql_integer("TINYINT", expr)
 
-    def format_data_type_mysql_smallint(self, data_type: MySQLSmallIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_smallint(self, expr: MySQLSmallIntType) -> Tuple[str, tuple]:
         """MySQL ``SMALLINT``.
 
         ``SMALLINT`` and ``INT2`` are both MySQL words for the 2-byte type, so
         both are accepted and MySQL's own word is rendered.
         """
-        self.check_spelling(data_type, MySQLSmallIntType)
-        return self._format_mysql_integer("SMALLINT", data_type)
+        self.check_spelling(expr, MySQLSmallIntType)
+        return self._format_mysql_integer("SMALLINT", expr)
 
-    def format_data_type_mysql_mediumint(self, data_type: MySQLMediumIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumint(self, expr: MySQLMediumIntType) -> Tuple[str, tuple]:
         """MySQL ``MEDIUMINT`` — 3 bytes, ``-8388608``..``16777215``.
 
         MySQL spells this width with exactly one word, so there is no spelling
@@ -203,10 +203,10 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         no core 3-byte concept to render or inherit, which is why this is a
         ``mysql_``-namespaced class rather than a spelling of an existing one.
         """
-        self.check_spelling(data_type, MySQLMediumIntType)
-        return self._format_mysql_integer("MEDIUMINT", data_type)
+        self.check_spelling(expr, MySQLMediumIntType)
+        return self._format_mysql_integer("MEDIUMINT", expr)
 
-    def format_data_type_mysql_int(self, data_type: MySQLIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_int(self, expr: MySQLIntType) -> Tuple[str, tuple]:
         """MySQL ``INT`` with the MySQL-only attributes.
 
         ``INT`` and ``INTEGER`` are both MySQL words for the 4-byte type, so
@@ -215,80 +215,80 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         column carrying ``UNSIGNED`` / ``ZEROFILL`` stays distinguishable from a
         plain ``integer`` in a schema diff — the word ``INT`` is the same.
         """
-        self.check_spelling(data_type, MySQLIntType)
-        return self._format_mysql_integer("INT", data_type)
+        self.check_spelling(expr, MySQLIntType)
+        return self._format_mysql_integer("INT", expr)
 
-    def format_data_type_mysql_bigint(self, data_type: MySQLBigIntType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_bigint(self, expr: MySQLBigIntType) -> Tuple[str, tuple]:
         """MySQL ``BIGINT``.
 
         ``BIGINT`` and ``INT8`` are both MySQL words for the 8-byte type (the
         manual's own table lists ``INT8``), so both are accepted and MySQL's
         canonical word is rendered.
         """
-        self.check_spelling(data_type, MySQLBigIntType)
-        return self._format_mysql_integer("BIGINT", data_type)
+        self.check_spelling(expr, MySQLBigIntType)
+        return self._format_mysql_integer("BIGINT", expr)
 
-    def format_data_type_mysql_tinyblob(self, data_type: MySQLTinyBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinyblob(self, expr: MySQLTinyBlobType) -> Tuple[str, tuple]:
         """``TINYBLOB`` — max 255 bytes.
 
         Same spelling gate as the unbounded concept it derives from: the
         size variants inherit the core ``BlobType`` spelling list, and MySQL
         writes ``BLOB``, not ``BYTEA``, in every one of them.
         """
-        self.check_spelling(data_type, ("blob",))
+        self.check_spelling(expr, ("blob",))
         return "TINYBLOB", ()
 
-    def format_data_type_mysql_blob(self, data_type: MySQLBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_blob(self, expr: MySQLBlobType) -> Tuple[str, tuple]:
         """``BLOB`` — max 65,535 bytes. ``BYTEA`` refused; see ``mysql_tinyblob``."""
-        self.check_spelling(data_type, ("blob",))
+        self.check_spelling(expr, ("blob",))
         return "BLOB", ()
 
-    def format_data_type_mysql_mediumblob(self, data_type: MySQLMediumBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumblob(self, expr: MySQLMediumBlobType) -> Tuple[str, tuple]:
         """``MEDIUMBLOB`` — max 16,777,215 bytes. ``BYTEA`` refused."""
-        self.check_spelling(data_type, ("blob",))
+        self.check_spelling(expr, ("blob",))
         return "MEDIUMBLOB", ()
 
-    def format_data_type_mysql_longblob(self, data_type: MySQLLongBlobType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_longblob(self, expr: MySQLLongBlobType) -> Tuple[str, tuple]:
         """``LONGBLOB`` — max 4,294,967,295 bytes. ``BYTEA`` refused."""
-        self.check_spelling(data_type, ("blob",))
+        self.check_spelling(expr, ("blob",))
         return "LONGBLOB", ()
 
-    def format_data_type_mysql_tinytext(self, data_type: MySQLTinyTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_tinytext(self, expr: MySQLTinyTextType) -> Tuple[str, tuple]:
         """``TINYTEXT`` — max 255 bytes.
 
         The size variants inherit the core ``TextType`` spelling list, and
         MySQL has no CLOB in any of them, so ``clob`` is refused here exactly
         as it is for the unbounded ``text``.
         """
-        self.check_spelling(data_type, ("text",))
+        self.check_spelling(expr, ("text",))
         return "TINYTEXT", ()
 
-    def format_data_type_mysql_text(self, data_type: MySQLTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_text(self, expr: MySQLTextType) -> Tuple[str, tuple]:
         """``TEXT`` — max 65,535 bytes. ``CLOB`` refused; see ``mysql_tinytext``."""
-        self.check_spelling(data_type, ("text",))
+        self.check_spelling(expr, ("text",))
         return "TEXT", ()
 
-    def format_data_type_mysql_mediumtext(self, data_type: MySQLMediumTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_mediumtext(self, expr: MySQLMediumTextType) -> Tuple[str, tuple]:
         """``MEDIUMTEXT`` — max 16,777,215 bytes. ``CLOB`` refused."""
-        self.check_spelling(data_type, ("text",))
+        self.check_spelling(expr, ("text",))
         return "MEDIUMTEXT", ()
 
-    def format_data_type_mysql_longtext(self, data_type: MySQLLongTextType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_longtext(self, expr: MySQLLongTextType) -> Tuple[str, tuple]:
         """``LONGTEXT`` — max 4,294,967,295 bytes. ``CLOB`` refused."""
-        self.check_spelling(data_type, ("text",))
+        self.check_spelling(expr, ("text",))
         return "LONGTEXT", ()
 
-    def format_data_type_mysql_bit(self, data_type: MySQLBitType) -> Tuple[str, tuple]:
-        if data_type.n is not None:
-            return f"BIT({data_type.n})", ()
+    def format_data_type_mysql_bit(self, expr: MySQLBitType) -> Tuple[str, tuple]:
+        if expr.n is not None:
+            return f"BIT({expr.n})", ()
         return "BIT", ()
 
-    def format_data_type_mysql_year(self, data_type: MySQLYearType) -> Tuple[str, tuple]:
-        if data_type.display_width is not None:
-            return f"YEAR({data_type.display_width})", ()
+    def format_data_type_mysql_year(self, expr: MySQLYearType) -> Tuple[str, tuple]:
+        if expr.display_width is not None:
+            return f"YEAR({expr.display_width})", ()
         return "YEAR", ()
 
-    def format_data_type_mysql_binary(self, data_type: MySQLBinaryType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_binary(self, expr: MySQLBinaryType) -> Tuple[str, tuple]:
         """``BINARY`` / ``BINARY(n)``.
 
         Omitting the length is *legal here* and means one byte: "If omitted,
@@ -299,11 +299,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         unparameterised, which is why :class:`MySQLUUIDType` is its own class
         rather than a lengthless ``MySQLBinaryType``.
         """
-        if data_type.length is not None:
-            return f"BINARY({data_type.length})", ()
+        if expr.length is not None:
+            return f"BINARY({expr.length})", ()
         return "BINARY", ()
 
-    def format_data_type_mysql_varbinary(self, data_type: MySQLVarBinaryType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_varbinary(self, expr: MySQLVarBinaryType) -> Tuple[str, tuple]:
         """``VARBINARY(n)`` — always with its length.
 
         Unlike ``BINARY``, there is no lengthless form to fall back on:
@@ -312,9 +312,9 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         constructor rejects the missing length rather than the formatter
         emitting SQL the server refuses.
         """
-        return f"VARBINARY({data_type.length})", ()
+        return f"VARBINARY({expr.length})", ()
 
-    def format_data_type_mysql_uuid(self, data_type: MySQLUUIDType) -> Tuple[str, tuple]:
+    def format_data_type_mysql_uuid(self, expr: MySQLUUIDType) -> Tuple[str, tuple]:
         """``BINARY(16)`` — a UUID as the 16 raw bytes it is.
 
         MySQL has no UUID type, so this is what it renders instead. The width
@@ -328,76 +328,76 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         """
         return f"BINARY({MySQLUUIDType.BYTE_LENGTH})", ()
 
-    def format_data_type_enum(self, data_type: EnumType) -> Tuple[str, tuple]:
+    def format_data_type_enum(self, expr: EnumType) -> Tuple[str, tuple]:
         """Render the core ``EnumType``.
 
         MySQL has a native ENUM, so the generic type is renderable here rather
         than something to substitute. ``MySQLEnumType`` stays for the cases
         that need the charset and collation this form does not carry.
         """
-        values_str = ",".join(self.format_literal(value) for value in data_type.values)
+        values_str = ",".join(self.format_literal(value) for value in expr.values)
         return f"ENUM({values_str})", ()
 
-    def format_data_type_mysql_enum(self, data_type: MySQLEnumType) -> Tuple[str, tuple]:
-        values_str = ",".join(self.format_literal(v) for v in data_type.values)
+    def format_data_type_mysql_enum(self, expr: MySQLEnumType) -> Tuple[str, tuple]:
+        values_str = ",".join(self.format_literal(v) for v in expr.values)
         result = f"ENUM({values_str})"
-        if data_type.charset:
-            result += f" CHARACTER SET {data_type.charset}"
-        if data_type.collation:
-            result += f" COLLATE {data_type.collation}"
+        if expr.charset:
+            result += f" CHARACTER SET {expr.charset}"
+        if expr.collation:
+            result += f" COLLATE {expr.collation}"
         return result, ()
 
-    def format_data_type_mysql_set(self, data_type: MySQLSetType) -> Tuple[str, tuple]:
-        values_str = ",".join(self.format_literal(v) for v in data_type.values)
+    def format_data_type_mysql_set(self, expr: MySQLSetType) -> Tuple[str, tuple]:
+        values_str = ",".join(self.format_literal(v) for v in expr.values)
         result = f"SET({values_str})"
-        if data_type.charset:
-            result += f" CHARACTER SET {data_type.charset}"
-        if data_type.collation:
-            result += f" COLLATE {data_type.collation}"
+        if expr.charset:
+            result += f" CHARACTER SET {expr.charset}"
+        if expr.collation:
+            result += f" COLLATE {expr.collation}"
         return result, ()
 
-    def format_data_type_mysql_geometry(self, data_type: MySQLGeometryType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"GEOMETRY SRID {data_type.srid}", ()
+    def format_data_type_mysql_geometry(self, expr: MySQLGeometryType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"GEOMETRY SRID {expr.srid}", ()
         return "GEOMETRY", ()
 
-    def format_data_type_mysql_point(self, data_type: MySQLPointType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"POINT SRID {data_type.srid}", ()
+    def format_data_type_mysql_point(self, expr: MySQLPointType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"POINT SRID {expr.srid}", ()
         return "POINT", ()
 
-    def format_data_type_mysql_linestring(self, data_type: MySQLLineStringType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"LINESTRING SRID {data_type.srid}", ()
+    def format_data_type_mysql_linestring(self, expr: MySQLLineStringType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"LINESTRING SRID {expr.srid}", ()
         return "LINESTRING", ()
 
-    def format_data_type_mysql_polygon(self, data_type: MySQLPolygonType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"POLYGON SRID {data_type.srid}", ()
+    def format_data_type_mysql_polygon(self, expr: MySQLPolygonType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"POLYGON SRID {expr.srid}", ()
         return "POLYGON", ()
 
-    def format_data_type_mysql_multipoint(self, data_type: MySQLMultiPointType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"MULTIPOINT SRID {data_type.srid}", ()
+    def format_data_type_mysql_multipoint(self, expr: MySQLMultiPointType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"MULTIPOINT SRID {expr.srid}", ()
         return "MULTIPOINT", ()
 
-    def format_data_type_mysql_multilinestring(self, data_type: MySQLMultiLineStringType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"MULTILINESTRING SRID {data_type.srid}", ()
+    def format_data_type_mysql_multilinestring(self, expr: MySQLMultiLineStringType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"MULTILINESTRING SRID {expr.srid}", ()
         return "MULTILINESTRING", ()
 
-    def format_data_type_mysql_multipolygon(self, data_type: MySQLMultiPolygonType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"MULTIPOLYGON SRID {data_type.srid}", ()
+    def format_data_type_mysql_multipolygon(self, expr: MySQLMultiPolygonType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"MULTIPOLYGON SRID {expr.srid}", ()
         return "MULTIPOLYGON", ()
 
-    def format_data_type_mysql_geometrycollection(self, data_type: MySQLGeometryCollectionType) -> Tuple[str, tuple]:
-        if data_type.srid is not None:
-            return f"GEOMETRYCOLLECTION SRID {data_type.srid}", ()
+    def format_data_type_mysql_geometrycollection(self, expr: MySQLGeometryCollectionType) -> Tuple[str, tuple]:
+        if expr.srid is not None:
+            return f"GEOMETRYCOLLECTION SRID {expr.srid}", ()
         return "GEOMETRYCOLLECTION", ()
 
-    def format_data_type_mysql_vector(self, data_type: MySQLVectorType) -> Tuple[str, tuple]:
-        return f"VECTOR({data_type.dim})", ()
+    def format_data_type_mysql_vector(self, expr: MySQLVectorType) -> Tuple[str, tuple]:
+        return f"VECTOR({expr.dim})", ()
 
     def _validate_fsp(self, label: str, precision: Optional[int]) -> None:
         """Validate fractional-seconds precision (dialect-specific range).
@@ -414,7 +414,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
 
     # --- Core types (pure names) rendered to real MySQL SQL ---
 
-    def format_data_type_integer(self, data_type: IntegerType) -> Tuple[str, tuple]:
+    def format_data_type_integer(self, expr: IntegerType) -> Tuple[str, tuple]:
         """``INT``.
 
         MySQL writes this concept both ways (``INT`` and ``INTEGER``) and
@@ -435,11 +435,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(data_type, IntegerType)
-        self._check_unsigned(data_type)
-        return (f"INT UNSIGNED" if data_type.unsigned else "INT"), ()
+        self.check_spelling(expr, IntegerType)
+        self._check_unsigned(expr)
+        return ("INT UNSIGNED" if expr.unsigned else "INT"), ()
 
-    def format_data_type_bigint(self, data_type: BigIntType) -> Tuple[str, tuple]:
+    def format_data_type_bigint(self, expr: BigIntType) -> Tuple[str, tuple]:
         """``BIGINT`` — ``BIGINT`` and MySQL's ``INT8`` synonym both accepted.
 
         ``unsigned`` is honoured rather than dropped: MySQL *has* unsigned
@@ -452,11 +452,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(data_type, BigIntType)
-        self._check_unsigned(data_type)
-        return ("BIGINT UNSIGNED" if data_type.unsigned else "BIGINT"), ()
+        self.check_spelling(expr, BigIntType)
+        self._check_unsigned(expr)
+        return ("BIGINT UNSIGNED" if expr.unsigned else "BIGINT"), ()
 
-    def format_data_type_smallint(self, data_type: SmallIntType) -> Tuple[str, tuple]:
+    def format_data_type_smallint(self, expr: SmallIntType) -> Tuple[str, tuple]:
         """``SMALLINT`` — ``SMALLINT`` and MySQL's ``INT2`` synonym both accepted.
 
         ``unsigned`` is honoured rather than dropped: MySQL *has* unsigned
@@ -469,11 +469,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(data_type, SmallIntType)
-        self._check_unsigned(data_type)
-        return ("SMALLINT UNSIGNED" if data_type.unsigned else "SMALLINT"), ()
+        self.check_spelling(expr, SmallIntType)
+        self._check_unsigned(expr)
+        return ("SMALLINT UNSIGNED" if expr.unsigned else "SMALLINT"), ()
 
-    def format_data_type_tinyint(self, data_type: TinyIntType) -> Tuple[str, tuple]:
+    def format_data_type_tinyint(self, expr: TinyIntType) -> Tuple[str, tuple]:
         """``TINYINT`` — ``TINYINT`` and MySQL's ``INT1`` synonym both accepted.
 
         ``unsigned`` is honoured rather than dropped: MySQL *has* unsigned
@@ -486,11 +486,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(data_type, TinyIntType)
-        self._check_unsigned(data_type)
-        return ("TINYINT UNSIGNED" if data_type.unsigned else "TINYINT"), ()
+        self.check_spelling(expr, TinyIntType)
+        self._check_unsigned(expr)
+        return ("TINYINT UNSIGNED" if expr.unsigned else "TINYINT"), ()
 
-    def format_data_type_varchar(self, data_type: VarCharType) -> Tuple[str, tuple]:
+    def format_data_type_varchar(self, expr: VarCharType) -> Tuple[str, tuple]:
         """``VARCHAR`` only.
 
         ``CHARACTER VARYING`` is the SQL standard's long form, but MySQL has no
@@ -508,16 +508,16 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         where the caller has no way to tell that from success.
         https://dev.mysql.com/doc/refman/8.4/en/string-type-syntax.html
         """
-        self.check_spelling(data_type, ("varchar",))
-        if data_type.length is None:
+        self.check_spelling(expr, ("varchar",))
+        if expr.length is None:
             raise ValueError(
                 "MySQL's grammar is VARCHAR(M) with M mandatory, so a VarCharType "
                 "declared without a length cannot be rendered here "
                 "(CREATE TABLE t (c VARCHAR) is a syntax error). Declare a length."
             )
-        return f"VARCHAR({data_type.length})", ()
+        return f"VARCHAR({expr.length})", ()
 
-    def format_data_type_char(self, data_type: CharType) -> Tuple[str, tuple]:
+    def format_data_type_char(self, expr: CharType) -> Tuple[str, tuple]:
         """``CHAR`` only.
 
         As with ``VARCHAR``: MySQL has no ``CHARACTER`` column type — the word
@@ -527,20 +527,20 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         spelling list too: this framework treats a character set as a *field*,
         not as a type.)
         """
-        self.check_spelling(data_type, ("char",))
-        return (f"CHAR({data_type.length})" if data_type.length is not None else "CHAR"), ()
+        self.check_spelling(expr, ("char",))
+        return (f"CHAR({expr.length})" if expr.length is not None else "CHAR"), ()
 
-    def format_data_type_text(self, data_type: TextType) -> Tuple[str, tuple]:
+    def format_data_type_text(self, expr: TextType) -> Tuple[str, tuple]:
         """``TEXT`` only.
 
         MySQL has no CLOB type, so ``clob`` is refused. The default spelling
         still renders — a backend may write the concept under its own name but
         must not refuse the spelling every plain ``TextType(d)`` carries.
         """
-        self.check_spelling(data_type, ("text",))
+        self.check_spelling(expr, ("text",))
         return "TEXT", ()
 
-    def format_data_type_boolean(self, data_type: BooleanType) -> Tuple[str, tuple]:
+    def format_data_type_boolean(self, expr: BooleanType) -> Tuple[str, tuple]:
         """``TINYINT(1)``.
 
         MySQL has no BOOLEAN/BOOL *storage* type: both words are documented
@@ -549,33 +549,33 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         why :class:`MySQLBitType` is a separate concept: a BIT string is not a
         boolean even at width 1.
         """
-        self.check_spelling(data_type, BooleanType)
+        self.check_spelling(expr, BooleanType)
         return "TINYINT(1)", ()
 
-    def format_data_type_date(self, data_type: DateType) -> Tuple[str, tuple]:
+    def format_data_type_date(self, expr: DateType) -> Tuple[str, tuple]:
         return "DATE", ()
 
-    def format_data_type_datetime(self, data_type: DateTimeType) -> Tuple[str, tuple]:
-        self._validate_fsp("DATETIME", data_type.precision)
-        return (f"DATETIME({data_type.precision})" if data_type.precision is not None else "DATETIME"), ()
+    def format_data_type_datetime(self, expr: DateTimeType) -> Tuple[str, tuple]:
+        self._validate_fsp("DATETIME", expr.precision)
+        return (f"DATETIME({expr.precision})" if expr.precision is not None else "DATETIME"), ()
 
-    def format_data_type_time(self, data_type: TimeType) -> Tuple[str, tuple]:
-        self._validate_fsp("TIME", data_type.precision)
-        return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
+    def format_data_type_time(self, expr: TimeType) -> Tuple[str, tuple]:
+        self._validate_fsp("TIME", expr.precision)
+        return (f"TIME({expr.precision})" if expr.precision is not None else "TIME"), ()
 
-    def format_data_type_timetz(self, data_type: TimeTzType) -> Tuple[str, tuple]:
-        self._validate_fsp("TIME", data_type.precision)
-        return (f"TIME({data_type.precision})" if data_type.precision is not None else "TIME"), ()
+    def format_data_type_timetz(self, expr: TimeTzType) -> Tuple[str, tuple]:
+        self._validate_fsp("TIME", expr.precision)
+        return (f"TIME({expr.precision})" if expr.precision is not None else "TIME"), ()
 
-    def format_data_type_timestamp(self, data_type: TimestampType) -> Tuple[str, tuple]:
-        self._validate_fsp("TIMESTAMP", data_type.precision)
-        return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
+    def format_data_type_timestamp(self, expr: TimestampType) -> Tuple[str, tuple]:
+        self._validate_fsp("TIMESTAMP", expr.precision)
+        return (f"TIMESTAMP({expr.precision})" if expr.precision is not None else "TIMESTAMP"), ()
 
-    def format_data_type_timestamptz(self, data_type: TimestampTzType) -> Tuple[str, tuple]:
-        self._validate_fsp("TIMESTAMP", data_type.precision)
-        return (f"TIMESTAMP({data_type.precision})" if data_type.precision is not None else "TIMESTAMP"), ()
+    def format_data_type_timestamptz(self, expr: TimestampTzType) -> Tuple[str, tuple]:
+        self._validate_fsp("TIMESTAMP", expr.precision)
+        return (f"TIMESTAMP({expr.precision})" if expr.precision is not None else "TIMESTAMP"), ()
 
-    def format_data_type_float(self, data_type: FloatType) -> Tuple[str, tuple]:
+    def format_data_type_float(self, expr: FloatType) -> Tuple[str, tuple]:
         """``FLOAT`` only; ``UNSIGNED`` honoured in MySQL's documented slot.
 
         MySQL's numeric-type syntax writes this concept as
@@ -618,19 +618,19 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         :raises ValueError: if ``precision`` is set — see above for the two
             ranges and the class to declare for each.
         """
-        if data_type.precision is not None:
+        if expr.precision is not None:
             raise ValueError(
                 "MySQL cannot round-trip FLOAT(p): the catalog records FLOAT "
                 "without p, and p chooses the storage class. p 0..24 creates "
                 "single-precision FLOAT storage — declare FloatType(dialect) "
                 "with no precision; p 25..53 creates double-precision DOUBLE "
                 f"storage — declare DoubleType(dialect). "
-                f"Got precision={data_type.precision}."
+                f"Got precision={expr.precision}."
             )
-        self._check_unsigned(data_type)
-        return ("FLOAT UNSIGNED" if data_type.unsigned else "FLOAT"), ()
+        self._check_unsigned(expr)
+        return ("FLOAT UNSIGNED" if expr.unsigned else "FLOAT"), ()
 
-    def format_data_type_double(self, data_type: DoubleType) -> Tuple[str, tuple]:
+    def format_data_type_double(self, expr: DoubleType) -> Tuple[str, tuple]:
         """``DOUBLE``; both of the concept's spellings accepted, ``UNSIGNED``
         honoured in MySQL's documented slot.
 
@@ -665,11 +665,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         honoured rather than routed around.
         https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
         """
-        self.check_spelling(data_type, DoubleType)
-        self._check_unsigned(data_type)
-        return ("DOUBLE UNSIGNED" if data_type.unsigned else "DOUBLE"), ()
+        self.check_spelling(expr, DoubleType)
+        self._check_unsigned(expr)
+        return ("DOUBLE UNSIGNED" if expr.unsigned else "DOUBLE"), ()
 
-    def format_data_type_decimal(self, data_type: DecimalType) -> Tuple[str, tuple]:
+    def format_data_type_decimal(self, expr: DecimalType) -> Tuple[str, tuple]:
         """``DECIMAL`` — all three of the concept's spellings accepted.
 
         MySQL's manual states that ``DECIMAL``, ``NUMERIC`` and ``DEC`` are
@@ -703,50 +703,50 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         out of range is still a ``ValueError`` and is still refused before any
         attribute is appended.
         """
-        self.check_spelling(data_type, DecimalType)
-        if data_type.precision is not None and not 1 <= data_type.precision <= 65:
+        self.check_spelling(expr, DecimalType)
+        if expr.precision is not None and not 1 <= expr.precision <= 65:
             raise ValueError(
                 f"MySQL DECIMAL precision must be between 1 and 65, "
-                f"got {data_type.precision}."
+                f"got {expr.precision}."
             )
-        if data_type.scale is not None and not 0 <= data_type.scale <= 30:
+        if expr.scale is not None and not 0 <= expr.scale <= 30:
             raise ValueError(
                 f"MySQL DECIMAL scale must be between 0 and 30, "
-                f"got {data_type.scale}."
+                f"got {expr.scale}."
             )
-        if (data_type.precision is not None and data_type.scale is not None
-                and data_type.scale > data_type.precision):
+        if (expr.precision is not None and expr.scale is not None
+                and expr.scale > expr.precision):
             raise ValueError(
-                f"MySQL DECIMAL scale ({data_type.scale}) cannot exceed "
-                f"precision ({data_type.precision})."
+                f"MySQL DECIMAL scale ({expr.scale}) cannot exceed "
+                f"precision ({expr.precision})."
             )
-        if data_type.precision is not None and data_type.scale is not None:
-            base = f"DECIMAL({data_type.precision}, {data_type.scale})"
-        elif data_type.precision is not None:
-            base = f"DECIMAL({data_type.precision})"
+        if expr.precision is not None and expr.scale is not None:
+            base = f"DECIMAL({expr.precision}, {expr.scale})"
+        elif expr.precision is not None:
+            base = f"DECIMAL({expr.precision})"
         else:
             base = "DECIMAL"
-        self._check_unsigned(data_type)
-        return (f"{base} UNSIGNED" if data_type.unsigned else base), ()
+        self._check_unsigned(expr)
+        return (f"{base} UNSIGNED" if expr.unsigned else base), ()
 
-    def format_data_type_json(self, data_type: JsonType) -> Tuple[str, tuple]:
+    def format_data_type_json(self, expr: JsonType) -> Tuple[str, tuple]:
         return "JSON", ()
 
-    def format_data_type_jsonb(self, data_type: JsonBType) -> Tuple[str, tuple]:
+    def format_data_type_jsonb(self, expr: JsonBType) -> Tuple[str, tuple]:
         return "JSON", ()
 
-    def format_data_type_blob(self, data_type: BlobType) -> Tuple[str, tuple]:
+    def format_data_type_blob(self, expr: BlobType) -> Tuple[str, tuple]:
         """``BLOB`` only.
 
         ``BYTEA`` is PostgreSQL's name for this concept and is not a MySQL type
         at all, so it is refused here. ``BLOB`` — the concept's default
         spelling, and the word MySQL writes — always renders.
         """
-        self.check_spelling(data_type, ("blob",))
+        self.check_spelling(expr, ("blob",))
         return "BLOB", ()
 
-    def format_data_type_custom(self, data_type: CustomType) -> Tuple[str, tuple]:
-        return data_type.raw, ()
+    def format_data_type_custom(self, expr: CustomType) -> Tuple[str, tuple]:
+        return expr.raw, ()
 
     # ------------------------------------------------------------------
     # DataTypeSupport — per-type support declarations

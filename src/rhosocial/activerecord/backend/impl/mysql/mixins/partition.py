@@ -361,26 +361,26 @@ class MySQLPartitionMixin:
         return sql, tuple(params)
 
     def format_partition_definition(
-        self, definition: "PartitionDefinitionExpression"
+        self, expr: "PartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a MySQL partition definition."""
         params: List[Any] = []
-        parts = ["PARTITION", self.format_identifier(definition.name)]
-        partition_options = definition.options
+        parts = ["PARTITION", self.format_identifier(expr.name)]
+        partition_options = expr.options
         if partition_options is not None:
             if not self.supports_partition_definition_options():
                 raise UnsupportedFeatureError(self.name, "partition definition options")
 
-        if definition.less_than is not None:
+        if expr.less_than is not None:
             value_sql_parts = []
-            for value in definition.less_than:
+            for value in expr.less_than:
                 value_sql, value_params = value.to_sql()
                 value_sql_parts.append(value_sql)
                 params.extend(value_params)
             parts.append(f"VALUES LESS THAN ({', '.join(value_sql_parts)})")
-        elif definition.in_values is not None:
+        elif expr.in_values is not None:
             value_sql_parts = []
-            for value in definition.in_values:
+            for value in expr.in_values:
                 if isinstance(value, BaseExpression):
                     value_sql, value_params = value.to_sql()
                     value_sql_parts.append(value_sql)
@@ -402,7 +402,7 @@ class MySQLPartitionMixin:
             if options_sql:
                 parts.append(options_sql)
             params.extend(options_params)
-        subpartition_defs = definition.subpartitions
+        subpartition_defs = expr.subpartitions
         if subpartition_defs:
             if not self.supports_subpartitioning():
                 raise UnsupportedFeatureError(self.name, "subpartition definitions")
@@ -415,7 +415,7 @@ class MySQLPartitionMixin:
         return " ".join(parts), tuple(params)
 
     def format_partition_definition_options(
-        self, options: Optional["PartitionOptionsExpression"]
+        self, expr: Optional["PartitionOptionsExpression"]
     ) -> Tuple[str, tuple]:
         """Format MySQL partition definition options from an expression node."""
         from rhosocial.activerecord.backend.expression.statements import (
@@ -424,12 +424,12 @@ class MySQLPartitionMixin:
 
         if not self.supports_partition_definition_options():
             raise UnsupportedFeatureError(self.name, "partition definition options")
-        if options is None:
+        if expr is None:
             return "", ()
-        if not isinstance(options, PartitionOptionsExpression):
+        if not isinstance(expr, PartitionOptionsExpression):
             raise TypeError(
                 "partition options must be a PartitionOptionsExpression value, "
-                f"got {type(options).__name__}"
+                f"got {type(expr).__name__}"
             )
 
         keyword_by_option = {
@@ -441,12 +441,12 @@ class MySQLPartitionMixin:
             "min_rows": "MIN_ROWS",
             "tablespace": "TABLESPACE",
         }
-        unknown = set(options.options) - set(keyword_by_option)
+        unknown = set(expr.options) - set(keyword_by_option)
         if unknown:
             raise ValueError(f"unsupported partition options: {', '.join(sorted(unknown))}")
         parts: List[str] = []
         for name, keyword in keyword_by_option.items():
-            value = options.options.get(name)
+            value = expr.options.get(name)
             if value is None:
                 continue
             if name in {"engine", "tablespace"}:
@@ -602,13 +602,13 @@ class MySQLPartitionMixin:
         return sql, tuple(params)
 
     def format_subpartition_definition(
-        self, definition: "SubpartitionDefinitionExpression"
+        self, expr: "SubpartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
-            definition: a subpartition definition expression carrying a name
-                        and, optionally, partition options.
+            expr: a subpartition definition expression carrying a name
+                  and, optionally, partition options.
 
         Returns:
             Tuple of (SQL string, parameters tuple).
@@ -616,11 +616,11 @@ class MySQLPartitionMixin:
         Raises:
             ValueError: if the definition name is empty.
         """
-        if not definition.name or not definition.name.strip():
+        if not expr.name or not expr.name.strip():
             raise ValueError("subpartition name must not be empty")
-        parts = ["SUBPARTITION", self.format_identifier(definition.name)]
+        parts = ["SUBPARTITION", self.format_identifier(expr.name)]
         params: List[Any] = []
-        partition_options = getattr(definition, "options", None)
+        partition_options = getattr(expr, "options", None)
         if partition_options is not None:
             options_sql, options_params = self.format_partition_definition_options(
                 partition_options
@@ -770,11 +770,11 @@ class MySQLPartitionMixin:
         )
         return sql, tuple(table_params) + tuple(exchange_table_params)
 
-    def format_partition_name_list(self, partitions: Sequence[str]) -> str:
+    def render_partition_name_list(self, expr: Sequence[str]) -> str:
         """Format a non-empty partition name list."""
-        if not partitions:
+        if not expr:
             raise ValueError("partitions must not be empty")
-        return ", ".join(self.format_identifier(partition) for partition in partitions)
+        return ", ".join(self.format_identifier(partition) for partition in expr)
 
     def format_mysql_remove_partitioning_expression(
         self,
@@ -838,7 +838,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "ANALYZE PARTITION")
         require_kind(expr.table, Table, "MySQLAnalyzePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} ANALYZE PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_check_partition_expression(
@@ -859,7 +859,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "CHECK PARTITION")
         require_kind(expr.table, Table, "MySQLCheckPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} CHECK PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_optimize_partition_expression(
@@ -880,7 +880,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "OPTIMIZE PARTITION")
         require_kind(expr.table, Table, "MySQLOptimizePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} OPTIMIZE PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_rebuild_partition_expression(
@@ -901,7 +901,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "REBUILD PARTITION")
         require_kind(expr.table, Table, "MySQLRebuildPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REBUILD PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_repair_partition_expression(
@@ -922,7 +922,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "REPAIR PARTITION")
         require_kind(expr.table, Table, "MySQLRepairPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REPAIR PARTITION {partitions}", tuple(table_params)
 
     # ------------------------------------------------------------------
