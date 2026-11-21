@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/suggestion/integer_auto_increment.py
+# src/rhosocial/activerecord/backend/impl/mysql/suggestion/integer_auto_increment_column_suggestion.py
 """MySQLIntegerAutoIncrementColumnSuggestionMixin -- mysql's integer auto-increment column suggestion.
 
 The answer is the backend's own spelling, assembled from its capability
@@ -31,6 +31,4 @@ class MySQLIntegerAutoIncrementColumnSuggestionMixin:
                 "AUTO_INCREMENT column",
                 "This dialect has withdrawn support for the AUTO_INCREMENT marker.",
             )
-        return IntegerAutoIncrementColumnSuggestion(
-            default_type, AutoIncrementClause(self)
-        )
+        return IntegerAutoIncrementColumnSuggestion(default_type, AutoIncrementClause(self))

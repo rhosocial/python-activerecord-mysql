@@ -128,7 +128,14 @@ from .protocols import (
     MySQLAdminCommandSupport,
 )
 from .suggestion import (
-    MySQLPartitionSuggestionMixin,
+    MySQLPartitionBuildSuggestionMixin,
+    MySQLPartitionAddSuggestionMixin,
+    MySQLPartitionDropSuggestionMixin,
+    MySQLPartitionRetentionSuggestionMixin,
+    MySQLPartitionTableDropSuggestionMixin,
+    MySQLPartitionTableAlterSuggestionMixin,
+    MySQLPartitionSplitSuggestionMixin,
+    MySQLPartitionMergeSuggestionMixin,
     MySQLDataTypeSuggestionsMixin,
     MySQLIntegerAutoIncrementColumnSuggestionMixin,
 )
@@ -187,9 +194,19 @@ if TYPE_CHECKING:
 
 
 class MySQLDialect(
-    # Backend suggestions first: no core mixin may shadow their answers. Both
-    # sit ahead of every core/base mixin for the C3 reason spelled out below.
-    MySQLPartitionSuggestionMixin,
+    # Backend suggestions first: no core mixin may shadow their answers. The
+    # eight partition-lifecycle mixins (one per suggestion) and the integer
+    # auto-increment mixin sit ahead of every core/base mixin for the C3 reason
+    # spelled out below; their shared plan-reading base is inherited by the
+    # partition mixins and needs no separate entry here.
+    MySQLPartitionBuildSuggestionMixin,
+    MySQLPartitionAddSuggestionMixin,
+    MySQLPartitionDropSuggestionMixin,
+    MySQLPartitionRetentionSuggestionMixin,
+    MySQLPartitionTableDropSuggestionMixin,
+    MySQLPartitionTableAlterSuggestionMixin,
+    MySQLPartitionSplitSuggestionMixin,
+    MySQLPartitionMergeSuggestionMixin,
     MySQLIntegerAutoIncrementColumnSuggestionMixin,
     # The bases below come in bundles: a backend mixin, then the core bundle
     # it stands in for. The backend's answer has to come first -- a mixin
