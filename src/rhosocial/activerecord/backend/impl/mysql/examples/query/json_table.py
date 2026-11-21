@@ -4,7 +4,7 @@ MySQL JSON_TABLE - Convert JSON data to relational format (MySQL 8.0+).
 Demonstrates using MySQLJSONTableExpression with QueryStatement to build
 a SELECT query that flattens JSON array data into relational rows.
 """
-from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
+from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -49,12 +49,12 @@ create_table = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            auto_increment_parts(None, "INT")[0],
+            IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-         attributes=auto_increment_parts(None, "INT")[1]),
+         attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[1]),
         ColumnDefinition("order_data", "JSON"),
     ],
     if_not_exists=True,

@@ -10,7 +10,7 @@ This module tests MySQL-specific DDL features including:
 - Inline index definitions
 - ENUM type helper
 """
-from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
+from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
 
 import pytest
 from rhosocial.activerecord.backend.expression import (
@@ -220,12 +220,12 @@ class TestMySQLAutoIncrement:
         columns = [
             ColumnDefinition(dialect, 
                 "id"[0],
-                auto_increment_parts(dialect, BigIntType(dialect))[0],
+                IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                 ],
-             attributes=auto_increment_parts(dialect, BigIntType(dialect))[1])
+             attributes=IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[1])
         ]
         expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns)
         sql, params = expr.to_sql()
@@ -238,13 +238,13 @@ class TestMySQLAutoIncrement:
         columns = [
             ColumnDefinition(dialect, 
                 "id"[0],
-                auto_increment_parts(dialect, BigIntType(dialect))[0],
+                IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                 ],
                 comment=ColumnCommentClause(dialect, "自增主键"),
-             attributes=auto_increment_parts(dialect, BigIntType(dialect))[1])
+             attributes=IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[1])
         ]
         expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "users"), columns=columns)
         sql, params = expr.to_sql()
@@ -257,12 +257,12 @@ class TestMySQLAutoIncrement:
         columns = [
             ColumnDefinition(dialect, 
                 "id"[0],
-                auto_increment_parts(dialect, BigIntType(dialect))[0],
+                IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                 ],
-             attributes=auto_increment_parts(dialect, BigIntType(dialect))[1])
+             attributes=IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[1])
         ]
         expr = CreateTableStatement(dialect=dialect, table=Table(dialect, "test"), columns=columns)
         sql, params = expr.to_sql()
@@ -588,13 +588,13 @@ class TestMySQLCompleteTableCreation:
         columns = [
             ColumnDefinition(dialect, 
                 "id"[0],
-                auto_increment_parts(dialect, BigIntType(dialect))[0],
+                IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[0],
                 constraints=[
                     ColumnConstraint(dialect, branch=ColumnNotNullConstraint(dialect)),
                     ColumnConstraint(dialect, branch=ColumnPrimaryKeyConstraint(dialect)),
                 ],
                 comment=ColumnCommentClause(dialect, "Primary key"),
-             attributes=auto_increment_parts(dialect, BigIntType(dialect))[1]),
+             attributes=IntegerAutoIncrementSuggestionRenderer().parts(dialect, BigIntType(dialect))[1]),
             ColumnDefinition(dialect, 
                 "name",
                 VarCharType(dialect, 100),

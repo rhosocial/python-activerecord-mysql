@@ -11,7 +11,7 @@ Note: Column reordering is a MySQL-specific concept. SQLite and PostgreSQL
 do not assign semantic meaning to column order, so their differs treat
 identical column sets as equivalent regardless of position.
 """
-from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
+from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -47,11 +47,11 @@ sql, params = expr.to_sql()
 backend.execute(sql, params)
 expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "users"), columns=[
-        ColumnDefinition(dialect, "id"[0], auto_increment_parts(None, IntegerType(dialect))[0],
+        ColumnDefinition(dialect, "id"[0], IntegerAutoIncrementSuggestionRenderer().parts(None, IntegerType(dialect))[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ], attributes=auto_increment_parts(None, IntegerType(dialect))[1]),
+            ], attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, IntegerType(dialect))[1]),
         ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
         ColumnDefinition(dialect, "email", VarCharType(dialect, 200)),
     ]

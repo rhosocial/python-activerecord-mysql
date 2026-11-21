@@ -6,7 +6,7 @@ This example demonstrates:
 2. Delete with WHERE condition
 3. Delete all rows
 """
-from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
+from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -57,12 +57,12 @@ create_table = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            auto_increment_parts(None, "INT")[0],
+            IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-         attributes=auto_increment_parts(None, "INT")[1]),
+         attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[1]),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",

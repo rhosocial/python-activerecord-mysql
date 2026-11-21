@@ -1,7 +1,7 @@
 """
 Subquery expressions - WHERE and FROM subqueries.
 """
-from rhosocial.activerecord.backend.expression.statements import auto_increment_parts  # noqa: E402
+from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -52,12 +52,12 @@ create_departments = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            auto_increment_parts(None, "INT")[0],
+            IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-         attributes=auto_increment_parts(None, "INT")[1]),
+         attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[1]),
         ColumnDefinition("name", "VARCHAR(100)"),
         ColumnDefinition("budget", "DECIMAL(15,2)"),
     ],
@@ -72,12 +72,12 @@ create_employees = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            auto_increment_parts(None, "INT")[0],
+            IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-         attributes=auto_increment_parts(None, "INT")[1]),
+         attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[1]),
         ColumnDefinition("name", "VARCHAR(100)"),
         ColumnDefinition("salary", "DECIMAL(10,2)"),
         ColumnDefinition("department_id", "INT"),
