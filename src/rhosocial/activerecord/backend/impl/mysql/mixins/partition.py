@@ -360,25 +360,25 @@ class MySQLPartitionMixin:
             sql = f"{sql} PARTITIONS {partitions_count}"
         return sql, tuple(params)
 
-    def format_partition_definition(self, definition: "MySQLPartitionDefinition") -> Tuple[str, tuple]:
+    def format_partition_definition(self, expr: "MySQLPartitionDefinition") -> Tuple[str, tuple]:
         """Format a MySQL partition definition."""
         params: List[Any] = []
-        parts = ["PARTITION", self.format_identifier(definition.name)]
-        partition_options = definition.partition_options
+        parts = ["PARTITION", self.format_identifier(expr.name)]
+        partition_options = expr.partition_options
         if partition_options is not None:
             if not self.supports_partition_definition_options():
                 raise UnsupportedFeatureError(self.name, "partition definition options")
 
-        if definition.less_than is not None:
+        if expr.less_than is not None:
             value_sql_parts = []
-            for value in definition.less_than:
+            for value in expr.less_than:
                 value_sql, value_params = value.to_sql()
                 value_sql_parts.append(value_sql)
                 params.extend(value_params)
             parts.append(f"VALUES LESS THAN ({', '.join(value_sql_parts)})")
-        elif definition.in_values is not None:
+        elif expr.in_values is not None:
             value_sql_parts = []
-            for value in definition.in_values:
+            for value in expr.in_values:
                 if isinstance(value, BaseExpression):
                     value_sql, value_params = value.to_sql()
                     value_sql_parts.append(value_sql)
@@ -400,7 +400,7 @@ class MySQLPartitionMixin:
             if options_sql:
                 parts.append(options_sql)
             params.extend(options_params)
-        subpartition_defs = definition.subpartition_definitions
+        subpartition_defs = expr.subpartition_definitions
         if subpartition_defs:
             if not self.supports_subpartitioning():
                 raise UnsupportedFeatureError(self.name, "subpartition definitions")
@@ -413,7 +413,7 @@ class MySQLPartitionMixin:
         return " ".join(parts), tuple(params)
 
     def format_partition_definition_options(
-        self, options: Optional["MySQLPartitionOptions"]
+        self, expr: Optional["MySQLPartitionOptions"]
     ) -> Tuple[str, tuple]:
         """Format MySQL partition definition options from typed options."""
         from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
@@ -422,12 +422,12 @@ class MySQLPartitionMixin:
 
         if not self.supports_partition_definition_options():
             raise UnsupportedFeatureError(self.name, "partition definition options")
-        if options is None:
+        if expr is None:
             return "", ()
-        if not isinstance(options, MySQLPartitionOptions):
+        if not isinstance(expr, MySQLPartitionOptions):
             raise TypeError(
                 "partition_options must be a MySQLPartitionOptions value, "
-                f"got {type(options).__name__}"
+                f"got {type(expr).__name__}"
             )
 
         keyword_by_option = {
@@ -441,7 +441,7 @@ class MySQLPartitionMixin:
         }
         parts: List[str] = []
         for name, keyword in keyword_by_option.items():
-            value = getattr(options, name)
+            value = getattr(expr, name)
             if value is None:
                 continue
             if name in {"engine", "tablespace"}:
@@ -596,7 +596,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} SUBPARTITIONS {expr.count}"
         return sql, tuple(params)
 
-    def format_subpartition_definition(self, definition: "MySQLSubpartitionDefinition") -> Tuple[str, tuple]:
+    def format_subpartition_definition(self, expr: "MySQLSubpartitionDefinition") -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.
 
         Args:
@@ -609,11 +609,11 @@ class MySQLPartitionMixin:
         Raises:
             ValueError: if the definition name is empty.
         """
-        if not definition.name or not definition.name.strip():
+        if not expr.name or not expr.name.strip():
             raise ValueError("subpartition name must not be empty")
-        parts = ["SUBPARTITION", self.format_identifier(definition.name)]
+        parts = ["SUBPARTITION", self.format_identifier(expr.name)]
         params: List[Any] = []
-        partition_options = definition.partition_options
+        partition_options = expr.partition_options
         if partition_options is not None:
             options_sql, options_params = self.format_partition_definition_options(
                 partition_options
@@ -763,11 +763,11 @@ class MySQLPartitionMixin:
         )
         return sql, tuple(table_params) + tuple(exchange_table_params)
 
-    def format_partition_name_list(self, partitions: Sequence[str]) -> str:
+    def render_partition_name_list(self, expr: Sequence[str]) -> str:
         """Format a non-empty partition name list."""
-        if not partitions:
+        if not expr:
             raise ValueError("partitions must not be empty")
-        return ", ".join(self.format_identifier(partition) for partition in partitions)
+        return ", ".join(self.format_identifier(partition) for partition in expr)
 
     def format_mysql_remove_partitioning_expression(
         self,
@@ -831,7 +831,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "ANALYZE PARTITION")
         require_kind(expr.table, Table, "MySQLAnalyzePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} ANALYZE PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_check_partition_expression(
@@ -852,7 +852,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "CHECK PARTITION")
         require_kind(expr.table, Table, "MySQLCheckPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} CHECK PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_optimize_partition_expression(
@@ -873,7 +873,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "OPTIMIZE PARTITION")
         require_kind(expr.table, Table, "MySQLOptimizePartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} OPTIMIZE PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_rebuild_partition_expression(
@@ -894,7 +894,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "REBUILD PARTITION")
         require_kind(expr.table, Table, "MySQLRebuildPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REBUILD PARTITION {partitions}", tuple(table_params)
 
     def format_mysql_repair_partition_expression(
@@ -915,7 +915,7 @@ class MySQLPartitionMixin:
             raise UnsupportedFeatureError(self.name, "REPAIR PARTITION")
         require_kind(expr.table, Table, "MySQLRepairPartitionExpression.table")
         table_sql, table_params = expr.table.to_sql()
-        partitions = self.format_partition_name_list(expr.partitions)
+        partitions = self.render_partition_name_list(expr.partitions)
         return f"ALTER TABLE {table_sql} REPAIR PARTITION {partitions}", tuple(table_params)
 
     # ------------------------------------------------------------------

@@ -54,7 +54,7 @@ class MySQLLiteralValueMixin:
     overrides never wins.
     """
 
-    def format_literal(self, value: Any) -> str:
+    def format_literal(self, expr: Any) -> str:
         """Render *value* as inline SQL text, MySQL's spelling where it has one.
 
         Args:
@@ -68,8 +68,8 @@ class MySQLLiteralValueMixin:
                 literal form for -- ``timedelta`` among them, which is the
                 measured answer rather than a gap.
         """
-        if isinstance(value, (bytes, bytearray)):
-            return f"X'{bytes(value).hex().upper()}'"
-        if isinstance(value, uuid.UUID):
-            return self.format_literal(str(value))
-        return super().format_literal(value)
+        if isinstance(expr, (bytes, bytearray)):
+            return f"X'{bytes(expr).hex().upper()}'"
+        if isinstance(expr, uuid.UUID):
+            return self.format_literal(str(expr))
+        return super().format_literal(expr)

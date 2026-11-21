@@ -399,7 +399,7 @@ class MySQLConstraintMixin:
         return self.version_at_least((8, 0, 16))
 
     def format_alter_constraint_action(
-        self, action: "AlterConstraintAction"
+        self, expr: "AlterConstraintAction"
     ) -> Tuple[str, tuple]:
         """``ALTER CONSTRAINT`` addresses CHECK only on this server.
 
@@ -422,7 +422,7 @@ class MySQLConstraintMixin:
             TableCheckConstraint,
         )
 
-        branch = action.constraint_branch
+        branch = expr.constraint_branch
         if branch is not TableCheckConstraint:
             feature = f"ALTER CONSTRAINT {_constraint_kind_sql(branch)} ENFORCED/NOT ENFORCED"
             raise UnsupportedFeatureError(
@@ -432,7 +432,7 @@ class MySQLConstraintMixin:
                 "enforcement state of CHECK constraints only; the server answers "
                 "errno 3941 on PRIMARY KEY, UNIQUE and FOREIGN KEY.",
             )
-        return super().format_alter_constraint_action(action)
+        return super().format_alter_constraint_action(expr)
 
     def supports_alter_constraint(self) -> bool:
         """Whether ``ALTER TABLE ... ALTER CONSTRAINT`` is supported at all.
@@ -538,7 +538,7 @@ class MySQLConstraintMixin:
                 "clause parses and is discarded (measured on 26.7.0: 1064).",
             )
 
-    def format_constraint_enforcement(self, constraint: "ColumnConstraint") -> str:
+    def format_constraint_enforcement(self, expr: "ColumnConstraint") -> str:
         """Render the enforcement trait behind this backend's narrowing.
 
         The shared private hook takes the production, so it is shared by the
@@ -549,8 +549,8 @@ class MySQLConstraintMixin:
         :meth:`format_table_constraint`) so the refusal still names the
         spelling when the branch has its own, earlier refusal to make.
         """
-        self._require_constraint_enforcement(constraint)
-        return super().format_constraint_enforcement(constraint)
+        self._require_constraint_enforcement(expr)
+        return super().format_constraint_enforcement(expr)
 
     # Constraint deferral (the rendering half; the probe is above)
 
@@ -593,7 +593,7 @@ class MySQLConstraintMixin:
                 "1064).",
             )
 
-    def format_constraint_traits(self, constraint: "ColumnConstraint") -> Tuple[str, str]:
+    def format_constraint_traits(self, expr: "ColumnConstraint") -> Tuple[str, str]:
         """Render the column-clause traits after this backend's deferral gate.
 
         Core's own renderer refuses the deferral family with one generic
@@ -601,8 +601,8 @@ class MySQLConstraintMixin:
         :meth:`_require_no_constraint_deferral` first so the refusal names
         the exact spelling, then defers everything else to core.
         """
-        self._require_no_constraint_deferral(constraint)
-        return super().format_constraint_traits(constraint)
+        self._require_no_constraint_deferral(expr)
+        return super().format_constraint_traits(expr)
 
     def format_table_constraint(self, expr: "TableConstraint") -> Tuple[str, Tuple]:
         """Render a table-level constraint clause after this backend's gates.

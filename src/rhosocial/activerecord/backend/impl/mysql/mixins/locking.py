@@ -14,7 +14,7 @@ class MySQLLockingMixin:
     def supports_for_update_skip_locked(self) -> bool:
         return self.version_at_least((8, 0, 0))
 
-    def format_for_update_clause(self, clause) -> Tuple[str, tuple]:
+    def format_for_update_clause(self, expr) -> Tuple[str, tuple]:
         """Format MySQL-specific FOR UPDATE / FOR SHARE clause.
 
         The node normalises ``strength`` to a :class:`LockStrength` member,
@@ -28,7 +28,7 @@ class MySQLLockingMixin:
 
         all_params = []
 
-        strength = clause.strength
+        strength = expr.strength
 
         if strength == LockStrength.SHARE:
             if not self.supports_for_share():
@@ -40,9 +40,9 @@ class MySQLLockingMixin:
 
         sql_parts = [strength.phrase]
 
-        if clause.of_columns:
+        if expr.of_columns:
             of_parts = []
-            for col in clause.of_columns:
+            for col in expr.of_columns:
                 if isinstance(col, str):
                     of_parts.append(self.format_identifier(col))
                     continue
@@ -52,11 +52,11 @@ class MySQLLockingMixin:
             if of_parts:
                 sql_parts.append(f"OF {', '.join(of_parts)}")
 
-        if clause.nowait:
+        if expr.nowait:
             if not self.supports_for_update_nowait():
                 raise UnsupportedFeatureError(self.name, "NOWAIT (requires MySQL 8.0+)")
             sql_parts.append("NOWAIT")
-        elif clause.skip_locked:
+        elif expr.skip_locked:
             if not self.supports_for_update_skip_locked():
                 raise UnsupportedFeatureError(self.name, "SKIP LOCKED (requires MySQL 8.0+)")
             sql_parts.append("SKIP LOCKED")

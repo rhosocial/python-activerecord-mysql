@@ -25,7 +25,8 @@ class MySQLDDLColumnMixin:
         and let the column follow its rendered name.
         """
         if expr.table:
-            col_sql = f"{self.format_identifier(expr.table, expr.table_need_quote)}.{self.format_identifier(expr.name, expr.name_need_quote)}"
+            table = self.format_identifier(expr.table, expr.table_need_quote)
+            col_sql = f"{table}.{self.format_identifier(expr.name, expr.name_need_quote)}"
         else:
             col_sql = self.format_identifier(expr.name, expr.name_need_quote)
 
@@ -34,7 +35,7 @@ class MySQLDDLColumnMixin:
 
         return col_sql, ()
 
-    def format_add_column_action(self, action) -> Tuple[str, tuple]:
+    def format_add_column_action(self, expr) -> Tuple[str, tuple]:
         """Format core's ``ADD COLUMN`` action.
 
         ``AddColumnAction`` declares ``if_not_exists`` and ``column``, so both
@@ -43,52 +44,52 @@ class MySQLDDLColumnMixin:
         missing feature. The MySQL-only positional clause lives on
         :class:`MySQLAddColumn` and has its own entry.
         """
-        if action.if_not_exists is True:
+        if expr.if_not_exists is True:
             raise UnsupportedFeatureError(
                 self.name, "ALTER TABLE ADD COLUMN IF NOT EXISTS",
                 suggestion="MySQL does not support IF NOT EXISTS on ADD COLUMN. "
                      "Pre-check information_schema.COLUMNS before ALTER."
             )
-        column_sql, column_params = self.format_column_definition(action.column)
+        column_sql, column_params = self.format_column_definition(expr.column)
         return f"ADD COLUMN {column_sql}", column_params
 
-    def format_mysql_add_column(self, action: "MySQLAddColumn") -> Tuple[str, tuple]:
+    def format_mysql_add_column(self, expr: "MySQLAddColumn") -> Tuple[str, tuple]:
         """Format MySQL's ``ADD COLUMN``, with its optional ``AFTER`` clause.
 
         Its own entry because it is its own node: ``AFTER <column>`` is a field
         core's action does not declare, and reading it off the core class meant
         probing for a field that is not in the contract.
         """
-        if action.if_not_exists is True:
+        if expr.if_not_exists is True:
             raise UnsupportedFeatureError(
                 self.name, "ALTER TABLE ADD COLUMN IF NOT EXISTS",
                 suggestion="MySQL does not support IF NOT EXISTS on ADD COLUMN. "
                      "Pre-check information_schema.COLUMNS before ALTER."
             )
-        column_sql, column_params = self.format_column_definition(action.column)
-        if action.after:
-            return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(action.after)}", column_params
+        column_sql, column_params = self.format_column_definition(expr.column)
+        if expr.after:
+            return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(expr.after)}", column_params
         return f"ADD COLUMN {column_sql}", column_params
 
-    def format_drop_column_action(self, action) -> Tuple[str, tuple]:
+    def format_drop_column_action(self, expr) -> Tuple[str, tuple]:
         """Format ``DROP COLUMN``."""
-        if action.if_exists is True:
+        if expr.if_exists is True:
             raise UnsupportedFeatureError(
                 self.name, "DROP COLUMN IF EXISTS",
                 suggestion="MySQL does not support IF EXISTS on DROP COLUMN. "
                      "Pre-check information_schema.COLUMNS before ALTER."
             )
-        return super().format_drop_column_action(action)
+        return super().format_drop_column_action(expr)
 
-    def format_drop_table_constraint_action(self, action) -> Tuple[str, tuple]:
+    def format_drop_table_constraint_action(self, expr) -> Tuple[str, tuple]:
         """Format ``DROP CONSTRAINT``."""
-        if action.if_exists is True:
+        if expr.if_exists is True:
             raise UnsupportedFeatureError(
                 self.name, "DROP CONSTRAINT IF EXISTS",
                 suggestion="MySQL does not support IF EXISTS on DROP CONSTRAINT. "
                      "Pre-check information_schema.TABLE_CONSTRAINTS before ALTER."
             )
-        return super().format_drop_table_constraint_action(action)
+        return super().format_drop_table_constraint_action(expr)
 
     def format_references_clause(self, expr) -> Tuple[str, Tuple]:
         """Format a REFERENCES clause for MySQL.
@@ -120,21 +121,21 @@ class MySQLDDLColumnMixin:
             )
         return super().format_references_clause(expr)
 
-    def format_alter_column_action(self, action) -> Tuple[str, tuple]:
+    def format_alter_column_action(self, expr) -> Tuple[str, tuple]:
         """Format ALTER TABLE ... ALTER COLUMN {SET DEFAULT | DROP DEFAULT}."""
         # The contract types the operation as the enum member or the word it
         # spells, so the entry asks which one it is instead of asking the
         # object whether it happens to carry a ``value``.
         operation = (
-            action.operation.value if isinstance(action.operation, Enum) else action.operation
+            expr.operation.value if isinstance(expr.operation, Enum) else expr.operation
         )
-        col_name = self.format_identifier(action.column_name)
+        col_name = self.format_identifier(expr.column_name)
 
         if operation == "DROP DEFAULT":
             return f"ALTER COLUMN {col_name} DROP DEFAULT", ()
 
         if operation == "SET DEFAULT":
-            new_value = action.new_value
+            new_value = expr.new_value
             if isinstance(new_value, str):
                 escaped = self.escape_sql_string(new_value)
                 return f"ALTER COLUMN {col_name} SET DEFAULT '{escaped}'", ()
@@ -149,4 +150,4 @@ class MySQLDDLColumnMixin:
                 return f"ALTER COLUMN {col_name} SET DEFAULT {value_sql}", tuple(value_params)
             return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value)}", ()
 
-        return super().format_alter_column_action(action)
+        return super().format_alter_column_action(expr)

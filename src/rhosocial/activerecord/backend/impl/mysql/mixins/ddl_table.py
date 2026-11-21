@@ -177,7 +177,7 @@ class MySQLTableMixin:
         """Render ``CREATE TABLE ... LIKE`` via the generic TableMixin formatter."""
         return super().format_create_table_like_statement(expr)
 
-    def format_column_definition(self, col_def: "ColumnDefinition") -> Tuple[str, tuple]:
+    def format_column_definition(self, expr: "ColumnDefinition") -> Tuple[str, tuple]:
         """Format a single column definition with MySQL-specific syntax.
 
         Accepts both the generic ``ColumnDefinition`` and the MySQL
@@ -188,48 +188,45 @@ class MySQLTableMixin:
         from rhosocial.activerecord.backend.impl.mysql.expression.column import (
             MySQLColumnDefinition,
         )
-        from rhosocial.activerecord.backend.expression.statements import (
-            AutoIncrementClause,
-        )
 
-        type_sql, type_params = col_def.data_type.to_sql()
-        parts = [self.format_identifier(col_def.name), type_sql]
+        type_sql, type_params = expr.data_type.to_sql()
+        parts = [self.format_identifier(expr.name), type_sql]
         params: List[Any] = list(type_params)
 
-        for constraint in col_def.constraints:
+        for constraint in expr.constraints:
             suffix, cp = self.format_column_constraint(constraint)
             constraint_text = suffix.strip()
             if constraint_text:
                 parts.append(constraint_text)
             params.extend(list(cp))
-        attr_sql, attr_params = self.format_column_attributes(col_def)
+        attr_sql, attr_params = self.format_column_attributes(expr)
         if attr_sql:
             parts.append(attr_sql.strip())
         params.extend(attr_params)
 
-        if isinstance(col_def, MySQLColumnDefinition):
-            if col_def.character_set:
-                parts.append(f"CHARACTER SET {self.format_identifier(col_def.character_set)}")
-            if col_def.column_format is not None:
-                parts.append(f"COLUMN_FORMAT {col_def.column_format.value}")
-            if col_def.storage is not None:
-                parts.append(f"STORAGE {col_def.storage.value}")
-            if col_def.invisible:
+        if isinstance(expr, MySQLColumnDefinition):
+            if expr.character_set:
+                parts.append(f"CHARACTER SET {self.format_identifier(expr.character_set)}")
+            if expr.column_format is not None:
+                parts.append(f"COLUMN_FORMAT {expr.column_format.value}")
+            if expr.storage is not None:
+                parts.append(f"STORAGE {expr.storage.value}")
+            if expr.invisible:
                 parts.append("INVISIBLE")
 
-        if col_def.comment is not None:
-            comment_sql, _ = self.format_column_comment_clause(col_def.comment)
+        if expr.comment is not None:
+            comment_sql, _ = self.format_column_comment_clause(expr.comment)
             parts.append(comment_sql.strip())
 
-        if col_def.generated_expression is not None:
-            gen_sql, gen_params = col_def.generated_expression.to_sql()
+        if expr.generated_expression is not None:
+            gen_sql, gen_params = expr.generated_expression.to_sql()
             parts.append(gen_sql.lstrip())
             params.extend(gen_params)
 
         return " ".join(parts), params
 
     def format_table_check_constraint(
-        self, constraint: "TableCheckConstraint"
+        self, expr: "TableCheckConstraint"
     ) -> Tuple[str, tuple]:
         """Format a table-level ``CHECK`` body behind this server's version gate.
 
@@ -249,10 +246,10 @@ class MySQLTableMixin:
                 "CHECK constraint",
                 f"{self.name} does not support CHECK constraints.",
             )
-        return super().format_table_check_constraint(constraint)
+        return super().format_table_check_constraint(expr)
 
     def format_table_foreign_key_constraint(
-        self, constraint: "TableForeignKeyConstraint"
+        self, expr: "TableForeignKeyConstraint"
     ) -> Tuple[str, tuple]:
         """Format a table-level ``FOREIGN KEY`` with MySQL's spaced column list.
 
@@ -273,25 +270,25 @@ class MySQLTableMixin:
             ReferencesClause,
         )
 
-        if not constraint.columns:
+        if not expr.columns:
             raise ValueError(
                 "FOREIGN KEY constraint must have at least one local column specified."
             )
-        referenced_table, referenced_columns = constraint.references
+        referenced_table, referenced_columns = expr.references
         if not referenced_columns:
             raise ValueError(
                 "FOREIGN KEY constraint must have at least one foreign key column specified."
             )
         if not referenced_table:
             raise ValueError("FOREIGN KEY constraint must have a foreign key table specified.")
-        cols_str = ", ".join(self.format_identifier(c) for c in constraint.columns)
+        cols_str = ", ".join(self.format_identifier(c) for c in expr.columns)
         references = ReferencesClause(
             self,
             referenced_table,
             list(referenced_columns),
-            on_delete=constraint.on_delete,
-            on_update=constraint.on_update,
-            match_type=constraint.match_type,
+            on_delete=expr.on_delete,
+            on_update=expr.on_update,
+            match_type=expr.match_type,
         )
         ref_sql, ref_params = self.format_references_clause(references)
         # The shared clause renders "REFERENCES <table>(<cols>)..."; MySQL
@@ -299,17 +296,17 @@ class MySQLTableMixin:
         head, rest = ref_sql.split("(", 1)
         return f"FOREIGN KEY ({cols_str}) {head} ({rest}", tuple(ref_params)
 
-    def format_index_definition(self, idx_def: "IndexDefinition") -> Tuple[str, tuple]:
+    def format_index_definition(self, expr: "IndexDefinition") -> Tuple[str, tuple]:
         """Format an inline INDEX definition within CREATE TABLE (MySQL-specific)."""
         parts = []
-        if idx_def.unique:
+        if expr.unique:
             parts.append("UNIQUE")
         parts.append("INDEX")
-        parts.append(self.format_identifier(idx_def.name))
-        cols_str = ", ".join(self.format_identifier(c) for c in idx_def.columns)
+        parts.append(self.format_identifier(expr.name))
+        cols_str = ", ".join(self.format_identifier(c) for c in expr.columns)
         parts.append(f"({cols_str})")
-        if idx_def.type:
-            parts.append(f"USING {idx_def.type}")
+        if expr.type:
+            parts.append(f"USING {expr.type}")
         return " ".join(parts), ()
 
     def format_storage_options_expression(self, expr: "StorageOptionsExpression") -> Tuple[str, tuple]:
