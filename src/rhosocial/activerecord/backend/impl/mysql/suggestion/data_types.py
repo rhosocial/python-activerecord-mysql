@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/mixins/data_type_suggestions.py
+# src/rhosocial/activerecord/backend/impl/mysql/suggestion/data_types.py
 """MySQL's **suggested data types**: what a bare field is declared as here.
 
 The DDL half of the type answer; :mod:`.column_type` is the operation half.

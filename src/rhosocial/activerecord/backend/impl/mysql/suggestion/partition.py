@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/mixins/partition_suggestion.py
+# src/rhosocial/activerecord/backend/impl/mysql/suggestion/partition.py
 """MySQLPartitionSuggestionMixin -- real MySQL answers for the 8 partition suggestions.
 
 The eight ``suggest_partition_*`` methods turn a caller-supplied ``plan`` into
@@ -36,9 +36,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, List, Optional, TYPE_CHECKING
 
-from ....expression import (
-    Column,
-    DropTableStatement,
+from rhosocial.activerecord.backend.suggestion import (
     PartitionAddSuggestion,
     PartitionBuildSuggestion,
     PartitionDropSuggestion,
@@ -48,6 +46,8 @@ from ....expression import (
     PartitionTableAlterSuggestion,
     PartitionTableDropSuggestion,
 )
+
+from ....expression import Column, DropTableStatement
 from ....expression.bases import BaseExpression
 from ....expression.objects import Table
 from ..expression.partition import (

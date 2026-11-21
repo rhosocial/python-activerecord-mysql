@@ -20,9 +20,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     PartitionTableAlterSuggestionSupport,
     PartitionTableDropSuggestionSupport,
 )
-from rhosocial.activerecord.backend.expression import (
-    Column,
-    DropTableStatement,
+from rhosocial.activerecord.backend.expression import Column, DropTableStatement
+from rhosocial.activerecord.backend.suggestion import (
     PartitionAddSuggestion,
     PartitionBuildSuggestion,
     PartitionDropSuggestion,

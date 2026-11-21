@@ -127,8 +127,12 @@ from .protocols import (
     MySQLLoadXMLSupport,
     MySQLAdminCommandSupport,
 )
-from .mixins import (
+from .suggestion import (
     MySQLPartitionSuggestionMixin,
+    MySQLDataTypeSuggestionsMixin,
+    MySQLIntegerAutoIncrementColumnSuggestionMixin,
+)
+from .mixins import (
     MySQLNamespaceMixin,
     MySQLTransactionMixin,
     MySQLDMLOperationMixin,
@@ -145,7 +149,6 @@ from .mixins import (
     MySQLJsonDualityViewMixin,
     MySQLOptimizerHintMixin,
     MySQLPartitionMixin,
-    MySQLDataTypeSuggestionsMixin,
     MySQLTypeSupportMixin,
     MySQLRenameTableMixin,
     MySQLTruncateMixin,
@@ -172,7 +175,6 @@ from .mixins import (
     MySQLFunctionMixin,
     MySQLColumnTypeMixin,
     MySQLLiteralValueMixin,
-    MySQLIntegerAutoIncrementColumnSuggestionMixin,
 )
 from .mixins.object_kind import require_kind
 from .reserved_words import MYSQL_RESERVED_WORDS

@@ -140,6 +140,16 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.DatabaseAssignedColumnSupport,
     dialect_protocols.IdentityColumnSupport,
     dialect_protocols.IntegerAutoIncrementColumnSuggestionSupport,
+    # The 8 partition suggestion protocols: MySQL's own answers live in the
+    # backend's ``suggestion`` package and are mixed into MySQLDialect first.
+    dialect_protocols.PartitionAddSuggestionSupport,
+    dialect_protocols.PartitionBuildSuggestionSupport,
+    dialect_protocols.PartitionDropSuggestionSupport,
+    dialect_protocols.PartitionMergeSuggestionSupport,
+    dialect_protocols.PartitionRetentionSuggestionSupport,
+    dialect_protocols.PartitionSplitSuggestionSupport,
+    dialect_protocols.PartitionTableAlterSuggestionSupport,
+    dialect_protocols.PartitionTableDropSuggestionSupport,
     dialect_protocols.GeneratedColumnSupport,
     dialect_protocols.PartitionSupport,
     # --- DDL: view / index ---
