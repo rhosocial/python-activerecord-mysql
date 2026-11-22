@@ -50,18 +50,16 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     # Named objects: each *NameMixin inherits NamespaceMixin, so they precede it.
     RelationSourceMixin,
     NamespaceMixin,
-    TableNameMixin,
-    ViewNameMixin,
-    MaterializedViewNameMixin,
-    ForeignTableNameMixin,
-    IndexNameMixin,
-    SequenceNameMixin,
-    TriggerNameMixin,
-    FunctionNameMixin,
-    ProcedureNameMixin,
-    TypeNameMixin,
-    DomainNameMixin,
-    SynonymNameMixin,
+    TableObjectMixin,
+    ViewObjectMixin,
+    MaterializedViewObjectMixin,
+    ForeignTableObjectMixin,
+    IndexObjectMixin,
+    SequenceObjectMixin,
+    TriggerObjectMixin,
+    RoutineObjectMixin,
+    TypeObjectMixin,
+    SynonymObjectMixin,
     SchemaNameMixin,
     DatabaseNameMixin,
     PropertyGraphNameMixin,
@@ -98,7 +96,7 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DQLMixin,
     DMLMixin,
     DDLColumnMixin,
-    AutoIncrementMixin,
+    AutoIncrementColumnMixin,
     IdentityColumnMixin,
     UserDefinedTypeMixin,
     DomainMixin,
@@ -243,18 +241,16 @@ class MySQLDialect(
     # own SQL, so each kind needs a formatter here. The *NameMixin classes all
     # derive from NamespaceMixin and therefore precede it (C3).
     RelationSourceMixin,
-    TableNameMixin,
-    ViewNameMixin,
-    MaterializedViewNameMixin,
-    ForeignTableNameMixin,
-    IndexNameMixin,
-    SequenceNameMixin,
-    TriggerNameMixin,
-    FunctionNameMixin,
-    ProcedureNameMixin,
-    TypeNameMixin,
-    DomainNameMixin,
-    SynonymNameMixin,
+    TableObjectMixin,
+    ViewObjectMixin,
+    MaterializedViewObjectMixin,
+    ForeignTableObjectMixin,
+    IndexObjectMixin,
+    SequenceObjectMixin,
+    TriggerObjectMixin,
+    RoutineObjectMixin,
+    TypeObjectMixin,
+    SynonymObjectMixin,
     SchemaNameMixin,
     DatabaseNameMixin,
     PropertyGraphNameMixin,
@@ -287,7 +283,7 @@ class MySQLDialect(
     MySQLColumnTypeMixin,
     # The two auto-increment mechanisms are separate mixins, and their order
     # here is load-bearing. MySQLGeneratedColumnMixin declares the
-    # parameterless AUTO_INCREMENT marker True; AutoIncrementMixin supplies
+    # parameterless AUTO_INCREMENT marker True; AutoIncrementColumnMixin supplies
     # the fail-closed default and the formatter that consults the probe, so it
     # must come after the MySQL declaration for the True to win. IdentityColumnMixin
     # supplies the SQL-standard identity clause's probes and formatter; MySQL
@@ -296,7 +292,7 @@ class MySQLDialect(
     # identity request is refused by name. Mixing the mixin in, rather than
     # keeping a local format_identity_clause override, is what stops ALWAYS and
     # start/increment from being silently dropped into a bare AUTO_INCREMENT.
-    AutoIncrementMixin,
+    AutoIncrementColumnMixin,
     IdentityColumnMixin,
     MySQLFunctionMixin,
     # ``TRIM``/``LPAD``/``RPAD``/``REPEAT`` are nodes with default formatters,
@@ -338,7 +334,7 @@ class MySQLDialect(
     # inheriting them would render well-formed SQL MySQL would refuse rather
     # than refuse it here. Leaving the mixin out makes the absence structural:
     # the dispatch finds no formatter and raises UnsupportedFeatureError naming
-    # the dialect and the statement. SequenceNameMixin above is kept, and is a
+    # the dialect and the statement. SequenceObjectMixin above is kept, and is a
     # separate job: it names the object, so a Sequence is still accepted as an
     # identifier and Sequence(dialect, "s").to_sql() keeps rendering.
     MySQLPartitionMixin,

@@ -742,7 +742,7 @@ _DECLARED_GAP = {
     # supports_sequence() said the feature was absent. They now refuse through
     # the dispatch, which is the same declared gap as the property-graph rows
     # above and stated for the same reason. Naming a sequence is untouched:
-    # SequenceNameMixin stays, so Sequence(dialect, "s").to_sql() renders.
+    # SequenceObjectMixin stays, so Sequence(dialect, "s").to_sql() renders.
     "statements.ddl_sequence.CreateSequenceStatement": (
         "format_create_sequence_statement",
         "MySQL has no sequence object; AUTO_INCREMENT columns are how rows are "

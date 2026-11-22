@@ -272,7 +272,7 @@ MYSQL_NOT_IMPLEMENTED = [
     # columns -- so sequence DDL is absent from the base list rather than
     # inherited and declined, and these three protocols name formatters that
     # therefore do not exist. Naming a sequence is a different capability and is
-    # still met: SequenceObjectSupport above is satisfied by SequenceNameMixin,
+    # still met: SequenceObjectSupport above is satisfied by SequenceObjectMixin,
     # so a Sequence is accepted as an identifier.
     dialect_protocols.CreateSequenceSupport,
     dialect_protocols.AlterSequenceSupport,
@@ -288,7 +288,7 @@ def get_all_generic_protocols() -> set:
     for name, obj in inspect.getmembers(dialect_protocols, inspect.isclass):
         if Protocol not in getattr(obj, "__mro__", []) or not name.endswith("Support"):
             continue
-        if name == "DDLTypeSupport":
+        if name == "DataTypeSupport":
             continue
         assert name == obj.__name__, f"unexpected protocol alias: {name}"
         discovered.add(name)
