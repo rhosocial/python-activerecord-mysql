@@ -1,8 +1,8 @@
 # src/rhosocial/activerecord/backend/impl/mysql/cli/info.py
 """info subcommand - Display MySQL environment information.
 
-info can optionally connect to a database for version introspection,
-falling back to --version flag when no connection is available.
+info can optionally connect to a database for version and server-variable
+introspection, falling back to --version flag when no connection is available.
 """
 
 import argparse
@@ -10,6 +10,7 @@ import inspect
 import json
 from typing import Any, Dict, List, Tuple
 
+from rhosocial.activerecord.backend.dialect import capabilities as _cap
 from rhosocial.activerecord.backend.dialect.protocols import (
     WindowFunctionSupport,
     CTESupport,
@@ -188,6 +189,8 @@ def handle(args):
     is_connected = False
     dialect = None
     version_display = None
+    server_variables: Dict[str, Any] = {}
+    server_source = "no live connection; server variables not queried"
 
     named_conn = getattr(args, "named_connection", None)
     if named_conn or args.database:
@@ -204,6 +207,16 @@ def handle(args):
             version_tuple = backend.get_server_version()
             if version_tuple:
                 version_display = f"{version_tuple[0]}.{version_tuple[1]}.{version_tuple[2]}"
+
+            # Read server variables through the existing SHOW VARIABLES introspector.
+            try:
+                for variable in backend.introspector.show.variables():
+                    server_variables[variable.variable_name] = variable.value
+                server_source = "SHOW VARIABLES (live connection)"
+            except Exception as exc:  # pragma: no cover - depends on a live server
+                logger.warning("Could not read server variables: %s", exc)
+                server_source = "SHOW VARIABLES unavailable"
+
             is_connected = True
 
             backend.disconnect()
@@ -224,6 +237,19 @@ def handle(args):
         dialect = MySQLDialect(version=version)
         version_display = f"{version[0]}.{version[1]}.{version[2]}"
 
+    if version_display is None:
+        version_parts = dialect.version
+        version_display = f"{version_parts[0]}.{version_parts[1]}.{version_parts[2]}"
+
+    # Build the capability and suggestion reports through the shared core helper.
+    capabilities = _cap.build_capability_report(
+        dialect,
+        family_groups=PROTOCOL_FAMILY_GROUPS,
+        dialect_specific_groups=DIALECT_SPECIFIC_GROUPS,
+        all_args=SUPPORT_METHOD_ALL_ARGS,
+        verbose=args.verbose,
+    )
+
     # Unified structure for JSON output
     info = {
         "database": {
@@ -232,13 +258,18 @@ def handle(args):
             "version_tuple": list(dialect.version),
             "connected": is_connected,
         },
+        "server": {
+            "version": version_display,
+            "variables": server_variables,
+            "source": server_source,
+            "connected": is_connected,
+        },
         "features": {},
-        "protocols": {},
+        "capabilities": capabilities,
+        "suggestions": _cap.build_suggestion_report(dialect, args.verbose),
+        # compatibility alias for one release cycle
+        "protocols": capabilities,
     }
-
-    # Build protocol support information
-    for group_name, protocols in PROTOCOL_FAMILY_GROUPS.items():
-        info["protocols"][group_name] = _build_protocol_info(dialect, group_name, protocols, args.verbose)
 
     if args.output == "json" or not RICH_AVAILABLE:
         print(json.dumps(info, indent=2))
@@ -247,6 +278,7 @@ def handle(args):
         info_legacy = {
             "mysql": info["database"],
             "protocols": info["protocols"],
+            "suggestions": info["suggestions"],
         }
         _display_info_rich(info_legacy, args.verbose, version_display, is_connected)
 
@@ -427,8 +459,12 @@ def _display_protocol_item(console: Any, protocol_name: str, stats: Dict[str, An
 
     sup = stats["supported"]
     tot = stats["total"]
+    origin = stats.get("origin", "")
+    # Escape the brackets so rich renders the origin as text instead of a style tag.
+    origin_tag = f" [dim]\\[{origin}][/dim]" if origin else ""
     console.print(
-        f"    [{color}]{symbol}[/{color}] {protocol_name}: [{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
+        f"    [{color}]{symbol}[/{color}] {protocol_name}{origin_tag}: "
+        f"[{color}]{progress_bar}[/{color}] {pct:.0f}% ({sup}/{tot})"
     )
 
     if verbose >= 2 and "methods" in stats:
@@ -467,5 +503,15 @@ def _display_info_rich(info: Dict, verbose: int, version_display: str, is_connec
 
     for group_name, protocols in info["protocols"].items():
         _display_protocol_group(console, group_name, protocols, verbose)
+
+    # Suggestion support (independent of capability support)
+    suggestions = info.get("suggestions", {})
+    if suggestions:
+        console.print("\n[bold green]Suggestion Support:[/bold green]")
+        for proto_name, entry in suggestions.items():
+            supported = entry.get("supported", False)
+            symbol = "[OK]" if supported else "[X]"
+            color = "green" if supported else "red"
+            console.print(f"    [{color}]{symbol}[/{color}] {proto_name}")
 
     console.print()
