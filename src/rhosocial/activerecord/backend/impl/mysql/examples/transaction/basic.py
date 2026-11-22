@@ -6,7 +6,7 @@ This example demonstrates:
 2. How to handle transaction rollback on error
 3. How to use savepoints for nested transactions
 """
-from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
+from rhosocial.activerecord.base.derivation import integer_auto_increment_parts  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -58,12 +58,12 @@ create_table = CreateTableStatement(
     columns=[
         ColumnDefinition(
             "id",
-            IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[0],
+            integer_auto_increment_parts(None, "INT")[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
             ],
-         attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, "INT")[1]),
+         attributes=integer_auto_increment_parts(None, "INT")[1]),
         ColumnDefinition(
             "name",
             "VARCHAR(100)",

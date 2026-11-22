@@ -1,7 +1,13 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/backend_mixin.py
 import logging
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple
 
+from rhosocial.activerecord.backend.adapters.portable import PORTABLE_TYPE_MAPPINGS
+from rhosocial.activerecord.backend.base.type_adaption import merge_adapter_suggestions
+from rhosocial.activerecord.backend.suggestion.definitions import (
+    DataAdapterSuggestion,
+    ExtraDataAdapterSuggestion,
+)
 from rhosocial.activerecord.backend.type_adapter import SQLTypeAdapter
 
 
@@ -111,12 +117,11 @@ class MySQLBackendMixin:
                 "MySQL does not support RETURNING clause. Consider using LAST_INSERT_ID() or alternative approaches.",
             )
 
-    def get_default_adapter_suggestions(self) -> Dict[Type, Tuple[SQLTypeAdapter, Type]]:
+    def suggest_data_adapters(self) -> DataAdapterSuggestion:
         """Provides default type adapter suggestions for MySQL.
 
-        The framework defaults (:meth:`TypeAdaptionMixin.get_default_adapter_suggestions`)
-        are the base; MySQL merges its own pairs on top, including the neutral
-        families it carries as TEXT/BLOB.
+        The framework's portable defaults are the base; MySQL merges its own
+        pairs on top, including the neutral families it carries as TEXT/BLOB.
         """
         from datetime import date, datetime, time
         from decimal import Decimal
@@ -128,11 +133,7 @@ class MySQLBackendMixin:
         from rhosocial.activerecord.backend.adapters.network import MacAddress
         from rhosocial.activerecord.backend.adapters.range import Multirange, Range
         from rhosocial.activerecord.backend.adapters.vector import Vector
-        from rhosocial.activerecord.backend.base.type_adaption import (
-            merge_adapter_suggestions,
-        )
-
-        base = super().get_default_adapter_suggestions()
+        base = merge_adapter_suggestions({}, PORTABLE_TYPE_MAPPINGS, self.adapter_registry)
 
         type_mappings = [
             (bool, int),
@@ -163,7 +164,11 @@ class MySQLBackendMixin:
                     f"No adapter found for ({py_type.__name__}, {db_type.__name__}). "
                     "Suggestion will not be provided for this type.",
                 )
-        return suggestions
+        return DataAdapterSuggestion(table=suggestions)
+
+    def suggest_extra_data_adapters(self) -> ExtraDataAdapterSuggestion:
+        """No backend-owned extra adapter types."""
+        return ExtraDataAdapterSuggestion(table={})
 
     def get_type_adapters(self) -> List["SQLTypeAdapter"]:
         """Return the adapter instances this backend provides.

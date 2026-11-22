@@ -28,6 +28,11 @@ templates; the derivation binds a dialect on a copy of the single entry it uses.
 
 from __future__ import annotations
 
+from rhosocial.activerecord.backend.suggestion.definitions import (
+    DataTypeSuggestion,
+    ExtraDataTypeSuggestion,
+)
+
 import datetime
 import decimal
 import enum
@@ -99,8 +104,11 @@ MYSQL_DATA_TYPE_SUGGESTIONS: Dict[Any, Optional[Any]] = {
 class MySQLDataTypeSuggestionsMixin:
     """MySQL's answer to "what declaration does a bare field get here"."""
 
-    def suggested_data_types(self) -> Dict[Any, Optional[Any]]:
-        return dict(MYSQL_DATA_TYPE_SUGGESTIONS)
+    def suggest_data_types(self) -> DataTypeSuggestion:
+        return DataTypeSuggestion(table=dict(MYSQL_DATA_TYPE_SUGGESTIONS))
+
+    def suggest_extra_data_types(self) -> ExtraDataTypeSuggestion:
+        return ExtraDataTypeSuggestion(table={})
 
 
 __all__ = ["MYSQL_DATA_TYPE_SUGGESTIONS", "MySQLDataTypeSuggestionsMixin"]

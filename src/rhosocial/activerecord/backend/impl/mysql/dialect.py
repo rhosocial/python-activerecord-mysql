@@ -9,6 +9,12 @@ based on the MySQL version provided at initialization.
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
+from rhosocial.activerecord.backend.suggestion.protocols import (
+    ColumnTypeSuggestionSupport,
+    DataTypeSuggestionSupport,
+    JSONSuggestionSupport,
+    StringConcatenationSuggestionSupport,
+)
 from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.dialect.protocols import (
     CollationSupport,
@@ -32,6 +38,8 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     NamespaceSupport,
     SequenceObjectSupport,
     ConstraintSupport,
+    ColumnAttributeSupport,
+    AlterTableModifierSupport,
     IntrospectionSupport,
     TruncateSupport,
     TransactionControlSupport,
@@ -96,6 +104,8 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DQLMixin,
     DMLMixin,
     DDLColumnMixin,
+    ColumnAttributeMixin,
+    AlterTableModifierMixin,
     AutoIncrementColumnMixin,
     IdentityColumnMixin,
     UserDefinedTypeMixin,
@@ -134,6 +144,8 @@ from .suggestion import (
     MySQLPartitionTableAlterSuggestionMixin,
     MySQLPartitionSplitSuggestionMixin,
     MySQLPartitionMergeSuggestionMixin,
+    MySQLJSONSuggestionMixin,
+    MySQLStringConcatenationSuggestionMixin,
     MySQLDataTypeSuggestionsMixin,
     MySQLIntegerAutoIncrementColumnSuggestionMixin,
 )
@@ -353,6 +365,8 @@ class MySQLDialect(
     MySQLShowDialectMixin,
     MySQLModifyColumnMixin,
     MySQLJsonDualityViewMixin,
+    MySQLJSONSuggestionMixin,
+    MySQLStringConcatenationSuggestionMixin,
     MySQLDataTypeSuggestionsMixin,
     MySQLTypeSupportMixin,
     UserDefinedTypeMixin,
@@ -369,6 +383,7 @@ class MySQLDialect(
     DQLMixin,
     DMLMixin,
     DDLColumnMixin,
+    ColumnAttributeMixin,
     TransactionControlMixin,
     SetOperationMixin,
     # Protocols for type checking
@@ -418,6 +433,13 @@ class MySQLDialect(
     MySQLAdminCommandSupport,
     SQLFunctionSupport,
     DataTypeSupport,
+    ColumnAttributeSupport,
+    AlterTableModifierSupport,
+    # Suggestion protocols (relocated to backend.suggestion.protocols)
+    DataTypeSuggestionSupport,
+    JSONSuggestionSupport,
+    StringConcatenationSuggestionSupport,
+    ColumnTypeSuggestionSupport,
     TypeObjectSupport,
     CreateTypeSupport,
     AlterTypeSupport,
@@ -481,6 +503,10 @@ class MySQLDialect(
     def get_server_version(self) -> Tuple[int, int, int]:
         """Return the MySQL version this dialect is configured for."""
         return self.version
+
+    def supports_drop_column(self) -> bool:
+        """MySQL supports ``ALTER TABLE ... DROP COLUMN`` on every version."""
+        return True
 
     def supports_transactional_ddl(self) -> bool:
         """MySQL commits each DDL statement implicitly."""

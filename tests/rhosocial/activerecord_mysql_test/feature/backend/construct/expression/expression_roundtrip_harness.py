@@ -34,6 +34,7 @@ import warnings
 from typing import Any, Callable, Dict, Optional, Type
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
+from rhosocial.activerecord.backend.impl.mysql.introspection.type_parser import MySQLTypeParser
 
 # Annotation fragments that mean "this parameter names a relation object".
 # Word boundaries matter: ``TableConstraint`` and ``AddTableConstraintAction``
@@ -1078,7 +1079,7 @@ def parse_roundtrip_failures(
 ) -> Any:
     """Sweep *registry* and return the parse round-trip failures as text.
 
-    Every dialect's ``parse_type`` is the introspection inverse of its
+    Every dialect's ``MySQLTypeParser.parse`` is the introspection inverse of its
     ``format_data_type_<name>`` renderings, and two invariants make a
     dialect coherent:
 
@@ -1101,7 +1102,7 @@ def parse_roundtrip_failures(
     ``CustomType`` answer is never blessed for a rendered word.
 
     Args:
-        dialect: the dialect whose ``parse_type`` is under test.
+        dialect: the dialect whose ``MySQLTypeParser.parse`` is under test.
         registry: a mapping of fully-qualified name to class, as the
             backend's round-trip module keeps it (``REGISTERED`` or
             ``ALL_CLASSES``). Only concrete ``DataType`` subclasses are
@@ -1139,16 +1140,16 @@ def parse_roundtrip_failures(
         except Exception:
             continue  # the matrix's pinned non-renders own this class
         try:
-            parsed = dialect.parse_type(rendered)
+            parsed = MySQLTypeParser(dialect).parse(rendered)
         except Exception as exc:
             failures.append(
-                "%s renders %r but parse_type raises %s: %s"
+                "%s renders %r but the parser raises %s: %s"
                 % (cls.__name__, rendered, type(exc).__name__, exc)
             )
             continue
         if isinstance(parsed, CustomType):
             failures.append(
-                "%s renders %r but parse_type answers CustomType -- a "
+                "%s renders %r but the parser answers CustomType -- a "
                 "dialect must recognise its own renderings"
                 % (cls.__name__, rendered)
             )
@@ -1157,7 +1158,7 @@ def parse_roundtrip_failures(
         if expected_entry is None:
             if parsed != instance:
                 failures.append(
-                    "%s renders %r but parse_type answers %r -- neither "
+                    "%s renders %r but the parser answers %r -- neither "
                     "the declaration nor a documented widening"
                     % (cls.__name__, rendered, parsed)
                 )
@@ -1169,7 +1170,7 @@ def parse_roundtrip_failures(
         if type(parsed).__name__ != expected:
             failures.append(
                 "%s renders %r; the documented answer is %s but "
-                "parse_type answers %s"
+                "the parser answers %s"
                 % (cls.__name__, rendered, expected, type(parsed).__name__)
             )
             continue

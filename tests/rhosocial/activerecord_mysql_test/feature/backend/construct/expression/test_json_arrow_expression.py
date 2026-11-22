@@ -198,4 +198,4 @@ class TestJSONCapabilityVersions:
     def test_supports_json_arrow_operators(self):
         assert MySQLDialect(version=(5, 7, 8)).supports_json_arrow_operators() is False
         assert MySQLDialect(version=(5, 7, 9)).supports_json_arrow_operators() is True
-        assert MySQLDialect(version=(8, 0, 0)).get_json_access_operator() == "->"
+        assert MySQLDialect(version=(8, 0, 0)).suggest_json_access_operator().operator == "->"

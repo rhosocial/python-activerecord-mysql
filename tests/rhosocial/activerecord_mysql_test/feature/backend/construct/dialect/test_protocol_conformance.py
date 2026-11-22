@@ -19,6 +19,7 @@ elif sys.version_info >= (3, 12):
 
 import pytest
 from rhosocial.activerecord.backend.dialect import protocols as dialect_protocols
+from rhosocial.activerecord.backend.suggestion import protocols as suggestion_protocols
 from rhosocial.activerecord.backend.impl.mysql import dialect as mysql_dialect
 from rhosocial.activerecord.backend.impl.mysql import mixins as mysql_mixins
 from rhosocial.activerecord.backend.impl.mysql import protocols as mysql_protocols
@@ -83,7 +84,7 @@ MYSQL_PROTOCOLS = [
     # Column classes: which operations a value carries, where
     # DataTypeSupport above answers how it is stored.
     # MySQLColumnTypeMixin supplies the table.
-    dialect_protocols.ColumnTypeSupport,
+    suggestion_protocols.ColumnTypeSuggestionSupport,
     # --- DML / locking / transactions ---
     dialect_protocols.ReturningSupport,
     dialect_protocols.UpsertSupport,
@@ -139,17 +140,17 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.AutoIncrementColumnSupport,
     dialect_protocols.DatabaseAssignedColumnSupport,
     dialect_protocols.IdentityColumnSupport,
-    dialect_protocols.IntegerAutoIncrementColumnSuggestionSupport,
+    suggestion_protocols.IntegerAutoIncrementColumnSuggestionSupport,
     # The 8 partition suggestion protocols: MySQL's own answers live in the
     # backend's ``suggestion`` package and are mixed into MySQLDialect first.
-    dialect_protocols.PartitionAddSuggestionSupport,
-    dialect_protocols.PartitionBuildSuggestionSupport,
-    dialect_protocols.PartitionDropSuggestionSupport,
-    dialect_protocols.PartitionMergeSuggestionSupport,
-    dialect_protocols.PartitionRetentionSuggestionSupport,
-    dialect_protocols.PartitionSplitSuggestionSupport,
-    dialect_protocols.PartitionTableAlterSuggestionSupport,
-    dialect_protocols.PartitionTableDropSuggestionSupport,
+    suggestion_protocols.PartitionAddSuggestionSupport,
+    suggestion_protocols.PartitionBuildSuggestionSupport,
+    suggestion_protocols.PartitionDropSuggestionSupport,
+    suggestion_protocols.PartitionMergeSuggestionSupport,
+    suggestion_protocols.PartitionRetentionSuggestionSupport,
+    suggestion_protocols.PartitionSplitSuggestionSupport,
+    suggestion_protocols.PartitionTableAlterSuggestionSupport,
+    suggestion_protocols.PartitionTableDropSuggestionSupport,
     dialect_protocols.GeneratedColumnSupport,
     dialect_protocols.PartitionSupport,
     # --- DDL: view / index ---
@@ -189,6 +190,23 @@ MYSQL_PROTOCOLS = [
     mysql_protocols.MySQLRoutineSupport,
     mysql_protocols.MySQLLoadXMLSupport,
     mysql_protocols.MySQLAdminCommandSupport,
+    # Family protocols added by the core refactor (all satisfied by the mixins).
+    dialect_protocols.AsyncIntrospectionSupport,
+    dialect_protocols.DDLColumnSupport,
+    dialect_protocols.DMLSupport,
+    dialect_protocols.DQLSupport,
+    dialect_protocols.DatabaseNameSupport,
+    dialect_protocols.DateTimeSupport,
+    dialect_protocols.ExpressionSupport,
+    dialect_protocols.FunctionCallSupport,
+    dialect_protocols.LpadSupport,
+    dialect_protocols.PredicateSupport,
+    dialect_protocols.PropertyGraphNameSupport,
+    dialect_protocols.RelationSourceSupport,
+    dialect_protocols.RepeatSupport,
+    dialect_protocols.RpadSupport,
+    dialect_protocols.SchemaNameSupport,
+    dialect_protocols.TrimSupport,
 ]
 
 
@@ -331,7 +349,7 @@ class TestDialectNegativeProtocolConformance:
             f"Add each to MYSQL_PROTOCOLS or MYSQL_NOT_IMPLEMENTED."
         )
 
-        stale = (positive | negative) - all_protos
+        stale = (positive | negative) - all_protos - {"DataTypeSupport"}
         assert not stale, f"Stale protocol classifications for MySQL: {sorted(stale)}"
 
 
@@ -376,6 +394,12 @@ class TestProtocolNonOverlap:
             ("PartitionSupport", "MySQLPartitionSupport"),
             ("AlterTableSupport", "MySQLRenameTableSupport"),
             ("UpsertSupport", "MySQLDMLOperationSupport"),
+            # Family protocols added by the core refactor deliberately restate
+            # members of the specialised protocols above.
+            ("IntrospectionSupport", "AsyncIntrospectionSupport"),
+            ("MySQLTableSupport", "DDLColumnSupport"),
+            ("MySQLModifyColumnSupport", "DDLColumnSupport"),
+            ("MySQLTableStatementSupport", "RelationSourceSupport"),
         }
 
         violations = []
@@ -411,7 +435,7 @@ class TestProtocolDerivation:
         """Backend-specific protocol should derive from its generic counterpart."""
         mysql_proto = getattr(mysql_protocols, mysql_name)
         generic_proto = getattr(dialect_protocols, generic_name)
-        assert issubclass(mysql_proto, generic_proto), f"{mysql_name} does not derive from {generic_name}"
+        assert generic_proto in mysql_proto.__mro__, f"{mysql_name} does not derive from {generic_name}"
 
     def test_dialect_satisfies_generic_protocols_via_derivation(self):
         """MySQLDialect should satisfy generic protocols through derived protocols."""

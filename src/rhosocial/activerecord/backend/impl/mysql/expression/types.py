@@ -500,7 +500,7 @@ class MySQLUUIDType(UUIDType):
       documentation calls the pre-native emulation (``BINARY(16)``).
 
     **What introspection reads back.** ``BINARY(16)`` on the wire is this type
-    (see ``MySQLTypeSupportMixin.parse_type``), so ``render`` → ``parse_type``
+    (see ``MySQLTypeParser``), so ``render`` → ``parse_type``
     returns an equal value object. A plain 16-byte column that is not meant as a
     UUID now introspects as ``mysql_uuid``; that is the same trade the framework
     already makes for ``TINYINT(1)``, which it reads as ``BooleanType``. The

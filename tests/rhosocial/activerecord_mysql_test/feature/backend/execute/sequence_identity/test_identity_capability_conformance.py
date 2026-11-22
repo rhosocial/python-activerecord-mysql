@@ -23,7 +23,7 @@ helper's third outcome, NOT_RENDERED, is asserted deliberately rather than
 treated as a skip: on MySQL, refusing an identity request is the designed
 answer, and it must stay distinct from "rendered but rejected".
 """
-from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
+from rhosocial.activerecord.base.derivation import integer_auto_increment_parts  # noqa: E402
 
 import pytest
 
@@ -54,14 +54,14 @@ def _auto_increment_column(dialect, name="id"):
     return ColumnDefinition(
         dialect,
         name,
-        IntegerAutoIncrementSuggestionRenderer().parts(dialect, IntegerType(dialect))[0],
+        integer_auto_increment_parts(dialect, IntegerType(dialect))[0],
         constraints=[
             ColumnConstraint(
                 dialect,
                 branch=ColumnPrimaryKeyConstraint(dialect)
             )
         ],
-     attributes=IntegerAutoIncrementSuggestionRenderer().parts(dialect, IntegerType(dialect))[1])
+     attributes=integer_auto_increment_parts(dialect, IntegerType(dialect))[1])
 
 
 class _DeclinedAutoIncrementDialect(MySQLDialect):

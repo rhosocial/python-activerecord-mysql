@@ -58,7 +58,10 @@ from rhosocial.activerecord.backend.adapters import (
     Range,
     Vector,
 )
-from rhosocial.activerecord.backend.dialect.mixins.column_type import ColumnTypeMixin
+from rhosocial.activerecord.backend.suggestion.definitions import (
+    ColumnTypeSuggestion,
+    ExtraColumnTypeSuggestion,
+)
 from rhosocial.activerecord.backend.expression.column_types import (
     BinaryColumn,
     BitStringColumn,
@@ -213,7 +216,7 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
 }
 
 
-class MySQLColumnTypeMixin(ColumnTypeMixin):
+class MySQLColumnTypeMixin:
     """MySQL's full twenty-four-entry column-type table, and its narrowing.
 
     Composed into :class:`~...dialect.MySQLDialect` **ahead of** core's
@@ -226,7 +229,7 @@ class MySQLColumnTypeMixin(ColumnTypeMixin):
     answer cannot leak into the next dialect built at another version.
     """
 
-    def suggested_column_types(self) -> Dict[Any, Optional[Type[ColumnBase]]]:
+    def suggest_column_types(self) -> ColumnTypeSuggestion:
         """The table above, with ``dict`` refused below MySQL 5.7.
 
         The one version-dependent entry, and it is a refusal rather than a
@@ -272,7 +275,10 @@ class MySQLColumnTypeMixin(ColumnTypeMixin):
         if not self.supports_json_path():
             table[dict] = None
 
-        return table
+        return ColumnTypeSuggestion(table=table)
+
+    def suggest_extra_column_types(self) -> ExtraColumnTypeSuggestion:
+        return ExtraColumnTypeSuggestion(table={})
 
 
 __all__ = ["MYSQL_COLUMN_TYPES", "MySQLColumnTypeMixin"]

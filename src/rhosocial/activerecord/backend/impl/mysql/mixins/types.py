@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 from rhosocial.activerecord.backend.dialect.mixins.data_type import DataTypeMixin
 from rhosocial.activerecord.backend.dialect.protocols import DataTypeSupport
+from rhosocial.activerecord.backend.suggestion.definitions import (
+    SubstituteAdviceSuggestion,
+    SubstituteTypeSuggestion,
+)
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
     BlobType,
@@ -143,7 +147,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         [ZEROFILL]`` — both attributes, ``UNSIGNED`` first — and the server
         writes both back that way, so this is the one spelling that agrees with
         ``SHOW CREATE TABLE`` and with the ``COLUMN_TYPE`` string that
-        introspection feeds to :meth:`parse_type`.
+        introspection feeds to the backend's ``MySQLTypeParser``.
 
         Both attributes are emitted independently rather than as an either/or.
         ``unsigned`` is part of the type's identity (core puts it in
@@ -160,7 +164,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         describe the type object that produced it, and parsing the emitted SQL
         back would give ``unsigned=False``, a different value object than the
         one the caller declared. Emitting both is what makes
-        ``parse_type(t.to_sql()[0]) == t`` hold for every combination.
+        ``parser.parse(t.to_sql()[0]) == t`` hold for every combination.
         """
         self._check_unsigned(data_type)
         if data_type.unsigned:
@@ -177,7 +181,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         rendered word is MySQL's own canonical one, since ``TINYINT`` is what
         the server reports back from ``SHOW CREATE TABLE``.
         """
-        self.check_spelling(expr, MySQLTinyIntType)
+        self._check_spelling(expr, MySQLTinyIntType)
         return self._format_mysql_integer("TINYINT", expr)
 
     def format_data_type_mysql_smallint(self, expr: MySQLSmallIntType) -> Tuple[str, tuple]:
@@ -186,7 +190,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         ``SMALLINT`` and ``INT2`` are both MySQL words for the 2-byte type, so
         both are accepted and MySQL's own word is rendered.
         """
-        self.check_spelling(expr, MySQLSmallIntType)
+        self._check_spelling(expr, MySQLSmallIntType)
         return self._format_mysql_integer("SMALLINT", expr)
 
     def format_data_type_mysql_mediumint(self, expr: MySQLMediumIntType) -> Tuple[str, tuple]:
@@ -203,7 +207,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         no core 3-byte concept to render or inherit, which is why this is a
         ``mysql_``-namespaced class rather than a spelling of an existing one.
         """
-        self.check_spelling(expr, MySQLMediumIntType)
+        self._check_spelling(expr, MySQLMediumIntType)
         return self._format_mysql_integer("MEDIUMINT", expr)
 
     def format_data_type_mysql_int(self, expr: MySQLIntType) -> Tuple[str, tuple]:
@@ -215,7 +219,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         column carrying ``UNSIGNED`` / ``ZEROFILL`` stays distinguishable from a
         plain ``integer`` in a schema diff — the word ``INT`` is the same.
         """
-        self.check_spelling(expr, MySQLIntType)
+        self._check_spelling(expr, MySQLIntType)
         return self._format_mysql_integer("INT", expr)
 
     def format_data_type_mysql_bigint(self, expr: MySQLBigIntType) -> Tuple[str, tuple]:
@@ -225,7 +229,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         manual's own table lists ``INT8``), so both are accepted and MySQL's
         canonical word is rendered.
         """
-        self.check_spelling(expr, MySQLBigIntType)
+        self._check_spelling(expr, MySQLBigIntType)
         return self._format_mysql_integer("BIGINT", expr)
 
     def format_data_type_mysql_tinyblob(self, expr: MySQLTinyBlobType) -> Tuple[str, tuple]:
@@ -235,22 +239,22 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         size variants inherit the core ``BlobType`` spelling list, and MySQL
         writes ``BLOB``, not ``BYTEA``, in every one of them.
         """
-        self.check_spelling(expr, ("blob",))
+        self._check_spelling(expr, ("blob",))
         return "TINYBLOB", ()
 
     def format_data_type_mysql_blob(self, expr: MySQLBlobType) -> Tuple[str, tuple]:
         """``BLOB`` — max 65,535 bytes. ``BYTEA`` refused; see ``mysql_tinyblob``."""
-        self.check_spelling(expr, ("blob",))
+        self._check_spelling(expr, ("blob",))
         return "BLOB", ()
 
     def format_data_type_mysql_mediumblob(self, expr: MySQLMediumBlobType) -> Tuple[str, tuple]:
         """``MEDIUMBLOB`` — max 16,777,215 bytes. ``BYTEA`` refused."""
-        self.check_spelling(expr, ("blob",))
+        self._check_spelling(expr, ("blob",))
         return "MEDIUMBLOB", ()
 
     def format_data_type_mysql_longblob(self, expr: MySQLLongBlobType) -> Tuple[str, tuple]:
         """``LONGBLOB`` — max 4,294,967,295 bytes. ``BYTEA`` refused."""
-        self.check_spelling(expr, ("blob",))
+        self._check_spelling(expr, ("blob",))
         return "LONGBLOB", ()
 
     def format_data_type_mysql_tinytext(self, expr: MySQLTinyTextType) -> Tuple[str, tuple]:
@@ -260,22 +264,22 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         MySQL has no CLOB in any of them, so ``clob`` is refused here exactly
         as it is for the unbounded ``text``.
         """
-        self.check_spelling(expr, ("text",))
+        self._check_spelling(expr, ("text",))
         return "TINYTEXT", ()
 
     def format_data_type_mysql_text(self, expr: MySQLTextType) -> Tuple[str, tuple]:
         """``TEXT`` — max 65,535 bytes. ``CLOB`` refused; see ``mysql_tinytext``."""
-        self.check_spelling(expr, ("text",))
+        self._check_spelling(expr, ("text",))
         return "TEXT", ()
 
     def format_data_type_mysql_mediumtext(self, expr: MySQLMediumTextType) -> Tuple[str, tuple]:
         """``MEDIUMTEXT`` — max 16,777,215 bytes. ``CLOB`` refused."""
-        self.check_spelling(expr, ("text",))
+        self._check_spelling(expr, ("text",))
         return "MEDIUMTEXT", ()
 
     def format_data_type_mysql_longtext(self, expr: MySQLLongTextType) -> Tuple[str, tuple]:
         """``LONGTEXT`` — max 4,294,967,295 bytes. ``CLOB`` refused."""
-        self.check_spelling(expr, ("text",))
+        self._check_spelling(expr, ("text",))
         return "LONGTEXT", ()
 
     def format_data_type_mysql_bit(self, expr: MySQLBitType) -> Tuple[str, tuple]:
@@ -435,7 +439,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(expr, IntegerType)
+        self._check_spelling(expr, IntegerType)
         self._check_unsigned(expr)
         return ("INT UNSIGNED" if expr.unsigned else "INT"), ()
 
@@ -452,7 +456,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(expr, BigIntType)
+        self._check_spelling(expr, BigIntType)
         self._check_unsigned(expr)
         return ("BIGINT UNSIGNED" if expr.unsigned else "BIGINT"), ()
 
@@ -469,7 +473,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(expr, SmallIntType)
+        self._check_spelling(expr, SmallIntType)
         self._check_unsigned(expr)
         return ("SMALLINT UNSIGNED" if expr.unsigned else "SMALLINT"), ()
 
@@ -486,7 +490,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         here.
         https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html
         """
-        self.check_spelling(expr, TinyIntType)
+        self._check_spelling(expr, TinyIntType)
         self._check_unsigned(expr)
         return ("TINYINT UNSIGNED" if expr.unsigned else "TINYINT"), ()
 
@@ -508,7 +512,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         where the caller has no way to tell that from success.
         https://dev.mysql.com/doc/refman/8.4/en/string-type-syntax.html
         """
-        self.check_spelling(expr, ("varchar",))
+        self._check_spelling(expr, ("varchar",))
         if expr.length is None:
             raise ValueError(
                 "MySQL's grammar is VARCHAR(M) with M mandatory, so a VarCharType "
@@ -527,7 +531,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         spelling list too: this framework treats a character set as a *field*,
         not as a type.)
         """
-        self.check_spelling(expr, ("char",))
+        self._check_spelling(expr, ("char",))
         return (f"CHAR({expr.length})" if expr.length is not None else "CHAR"), ()
 
     def format_data_type_text(self, expr: TextType) -> Tuple[str, tuple]:
@@ -537,7 +541,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         still renders — a backend may write the concept under its own name but
         must not refuse the spelling every plain ``TextType(d)`` carries.
         """
-        self.check_spelling(expr, ("text",))
+        self._check_spelling(expr, ("text",))
         return "TEXT", ()
 
     def format_data_type_boolean(self, expr: BooleanType) -> Tuple[str, tuple]:
@@ -549,7 +553,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         why :class:`MySQLBitType` is a separate concept: a BIT string is not a
         boolean even at width 1.
         """
-        self.check_spelling(expr, BooleanType)
+        self._check_spelling(expr, BooleanType)
         return "TINYINT(1)", ()
 
     def format_data_type_date(self, expr: DateType) -> Tuple[str, tuple]:
@@ -655,8 +659,8 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         normally, ``FLOAT`` under ``REAL_AS_FLOAT`` -- and the catalog never
         writes the word ``real`` back (it reports ``double``, or ``float`` under
         the mode). A ``RealType`` therefore cannot round-trip, so this dialect
-        substitutes it; see :meth:`substitute_advice` and
-        :meth:`substitute_data_types`.
+        substitutes it; see :meth:`suggest_substitute_advice` and
+        :meth:`suggest_substitute_types`.
 
         The numeric-type syntax writes the concept as ``DOUBLE[(M,D)] [UNSIGNED]
         [ZEROFILL]``, so the attribute follows the type word in the same slot the
@@ -665,7 +669,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         honoured rather than routed around.
         https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
         """
-        self.check_spelling(expr, DoubleType)
+        self._check_spelling(expr, DoubleType)
         self._check_unsigned(expr)
         return ("DOUBLE UNSIGNED" if expr.unsigned else "DOUBLE"), ()
 
@@ -684,7 +688,8 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         ``NUMERIC`` and ``FIXED``, its three synonyms), so the attribute goes
         **after** the ``(M[,D])`` group — the position the grammar gives it and
         the position the catalog reports it in, which is what makes
-        ``parse_type`` able to read this backend's own output back.
+        the backend's introspection parser able to read this backend's own
+        output back.
         https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
 
         "Floating point and fixed-point types also can be ``UNSIGNED``. As with
@@ -703,7 +708,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         out of range is still a ``ValueError`` and is still refused before any
         attribute is appended.
         """
-        self.check_spelling(expr, DecimalType)
+        self._check_spelling(expr, DecimalType)
         if expr.precision is not None and not 1 <= expr.precision <= 65:
             raise ValueError(
                 f"MySQL DECIMAL precision must be between 1 and 65, "
@@ -742,7 +747,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         at all, so it is refused here. ``BLOB`` — the concept's default
         spelling, and the word MySQL writes — always renders.
         """
-        self.check_spelling(expr, ("blob",))
+        self._check_spelling(expr, ("blob",))
         return "BLOB", ()
 
     def format_data_type_custom(self, expr: CustomType) -> Tuple[str, tuple]:
@@ -924,408 +929,10 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         return True
 
     # ------------------------------------------------------------------
-    # DataTypeSupport — parsing
-    #
-    # Canonical (D8): one concept in, one class out. Every member of a core
-    # concept's closed ``SPELLINGS`` list that MySQL itself writes is matched
-    # here and carried on the parsed instance as ``spelling=``, so
-    # ``parse_type("int8")`` and ``parse_type("bigint")`` yield the same class
-    # and differ only in which of its words was used. A word outside the list
-    # is not silently mapped onto the concept — it falls through to
-    # ``CustomType``, which is honest ignorance.
-    # ------------------------------------------------------------------
-
-    # ``INT1`` / ``INT2`` / ``INT8`` are MySQL's own synonyms for TINYINT /
-    # SMALLINT / BIGINT (Integer Types in the MySQL manual). ``INT`` /
-    # ``INTEGER`` are the two spellings of the 4-byte concept.
-    _MYSQL_INTEGER_TYPES = re.compile(
-        r"^(?:TINYINT|INT1|SMALLINT|INT2|MEDIUMINT|INT|INTEGER|BIGINT|INT8)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_FLOAT_TYPES = re.compile(
-        r"^(?:FLOAT|REAL|DOUBLE)\b",
-        re.IGNORECASE,
-    )
-    # ``DECIMAL`` / ``NUMERIC`` / ``DEC`` are the three spellings of the core
-    # concept. MySQL's historical fourth synonym, ``FIXED``, is deliberately
-    # absent: it is not in the closed ``SPELLINGS`` list, and mapping it onto
-    # the concept with a spelling the concept never declared would make the
-    # list decorative. (information_schema never reports ``fixed`` anyway.)
-    _MYSQL_DECIMAL_TYPES = re.compile(
-        r"^(?:DECIMAL|NUMERIC|DEC)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_STRING_TYPES = re.compile(
-        r"^(?:CHAR|VARCHAR|TEXT|TINYTEXT|MEDIUMTEXT|LONGTEXT|"
-        r"ENUM|SET|BINARY|VARBINARY)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_BLOB_TYPES = re.compile(
-        r"^(?:BLOB|TINYBLOB|MEDIUMBLOB|LONGBLOB)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_DATE_TYPES = re.compile(
-        r"^(?:DATE|DATETIME|TIMESTAMP|TIME|YEAR)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_JSON_TYPES = re.compile(
-        r"^(?:JSON)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_SPATIAL_TYPES = re.compile(
-        r"^(?:GEOMETRY|POINT|LINESTRING|POLYGON|"
-        r"MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_BIT_TYPES = re.compile(
-        r"^(?:BIT)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_VECTOR_TYPES = re.compile(
-        r"^(?:VECTOR)\b",
-        re.IGNORECASE,
-    )
-
-    def parse_type(self, raw: str) -> DataType:
-        """Turn a MySQL type string back into the ``DataType`` it came from.
-
-        Canonical in the D8 sense: each of a concept's closed ``SPELLINGS``
-        entries that MySQL writes maps to that concept's one class, with the
-        word that was used carried on the instance as ``spelling``. So
-        ``"int8"`` and ``"bigint"`` both give a :class:`MySQLBigIntType` and
-        differ only in ``spelling``; ``"character varying(10)"``, ``"clob"``
-        and ``"bytea"`` give :class:`CustomType`, because MySQL has no such
-        types and pretending otherwise would make the differ report a change
-        that was never made.
-        """
-        stripped = raw.strip()
-        upper = stripped.upper()
-
-        # BIT type
-        if self._MYSQL_BIT_TYPES.match(upper):
-            nums = re.findall(r"\d+", stripped)
-            n = int(nums[0]) if nums else None
-            from ..expression.types import MySQLBitType
-            return MySQLBitType(self, n)
-
-        # BOOLEAN / BOOL — MySQL's documented aliases for TINYINT(1), so both
-        # spellings of the core concept reach it.
-        if upper.startswith("BOOLEAN"):
-            return BooleanType(dialect=self, spelling="boolean")
-        if upper.startswith("BOOL"):
-            return BooleanType(dialect=self, spelling="bool")
-
-        # Integer family
-        if self._MYSQL_INTEGER_TYPES.match(upper):
-            unsigned = "UNSIGNED" in upper
-            zerofill = "ZEROFILL" in upper
-            if upper.startswith("TINYINT") or upper.startswith("INT1"):
-                # Read the width out of ``(n)`` only. The digits of the
-                # ``INT1`` synonym are part of the *name*, so a bare
-                # findall over the whole string would read ``INT1`` as width 1
-                # and hand back a boolean.
-                width_match = re.search(r"\(\s*(\d+)\s*\)", stripped)
-                display_width = int(width_match.group(1)) if width_match else None
-                from ..expression.types import MySQLTinyIntType
-                spelling = "int1" if upper.startswith("INT1") else "tinyint"
-                t = MySQLTinyIntType(dialect=self, unsigned=unsigned,
-                                     zerofill=zerofill, spelling=spelling)
-                # TINYINT(1) is commonly used as BOOLEAN
-                if display_width == 1 and not unsigned and not zerofill:
-                    return BooleanType(self)
-                return t
-            if upper.startswith("SMALLINT") or upper.startswith("INT2"):
-                from ..expression.types import MySQLSmallIntType
-                spelling = "int2" if upper.startswith("INT2") else "smallint"
-                return MySQLSmallIntType(dialect=self, unsigned=unsigned,
-                                         zerofill=zerofill, spelling=spelling)
-            if upper.startswith("MEDIUMINT"):
-                # ``information_schema`` reports ``mediumint`` verbatim (and
-                # ``mediumint(8) unsigned zerofill`` for a zero-padded one), so
-                # this branch really is reached for MEDIUMINT columns and the
-                # width has to be named by its own class.
-                from ..expression.types import MySQLMediumIntType
-                return MySQLMediumIntType(dialect=self, unsigned=unsigned,
-                                          zerofill=zerofill)
-            if upper.startswith("BIGINT") or upper.startswith("INT8"):
-                from ..expression.types import MySQLBigIntType
-                spelling = "int8" if upper.startswith("INT8") else "bigint"
-                return MySQLBigIntType(dialect=self, unsigned=unsigned,
-                                       zerofill=zerofill, spelling=spelling)
-            # INT / INTEGER — the two spellings of the 4-byte concept. Both
-            # render as ``INT``, but which word was declared is kept so a diff
-            # does not report a change that was never made.
-            from ..expression.types import MySQLIntType
-            spelling = "integer" if upper.startswith("INTEGER") else "int"
-            return MySQLIntType(dialect=self, unsigned=unsigned,
-                                zerofill=zerofill, spelling=spelling)
-
-        # Float family
-        if self._MYSQL_FLOAT_TYPES.match(upper):
-            # ``UNSIGNED`` is read here for the same reason it is read for the
-            # integers above: MySQL writes ``FLOAT[(M,D)] [UNSIGNED]``,
-            # ``FLOAT(p) [UNSIGNED]`` and ``DOUBLE[(M,D)] [UNSIGNED]``, so an
-            # introspected ``double unsigned`` used to come back as a signed
-            # ``DoubleType`` and a declared unsigned column compared equal to
-            # the signed column the server had actually changed. ``ZEROFILL``
-            # is deliberately not read: the core concepts carry no such field,
-            # and MySQL documents that specifying it "adds the UNSIGNED
-            # attribute to the column", so the signedness this branch recovers
-            # is the whole of what the column's storage changed.
-            #
-            # ``REAL`` and ``DOUBLE PRECISION`` are the server's documented
-            # synonyms for ``DOUBLE`` (the manual groups all three on one line),
-            # so both canonicalise to :class:`DoubleType` -- the storage the
-            # column actually has. ``REAL_AS_FLOAT`` is the mode-dependent
-            # exception, under which REAL means FLOAT; a live column made under
-            # that mode is not reported as ``real`` but as ``float``, which
-            # reaches the FLOAT branch below. The catalog never writes the word
-            # ``real``, which is why the dialect refuses RealType and suggests
-            # DoubleType for it (see ``substitute_advice`` and
-            # ``substitute_data_types``).
-            # https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
-            unsigned = "UNSIGNED" in upper
-            if upper.startswith("DOUBLE"):
-                return DoubleType(dialect=self, unsigned=unsigned)
-            if upper.startswith("REAL"):
-                return DoubleType(dialect=self, unsigned=unsigned)
-            # FLOAT. The manual says what the parentheses mean: "If p is from 0
-            # to 24, the data type becomes FLOAT with no M or D values. If p is
-            # from 25 to 53, the data type becomes DOUBLE with no M or D
-            # values." A single argument is therefore read as that p and
-            # canonicalised to the class it selects: p<=24 is 4-byte FLOAT
-            # storage, so it stays FloatType and p itself is dropped (the
-            # catalog does not record it); p>=25 is DOUBLE storage, so it
-            # becomes DoubleType.
-            #
-            # The deprecated two-argument ``FLOAT(M,D)`` is read differently,
-            # because its first number is M (total *decimal* digits), not p
-            # (bits): measured on the wired servers, ``FLOAT(25,17)`` and
-            # ``FLOAT(53,17)`` both store single-precision values
-            # (1.2345678806304932, against ``DOUBLE``'s 1.2345678901234567) and
-            # both report ``NUMERIC_PRECISION = M``, while one-argument
-            # ``FLOAT(25)`` resolves to ``double``. The column is therefore the
-            # 4-byte concept, and FloatType is returned with the (M,D) display
-            # spec dropped -- FloatType carries no scale, and this dialect now
-            # refuses a precision it cannot round-trip.
-            nums = re.findall(r"\d+", stripped)
-            if len(nums) >= 2:
-                return FloatType(self, unsigned=unsigned)
-            precision = int(nums[0]) if nums else None
-            if precision is not None and precision >= 25:
-                return DoubleType(self, unsigned=unsigned)
-            return FloatType(self, unsigned=unsigned)
-
-        # Decimal family
-        if self._MYSQL_DECIMAL_TYPES.match(upper):
-            # One concept, three words: MySQL's manual calls DECIMAL, NUMERIC
-            # and DEC synonyms, so all three reach DecimalType and the word that
-            # was used is recorded rather than lost.
-            #
-            # ``UNSIGNED`` is read here too, for the same reason it is read for
-            # the integers and the floats above: MySQL writes
-            # ``DECIMAL[(M[,D])] [UNSIGNED] [ZEROFILL]`` (and the same for the
-            # DEC / NUMERIC / FIXED synonyms), and an introspected
-            # ``decimal(10,2) unsigned zerofill`` used to come back as a signed
-            # ``DecimalType(10, 2)`` -- the signedness simply gone, so a column
-            # the server had changed to unsigned compared equal to its own
-            # declaration and the differ reported no change.
-            # https://dev.mysql.com/doc/refman/9.7/en/numeric-type-syntax.html
-            unsigned = "UNSIGNED" in upper
-            if upper.startswith("NUMERIC"):
-                spelling = "numeric"
-            elif upper.startswith("DEC") and not upper.startswith("DECIMAL"):
-                spelling = "dec"
-            else:
-                spelling = "decimal"
-            nums = re.findall(r"\d+", stripped)
-            if len(nums) >= 2:
-                return DecimalType(self, int(nums[0]), int(nums[1]),
-                                   unsigned=unsigned, spelling=spelling)
-            if len(nums) == 1:
-                return DecimalType(self, int(nums[0]), unsigned=unsigned,
-                                   spelling=spelling)
-            return DecimalType(self, unsigned=unsigned, spelling=spelling)
-
-        # String family
-        if self._MYSQL_STRING_TYPES.match(upper):
-            if upper.startswith("TINYTEXT"):
-                from ..expression.types import MySQLTinyTextType
-                return MySQLTinyTextType(self)
-            if upper.startswith("MEDIUMTEXT"):
-                from ..expression.types import MySQLMediumTextType
-                return MySQLMediumTextType(self)
-            if upper.startswith("LONGTEXT"):
-                from ..expression.types import MySQLLongTextType
-                return MySQLLongTextType(self)
-            if upper.startswith("TEXT"):
-                from ..expression.types import MySQLTextType
-                return MySQLTextType(self)
-            if upper.startswith("ENUM"):
-                from ..expression.types import MySQLEnumType
-                values = re.findall(r"'([^']*)'", stripped)
-                charset = None
-                collation = None
-                cs_match = re.search(r"CHARACTER\s+SET\s+(\w+)", upper)
-                if cs_match:
-                    charset = cs_match.group(1)
-                col_match = re.search(r"COLLATE\s+(\w+)", upper)
-                if col_match:
-                    collation = col_match.group(1)
-                return MySQLEnumType(self, values, charset=charset, collation=collation)
-            if upper.startswith("SET"):
-                from ..expression.types import MySQLSetType
-                values = re.findall(r"'([^']*)'", stripped)
-                charset = None
-                collation = None
-                cs_match = re.search(r"CHARACTER\s+SET\s+(\w+)", upper)
-                if cs_match:
-                    charset = cs_match.group(1)
-                col_match = re.search(r"COLLATE\s+(\w+)", upper)
-                if col_match:
-                    collation = col_match.group(1)
-                return MySQLSetType(self, values, charset=charset, collation=collation)
-            if upper.startswith("BINARY"):
-                nums = re.findall(r"\d+", stripped)
-                length = int(nums[0]) if nums else None
-                # ``BINARY(16)`` is this backend's UUID storage, so it is read back
-                # as the UUID type: a UUID is 128 bits with no other width, so
-                # the column width *is* the identity, and reading it as a
-                # plain byte string would leave the declared UUID type unequal
-                # to its own column in any schema diff. This is what makes the
-                # substitute round-trip — ``MySQLUUIDType`` renders
-                # ``BINARY(16)`` and this hands back an equal value object —
-                # and it is the same width-specific reading the framework
-                # already applies to ``TINYINT(1)`` -> ``BooleanType``. A plain
-                # 16-byte column that is not meant to be a UUID is now named
-                # ``mysql_uuid`` on introspection; the storage is identical
-                # either way, only the framework's name for it differs.
-                if length == MySQLUUIDType.BYTE_LENGTH:
-                    return MySQLUUIDType(self)
-                from ..expression.types import MySQLBinaryType
-                return MySQLBinaryType(self, length)
-            if upper.startswith("VARBINARY"):
-                nums = re.findall(r"\d+", stripped)
-                length = int(nums[0]) if nums else None
-                # A bare ``VARBINARY`` cannot reach here from a live server:
-                # ``CREATE TABLE t (c VARBINARY)`` is a syntax error, so the
-                # server never reports one. It is still refused rather than
-                # guessed at, so a hand-written string gets the same answer a
-                # constructor call would.
-                if length is None:
-                    return CustomType(self, raw=stripped)
-                from ..expression.types import MySQLVarBinaryType
-                return MySQLVarBinaryType(self, length)
-            # CHAR / VARCHAR
-            length_match = re.search(r"\((\d+)\)", stripped)
-            length = int(length_match.group(1)) if length_match else None
-            if upper.startswith("VARCHAR"):
-                return VarCharType(self, length)
-            return CharType(self, length)
-
-        # BLOB family
-        if self._MYSQL_BLOB_TYPES.match(upper):
-            if upper.startswith("TINYBLOB"):
-                from ..expression.types import MySQLTinyBlobType
-                return MySQLTinyBlobType(self)
-            if upper.startswith("MEDIUMBLOB"):
-                from ..expression.types import MySQLMediumBlobType
-                return MySQLMediumBlobType(self)
-            if upper.startswith("LONGBLOB"):
-                from ..expression.types import MySQLLongBlobType
-                return MySQLLongBlobType(self)
-            from ..expression.types import MySQLBlobType
-            return MySQLBlobType(self)
-
-        # Date/time family
-        if self._MYSQL_DATE_TYPES.match(upper):
-            if upper.startswith("YEAR"):
-                nums = re.findall(r"\d+", stripped)
-                display_width = int(nums[0]) if nums else None
-                from ..expression.types import MySQLYearType
-                return MySQLYearType(self, display_width)
-            if upper.startswith("DATE"):
-                if upper.strip() == "DATE":
-                    return DateType(self)
-                return DateTimeType(self)
-            if upper.startswith("DATETIME"):
-                nums = re.findall(r"\d+", stripped)
-                precision = int(nums[0]) if nums else None
-                return DateTimeType(self, precision)
-            if upper.startswith("TIMESTAMP"):
-                nums = re.findall(r"\d+", stripped)
-                precision = int(nums[0]) if nums else None
-                if "WITH TIME ZONE" in upper:
-                    return TimestampTzType(self, precision)
-                return TimestampType(self, precision)
-            if upper.startswith("TIME"):
-                nums = re.findall(r"\d+", stripped)
-                precision = int(nums[0]) if nums else None
-                if "WITH TIME ZONE" in upper:
-                    return TimeTzType(self, precision)
-                return TimeType(self, precision)
-
-        # JSON
-        if self._MYSQL_JSON_TYPES.match(upper):
-            return JsonType(self)
-
-        # Spatial
-        if self._MYSQL_SPATIAL_TYPES.match(upper):
-            srid = None
-            srid_match = re.search(r"SRID\s+(\d+)", upper)
-            if srid_match:
-                srid = int(srid_match.group(1))
-            from ..expression.types import (
-                MySQLGeometryCollectionType,
-                MySQLGeometryType,
-                MySQLLineStringType,
-                MySQLMultiLineStringType,
-                MySQLMultiPointType,
-                MySQLMultiPolygonType,
-                MySQLPointType,
-                MySQLPolygonType,
-            )
-            spatial_map = {
-                "GEOMETRY": MySQLGeometryType,
-                "POINT": MySQLPointType,
-                "LINESTRING": MySQLLineStringType,
-                "POLYGON": MySQLPolygonType,
-                "MULTIPOINT": MySQLMultiPointType,
-                "MULTILINESTRING": MySQLMultiLineStringType,
-                "MULTIPOLYGON": MySQLMultiPolygonType,
-                "GEOMETRYCOLLECTION": MySQLGeometryCollectionType,
-            }
-            # Dispatch on the leading **word**, not on a prefix scanned in
-            # declaration order. ``GEOMETRYCOLLECTION`` begins with
-            # ``GEOMETRY``, and dict order put ``GEOMETRY`` first, so the
-            # ``startswith`` loop read a collection column as the generic
-            # geometry type -- the same defect MariaDB's branch of this
-            # family fixed, measured there on all fifteen wired servers:
-            # ``CREATE TABLE t (c GEOMETRYCOLLECTION)`` introspected as the
-            # generic geometry type, which made the differ report *no*
-            # change between two columns MySQL can certainly tell apart.
-            # Every one of the eight words is a single identifier, so the
-            # leading word is the whole name and the map needs no ordering
-            # discipline to stay correct.
-            head = re.match(r"[A-Z]+", upper)
-            name = head.group(0) if head else upper
-            return spatial_map.get(name, MySQLGeometryType)(self, srid)
-
-        # Vector (MySQL 9.0+)
-        if self._MYSQL_VECTOR_TYPES.match(upper):
-            nums = re.findall(r"\d+", stripped)
-            dim = int(nums[0]) if nums else 0
-            from ..expression.types import MySQLVectorType
-            return MySQLVectorType(self, dim)
-
-        # Fallback: an honest "I do not model this type" rather than a guess.
-        return CustomType(self, raw=stripped)
-
-    # ------------------------------------------------------------------
     # DataTypeSupport — cross-backend type suggestions
     # ------------------------------------------------------------------
 
-    def substitute_advice(self, name: str) -> str:
+    def suggest_substitute_advice(self, name: str) -> SubstituteAdviceSuggestion:
         """State what MySQL's substitution for *name* gives up, in the error.
 
         The default message says "It suggests X instead, which is what this
@@ -1336,7 +943,7 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
         storage choice this framework made.
         """
         if name == "real":
-            return (
+            advice = (
                 "MySQL's ``REAL`` is a synonym for ``DOUBLE`` in this server's "
                 "grammar (the manual lists ``DOUBLE PRECISION`` and ``REAL`` as "
                 "synonyms of ``DOUBLE``); only under the ``REAL_AS_FLOAT`` SQL "
@@ -1346,9 +953,10 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
                 "single-precision concept cannot round-trip. Declare "
                 "``DoubleType``, or ``FloatType`` for 4-byte single precision."
             )
-        return ""
+            return SubstituteAdviceSuggestion(advice=advice)
+        return SubstituteAdviceSuggestion(advice="")
 
-    def substitute_data_types(self) -> "Dict[str, type]":
+    def suggest_substitute_types(self) -> SubstituteTypeSuggestion:
         """Cross-backend type-consistency suggestions for MySQL.
 
         Every core concept this dialect cannot spell is named here rather than
@@ -1363,11 +971,11 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             ``FLOAT`` rather than ``DOUBLE``". Every wired server reports a
             ``REAL`` column as ``double`` (``float`` under that mode) and never
             writes the word ``real`` back, so the concept cannot round-trip
-            through :meth:`parse_type`: the class is the single-precision
+            through the introspection ``MySQLTypeParser``: the class is the single-precision
             concept on paper, while the column the server builds is the 8-byte
             double (or 4-byte float under the mode). The substitute is
             ``DoubleType`` — what the column actually is in the default mode —
-            and :meth:`substitute_advice` carries the same fact into the error
+            and :meth:`suggest_substitute_advice` carries the same fact into the error
             a caller sees.
 
         ``uuid``
@@ -1448,12 +1056,14 @@ class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
             MySQLVarBinaryType,
         )
 
-        return {
-            "uuid": MySQLUUIDType,
-            "binary": MySQLBinaryType,
-            "varbinary": MySQLVarBinaryType,
-            "real": DoubleType,
-            "xml": TextType,
-            "array": JsonType,
-            "interval": IntegerType,
-        }
+        return SubstituteTypeSuggestion(
+            mapping={
+                "uuid": MySQLUUIDType,
+                "binary": MySQLBinaryType,
+                "varbinary": MySQLVarBinaryType,
+                "real": DoubleType,
+                "xml": TextType,
+                "array": JsonType,
+                "interval": IntegerType,
+            }
+        )

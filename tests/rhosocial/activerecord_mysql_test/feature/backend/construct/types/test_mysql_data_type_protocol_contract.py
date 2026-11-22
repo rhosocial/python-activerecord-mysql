@@ -8,6 +8,15 @@ concept added to core later cannot slip past a stale list.
 
 import pytest
 
+def _format_type_names(dialect_cls):
+    """Names rendered by the ``format_data_type_<name>`` family."""
+    return {
+        member[len("format_data_type_"):]
+        for member in dir(dialect_cls)
+        if member.startswith("format_data_type_")
+    }
+
+
 from rhosocial.activerecord.backend.expression.types import DataType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
@@ -58,8 +67,8 @@ def _renderable_substitute(dialect, klass):
 def test_every_core_concept_is_declared(version):
     """D9: rendered or substituted -- silence is not an answer."""
     dialect = _dialect(version)
-    supported = set(dialect.supports_data_types())
-    substitutes = dialect.substitute_data_types()
+    supported = _format_type_names(type(dialect))
+    substitutes = dialect.suggest_substitute_types().mapping
     undeclared = [
         name for name in _core_concepts() if name not in supported and name not in substitutes
     ]
@@ -70,8 +79,8 @@ def test_every_core_concept_is_declared(version):
 def test_substitutes_are_disjoint_and_renderable(version):
     """A substitute must be a DataType class this dialect really writes."""
     dialect = _dialect(version)
-    supported = set(dialect.supports_data_types())
-    substitutes = dialect.substitute_data_types()
+    supported = _format_type_names(type(dialect))
+    substitutes = dialect.suggest_substitute_types().mapping
     assert not supported & set(substitutes)
 
     for key, klass in substitutes.items():

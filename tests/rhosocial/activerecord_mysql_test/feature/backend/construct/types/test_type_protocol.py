@@ -7,18 +7,18 @@ system and the MySQL backend:
 
 - ``supports_data_type_<name>`` / ``format_data_type_<name>`` 1:1
   correspondence on ``MySQLDialect``;
-- ``supports_data_types()`` merges the ``mysql_*`` namespaced family with
+- ``the formatter family`` merges the ``mysql_*`` namespaced family with
   the core family;
-- ``substitute_data_types()`` values are real ``DataType`` classes and its
+- ``suggest_substitute_types()`` values are real ``DataType`` classes and its
   keys are disjoint from the supported keys;
 - every core concept is either rendered or substituted (D9), with the
   substitutions MySQL genuinely needs spelled out;
 - every ``format_data_type_<name>`` that takes a spelling says which
   spellings it accepts, and refuses the rest by naming them (D9 rule 3);
-- ``parse_type()`` is canonical: one concept in, one class out, with the
+- ``MySQLTypeParser.parse()`` is canonical: one concept in, one class out, with the
   word that was used carried on the instance (D8);
 - the five integer widths render ``[UNSIGNED] [ZEROFILL]`` in MySQL's own
-  order and round-trip through ``parse_type`` unchanged, with ``MEDIUMINT``
+  order and round-trip through ``MySQLTypeParser.parse`` unchanged, with ``MEDIUMINT``
   named as the 3-byte width it is rather than as a 4-byte ``INT``;
 - the MySQL-exclusive type families are stated as a ``MySQLTypeSupport``
   protocol and the dialect satisfies it;
@@ -38,7 +38,6 @@ import pytest
 from rhosocial.activerecord.backend.dialect.exceptions import (
     UnsupportedFeatureError,
 )
-from rhosocial.activerecord.backend.dialect.mixins import DataTypeMixin
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
     BlobType,
@@ -62,6 +61,7 @@ from rhosocial.activerecord.backend.expression.types import (
     XmlType,
 )
 import rhosocial.activerecord.backend.expression.types as core_types
+from rhosocial.activerecord.backend.impl.mysql.introspection.type_parser import MySQLTypeParser
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression.types import (
     MySQLBigIntType,
@@ -98,6 +98,15 @@ def dialect():
     return MySQLDialect()
 
 
+def _format_type_names(dialect_cls):
+    """Names rendered by the ``format_data_type_<name>`` family (core deleted the aggregate)."""
+    return {
+        member[len("format_data_type_"):]
+        for member in dir(dialect_cls)
+        if member.startswith("format_data_type_")
+    }
+
+
 class TestSupportFormatCorrespondence:
     """Every format_data_type_<name> has supports_data_type_<name>, 1:1."""
 
@@ -115,71 +124,25 @@ class TestSupportFormatCorrespondence:
         assert format_names, "MySQLDialect must implement format_data_type_* members"
         assert format_names == support_names
 
-    def test_supports_data_types_covers_every_formatter(self, dialect):
-        format_names = {
-            member[len("format_data_type_"):]
-            for member in dir(MySQLDialect)
-            if member.startswith("format_data_type_")
-        }
-        supported = dialect.supports_data_types()
-        assert set(supported) == format_names
-
-    def test_supports_data_types_returns_classes(self, dialect):
-        for name, klass in dialect.supports_data_types().items():
-            assert isinstance(klass, type), name
-            assert issubclass(klass, DataType), name
-
-    def test_inherits_mixin_scan_implementation(self, dialect):
-        # The merge comes from DataTypeMixin's scan-based
-        # supports_data_types(); MySQL only declares the per-type pairs.
-        assert MySQLDialect.supports_data_types is DataTypeMixin.supports_data_types
-
-
-class TestSupportsDataTypesMapping:
-    """supports_data_types() merges mysql_* namespaced and core entries."""
-
-    def test_includes_mysql_namespaced_entries(self, dialect):
-        supported = dialect.supports_data_types()
-        assert "mysql_int" in supported
-        assert supported["mysql_int"] is MySQLIntType
-        assert "mysql_enum" in supported
-        assert "mysql_set" in supported
-        assert "mysql_vector" in supported
-
-    def test_includes_core_entries(self, dialect):
-        supported = dialect.supports_data_types()
-        assert "integer" in supported
-        assert supported["integer"] is IntegerType
-        assert "varchar" in supported
-        assert "decimal" in supported
-        assert "json" in supported
-
-    def test_per_type_support_methods_are_truthful(self, dialect):
-        supported = dialect.supports_data_types()
-        for name in supported:
-            checker = getattr(dialect, f"supports_data_type_{name}")
-            assert checker() is True, name
-
-
 class TestSuggestedDataTypes:
-    """substitute_data_types(): real classes, disjoint from supported keys."""
+    """suggest_substitute_types(): real classes, disjoint from supported keys."""
 
     def test_values_are_data_type_classes(self, dialect):
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         for key, klass in suggestions.items():
             assert isinstance(klass, type), key
             assert issubclass(klass, DataType), key
 
     def test_keys_disjoint_from_supported(self, dialect):
-        suggestions = dialect.substitute_data_types()
-        supported = dialect.supports_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
+        supported = _format_type_names(MySQLDialect)
         assert not (set(suggestions) & set(supported))
 
     def test_uuid_is_suggested_as_a_sixteen_byte_binary(self, dialect):
         """MySQL has no UUID type, so the substitute is 16 raw bytes.
 
         **What was wrong.** This used to be
-        ``substitute_data_types()["uuid"] is MySQLBinaryType`` — the *general*
+        ``suggest_substitute_types()["uuid"] is MySQLBinaryType`` — the *general*
         byte-string class — which renders ``BINARY`` when given no length. MySQL
         defines that: "An optional length *M* represents the column length in
         bytes. **If omitted, *M* defaults to 1.**" (manual §13.3.1). Every
@@ -193,7 +156,7 @@ class TestSuggestedDataTypes:
         carries no length to hand over, so the substitute has to be a class
         whose width is its own: :class:`MySQLUUIDType`.
         """
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         assert "uuid" in suggestions
         assert suggestions["uuid"] is MySQLUUIDType
         # Constructible with no arguments, because the width is a property of
@@ -227,37 +190,37 @@ class TestSuggestedDataTypes:
         backend. What MySQL stores — the 16 bytes — is a rendering detail and
         belongs in the formatter, not in the identity.
         """
-        substitute = dialect.substitute_data_types()["uuid"]
+        substitute = dialect.suggest_substitute_types().mapping["uuid"]
         assert issubclass(substitute, UUIDType)
         assert isinstance(MySQLUUIDType(dialect), UUIDType)
         assert substitute.name == "mysql_uuid"
-        assert substitute.name in dialect.supports_data_types()
+        assert substitute.name in _format_type_names(MySQLDialect)
 
-    def test_the_uuid_substitute_round_trips_through_parse_type(self, dialect):
+    def test_the_uuid_substitute_round_trips_through_the_introspection_parser(self, dialect):
         """Render it, feed the rendered word back, get an equal value object.
 
-        ``DataType.__eq__`` is class-exact, so this only holds if ``parse_type``
+        ``DataType.__eq__`` is class-exact, so this only holds if ``MySQLTypeParser.parse``
         recognises what the formatter emits. Before the fix the substitution
         rendered ``BINARY`` and parsed back to a ``MySQLBinaryType(length=None)``
         — equal by luck, while rendering a column that could not hold a UUID.
         """
-        declared = dialect.substitute_data_types()["uuid"](dialect)
+        declared = dialect.suggest_substitute_types().mapping["uuid"](dialect)
         rendered = declared.to_sql()[0]
-        assert dialect.parse_type(rendered) == declared
-        assert type(dialect.parse_type(rendered)) is MySQLUUIDType
+        assert MySQLTypeParser(dialect).parse(rendered) == declared
+        assert type(MySQLTypeParser(dialect).parse(rendered)) is MySQLUUIDType
 
     def test_binary_sixteen_introspects_as_the_uuid_type(self, dialect):
         """``BINARY(16)`` on the wire is this backend's UUID type.
 
         ``information_schema.COLUMNS.COLUMN_TYPE`` reports ``binary(16)``, so
-        this is the string introspection hands to ``parse_type``. Reading it as
+        this is the string introspection hands to ``MySQLTypeParser.parse``. Reading it as
         a plain byte string would leave the declared UUID type unequal to its
         own column in any schema diff. It is the same width-specific reading
         the framework already applies to ``TINYINT(1)`` -> ``BooleanType``: a
         16-byte column that is not meant to be a UUID is now named
         ``mysql_uuid``, with the storage unchanged either way.
         """
-        parsed = dialect.parse_type("BINARY(16)")
+        parsed = MySQLTypeParser(dialect).parse("BINARY(16)")
         assert isinstance(parsed, MySQLUUIDType)
         assert parsed.to_sql() == ("BINARY(16)", ())
         # ... and the neighbouring widths are untouched.
@@ -265,8 +228,8 @@ class TestSuggestedDataTypes:
                            ("BINARY(4)", MySQLBinaryType),
                            ("BINARY(32)", MySQLBinaryType),
                            ("BINARY", MySQLBinaryType)):
-            assert type(dialect.parse_type(raw)) is klass, raw
-            assert dialect.parse_type(raw).to_sql()[0] == raw
+            assert type(MySQLTypeParser(dialect).parse(raw)) is klass, raw
+            assert MySQLTypeParser(dialect).parse(raw).to_sql()[0] == raw
 
     def test_a_bare_binary_still_renders_bare_binary(self, dialect):
         """No existing rendering moves.
@@ -276,7 +239,7 @@ class TestSuggestedDataTypes:
         reading it back.
         """
         assert dialect.format_data_type(MySQLBinaryType(dialect))[0] == "BINARY"
-        assert dialect.parse_type("BINARY") == MySQLBinaryType(dialect)
+        assert MySQLTypeParser(dialect).parse("BINARY") == MySQLBinaryType(dialect)
         assert dialect.format_data_type(MySQLBinaryType(dialect, 16))[0] == "BINARY(16)"
 
     def test_varbinary_requires_its_length(self, dialect):
@@ -295,7 +258,7 @@ class TestSuggestedDataTypes:
         with pytest.raises(ValueError, match="requires a length"):
             MySQLVarBinaryType(dialect)
         # A hand-written lengthless string is refused rather than guessed at.
-        assert isinstance(dialect.parse_type("VARBINARY"), CustomType)
+        assert isinstance(MySQLTypeParser(dialect).parse("VARBINARY"), CustomType)
 
     def test_enum_is_rendered_not_suggested(self, dialect):
         """MySQL has a native ENUM, so the generic type is renderable here.
@@ -305,29 +268,29 @@ class TestSuggestedDataTypes:
         A name in both sets is one of the two being a lie, so the generic type
         is rendered and the suggestion went.
         """
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         assert "enum" not in suggestions
-        assert dialect.supports_data_types()["enum"] is EnumType
+        assert EnumType.name in _format_type_names(MySQLDialect)
 
     def test_xml_is_suggested_as_text(self, dialect):
         """MySQL has no XML type, and stores an XML document as text.
 
-        ``substitute_data_types()["xml"]`` is the honest statement of that: not
+        ``suggest_substitute_types()["xml"]`` is the honest statement of that: not
         a compromise, and not silence. ``TextType`` is a type this dialect
         really renders, which is what makes the suggestion usable.
         """
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         assert "xml" in suggestions
         assert suggestions["xml"] is TextType
         # The concept itself is *not* renderable — that is why it is suggested,
         # and the error a caller gets has to say which substitute to use.
-        assert "xml" not in dialect.supports_data_types()
+        assert "xml" not in _format_type_names(MySQLDialect)
         with pytest.raises(TypeError, match="TextType"):
             dialect.format_data_type(XmlType(dialect))
 
     def test_array_is_suggested_as_json(self, dialect):
         """MySQL has no array type; a list column is a JSON document."""
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         assert suggestions["array"] is JsonType
 
     def test_interval_is_suggested_as_an_integer_count(self, dialect):
@@ -337,9 +300,9 @@ class TestSuggestedDataTypes:
         DAY`` consumes is a plain number. So the substitute is the numeric
         count, and the unit travels with the expression rather than the type.
         """
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         assert suggestions["interval"] is IntegerType
-        assert "interval" not in dialect.supports_data_types()
+        assert "interval" not in _format_type_names(MySQLDialect)
 
     def test_real_is_suggested_as_double_and_the_error_says_why(self, dialect):
         """``REAL`` cannot round-trip: MySQL resolves it to ``DOUBLE``.
@@ -352,9 +315,9 @@ class TestSuggestedDataTypes:
         *substituted* rather than rendered, and the advice text has to carry
         the vendor fact so the caller can pick the right class.
         """
-        suggestions = dialect.substitute_data_types()
+        suggestions = dialect.suggest_substitute_types().mapping
         assert suggestions["real"] is DoubleType
-        assert "real" not in dialect.supports_data_types()
+        assert "real" not in _format_type_names(MySQLDialect)
         with pytest.raises(TypeError) as excinfo:
             dialect.format_data_type(RealType(dialect))
         message = str(excinfo.value)
@@ -366,8 +329,8 @@ class TestSuggestedDataTypes:
 
     def test_every_suggested_substitute_is_rendered(self, dialect):
         """A suggestion a dialect cannot render is worse than no suggestion."""
-        supported = dialect.supports_data_types()
-        for key, substitute in dialect.substitute_data_types().items():
+        supported = _format_type_names(MySQLDialect)
+        for key, substitute in dialect.suggest_substitute_types().mapping.items():
             assert issubclass(substitute, DataType), key
             assert substitute.name in supported, (
                 f"suggested[{key!r}] is {substitute.__name__}, whose name "
@@ -391,8 +354,8 @@ class TestSuggestedDataTypes:
                 )
             ):
                 concrete.append(klass)
-        declared = set(dialect.supports_data_types()) | set(
-            dialect.substitute_data_types()
+        declared = set(_format_type_names(MySQLDialect)) | set(
+            dialect.suggest_substitute_types().mapping
         )
         undeclared = sorted(k.name for k in concrete if k.name not in declared)
         assert not undeclared, undeclared
@@ -588,8 +551,8 @@ class TestSpellingGates:
 class TestParseTypeIsCanonical:
     """D8: one concept in, one class out, with the word that was used kept.
 
-    A second class for a synonym would make ``parse_type("int8")`` and
-    ``parse_type("bigint")`` disagree about the same storage, and the schema
+    A second class for a synonym would make ``MySQLTypeParser.parse("int8")`` and
+    ``MySQLTypeParser.parse("bigint")`` disagree about the same storage, and the schema
     differ would then need a table of strings to tell them apart.
     """
 
@@ -607,19 +570,19 @@ class TestParseTypeIsCanonical:
         ],
     )
     def test_integer_widths_keep_their_spelling(self, dialect, raw, concept, spelling):
-        parsed = dialect.parse_type(raw)
+        parsed = MySQLTypeParser(dialect).parse(raw)
         assert isinstance(parsed, concept), raw
         assert parsed.spelling == spelling, raw
 
     def test_synonyms_are_the_same_class_not_sibling_classes(self, dialect):
-        assert type(dialect.parse_type("INT8")) is type(dialect.parse_type("BIGINT"))
+        assert type(MySQLTypeParser(dialect).parse("INT8")) is type(MySQLTypeParser(dialect).parse("BIGINT"))
         # ... and they compare equal, because the only thing that differs is
         # which word was used. A schema differ compares what the server reports
         # against what was declared, and MySQL reports one word for both, so
         # counting the spelling would invent a change on every such column.
-        assert dialect.parse_type("INT8") == dialect.parse_type("BIGINT")
+        assert MySQLTypeParser(dialect).parse("INT8") == MySQLTypeParser(dialect).parse("BIGINT")
         # The difference is still real, and visible where it belongs:
-        assert dialect.parse_type("INT8").to_sql()[0] == "BIGINT"
+        assert MySQLTypeParser(dialect).parse("INT8").to_sql()[0] == "BIGINT"
 
     def test_int1_is_not_mistaken_for_tinyint_1(self, dialect):
         """The digits of ``INT1`` are part of the name, not a display width.
@@ -627,33 +590,33 @@ class TestParseTypeIsCanonical:
         Reading them as a width would hand back a boolean — a 1-bit type — for
         a column that is a full byte.
         """
-        parsed = dialect.parse_type("INT1")
+        parsed = MySQLTypeParser(dialect).parse("INT1")
         assert isinstance(parsed, MySQLTinyIntType)
         assert not isinstance(parsed, BooleanType)
 
     def test_tinyint_1_still_parses_as_boolean(self, dialect):
         """The long-standing ``TINYINT(1)`` → BOOLEAN reading is unchanged."""
-        assert isinstance(dialect.parse_type("TINYINT(1)"), BooleanType)
-        assert isinstance(dialect.parse_type("TINYINT(1) UNSIGNED"), MySQLTinyIntType)
+        assert isinstance(MySQLTypeParser(dialect).parse("TINYINT(1)"), BooleanType)
+        assert isinstance(MySQLTypeParser(dialect).parse("TINYINT(1) UNSIGNED"), MySQLTinyIntType)
 
     def test_boolean_spellings_are_covered(self, dialect):
-        assert dialect.parse_type("BOOL").spelling == "bool"
-        assert dialect.parse_type("BOOLEAN").spelling == "boolean"
+        assert MySQLTypeParser(dialect).parse("BOOL").spelling == "bool"
+        assert MySQLTypeParser(dialect).parse("BOOLEAN").spelling == "boolean"
 
     @pytest.mark.parametrize(
         "raw,spelling", [("DECIMAL", "decimal"), ("NUMERIC", "numeric"), ("DEC", "dec")]
     )
     def test_decimal_spellings_are_covered(self, dialect, raw, spelling):
-        parsed = dialect.parse_type(raw)
+        parsed = MySQLTypeParser(dialect).parse(raw)
         assert isinstance(parsed, DecimalType)
         assert parsed.spelling == spelling
 
     def test_decimal_precision_survives_every_spelling(self, dialect):
-        parsed = dialect.parse_type("NUMERIC(10,2)")
+        parsed = MySQLTypeParser(dialect).parse("NUMERIC(10,2)")
         assert (parsed.precision, parsed.scale, parsed.spelling) == (10, 2, "numeric")
 
     def test_unsigned_and_zerofill_are_read_as_fields(self, dialect):
-        parsed = dialect.parse_type("BIGINT UNSIGNED ZEROFILL")
+        parsed = MySQLTypeParser(dialect).parse("BIGINT UNSIGNED ZEROFILL")
         assert isinstance(parsed, MySQLBigIntType)
         assert parsed.unsigned is True
         assert parsed.zerofill is True
@@ -678,7 +641,7 @@ class TestParseTypeIsCanonical:
         string is a MySQL type the framework does not model" and leaves the
         decision to the caller.
         """
-        assert isinstance(dialect.parse_type(raw), CustomType), raw
+        assert isinstance(MySQLTypeParser(dialect).parse(raw), CustomType), raw
 
     def test_double_precision_is_a_spelling_of_double(self, dialect):
         """``DOUBLE PRECISION`` is a synonym MySQL accepts and reports as double.
@@ -690,7 +653,7 @@ class TestParseTypeIsCanonical:
         word, and both parse to :class:`DoubleType`.
         """
         for raw in ("DOUBLE PRECISION", "double precision"):
-            parsed = dialect.parse_type(raw)
+            parsed = MySQLTypeParser(dialect).parse(raw)
             assert isinstance(parsed, DoubleType), raw
             assert not isinstance(parsed, CustomType), raw
         assert dialect.format_data_type(
@@ -712,10 +675,10 @@ class TestParseTypeIsCanonical:
         what introspection hands back.
         """
         for raw in ("REAL", "real"):
-            parsed = dialect.parse_type(raw)
+            parsed = MySQLTypeParser(dialect).parse(raw)
             assert isinstance(parsed, DoubleType), raw
             assert not isinstance(parsed, CustomType), raw
-        assert dialect.parse_type("REAL UNSIGNED") == DoubleType(
+        assert MySQLTypeParser(dialect).parse("REAL UNSIGNED") == DoubleType(
             dialect, unsigned=True
         )
 
@@ -729,11 +692,11 @@ class TestParseTypeIsCanonical:
         dropped, because the catalog does not record it) and p>=25 becomes
         :class:`DoubleType`.
         """
-        assert dialect.parse_type("FLOAT(0)") == FloatType(dialect)
-        assert dialect.parse_type("FLOAT(24)") == FloatType(dialect)
-        assert dialect.parse_type("FLOAT(25)") == DoubleType(dialect)
-        assert dialect.parse_type("FLOAT(53)") == DoubleType(dialect)
-        assert dialect.parse_type("FLOAT(24) UNSIGNED") == FloatType(
+        assert MySQLTypeParser(dialect).parse("FLOAT(0)") == FloatType(dialect)
+        assert MySQLTypeParser(dialect).parse("FLOAT(24)") == FloatType(dialect)
+        assert MySQLTypeParser(dialect).parse("FLOAT(25)") == DoubleType(dialect)
+        assert MySQLTypeParser(dialect).parse("FLOAT(53)") == DoubleType(dialect)
+        assert MySQLTypeParser(dialect).parse("FLOAT(24) UNSIGNED") == FloatType(
             dialect, unsigned=True
         )
 
@@ -749,10 +712,10 @@ class TestParseTypeIsCanonical:
         :class:`FloatType` with the (M,D) display spec dropped.
         """
         for raw in ("FLOAT(10,2)", "FLOAT(24,2)", "FLOAT(25,2)", "FLOAT(53,2)"):
-            parsed = dialect.parse_type(raw)
+            parsed = MySQLTypeParser(dialect).parse(raw)
             assert isinstance(parsed, FloatType), raw
             assert parsed.precision is None, raw
-        assert dialect.parse_type("FLOAT(53,2) UNSIGNED") == FloatType(
+        assert MySQLTypeParser(dialect).parse("FLOAT(53,2) UNSIGNED") == FloatType(
             dialect, unsigned=True
         )
 
@@ -761,7 +724,7 @@ class TestParseTypeIsCanonical:
         for raw in ("INT", "BIGINT", "SMALLINT", "TINYINT", "VARCHAR(30)",
                     "CHAR(4)", "TEXT", "BOOLEAN", "DECIMAL(10,2)", "BLOB",
                     "DOUBLE PRECISION", "REAL", "FLOAT(53)"):
-            parsed = dialect.parse_type(raw)
+            parsed = MySQLTypeParser(dialect).parse(raw)
             assert dialect.format_data_type(parsed)[0], raw
 
 
@@ -907,7 +870,7 @@ class TestIntegerVariantParams:
         "If you specify ZEROFILL for a numeric column, MySQL automatically adds
         the UNSIGNED attribute" (§13.1.6, and repeated in §13.1.1), so the
         *stored* column would have had the unsigned range either way — the
-        emitted DDL alone did not claim otherwise. But ``parse_type`` reads
+        emitted DDL alone did not claim otherwise. But ``MySQLTypeParser.parse`` reads
         ``unsigned`` from the literal presence of ``UNSIGNED`` in the string, so
         the emitted SQL parsed back to ``unsigned=False`` — a different value
         object from the one the caller declared, and a spurious entry in any
@@ -930,7 +893,7 @@ class TestIntegerVariantParams:
         """Whatever is rendered must parse back to the very same type object.
 
         ``DataType.__eq__`` is class-exact and reads ``PARAMETERS``, and
-        introspection hands ``parse_type`` the ``COLUMN_TYPE`` string the server
+        introspection hands ``MySQLTypeParser.parse`` the ``COLUMN_TYPE`` string the server
         reports — so a spelling that does not survive the round trip shows up
         as a column that differs from the one the framework declared. Before
         the fix the ``(unsigned=True, zerofill=True)`` cell of this matrix was
@@ -940,7 +903,7 @@ class TestIntegerVariantParams:
             for zerofill in (False, True):
                 declared = cls(dialect, unsigned=unsigned, zerofill=zerofill)
                 sql, _ = declared.to_sql()
-                assert dialect.parse_type(sql) == declared, (cls.__name__, sql)
+                assert MySQLTypeParser(dialect).parse(sql) == declared, (cls.__name__, sql)
 
     def test_get_params_reports_both_mysql_attributes(self, dialect):
         """Serialisation is signature-driven, so the signature is the contract.
@@ -1024,7 +987,7 @@ class TestNumericSignednessIsHonoured:
 
     **The attribute goes after the ``(M[,D])`` group**, which is where MySQL's
     grammar puts it and where ``SHOW CREATE TABLE`` reports it, which is what
-    makes ``parse_type`` able to read this backend's own output back.
+    makes ``MySQLTypeParser.parse`` able to read this backend's own output back.
     """
 
     #: (concept, extra constructor kwargs, signed SQL, unsigned SQL)
@@ -1096,7 +1059,7 @@ class TestNumericSignednessIsHonoured:
                                                 signed_sql, unsigned_sql):
         """Round trip, both directions of the flag.
 
-        ``parse_type`` reads ``UNSIGNED`` out of the float family and the decimal
+        ``MySQLTypeParser.parse`` reads ``UNSIGNED`` out of the float family and the decimal
         family for exactly this reason: the catalog hands it
         ``COLUMN_TYPE`` verbatim, so ``decimal(10,2) unsigned`` used to come back
         as a signed ``DecimalType`` and the differ reported no change for a change
@@ -1104,7 +1067,7 @@ class TestNumericSignednessIsHonoured:
         """
         for flag in (False, True):
             declared = klass(dialect, unsigned=flag, **kwargs)
-            parsed = dialect.parse_type(dialect.format_data_type(declared)[0])
+            parsed = MySQLTypeParser(dialect).parse(dialect.format_data_type(declared)[0])
             assert parsed == declared
             assert hash(parsed) == hash(declared)
 
@@ -1113,7 +1076,7 @@ class TestNumericSignednessIsHonoured:
                 "NUMERIC(10,2) UNSIGNED", "DEC(10,2) UNSIGNED",
                 "FLOAT UNSIGNED", "FLOAT(24) UNSIGNED", "DOUBLE UNSIGNED",
                 "DOUBLE(10,2) UNSIGNED ZEROFILL"])
-    def test_parse_type_reads_the_attribute_off_the_catalogs_own_words(
+    def test_parser_reads_the_attribute_off_the_catalogs_own_words(
             self, dialect, raw):
         """``information_schema`` reports ``COLUMN_TYPE`` verbatim and lower-cased.
 
@@ -1121,14 +1084,14 @@ class TestNumericSignednessIsHonoured:
         the forms MySQL actually writes rather than in the forms this formatter
         emits.
         """
-        parsed = dialect.parse_type(raw)
+        parsed = MySQLTypeParser(dialect).parse(raw)
         assert parsed.unsigned is True, raw
         assert "UNSIGNED" in dialect.format_data_type(parsed)[0]
 
     def test_a_signed_numeric_is_still_signed_when_parsed_back(self, dialect):
         """The flag is not inferred: ``UNSIGNED`` absent means signed."""
         for raw in ("DECIMAL(10,2)", "FLOAT(24)", "DOUBLE"):
-            assert dialect.parse_type(raw).unsigned is False, raw
+            assert MySQLTypeParser(dialect).parse(raw).unsigned is False, raw
 
     def test_zerofill_on_a_numeric_is_read_as_unsigned_and_nothing_more(self,
                                                                         dialect):
@@ -1143,7 +1106,7 @@ class TestNumericSignednessIsHonoured:
         holds unchanged -- there is no reachable ``(unsigned=False,
         zerofill=True)`` declaration for these concepts at all.
         """
-        parsed = dialect.parse_type("decimal(10,2) unsigned zerofill")
+        parsed = MySQLTypeParser(dialect).parse("decimal(10,2) unsigned zerofill")
         assert isinstance(parsed, DecimalType)
         assert parsed.unsigned is True
         assert (parsed.precision, parsed.scale) == (10, 2)
@@ -1211,7 +1174,7 @@ class TestMediumIntWidth:
     9.4.0 and 26.7.0 all accepted it), and ``information_schema.COLUMNS`` then
     reports ``COLUMN_TYPE`` verbatim — ``mediumint``, ``mediumint unsigned``, or
     ``mediumint(8) unsigned zerofill`` for a zero-padded one. Introspection
-    hands that string straight to ``parse_type``, so this is not a hypothetical
+    hands that string straight to ``MySQLTypeParser.parse``, so this is not a hypothetical
     input. The manual's Table 13.1 gives the storage as **3** bytes, signed
     range ``-8388608``..``8388607``, unsigned ``0``..``16777215``.
     """
@@ -1222,7 +1185,7 @@ class TestMediumIntWidth:
          "MEDIUMINT UNSIGNED ZEROFILL", "mediumint(8) unsigned zerofill"],
     )
     def test_parses_to_its_own_class(self, dialect, raw):
-        parsed = dialect.parse_type(raw)
+        parsed = MySQLTypeParser(dialect).parse(raw)
         assert isinstance(parsed, MySQLMediumIntType), raw
         assert parsed.unsigned == ("UNSIGNED" in raw.upper())
         assert parsed.zerofill == ("ZEROFILL" in raw.upper())
@@ -1234,11 +1197,11 @@ class TestMediumIntWidth:
         makes the differ report a real change here. Signedness is compared too,
         so an unsigned MEDIUMINT does not quietly equal an unsigned INT.
         """
-        mediumint = dialect.parse_type("MEDIUMINT")
+        mediumint = MySQLTypeParser(dialect).parse("MEDIUMINT")
         assert not isinstance(mediumint, MySQLIntType)
         assert mediumint != MySQLIntType(dialect)
         assert mediumint != MySQLIntType(dialect, unsigned=True)
-        assert dialect.parse_type("MEDIUMINT UNSIGNED") != MySQLIntType(
+        assert MySQLTypeParser(dialect).parse("MEDIUMINT UNSIGNED") != MySQLIntType(
             dialect, unsigned=True
         )
         assert hash(mediumint) != hash(MySQLIntType(dialect))
@@ -1389,8 +1352,8 @@ class TestRootSittingTypesAreDocumented:
 class TestNoIntTypeRemains:
     """``IntType`` is gone: ``INT`` is a spelling of ``IntegerType``.
 
-    A second class for ``INT`` would make ``parse_type("INT")`` and
-    ``parse_type("INTEGER")`` disagree about one storage.
+    A second class for ``INT`` would make ``MySQLTypeParser.parse("INT")`` and
+    ``MySQLTypeParser.parse("INTEGER")`` disagree about one storage.
     """
 
     def test_core_no_longer_exports_int_type(self):
@@ -1401,7 +1364,7 @@ class TestNoIntTypeRemains:
     def test_dialect_has_no_int_only_dispatch_key(self):
         assert not hasattr(MySQLDialect, "format_data_type_int")
         assert not hasattr(MySQLDialect, "supports_data_type_int")
-        assert "int" not in MySQLDialect().supports_data_types()
+        assert "int" not in _format_type_names(MySQLDialect)
 
 
 class TestMySQLEnumRendering:
@@ -1509,7 +1472,7 @@ class TestDialectOptions:
 
 
 # ---------------------------------------------------------------------------
-# parse_type: spatial dispatch, and the shared round-trip sweep
+# MySQLTypeParser: spatial dispatch, and the shared round-trip sweep
 
 
 class TestSpatialWordsParseBackAsTheirOwnShape:
@@ -1536,19 +1499,19 @@ class TestSpatialWordsParseBackAsTheirOwnShape:
         ("multipolygon", "MySQLMultiPolygonType"),
     ])
     def test_each_word_reads_back_as_its_own_shape(self, dialect, raw, expected):
-        parsed = dialect.parse_type(raw)
+        parsed = MySQLTypeParser(dialect).parse(raw)
         assert type(parsed).__name__ == expected, raw
         assert dialect.format_data_type(parsed) == (raw.upper(), ())
 
     def test_a_collection_is_not_the_generic_geometry_type(self, dialect):
-        collection = dialect.parse_type("geometrycollection")
-        generic = dialect.parse_type("geometry")
+        collection = MySQLTypeParser(dialect).parse("geometrycollection")
+        generic = MySQLTypeParser(dialect).parse("geometry")
         assert isinstance(collection, MySQLGeometryCollectionType)
         assert collection != generic
         assert type(collection) is not type(generic)
 
     def test_srid_survives_the_dispatch(self, dialect):
-        parsed = dialect.parse_type("GEOMETRYCOLLECTION SRID 4326")
+        parsed = MySQLTypeParser(dialect).parse("GEOMETRYCOLLECTION SRID 4326")
         assert isinstance(parsed, MySQLGeometryCollectionType)
         assert parsed.srid == 4326
 

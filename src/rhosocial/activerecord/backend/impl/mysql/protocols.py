@@ -10,7 +10,7 @@ When a MySQL protocol extends a generic protocol, dialects only need to implemen
 the MySQL-specific protocol - isinstance checks for the generic protocol will still work.
 """
 
-from typing import Protocol, runtime_checkable, Tuple, Any, Dict, Sequence, FrozenSet, Optional, TYPE_CHECKING
+from typing import Protocol, runtime_checkable, Tuple, Any, Sequence, FrozenSet, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import (
@@ -828,18 +828,12 @@ class MySQLTypeSupport(Protocol):
       :class:`MySQLJSONFunctionSupport`).
     """
 
-    def parse_type(self, raw: str):
-        """Parse a MySQL type string into the ``DataType`` it came from.
-
-        Canonical: one concept in, one class out, with the word that was used
-        recorded on the instance where the concept has more than one spelling.
-        A word the framework does not model yields ``CustomType`` rather than a
-        guess.
-        """
+    def suggest_substitute_types(self) -> 'SubstituteTypeSuggestion':
+        """Concept-name -> class this backend stores for unsupported concepts."""
         ...
 
-    def substitute_data_types(self) -> Dict[str, type]:
-        """The core concepts this dialect cannot spell, and what it stores."""
+    def suggest_substitute_advice(self, name: str) -> 'SubstituteAdviceSuggestion':
+        """Extra caveat for a substituted concept (empty when lossless)."""
         ...
 
     # --- integer widths with UNSIGNED / ZEROFILL ---

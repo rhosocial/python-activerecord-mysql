@@ -20,8 +20,7 @@ import uuid
 
 import pytest
 
-from rhosocial.activerecord.backend.dialect.mixins import ColumnTypeMixin
-from rhosocial.activerecord.backend.dialect.protocols import ColumnTypeSupport
+from rhosocial.activerecord.backend.suggestion.protocols import ColumnTypeSuggestionSupport
 from rhosocial.activerecord.backend.expression.column_types import (
     ArrayColumn,
     BinaryColumn,
@@ -99,48 +98,47 @@ class TestTableCompleteness:
     """A hole in the table is a silent gap, and the protocol forbids one."""
 
     def test_the_dialect_carries_the_mixin(self, dialect):
-        assert isinstance(dialect, ColumnTypeSupport)
-        assert isinstance(dialect, ColumnTypeMixin)
+        assert isinstance(dialect, ColumnTypeSuggestionSupport)
 
     def test_every_entry_is_answered(self, dialect):
         """All twenty-four, by name -- an omission fails here, not at lookup."""
-        missing = [e for e in COMMON_TYPES if e not in dialect.suggested_column_types()]
+        missing = [e for e in COMMON_TYPES if e not in dialect.suggest_column_types().table]
         assert missing == []
 
     def test_the_table_has_exactly_the_protocol_entries(self, dialect):
         """No backend-only extension is claimed, so the key space is closed here."""
-        assert set(dialect.suggested_column_types()) == set(COMMON_TYPES)
+        assert set(dialect.suggest_column_types().table) == set(COMMON_TYPES)
 
     def test_no_entry_is_answered_none_on_a_modern_server(self, dialect):
         """8.0 answers all twenty-four; a ``None`` here would be a refusal of a
         value this server demonstrably carries."""
-        table = dialect.suggested_column_types()
+        table = dialect.suggest_column_types().table
         assert [e for e in COMMON_TYPES if table[e] is None] == []
 
     @pytest.mark.parametrize("entry", COMMON_TYPES, ids=_entry_ids())
     def test_every_answer_is_a_column_class_or_none(self, dialect, entry):
         """The protocol's two answer states, one entry at a time."""
-        answer = dialect.suggested_column_types()[entry]
+        answer = dialect.suggest_column_types().table[entry]
         assert answer is None or (
             isinstance(answer, type) and issubclass(answer, ColumnBase)
         )
 
     @pytest.mark.parametrize("entry", COMMON_TYPES, ids=_entry_ids())
     def test_every_entry_resolves_to_its_own_answer(self, dialect, entry):
-        answer = dialect.suggested_column_types()[entry]
+        answer = dialect.suggest_column_types().table[entry]
         if answer is None:
             pytest.skip("refused below the gate; asserted in TestJsonVersionGate")
         assert _select(dialect, entry) is answer
 
     def test_the_table_is_a_copy(self, dialect):
         """Mutating one answer must not corrupt the class attribute."""
-        first = dialect.suggested_column_types()
+        first = dialect.suggest_column_types().table
         first[str] = NumericColumn
-        assert dialect.suggested_column_types()[str] is StringColumn
+        assert dialect.suggest_column_types().table[str] is StringColumn
 
     def test_the_class_attribute_is_never_mutated(self):
         """The version gate works on a copy, so a 5.6 dialect cannot poison 8.0."""
-        MySQLDialect(version=MYSQL_56).suggested_column_types()
+        MySQLDialect(version=MYSQL_56).suggest_column_types().table
         assert MYSQL_COLUMN_TYPES[dict] is JSONColumn
 
     def test_the_class_attribute_carries_no_refusal(self):
@@ -175,7 +173,7 @@ class TestBaselineCells:
         ids=_entry_ids()[:13],
     )
     def test_baseline_entry(self, dialect, entry, expected):
-        assert dialect.suggested_column_types()[entry] is expected
+        assert dialect.suggest_column_types().table[entry] is expected
 
     def test_tz_aware_datetime_normalises_to_the_plain_entry(self, dialect):
         """A tz-aware ``datetime`` is annotated ``datetime.datetime``; nothing is refused.
@@ -194,12 +192,12 @@ class TestBaselineCells:
     def test_uuid_is_not_gated_on_a_storage_fact(self, dialect):
         """MySQL has no native ``UUID`` type on any version, and it must not show.
 
-        The ``BINARY(16)`` substitute is ``substitute_data_types()``'s business.
+        The ``BINARY(16)`` substitute is ``suggest_substitute_types()``'s business.
         A UUID carries the same operations -- equality and ``IN`` -- wherever it
         is kept, so the column answer is the baseline on every version.
         """
         for version in (MYSQL_56, MYSQL_57, MYSQL_80):
-            table = MySQLDialect(version=version).suggested_column_types()
+            table = MySQLDialect(version=version).suggest_column_types().table
             assert table[uuid.UUID] is UUIDColumn
 
 
@@ -215,13 +213,13 @@ class TestMySQLDeviations:
         the width belongs to the ``DataType``. Asserting the shared answer keeps
         the merge deliberate rather than an accident of the refactor.
         """
-        table = dialect.suggested_column_types()
+        table = dialect.suggest_column_types().table
         assert table[float] is NumericColumn
         assert table[decimal.Decimal] is NumericColumn
 
     def test_dict_is_json_column(self, dialect):
         """Native ``JSON`` from 5.7.8; the function family from 5.7.0."""
-        assert dialect.suggested_column_types()[dict] is JSONColumn
+        assert dialect.suggest_column_types().table[dict] is JSONColumn
 
     @pytest.mark.parametrize("entry", [list, tuple, set, frozenset], ids=_entry_ids()[13:17])
     def test_containers_take_the_json_route(self, dialect, entry):
@@ -230,11 +228,11 @@ class TestMySQLDeviations:
         ``ArrayColumn``'s whole surface is ``array_length`` / ``unnest`` over a
         *native* array -- a column this server cannot declare at all.
         """
-        assert dialect.suggested_column_types()[entry] is JSONColumn
+        assert dialect.suggest_column_types().table[entry] is JSONColumn
 
     def test_no_entry_answers_array_column(self, dialect):
         """The portable baseline says ``ArrayColumn`` for the containers; MySQL may not."""
-        table = dialect.suggested_column_types()
+        table = dialect.suggest_column_types().table
         assert [e for e, cls in table.items() if cls is ArrayColumn] == []
 
     def test_timedelta_is_an_interval(self, dialect):
@@ -243,11 +241,11 @@ class TestMySQLDeviations:
         A span is therefore stored as a number of seconds, but the value is a
         span: ``IntervalColumn`` names it and promises no numeric arithmetic.
         """
-        assert dialect.suggested_column_types()[datetime.timedelta] is IntervalColumn
+        assert dialect.suggest_column_types().table[datetime.timedelta] is IntervalColumn
 
     def test_the_complex_families_answer_the_core_classes(self, dialect):
         """Six families, the classes that promise only the column surface."""
-        table = dialect.suggested_column_types()
+        table = dialect.suggest_column_types().table
         for entry, klass in (
             (Geometry, MySQLGeometryColumn),
             (Vector, VectorColumn),
@@ -264,12 +262,12 @@ class TestJsonVersionGate:
 
     def test_dict_is_refused_below_57(self):
         """5.6.51 has no ``JSON`` type *and* no JSON functions -- 1305, not 1064."""
-        table = MySQLDialect(version=MYSQL_56).suggested_column_types()
+        table = MySQLDialect(version=MYSQL_56).suggest_column_types().table
         assert table[dict] is None
 
     @pytest.mark.parametrize("version", [MYSQL_57, MYSQL_80], ids=["5.7.44", "8.0.46"])
     def test_dict_is_json_column_from_57(self, version):
-        assert MySQLDialect(version=version).suggested_column_types()[dict] is JSONColumn
+        assert MySQLDialect(version=version).suggest_column_types().table[dict] is JSONColumn
 
     def test_only_the_dict_entry_is_refused_below_57(self):
         """One refusal, not five: the containers keep their JSON answer.
@@ -277,7 +275,7 @@ class TestJsonVersionGate:
         MySQL 5.6 stores and returns the text faithfully -- it does not
         normalise it -- so a sequence still has length and containment to carry.
         """
-        table = MySQLDialect(version=MYSQL_56).suggested_column_types()
+        table = MySQLDialect(version=MYSQL_56).suggest_column_types().table
         assert [e for e in COMMON_TYPES if table[e] is None] == [dict]
 
     def test_the_gate_reads_the_functions_boundary_not_the_type_boundary(self):
@@ -286,13 +284,13 @@ class TestJsonVersionGate:
         Between the two, a path can be read perfectly well without a JSON column
         type, so refusing there would refuse a query the server answers.
         """
-        assert MySQLDialect(version=(5, 7, 0)).suggested_column_types()[dict] is JSONColumn
+        assert MySQLDialect(version=(5, 7, 0)).suggest_column_types().table[dict] is JSONColumn
 
     def test_the_gate_agrees_with_the_json_mixin(self):
         """One boundary, two readers: the mixin and the table cannot drift."""
         for version in (MYSQL_56, MYSQL_57, MYSQL_80, (8, 0, 3)):
             server = MySQLDialect(version=version)
-            assert (server.suggested_column_types()[dict] is None) is (
+            assert (server.suggest_column_types().table[dict] is None) is (
                 not server.supports_json_path()
             )
 
@@ -395,8 +393,8 @@ class TestSilentItemsLeftToTheRenderingPhase:
     def test_non_strict_56_is_a_server_setting_not_a_capability(self):
         """Silent clamping / truncation belongs to ``sql_mode``, not the column class."""
         server = MySQLDialect(version=MYSQL_56, sql_mode="")
-        assert server.suggested_column_types()[str] is StringColumn
-        assert server.suggested_column_types()[int] is IntegerColumn
+        assert server.suggest_column_types().table[str] is StringColumn
+        assert server.suggest_column_types().table[int] is IntegerColumn
 
 
 class TestTableStaysUsableWithoutAVersion:
@@ -413,36 +411,30 @@ class TestTableStaysUsableWithoutAVersion:
             MySQLColumnTypeMixin,
         )
 
-        assert (
-            MySQLColumnTypeMixin.suggested_column_types
-            is not ColumnTypeMixin.suggested_column_types
-        )
-        assert (
-            MySQLColumnTypeMixin.suggested_extra_column_types
-            is ColumnTypeMixin.suggested_extra_column_types
-        )
+        assert callable(MySQLColumnTypeMixin.suggest_column_types)
+        assert callable(MySQLColumnTypeMixin.suggest_extra_column_types)
 
 
 class TestTwoDialectVersionsDoNotLeak:
     """The gate is a copy, so building a 5.6 dialect cannot affect an 8.0 one."""
 
     def test_a_56_dialect_between_two_80_ones_changes_nothing(self):
-        before = MySQLDialect(version=MYSQL_80).suggested_column_types()
-        MySQLDialect(version=MYSQL_56).suggested_column_types()
-        after = MySQLDialect(version=MYSQL_80).suggested_column_types()
+        before = MySQLDialect(version=MYSQL_80).suggest_column_types().table
+        MySQLDialect(version=MYSQL_56).suggest_column_types().table
+        after = MySQLDialect(version=MYSQL_80).suggest_column_types().table
         assert before[dict] is after[dict] is JSONColumn
 
     def test_two_56_dialects_agree(self):
         assert (
-            MySQLDialect(version=MYSQL_56).suggested_column_types()[dict]
-            is MySQLDialect(version=MYSQL_56).suggested_column_types()[dict]
+            MySQLDialect(version=MYSQL_56).suggest_column_types().table[dict]
+            is MySQLDialect(version=MYSQL_56).suggest_column_types().table[dict]
             is None
         )
 
 
 def test_the_summary_table_reads_the_way_the_spec_writes_it():
     """One test that states the whole answer, so a diff is legible at a glance."""
-    table = MySQLDialect(version=MYSQL_80).suggested_column_types()
+    table = MySQLDialect(version=MYSQL_80).suggest_column_types().table
     summary = {entry.__name__: _answer_name(table[entry]) for entry in COMMON_TYPES}
     assert summary == {
         "bool": "BooleanColumn",
@@ -474,8 +466,8 @@ def test_the_summary_table_reads_the_way_the_spec_writes_it():
 
 def test_the_56_table_differs_in_exactly_one_cell():
     """The gate is one cell, and a diff of the two tables shows it."""
-    old = MySQLDialect(version=MYSQL_56).suggested_column_types()
-    new = MySQLDialect(version=MYSQL_80).suggested_column_types()
+    old = MySQLDialect(version=MYSQL_56).suggest_column_types().table
+    new = MySQLDialect(version=MYSQL_80).suggest_column_types().table
     differing = [e for e in COMMON_TYPES if old[e] is not new[e]]
     assert differing == [dict]
 

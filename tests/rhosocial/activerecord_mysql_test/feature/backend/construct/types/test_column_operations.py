@@ -47,4 +47,4 @@ def test_spatial_functions_fail_without_the_capability(geometry, monkeypatch, me
 def test_a_geometry_field_resolves_to_the_mysql_class(dialect):
     from rhosocial.activerecord.backend.adapters import Geometry
 
-    assert dialect.suggested_column_types()[Geometry] is MySQLGeometryColumn
+    assert dialect.suggest_column_types().table[Geometry] is MySQLGeometryColumn

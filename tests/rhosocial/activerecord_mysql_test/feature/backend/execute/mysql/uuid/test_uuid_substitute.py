@@ -1,7 +1,7 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/execute/mysql/uuid/test_uuid_substitute.py
 """The UUID substitute on a live server: what MySQL actually builds from it.
 
-MySQL has no ``UUID`` data type, so ``substitute_data_types()["uuid"]`` names a
+MySQL has no ``UUID`` data type, so ``suggest_substitute_types()["uuid"]`` names a
 substitute and that substitute has to be the right *size*. This file checks the
 size against a real server rather than against the manual alone, on every
 scenario the suite is pointed at — the reasoning is in
@@ -84,7 +84,7 @@ class TestTheServerBuildsTheDocumentedColumn:
         """``BINARY(16)`` is a 16-byte column, as reported by the server.
 
         Read back from ``information_schema.COLUMNS.COLUMN_TYPE``, which is the
-        same string introspection hands to ``parse_type`` — so this is what the
+        same string introspection hands to ``MySQLTypeParser.parse`` — so this is what the
         round-trip assertion is reasoning about, not a restatement of it.
         """
         rendered = MySQLUUIDType(mysql_backend.dialect).to_sql()[0]

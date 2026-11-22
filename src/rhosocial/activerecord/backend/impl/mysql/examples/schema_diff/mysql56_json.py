@@ -11,7 +11,7 @@ vice versa, the differ will detect the data type mapping change.
 Supported versions: MySQL 5.6 — schema uses LONGTEXT for "JSON" columns.
                      MySQL 5.7+ — schema uses native JSON type.
 """
-from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementSuggestionRenderer  # noqa: E402
+from rhosocial.activerecord.base.derivation import integer_auto_increment_parts  # noqa: E402
 
 # ============================================================
 # SECTION: Setup (necessary for execution, reference only)
@@ -55,11 +55,11 @@ backend.execute(sql, params)
 # Simulate MySQL 5.6: store JSON as TEXT
 expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "documents56"), columns=[
-        ColumnDefinition(dialect, "id"[0], IntegerAutoIncrementSuggestionRenderer().parts(None, IntegerType(dialect))[0],
+        ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ], attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, IntegerType(dialect))[1]),
+            ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
         ColumnDefinition(dialect, "data", MySQLLongTextType(dialect)),
     ]
 )
@@ -68,11 +68,11 @@ backend.execute(sql, params)
 # Simulate MySQL 5.7+: native JSON column
 expr = CreateTableStatement(
     dialect=dialect, table=Table(dialect, "documents57"), columns=[
-        ColumnDefinition(dialect, "id"[0], IntegerAutoIncrementSuggestionRenderer().parts(None, IntegerType(dialect))[0],
+        ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
             constraints=[
                 ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
                 ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ], attributes=IntegerAutoIncrementSuggestionRenderer().parts(None, IntegerType(dialect))[1]),
+            ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
         ColumnDefinition(dialect, "data", JsonType(dialect)),
     ]
 )

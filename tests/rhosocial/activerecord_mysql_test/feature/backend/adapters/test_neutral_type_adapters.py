@@ -415,6 +415,6 @@ class TestAdapterInventory:
         # The legacy MySQLVectorAdapter claims ``list`` -> ``str``; it must
         # not be registered, or every JSON list column would silently change
         # adapter.
-        suggestions = backend.get_default_adapter_suggestions()
+        suggestions = backend.suggest_data_adapters().table
         assert isinstance(suggestions[list][0], MySQLJSONAdapter)
         assert isinstance(backend.adapter_registry.get_adapter(list, str), MySQLJSONAdapter)
