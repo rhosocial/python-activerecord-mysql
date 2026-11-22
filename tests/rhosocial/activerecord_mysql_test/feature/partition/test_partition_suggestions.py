@@ -11,7 +11,7 @@ import dataclasses
 import pytest
 
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.dialect.protocols import (
+from rhosocial.activerecord.backend.suggestion.protocols import (
     PartitionAddSuggestionSupport,
     PartitionBuildSuggestionSupport,
     PartitionDropSuggestionSupport,
