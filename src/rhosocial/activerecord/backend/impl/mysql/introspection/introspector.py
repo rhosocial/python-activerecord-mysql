@@ -65,7 +65,6 @@ from rhosocial.activerecord.backend.introspection.types import (
     IntrospectionScope,
     DDLStatement,
 )
-from rhosocial.activerecord.backend.expression.types import DataType
 from .types import (
     MySQLPartitionInfo,
     MySQLTableOptions,
@@ -188,7 +187,14 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         for row in rows:
             nullable = ColumnNullable.NULLABLE if row.get("IS_NULLABLE") == "YES" else ColumnNullable.NOT_NULL
             col_type = row.get("COLUMN_TYPE") or row.get("DATA_TYPE") or "VARCHAR"
-            parsed = DataType.parse_data_type_str(self._backend.dialect, col_type)
+            # Reading a server-reported type spelling back is a backend-local,
+            # introspection-only concern. Core's DataType factory is now a
+            # fallback that only builds a CustomType, whose strict type-name
+            # grammar rejects MySQL spellings such as ENUM('a','b'); the
+            # concrete parse lives in MySQLTypeParser.
+            from .type_parser import MySQLTypeParser
+
+            parsed = MySQLTypeParser(self._backend.dialect).parse(col_type)
             columns.append(
                 IntrospectionColumnInfo(
                     name=row["COLUMN_NAME"],
