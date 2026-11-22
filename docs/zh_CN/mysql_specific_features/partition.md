@@ -139,7 +139,7 @@ retention = dialect.suggest_partition_retention(
 每个建议都是冻结值，其 `operations` 有三种可能：可由 dialect 渲染、由调用方执行的
 真实 MySQL 表达式节点元组；本后端对该策略/plan 没有相应机制时的 `False`；
 以及无需操作时返回的 `None`。八个方法覆盖 `build`、`add`、`drop`、`retention`、
-`split`、`merge`、`table_alter` 与 `table_drop`，SQL 的具体拼写由 dialect 格式化器负责。
+`split`、`merge`、`table_alter` 与 `table_drop`，SQL 的具体拼写由 方言格式化函数负责。
 对 RANGE 保留策略，上界小于等于截止时间的分区视为过期，且始终保留表的最后一个分区。
 
 目录侧通过内省回答：
