@@ -434,6 +434,10 @@ class MySQLDialect(
     SQLFunctionSupport,
     DataTypeSupport,
     ColumnAttributeSupport,
+    # The capability probes must come from the core mixin, not the protocol's
+    # stub methods: without it supports_add_column_if_not_exists() and its
+    # siblings resolve to None, which the suite rejects as a non-boolean.
+    AlterTableModifierMixin,
     AlterTableModifierSupport,
     # Suggestion protocols (relocated to backend.suggestion.protocols)
     DataTypeSuggestionSupport,

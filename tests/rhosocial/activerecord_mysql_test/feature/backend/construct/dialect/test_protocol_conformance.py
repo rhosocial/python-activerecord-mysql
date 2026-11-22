@@ -60,7 +60,14 @@ def get_own_protocol_methods(proto: type) -> set:
         val = proto.__dict__[name]
         if callable(val) or isinstance(val, (property, classmethod, staticmethod)):
             members.add(name)
-    members.update(k for k in getattr(proto, "__annotations__", {}) if not k.startswith("_"))
+    # Read only annotations declared on this protocol. Attribute lookup walks
+    # the MRO, so on Python <= 3.13 a subclass with no own annotations inherits
+    # NamespaceSupport's `separator` and is falsely reported as declaring it.
+    # Python 3.14 (PEP 649) keeps them in `__annotations_cache__` instead.
+    own_annotations = proto.__dict__.get("__annotations__")
+    if own_annotations is None:
+        own_annotations = proto.__dict__.get("__annotations_cache__", {})
+    members.update(k for k in own_annotations if not k.startswith("_"))
     return members
 
 
