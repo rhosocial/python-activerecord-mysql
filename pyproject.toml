@@ -80,6 +80,9 @@ Documentation = "https://docs.python-activerecord.dev.rho.social"
 Repository = "https://github.com/rhosocial/python-activerecord-mysql.git"
 Issues = "https://github.com/rhosocial/python-activerecord-mysql/issues"
 
+[project.scripts]
+rhosocial-activerecord-mysql = "rhosocial.activerecord.backend.impl.mysql.__main__:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
