@@ -40,8 +40,10 @@ import uuid
 from typing import Any, Dict, Optional
 
 from rhosocial.activerecord.backend.adapters import (
+    AwareDatetime,
     BitString,
     Geometry,
+    IPAddress,
     MacAddress,
     Multirange,
     Range,
@@ -55,6 +57,7 @@ from rhosocial.activerecord.backend.expression.types import (
     JsonType,
     TextType,
     TimestampType,
+    TimestampTzType,
     TimeType,
     VarCharType,
 )
@@ -78,6 +81,9 @@ MYSQL_DATA_TYPE_SUGGESTIONS: Dict[Any, Optional[Any]] = {
     bytearray: MySQLBlobType(),
     datetime.date: DateType(),
     datetime.time: TimeType(),
+    # An instant: TIMESTAMP(p) is MySQL's tz-capable declaration, and a
+    # precision of 3 (milliseconds) is the framework's timestamp default.
+    AwareDatetime: TimestampTzType(precision=3),
     datetime.datetime: TimestampType(precision=3),
     # MySQL has no interval type; the value's text form is the carrier.
     datetime.timedelta: TextType(),
@@ -98,6 +104,8 @@ MYSQL_DATA_TYPE_SUGGESTIONS: Dict[Any, Optional[Any]] = {
     Range: TextType(),
     Multirange: TextType(),
     MacAddress: VarCharType(length=17),
+    # IPv6's canonical text is up to 45 characters; no native IP type here.
+    IPAddress: VarCharType(length=45),
 }
 
 

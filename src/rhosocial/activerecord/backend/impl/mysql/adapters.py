@@ -12,6 +12,8 @@ from rhosocial.activerecord.backend.adapters import (
     BitStringAdapterBase,
     Geometry,
     GeometryAdapterBase,
+    IPAddress,
+    IPAddressAdapterBase,
     MacAddress,
     MacAddressAdapterBase,
     Multirange,
@@ -825,10 +827,10 @@ class MySQLVectorAdapter(SQLTypeAdapter):
 # Neutral-type adapters (their neutral types live in the core package)
 # ---------------------------------------------------------------------------
 #
-# MySQL has no range or MAC address column types, so those adapters carry
-# their values in TEXT/BINARY columns. The spatial types are native to the
-# server, but the adapter deliberately speaks WKT text rather than the
-# server's internal binary geometry layout (see MySQLGeometryAdapter).
+# MySQL has no range, MAC address or IP address column types, so those
+# adapters carry their values in TEXT/BINARY columns. The spatial types are
+# native to the server, but the adapter deliberately speaks WKT text rather
+# than the server's internal binary geometry layout (see MySQLGeometryAdapter).
 
 
 class MySQLGeometryAdapter(GeometryAdapterBase):
@@ -1114,3 +1116,27 @@ class MySQLMacAddressAdapter(MacAddressAdapterBase):
         if isinstance(value, (str, bytes, bytearray, int)) and not isinstance(value, bool):
             return MacAddress.parse(value)
         raise TypeError(f"expected MAC address text or bytes, got {type(value).__name__}")
+
+
+class MySQLIPAddressAdapter(IPAddressAdapterBase):
+    """Adapts neutral :class:`IPAddress` to a canonical-text MySQL column.
+
+    MySQL has no IP address column type, so the address is carried in text:
+    the compressed canonical form (``192.0.2.1`` / ``2001:db8::1``) fits a
+    ``VARCHAR(45)`` for both IPv4 and IPv6. The core
+    :class:`~rhosocial.activerecord.backend.adapters.IPAddressAdapterBase`
+    handles coercion and conversion errors; this class only spells the wire
+    format.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.register_type(IPAddress, str)
+
+    def _encode(
+        self, ip_addr: IPAddress, target_type: Type, options: Optional[Dict[str, Any]]
+    ) -> str:
+        return str(ip_addr)
+
+    def _decode(self, value: Any, options: Optional[Dict[str, Any]]) -> IPAddress:
+        return IPAddress.parse(self._require_text(value))

@@ -22,6 +22,7 @@ from rhosocial.activerecord.backend.adapters import (
     BitString,
     Geometry,
     GeometryCollection,
+    IPAddress,
     LineString,
     MacAddress,
     Multirange,
@@ -35,6 +36,7 @@ from rhosocial.activerecord.backend.errors import TypeConversionError
 from rhosocial.activerecord.backend.impl.mysql.adapters import (
     MySQLBitStringAdapter,
     MySQLGeometryAdapter,
+    MySQLIPAddressAdapter,
     MySQLJSONAdapter,
     MySQLMacAddressAdapter,
     MySQLNeutralVectorAdapter,
@@ -379,6 +381,27 @@ class TestMacAddressAdapter:
             adapter.to_database(MacAddress.parse("08002b010203"), int)
 
 
+class TestIPAddressAdapter:
+    @pytest.fixture
+    def adapter(self):
+        return MySQLIPAddressAdapter()
+
+    def test_encode_canonical_text(self, adapter):
+        assert adapter.to_database(IPAddress.parse("192.0.2.1"), str) == "192.0.2.1"
+
+    def test_decode_text(self, adapter):
+        assert adapter.from_database("2001:db8::1", IPAddress) == IPAddress.parse("2001:0db8::1")
+
+    def test_roundtrip_ipv4_and_ipv6(self, adapter):
+        for text in ("192.0.2.1", "2001:db8::1"):
+            value = IPAddress.parse(text)
+            assert adapter.from_database(adapter.to_database(value, str), IPAddress) == value
+
+    def test_invalid_ip_is_wrapped(self, adapter):
+        with pytest.raises(TypeConversionError):
+            adapter.from_database("not-an-ip", IPAddress)
+
+
 # --- Inventory -------------------------------------------------------------
 
 
@@ -392,6 +415,7 @@ class TestAdapterInventory:
     EXPECTED = (
         MySQLBitStringAdapter,
         MySQLGeometryAdapter,
+        MySQLIPAddressAdapter,
         MySQLMacAddressAdapter,
         MySQLNeutralVectorAdapter,
         MySQLRangeAdapter,
@@ -410,6 +434,7 @@ class TestAdapterInventory:
         assert isinstance(registry.get_adapter(Range, str), MySQLRangeAdapter)
         assert isinstance(registry.get_adapter(Multirange, str), MySQLRangeAdapter)
         assert isinstance(registry.get_adapter(MacAddress, str), MySQLMacAddressAdapter)
+        assert isinstance(registry.get_adapter(IPAddress, str), MySQLIPAddressAdapter)
 
     def test_json_adapter_still_wins_for_plain_lists(self, backend):
         # The legacy MySQLVectorAdapter claims ``list`` -> ``str``; it must

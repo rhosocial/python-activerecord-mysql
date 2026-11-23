@@ -25,7 +25,7 @@ What does reach the table is MySQL's lack of a **native array type** -- there is
 none on any version, so a column cannot be declared ``INT[]`` -- and its single
 **version-gated refusal**, the ``dict`` entry below 5.7.
 
-The table answers all twenty-four entries of the framework's Python types
+The table answers every entry of the framework's committed Python types
 (:data:`~rhosocial.activerecord.testsuite.feature.query.typed_column.column_helpers.COMMON_TYPES`
 is where that contract list lives). An entry left out is indistinguishable from
 one nobody thought about, and only the first of those is actionable; where MySQL
@@ -51,8 +51,10 @@ import uuid
 from typing import Any, Dict, Optional, Type
 
 from rhosocial.activerecord.backend.adapters import (
+    AwareDatetime,
     BitString,
     Geometry,
+    IPAddress,
     MacAddress,
     Multirange,
     Range,
@@ -69,6 +71,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
     ColumnBase,
     IntegerColumn,
     IntervalColumn,
+    IPAddressColumn,
     JSONColumn,
     MacAddressColumn,
     MultirangeColumn,
@@ -132,13 +135,14 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
     # `DATE`, `TIME` and `DATETIME(6)` are three real storage types and
     # TimestampColumn is the one class core has for all three; core has no
     # DateColumn / TimeColumn yet, so this is the shared baseline rather
-    # than a statement that the three are one type. A tz-aware `datetime`
-    # normalises to the same entry (core has no separate tz entry), and
-    # MySQL's offset-form `CONVERT_TZ` needs no tz tables -- measured
-    # working with zero configuration (`suggested-mappings.md` §8.1), so
-    # nothing about tz is narrowed either.
+    # than a statement that the three are one type. `AwareDatetime` declares
+    # an instant (core's separate tz entry) but keeps the same column surface,
+    # so it answers TimestampColumn too; MySQL's offset-form `CONVERT_TZ` needs
+    # no tz tables -- measured working with zero configuration
+    # (`suggested-mappings.md` §8.1), so nothing about tz is narrowed either.
     datetime.date: TimestampColumn,
     datetime.time: TimestampColumn,
+    AwareDatetime: TimestampColumn,
     datetime.datetime: TimestampColumn,
     # A timedelta is a number of seconds here. MySQL's `INTERVAL` is an
     # *expression* keyword (`DATE_ADD(d, INTERVAL 30 DAY)`) and never a
@@ -213,11 +217,12 @@ MYSQL_COLUMN_TYPES: Dict[Any, Optional[Type[ColumnBase]]] = {
     Range: RangeColumn,
     Multirange: MultirangeColumn,
     MacAddress: MacAddressColumn,
+    IPAddress: IPAddressColumn,
 }
 
 
 class MySQLColumnTypeMixin:
-    """MySQL's full twenty-four-entry column-type table, and its narrowing.
+    """MySQL's full framework-committed column-type table, and its narrowing.
 
     Composed into :class:`~...dialect.MySQLDialect` **ahead of** core's
     :class:`ColumnTypeMixin`, so its :meth:`suggested_column_types` is the one a

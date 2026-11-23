@@ -36,6 +36,7 @@ class MySQLBackendMixin:
             MySQLDecimalAdapter,
             MySQLEnumAdapter,
             MySQLGeometryAdapter,
+            MySQLIPAddressAdapter,
             MySQLJSONAdapter,
             MySQLMacAddressAdapter,
             MySQLNeutralVectorAdapter,
@@ -58,6 +59,7 @@ class MySQLBackendMixin:
             # list-based MySQLVectorAdapter is intentionally not registered:
             # it claims list -> str and would replace MySQLJSONAdapter.
             MySQLGeometryAdapter(),
+            MySQLIPAddressAdapter(),
             MySQLJSONAdapter(),
             MySQLMacAddressAdapter(),
             MySQLNeutralVectorAdapter(),
@@ -130,7 +132,7 @@ class MySQLBackendMixin:
 
         from rhosocial.activerecord.backend.adapters.bitstring import BitString
         from rhosocial.activerecord.backend.adapters.geometry import Geometry
-        from rhosocial.activerecord.backend.adapters.network import MacAddress
+        from rhosocial.activerecord.backend.adapters.network import IPAddress, MacAddress
         from rhosocial.activerecord.backend.adapters.range import Multirange, Range
         from rhosocial.activerecord.backend.adapters.vector import Vector
         base = merge_adapter_suggestions({}, PORTABLE_TYPE_MAPPINGS, self.adapter_registry)
@@ -154,6 +156,7 @@ class MySQLBackendMixin:
             (Range, str),
             (Multirange, str),
             (MacAddress, str),
+            (IPAddress, str),
         ]
 
         suggestions = merge_adapter_suggestions(base, type_mappings, self.adapter_registry)

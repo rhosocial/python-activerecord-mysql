@@ -1,5 +1,5 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/construct/types/test_column_type.py
-"""MySQL's twenty-four-entry column-type table and its version gate.
+"""MySQL's framework-committed column-type table and its version gate.
 
 Pure dialect tests -- no server, no connection. What is asserted here is the
 *declaration*: that the table answers every entry of the protocol's common
@@ -30,6 +30,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
     TimestampColumn,
     IntegerColumn,
     IntervalColumn,
+    IPAddressColumn,
     JSONColumn,
     MacAddressColumn,
     MultirangeColumn,
@@ -42,6 +43,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
 from rhosocial.activerecord.backend.adapters import (
     BitString,
     Geometry,
+    IPAddress,
     MacAddress,
     Multirange,
     Range,
@@ -101,7 +103,7 @@ class TestTableCompleteness:
         assert isinstance(dialect, ColumnTypeSuggestionSupport)
 
     def test_every_entry_is_answered(self, dialect):
-        """All twenty-four, by name -- an omission fails here, not at lookup."""
+        """All of them, by name -- an omission fails here, not at lookup."""
         missing = [e for e in COMMON_TYPES if e not in dialect.suggest_column_types().table]
         assert missing == []
 
@@ -110,7 +112,7 @@ class TestTableCompleteness:
         assert set(dialect.suggest_column_types().table) == set(COMMON_TYPES)
 
     def test_no_entry_is_answered_none_on_a_modern_server(self, dialect):
-        """8.0 answers all twenty-four; a ``None`` here would be a refusal of a
+        """8.0 answers all of them; a ``None`` here would be a refusal of a
         value this server demonstrably carries."""
         table = dialect.suggest_column_types().table
         assert [e for e in COMMON_TYPES if table[e] is None] == []
@@ -244,7 +246,7 @@ class TestMySQLDeviations:
         assert dialect.suggest_column_types().table[datetime.timedelta] is IntervalColumn
 
     def test_the_complex_families_answer_the_core_classes(self, dialect):
-        """Six families, the classes that promise only the column surface."""
+        """The complex families, the classes that promise only the column surface."""
         table = dialect.suggest_column_types().table
         for entry, klass in (
             (Geometry, MySQLGeometryColumn),
@@ -253,6 +255,7 @@ class TestMySQLDeviations:
             (Range, RangeColumn),
             (Multirange, MultirangeColumn),
             (MacAddress, MacAddressColumn),
+            (IPAddress, IPAddressColumn),
         ):
             assert table[entry] is klass
 
@@ -446,6 +449,7 @@ def test_the_summary_table_reads_the_way_the_spec_writes_it():
         "bytearray": "BinaryColumn",
         "date": "TimestampColumn",
         "time": "TimestampColumn",
+        "AwareDatetime": "TimestampColumn",
         "datetime": "TimestampColumn",
         "timedelta": "IntervalColumn",
         "UUID": "UUIDColumn",
@@ -461,6 +465,7 @@ def test_the_summary_table_reads_the_way_the_spec_writes_it():
         "Range": "RangeColumn",
         "Multirange": "MultirangeColumn",
         "MacAddress": "MacAddressColumn",
+        "IPAddress": "IPAddressColumn",
     }
 
 
