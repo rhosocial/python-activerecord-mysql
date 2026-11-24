@@ -46,7 +46,6 @@ from rhosocial.activerecord.backend.expression.statements import (
 from rhosocial.activerecord.backend.expression.types import IntegerType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
-from rhosocial.activerecord.base import IdentityAttribute
 
 
 def _auto_increment_column(dialect, name="id"):
@@ -204,8 +203,8 @@ class TestIdentityIsRefusedByName:
             is ExecutionOutcome.NOT_RENDERED
         )
 
-    def test_identity_attribute_is_refused(self, mysql_backend):
-        """The AR-layer attribute path used to silently drop ALWAYS and start."""
+    def test_identity_clause_is_refused(self, mysql_backend):
+        """The identity clause path used to silently drop ALWAYS and start."""
         dialect = mysql_backend.dialect
         expression = CreateTableStatement(
             dialect,
@@ -216,7 +215,7 @@ class TestIdentityIsRefusedByName:
                     "id",
                     IntegerType(dialect),
                     attributes=[
-                        IdentityAttribute(generation="ALWAYS", start=10, increment=2)
+                        IdentityClause(dialect, generation="ALWAYS", start=10, increment=2)
                     ],
                 )
             ],
