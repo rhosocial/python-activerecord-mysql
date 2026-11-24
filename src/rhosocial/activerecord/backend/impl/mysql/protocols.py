@@ -215,10 +215,12 @@ class MySQLTriggerSupport(Protocol):
 
     Official Documentation:
     - CREATE TRIGGER: https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+    - DROP TRIGGER: https://dev.mysql.com/doc/refman/8.0/en/drop-trigger.html
 
     Version Requirements:
     - Triggers: MySQL 5.0.2+
-    - Trigger IF EXISTS: MySQL 8.0.4+
+    - CREATE TRIGGER IF NOT EXISTS: MySQL 8.0.29+
+    - DROP TRIGGER IF EXISTS: MySQL 5.0.32+
     """
 
     def supports_trigger(self) -> bool:
@@ -234,7 +236,11 @@ class MySQLTriggerSupport(Protocol):
         ...
 
     def supports_trigger_if_not_exists(self) -> bool:
-        """Whether CREATE TRIGGER IF NOT EXISTS is supported (MySQL 8.0.4+)."""
+        """Whether CREATE TRIGGER IF NOT EXISTS is supported (MySQL 8.0.29+)."""
+        ...
+
+    def supports_trigger_if_exists(self) -> bool:
+        """Whether DROP TRIGGER IF EXISTS is supported (MySQL 5.0.32+)."""
         ...
 
     def supports_instead_of_trigger(self) -> bool:

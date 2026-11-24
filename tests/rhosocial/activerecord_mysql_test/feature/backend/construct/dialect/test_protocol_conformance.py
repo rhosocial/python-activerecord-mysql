@@ -174,6 +174,9 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.DropSchemaSupport,
     # --- DDL: trigger / type / domain ---
     dialect_protocols.CreateTriggerSupport,
+    # MySQL has DROP TRIGGER and its IF EXISTS clause (MySQL 5.0.32+); both
+    # probes and the formatter live on MySQLTriggerMixin.
+    dialect_protocols.DropTriggerSupport,
     dialect_protocols.CreateTypeSupport,
     dialect_protocols.AlterTypeSupport,
     dialect_protocols.DropTypeSupport,
@@ -277,10 +280,6 @@ MYSQL_NOT_IMPLEMENTED = [
     #     _drop_function_cascade
     dialect_protocols.CreateRoutineSupport,
     dialect_protocols.DropRoutineSupport,
-    # MySQL does have DROP TRIGGER. DropTriggerSupport additionally requires
-    # supports_trigger_if_exists, which MySQLTriggerMixin does not answer.
-    # CreateTriggerSupport is satisfied and is in the positive list.
-    dialect_protocols.DropTriggerSupport,
     # MySQL has no SQL/PGQ property-graph tables.
     dialect_protocols.GraphTableSupport,
     # MySQL LIKE is case-insensitive by default; there is no ILIKE operator.
@@ -398,6 +397,7 @@ class TestProtocolNonOverlap:
             ("DropTableSupport", "MySQLTableSupport"),
             ("ConstraintSupport", "MySQLTableSupport"),
             ("CreateTriggerSupport", "MySQLTriggerSupport"),
+            ("DropTriggerSupport", "MySQLTriggerSupport"),
             ("FulltextIndexSupport", "MySQLFullTextSearchSupport"),
             ("PartitionSupport", "MySQLPartitionSupport"),
             ("AlterTableSupport", "MySQLRenameTableSupport"),

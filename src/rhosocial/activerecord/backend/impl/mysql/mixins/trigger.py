@@ -44,8 +44,22 @@ class MySQLTriggerMixin:
         return False
 
     def supports_trigger_if_not_exists(self) -> bool:
-        """MySQL 5.7+ supports IF NOT EXISTS."""
-        return self.version_at_least((5, 7, 0))
+        """Whether ``CREATE TRIGGER IF NOT EXISTS`` is supported.
+
+        The MySQL 8.0 Reference Manual documents the option as supported
+        "with CREATE TRIGGER beginning with MySQL 8.0.29"; the grammar before
+        that has no ``IF NOT EXISTS``, so the request is refused rather than
+        rendered. See https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+        """
+        return self.version_at_least((8, 0, 29))
+
+    def supports_trigger_if_exists(self) -> bool:
+        """Whether ``DROP TRIGGER IF EXISTS`` is supported.
+
+        MySQL 5.0 Reference Manual, "13.1.18 DROP TRIGGER Syntax": "The
+        IF EXISTS clause was added in MySQL 5.0.32."
+        """
+        return self.version_at_least((5, 0, 32))
 
     def format_create_trigger_statement(self, expr: "CreateTriggerStatement") -> Tuple[str, tuple]:
         """Format CREATE TRIGGER statement (MySQL syntax).
@@ -90,7 +104,13 @@ class MySQLTriggerMixin:
 
         parts = ["CREATE TRIGGER"]
 
-        if expr.if_not_exists and self.supports_trigger_if_not_exists():
+        if expr.if_not_exists:
+            if not self.supports_trigger_if_not_exists():
+                raise UnsupportedFeatureError(
+                    self.name, "CREATE TRIGGER IF NOT EXISTS",
+                    f"{self.name} does not support CREATE TRIGGER IF NOT EXISTS "
+                    "before MySQL 8.0.29."
+                )
             parts.append("IF NOT EXISTS")
 
         parts.append(expr.trigger.to_sql()[0])
@@ -124,6 +144,12 @@ class MySQLTriggerMixin:
         parts = ["DROP TRIGGER"]
 
         if expr.if_exists:
+            if not self.supports_trigger_if_exists():
+                raise UnsupportedFeatureError(
+                    self.name, "DROP TRIGGER IF EXISTS",
+                    f"{self.name} does not support DROP TRIGGER IF EXISTS "
+                    "before MySQL 5.0.32."
+                )
             parts.append("IF EXISTS")
 
         parts.append(expr.trigger.to_sql()[0])

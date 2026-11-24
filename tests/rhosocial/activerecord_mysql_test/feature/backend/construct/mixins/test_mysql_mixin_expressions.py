@@ -307,8 +307,22 @@ class TestMySQLTriggerExpressions:
         assert "CREATE TRIGGER" in sql
         assert "AFTER UPDATE ON `orders`" in sql
 
-    def test_create_trigger_if_not_exists(self):
-        dialect = MySQLDialect(version=(8, 0, 0))
+    def test_create_trigger_if_not_exists_before_8_0_29_raises(self):
+        dialect = MySQLDialect(version=(8, 0, 28))
+        expr = CreateTriggerStatement(
+            dialect=dialect,
+            trigger=Trigger(dialect, "my_trigger"),
+            table=Table(dialect, "t"),
+            timing=TriggerTiming.BEFORE,
+            events=[TriggerEvent.INSERT],
+            function=Function(dialect, "my_func"),
+            if_not_exists=True,
+        )
+        with pytest.raises(UnsupportedFeatureError, match="8.0.29"):
+            expr.to_sql()
+
+    def test_create_trigger_if_not_exists_from_8_0_29(self):
+        dialect = MySQLDialect(version=(8, 0, 29))
         expr = CreateTriggerStatement(
             dialect=dialect,
             trigger=Trigger(dialect, "my_trigger"),
@@ -421,6 +435,16 @@ class TestMySQLTriggerExpressions:
         )
         sql, params = expr.to_sql()
         assert sql == "DROP TRIGGER IF EXISTS `old_trigger`"
+
+    def test_drop_trigger_if_exists_before_5_0_32_raises(self):
+        dialect = MySQLDialect(version=(5, 0, 31))
+        expr = DropTriggerStatement(
+            dialect=dialect,
+            trigger=Trigger(dialect, "old_trigger"),
+            if_exists=True,
+        )
+        with pytest.raises(UnsupportedFeatureError, match="5.0.32"):
+            expr.to_sql()
 
 
 # ============================================================================

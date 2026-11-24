@@ -109,6 +109,20 @@ class TestMySQLTriggerCapabilityGating:
         dialect = MySQLDialect()
         assert dialect.supports_instead_of_trigger() is False
 
+    def test_trigger_if_not_exists_is_gated_at_8_0_29(self):
+        """CREATE TRIGGER IF NOT EXISTS entered the grammar in MySQL 8.0.29."""
+        assert MySQLDialect(version=(5, 7, 44)).supports_trigger_if_not_exists() is False
+        assert MySQLDialect(version=(8, 0, 28)).supports_trigger_if_not_exists() is False
+        assert MySQLDialect(version=(8, 0, 29)).supports_trigger_if_not_exists() is True
+        assert MySQLDialect(version=(8, 0, 46)).supports_trigger_if_not_exists() is True
+
+    def test_trigger_if_exists_is_gated_at_5_0_32(self):
+        """DROP TRIGGER IF EXISTS entered the grammar in MySQL 5.0.32."""
+        assert MySQLDialect(version=(5, 0, 2)).supports_trigger_if_exists() is False
+        assert MySQLDialect(version=(5, 0, 31)).supports_trigger_if_exists() is False
+        assert MySQLDialect(version=(5, 0, 32)).supports_trigger_if_exists() is True
+        assert MySQLDialect(version=(8, 0, 46)).supports_trigger_if_exists() is True
+
 
 class TestMySQLFunctionCapabilityGating:
     """Tests for MySQL FUNCTION DDL capability gating."""
