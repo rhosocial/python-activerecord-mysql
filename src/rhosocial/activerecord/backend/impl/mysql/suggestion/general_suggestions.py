@@ -1,13 +1,29 @@
 # src/rhosocial/activerecord/backend/impl/mysql/suggestion/general_suggestions.py
-"""MySQL's general suggestion answers (JSON access operator)."""
+"""MySQL's general suggestion answers (JSON access operator, CREATE TABLE layout)."""
 from rhosocial.activerecord.backend.suggestion.definitions import (
     ConcatenationFunctionSuggestion,
+    CreateTableLayoutSuggestion,
     JSONAccessOperatorSuggestion,
 )
 from rhosocial.activerecord.backend.suggestion.protocols import (
+    CreateTableLayoutSuggestionSupport,
     JSONSuggestionSupport,
     StringConcatenationSuggestionSupport,
 )
+
+
+class MySQLCreateTableLayoutSuggestionMixin(CreateTableLayoutSuggestionSupport):
+    """MySQL inlines both indexes and table comments in ``CREATE TABLE``."""
+
+    def suggest_create_table_layout(self) -> CreateTableLayoutSuggestion:
+        inline_index = self.supports_inline_index()
+        inline_comment = self.supports_table_comment()
+        return CreateTableLayoutSuggestion(
+            strategy="single" if inline_index and inline_comment else "split",
+            inline_index=inline_index,
+            inline_comment=inline_comment,
+            state="actions",
+        )
 
 
 class MySQLJSONSuggestionMixin(JSONSuggestionSupport):
@@ -24,4 +40,8 @@ class MySQLStringConcatenationSuggestionMixin(StringConcatenationSuggestionSuppo
         return ConcatenationFunctionSuggestion(function="CONCAT")
 
 
-__all__ = ["MySQLJSONSuggestionMixin", "MySQLStringConcatenationSuggestionMixin"]
+__all__ = [
+    "MySQLCreateTableLayoutSuggestionMixin",
+    "MySQLJSONSuggestionMixin",
+    "MySQLStringConcatenationSuggestionMixin",
+]

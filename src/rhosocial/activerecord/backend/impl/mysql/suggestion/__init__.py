@@ -13,6 +13,7 @@ suggestion package. Shared plan-reading helpers and their common base live in
 from ._common import MySQLPartitionSuggestionBase
 from .data_type_suggestions import MySQLDataTypeSuggestionsMixin
 from .general_suggestions import (
+    MySQLCreateTableLayoutSuggestionMixin,
     MySQLJSONSuggestionMixin,
     MySQLStringConcatenationSuggestionMixin,
 )
@@ -29,6 +30,7 @@ from .partition_table_drop_suggestion import MySQLPartitionTableDropSuggestionMi
 __all__ = [
     "MySQLPartitionSuggestionBase",
     "MySQLDataTypeSuggestionsMixin",
+    "MySQLCreateTableLayoutSuggestionMixin",
     "MySQLJSONSuggestionMixin",
     "MySQLStringConcatenationSuggestionMixin",
     "MySQLIntegerAutoIncrementColumnSuggestionMixin",

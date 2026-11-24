@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.suggestion.protocols import (
     ColumnTypeSuggestionSupport,
+    CreateTableLayoutSuggestionSupport,
     DataTypeSuggestionSupport,
     JSONSuggestionSupport,
     StringConcatenationSuggestionSupport,
@@ -136,6 +137,7 @@ from .protocols import (
     MySQLAdminCommandSupport,
 )
 from .suggestion import (
+    MySQLCreateTableLayoutSuggestionMixin,
     MySQLPartitionBuildSuggestionMixin,
     MySQLPartitionAddSuggestionMixin,
     MySQLPartitionDropSuggestionMixin,
@@ -218,6 +220,7 @@ class MySQLDialect(
     MySQLPartitionSplitSuggestionMixin,
     MySQLPartitionMergeSuggestionMixin,
     MySQLIntegerAutoIncrementColumnSuggestionMixin,
+    MySQLCreateTableLayoutSuggestionMixin,
     # The bases below come in bundles: a backend mixin, then the core bundle
     # it stands in for. The backend's answer has to come first -- a mixin
     # placed after the class it overrides never wins -- so a new mixin goes
@@ -440,6 +443,7 @@ class MySQLDialect(
     AlterTableModifierMixin,
     AlterTableModifierSupport,
     # Suggestion protocols (relocated to backend.suggestion.protocols)
+    CreateTableLayoutSuggestionSupport,
     DataTypeSuggestionSupport,
     JSONSuggestionSupport,
     StringConcatenationSuggestionSupport,

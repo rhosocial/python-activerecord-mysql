@@ -1,7 +1,7 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/construct/ddl/test_derived_ddl_inline_index.py
 """MySQL inline-index support for direct DDL expressions.
 
-The DDLSource index declaration is passed directly to CreateTableStatement
+The ModelDDLDeclaration index declaration is passed directly to CreateTableStatement
 on a dialect that advertises ``supports_inline_index()``.
 """
 
