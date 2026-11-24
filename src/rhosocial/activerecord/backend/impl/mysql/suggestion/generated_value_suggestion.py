@@ -1,5 +1,5 @@
-# src/rhosocial/activerecord/backend/impl/mysql/suggestion/integer_auto_increment_column_suggestion.py
-"""MySQLIntegerAutoIncrementColumnSuggestionMixin -- mysql's integer auto-increment column suggestion.
+# src/rhosocial/activerecord/backend/impl/mysql/suggestion/generated_value_suggestion.py
+"""MySQLGeneratedValueSuggestionMixin -- mysql's database-generated-value suggestion.
 
 The answer is the backend's own spelling, assembled from its capability
 probes where it has one. It is placed first in the dialect bases so no core
@@ -9,7 +9,7 @@ formatter owns the SQL spelling.
 
 from typing import TYPE_CHECKING
 
-from rhosocial.activerecord.backend.suggestion import IntegerAutoIncrementColumnSuggestion
+from rhosocial.activerecord.backend.suggestion import GeneratedValueSuggestion
 
 from ....expression.statements import AutoIncrementClause
 
@@ -17,12 +17,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from ....expression.types._base import DataType
 
 
-class MySQLIntegerAutoIncrementColumnSuggestionMixin:
+class MySQLGeneratedValueSuggestionMixin:
     """Suggest mysql's declaration for a generated integer key."""
 
-    def suggest_integer_auto_increment_column(
-        self, default_type: "DataType"
-    ) -> IntegerAutoIncrementColumnSuggestion:
+    def suggest_generated_value(self, default_type: "DataType") -> GeneratedValueSuggestion:
         if not self.supports_auto_increment_column():
             from ....dialect.exceptions import UnsupportedFeatureError
 
@@ -31,4 +29,8 @@ class MySQLIntegerAutoIncrementColumnSuggestionMixin:
                 "AUTO_INCREMENT column",
                 "This dialect has withdrawn support for the AUTO_INCREMENT marker.",
             )
-        return IntegerAutoIncrementColumnSuggestion(default_type, AutoIncrementClause(self))
+        return GeneratedValueSuggestion(
+            state="generate",
+            storage_type=default_type,
+            clause=AutoIncrementClause(self),
+        )

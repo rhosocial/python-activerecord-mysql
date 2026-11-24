@@ -17,7 +17,7 @@ from .general_suggestions import (
     MySQLJSONSuggestionMixin,
     MySQLStringConcatenationSuggestionMixin,
 )
-from .integer_auto_increment_column_suggestion import MySQLIntegerAutoIncrementColumnSuggestionMixin
+from .generated_value_suggestion import MySQLGeneratedValueSuggestionMixin
 from .partition_add_suggestion import MySQLPartitionAddSuggestionMixin
 from .partition_build_suggestion import MySQLPartitionBuildSuggestionMixin
 from .partition_drop_suggestion import MySQLPartitionDropSuggestionMixin
@@ -33,7 +33,7 @@ __all__ = [
     "MySQLCreateTableLayoutSuggestionMixin",
     "MySQLJSONSuggestionMixin",
     "MySQLStringConcatenationSuggestionMixin",
-    "MySQLIntegerAutoIncrementColumnSuggestionMixin",
+    "MySQLGeneratedValueSuggestionMixin",
     "MySQLPartitionAddSuggestionMixin",
     "MySQLPartitionBuildSuggestionMixin",
     "MySQLPartitionDropSuggestionMixin",

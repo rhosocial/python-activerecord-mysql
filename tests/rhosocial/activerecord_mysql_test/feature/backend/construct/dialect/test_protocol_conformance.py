@@ -147,7 +147,7 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.AutoIncrementColumnSupport,
     dialect_protocols.DatabaseAssignedColumnSupport,
     dialect_protocols.IdentityColumnSupport,
-    suggestion_protocols.IntegerAutoIncrementColumnSuggestionSupport,
+    suggestion_protocols.GeneratedValueSuggestionSupport,
     # The 8 partition suggestion protocols: MySQL's own answers live in the
     # backend's ``suggestion`` package and are mixed into MySQLDialect first.
     suggestion_protocols.PartitionAddSuggestionSupport,
