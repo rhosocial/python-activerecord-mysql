@@ -217,8 +217,10 @@ _MISREAD_AND_CONTRACT_CONSTRUCTORS = {
 }
 
 _EXPRESSION_CONTRACT_CONSTRUCTORS = {
-    "statements.ddl_alter.AddIndexAction": "requires a real IndexDefinition; the generic constructor supplies a bare Literal.",
-    "statements.ddl_alter.DropIndexAction": "requires a real Index object; the generic constructor supplies a bare Literal.",
+    "statements.ddl_alter.AddIndexAction": "requires a real IndexDefinition; "
+    "the generic constructor supplies a bare Literal.",
+    "statements.ddl_alter.DropIndexAction": "requires a real Index object; "
+    "the generic constructor supplies a bare Literal.",
     "statements.ddl_partition.PartitionDefinitionExpression": "requires a name and one boundary form.",
     "statements.ddl_partition.SubpartitionDefinitionExpression": "requires a non-empty name.",
     "statements.ddl_partition.PartitionOptionsExpression": "requires an options mapping.",
