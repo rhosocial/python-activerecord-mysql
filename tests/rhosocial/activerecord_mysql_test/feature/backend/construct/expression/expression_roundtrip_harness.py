@@ -328,6 +328,7 @@ def special_constructors():
         "statements.dml.InsertStatement": _insert_expr,
         "statements.dml.DeleteStatement": _delete_expr,
         "statements.ddl_alter.AlterTableStatement": _alter_table_expr,
+        "alter_column.MySQLAddColumn": _mysql_add_column,
         "types.array.ArrayType": _array_type,
         "statements.ddl_view.CreateViewStatement": _create_view_expr,
         "graph.GraphVertex": _graph_vertex,
@@ -858,6 +859,22 @@ def _alter_table_expr(dialect):
         table=_table(dialect, "t"),
         actions=[DropColumnAction(dialect, "a"), AddColumnAction(dialect, column=column)],
     )
+
+
+def _mysql_add_column(dialect):
+    """MySQL's own ADD COLUMN node, carrying one of its positional clauses.
+
+    The generic constructor hands ``column`` a string, which the formatter
+    refuses; and neither ``after`` nor ``first`` can be guessed, because an
+    instance with both would be refused as an exclusive pair. So the factory
+    picks one position deliberately -- ``AFTER``, the clause both positional
+    fields share -- and leaves ``first`` at its default.
+    """
+    from rhosocial.activerecord.backend.impl.mysql.expression.alter_column import (
+        MySQLAddColumn,
+    )
+
+    return MySQLAddColumn(dialect, _column_definition(dialect), after="a")
 
 
 def _create_view_expr(dialect):

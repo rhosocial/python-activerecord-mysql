@@ -12,6 +12,18 @@ if TYPE_CHECKING:  # pragma: no cover
 class MySQLDDLColumnMixin:
     """MySQL DDL column definition and ALTER TABLE column actions."""
 
+    def supports_rename_column(self) -> bool:
+        """Whether ``ALTER TABLE ... RENAME COLUMN`` is supported.
+
+        RENAME COLUMN entered MySQL in 8.0.0. A 5.7 server renames a column by
+        restating the whole definition under the new name with ``CHANGE
+        COLUMN``, which this backend renders through ``ChangeColumnAction``.
+
+        Gated rather than answered True, because the unconditional default
+        would have a 5.7 server receive a statement its grammar does not have.
+        """
+        return self.version_at_least((8, 0, 0))
+
     def format_column(self, expr) -> Tuple[str, Tuple]:
         """Format column reference for MySQL.
 
@@ -54,11 +66,16 @@ class MySQLDDLColumnMixin:
         return f"ADD COLUMN {column_sql}", column_params
 
     def format_mysql_add_column(self, expr: "MySQLAddColumn") -> Tuple[str, tuple]:
-        """Format MySQL's ``ADD COLUMN``, with its optional ``AFTER`` clause.
+        """Format MySQL's ``ADD COLUMN``, with its optional ``FIRST``/``AFTER`` clause.
 
-        Its own entry because it is its own node: ``AFTER <column>`` is a field
-        core's action does not declare, and reading it off the core class meant
-        probing for a field that is not in the contract.
+        Its own entry because it is its own node: ``FIRST`` and ``AFTER
+        <column>`` are fields core's action does not declare, and reading them
+        off the core class meant probing for fields that are not in the
+        contract.
+
+        ``FIRST`` and ``AFTER`` answer the same question -- where the column
+        goes -- so an instance carrying both is refused rather than rendered
+        into a statement whose second clause would silently win.
         """
         if expr.if_not_exists is True:
             raise UnsupportedFeatureError(
@@ -66,7 +83,12 @@ class MySQLDDLColumnMixin:
                 suggestion="MySQL does not support IF NOT EXISTS on ADD COLUMN. "
                      "Pre-check information_schema.COLUMNS before ALTER."
             )
+        BaseExpression.require_exclusive_options(
+            expr.first, bool(expr.after), "first", "after"
+        )
         column_sql, column_params = self.format_column_definition(expr.column)
+        if expr.first:
+            return f"ADD COLUMN {column_sql} FIRST", column_params
         if expr.after:
             return f"ADD COLUMN {column_sql} AFTER {self.format_identifier(expr.after)}", column_params
         return f"ADD COLUMN {column_sql}", column_params

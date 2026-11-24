@@ -641,29 +641,19 @@ _UNBUILDABLE = {
 # ``test_declared_gap_table_is_exact`` asserts the new table exactly, in both
 # directions, the same way ``test_not_rendered_table_is_exact`` asserts the other.
 #
-# Two of the three reasons below are not "MySQL lacks the feature" but "MySQL
-# claims the feature and then has nothing to render it with", which is a defect
-# in the source rather than a gap in coverage, so they are called out as their
-# own kind rather than filed with the SQL-standard features MySQL genuinely does
-# not have.
+# The one reason left below is not "MySQL lacks the feature" but "MySQL claims
+# the feature and then has nothing to render it with", which is a defect in the
+# source rather than a gap in coverage, so it is called out as its own kind
+# rather than filed with the SQL-standard features MySQL genuinely does not have.
+#
+# The two schema rows this section used to hold are gone because the missing
+# formatters now exist: MySQLSchemaMixin renders CREATE/DROP SCHEMA as the
+# DATABASE synonyms the server parses, so the claim and the renderer agree.
 _DECLARED_GAP = {
     # --- MySQL claims support and has no renderer for it. -----------------
     # Each of these has a ``supports_*`` method answering True while the
     # formatter the expression dispatches to does not exist, so a caller that
     # asks whether the feature is available is told yes and is then refused.
-    "statements.ddl_schema.CreateSchemaStatement": (
-        "format_create_schema_statement",
-        "DECLARED BUT NOT RENDERED. MySQLSchemaMixin.supports_create_schema() "
-        "answers True -- MySQL takes SCHEMA as a synonym for DATABASE -- yet "
-        "MySQLDialect defines no format_create_schema_statement. The dialect "
-        "claims the capability and refuses the statement.",
-    ),
-    "statements.ddl_schema.DropSchemaStatement": (
-        "format_drop_schema_statement",
-        "DECLARED BUT NOT RENDERED. Same shape as CreateSchemaStatement: "
-        "MySQLSchemaMixin.supports_drop_schema() answers True and "
-        "format_drop_schema_statement is absent.",
-    ),
     "table_expr.MySQLInlineIndexExpression": (
         "format_mysql_inline_index_expression",
         "DECLARED BUT NOT RENDERED. MySQLDDLTableMixin."
@@ -1018,11 +1008,6 @@ _NOT_RENDERED = {
         "AttributeError",
         "format_declared_result reads expr.source.alias; the abstract "
         "annotation's source is a Literal, which declares no alias.",
-    ),
-    "alter_column.MySQLAddColumn": (
-        "AttributeError",
-        "column must be a ColumnDefinition; the generic constructor supplies a "
-        "string.",
     ),
     "datetime.TemporalOptionsExpression": (
         "ValueError",

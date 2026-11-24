@@ -30,6 +30,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
     DropColumnAction,
     DropTableConstraintAction,
     ModifyColumnAction,
+    RenameColumnAction,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
     CreateTriggerStatement,
@@ -89,6 +90,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.vector import (
     MySQLVectorExpression,
 )
 from rhosocial.activerecord.backend.impl.mysql.expression import (
+    MySQLAddColumn,
     MySQLCreateSpatialIndexStatement,
     MySQLFindInSetExpression,
     MySQLFulltextIndexOptionsExpression,
@@ -835,6 +837,106 @@ class TestMySQLColumnModificationExpressions:
         )
         sql, params = expr.to_sql()
         assert "NOT NULL" in sql
+
+
+class TestMySQLAddColumnPosition:
+    """``ADD COLUMN`` accepts ``FIRST`` and ``AFTER``; the two are exclusive.
+
+    They answer the same question -- where the new column goes -- so carrying
+    both must be refused rather than rendered with one silently winning. The
+    check lives in the formatter, not the constructor: an expression collects
+    parameters.
+    """
+
+    def _action(self, dialect, **kwargs):
+        return MySQLAddColumn(
+            dialect,
+            ColumnDefinition(dialect, "email", VarCharType(dialect, 255)),
+            **kwargs,
+        )
+
+    def test_first_places_the_column_at_the_head(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        sql, params = self._action(dialect, first=True).to_sql()
+        assert sql == "ADD COLUMN `email` VARCHAR(255) FIRST"
+        assert params == []
+
+    def test_after_places_the_column_behind_the_named_one(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        sql, params = self._action(dialect, after="id").to_sql()
+        assert sql == "ADD COLUMN `email` VARCHAR(255) AFTER `id`"
+        assert params == []
+
+    def test_no_position_is_the_unqualified_spelling(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        assert self._action(dialect).to_sql() == (
+            "ADD COLUMN `email` VARCHAR(255)", []
+        )
+        assert self._action(dialect, first=False).to_sql() == (
+            "ADD COLUMN `email` VARCHAR(255)", []
+        )
+
+    def test_first_and_after_together_are_refused(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        action = self._action(dialect, first=True, after="id")
+        with pytest.raises(
+            ValueError, match="first and after are mutually exclusive options"
+        ):
+            action.to_sql()
+
+    def test_first_renders_inside_alter_table(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        statement = AlterTableStatement(
+            dialect=dialect,
+            table=Table(dialect, "users"),
+            actions=[self._action(dialect, first=True)],
+        )
+        sql, params = statement.to_sql()
+        assert sql == "ALTER TABLE `users` ADD COLUMN `email` VARCHAR(255) FIRST"
+        assert params == ()
+
+
+class TestMySQLRenameColumnGate:
+    """RENAME COLUMN is an 8.0 spelling; 5.7 renames with CHANGE COLUMN.
+
+    The probe used to inherit core's unconditional ``True``, so a 5.7 dialect
+    advertised a statement its grammar does not have. These tests pin the
+    version gate and the two spellings it selects between.
+    """
+
+    def test_probe_is_gated_on_8_0(self):
+        assert MySQLDialect(version=(5, 7, 0)).supports_rename_column() is False
+        assert MySQLDialect(version=(7, 6, 0)).supports_rename_column() is False
+        assert MySQLDialect(version=(8, 0, 0)).supports_rename_column() is True
+        assert MySQLDialect(version=(8, 4, 0)).supports_rename_column() is True
+
+    def test_unadapted_dialect_does_not_claim_it(self):
+        """A dialect that cannot name its version must not claim the feature."""
+        assert MySQLDialect().supports_rename_column() is False
+
+    def test_rename_column_renders_on_8_0(self):
+        dialect = MySQLDialect(version=(8, 0, 0))
+        action = RenameColumnAction(dialect, "email", "contact_email")
+        sql, params = action.to_sql()
+        assert sql == "RENAME COLUMN `email` TO `contact_email`"
+        assert params == ()
+
+    def test_rename_column_is_refused_on_5_7(self):
+        dialect = MySQLDialect(version=(5, 7, 0))
+        action = RenameColumnAction(dialect, "email", "contact_email")
+        with pytest.raises(UnsupportedFeatureError, match="RENAME COLUMN"):
+            action.to_sql()
+
+    def test_change_column_is_the_5_7_spelling(self):
+        dialect = MySQLDialect(version=(5, 7, 0))
+        action = ChangeColumnAction(
+            dialect=dialect,
+            old_name="email",
+            column=ColumnDefinition(dialect, "contact_email", VarCharType(dialect, 255)),
+        )
+        sql, params = action.to_sql()
+        assert sql == "CHANGE COLUMN `email` `contact_email` VARCHAR(255)"
+        assert params == []
 
 
 class TestMySQLAlterTableModifierGuards:

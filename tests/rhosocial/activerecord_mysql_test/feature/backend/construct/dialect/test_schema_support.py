@@ -15,7 +15,11 @@ import pytest
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.dialect.protocols import NamespaceSupport
-from rhosocial.activerecord.backend.expression.objects import Table
+from rhosocial.activerecord.backend.expression.objects import Schema, Table
+from rhosocial.activerecord.backend.expression.statements.ddl_schema import (
+    CreateSchemaStatement,
+    DropSchemaStatement,
+)
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 
@@ -82,3 +86,67 @@ class TestCatalogQualification:
         d = self._dialect()
         with pytest.raises(UnsupportedFeatureError, match="64 characters"):
             Table(d, "users", catalog_name="a" * 65).to_sql()
+
+
+class TestSchemaStatementRendering:
+    """CREATE/DROP SCHEMA render as the DATABASE synonyms MySQL parses.
+
+    The probes answered True before these formatters existed, so a caller could
+    be told the capability was present and then be refused by the dispatch.
+    These tests are the other half of that claim: the statements render, and
+    the clauses MySQL's grammar does not have are refused by name.
+    """
+
+    def _dialect(self) -> MySQLDialect:
+        return MySQLDialect()
+
+    def test_create_schema_renders(self):
+        d = self._dialect()
+        sql, params = CreateSchemaStatement(d, Schema(d, "app")).to_sql()
+        assert sql == "CREATE SCHEMA `app`"
+        assert params == ()
+
+    def test_create_schema_if_not_exists_renders(self):
+        d = self._dialect()
+        sql, params = CreateSchemaStatement(
+            d, Schema(d, "app"), if_not_exists=True
+        ).to_sql()
+        assert sql == "CREATE SCHEMA IF NOT EXISTS `app`"
+        assert params == ()
+
+    def test_create_schema_authorization_is_refused(self):
+        """MySQL has no AUTHORIZATION owner clause on CREATE SCHEMA."""
+        d = self._dialect()
+        expression = CreateSchemaStatement(
+            d, Schema(d, "app"), authorization="app_user"
+        )
+        with pytest.raises(UnsupportedFeatureError, match="AUTHORIZATION"):
+            expression.to_sql()
+
+    def test_drop_schema_renders(self):
+        d = self._dialect()
+        sql, params = DropSchemaStatement(d, Schema(d, "app")).to_sql()
+        assert sql == "DROP SCHEMA `app`"
+        assert params == ()
+
+    def test_drop_schema_if_exists_renders(self):
+        d = self._dialect()
+        sql, params = DropSchemaStatement(
+            d, Schema(d, "app"), if_exists=True
+        ).to_sql()
+        assert sql == "DROP SCHEMA IF EXISTS `app`"
+        assert params == ()
+
+    def test_drop_schema_cascade_is_refused(self):
+        """MySQL's DROP SCHEMA grammar ends at the name; no CASCADE."""
+        d = self._dialect()
+        expression = DropSchemaStatement(d, Schema(d, "app"), cascade=True)
+        with pytest.raises(UnsupportedFeatureError, match="CASCADE"):
+            expression.to_sql()
+
+    def test_drop_schema_restrict_is_refused(self):
+        """MySQL has no RESTRICT clause on DROP SCHEMA."""
+        d = self._dialect()
+        expression = DropSchemaStatement(d, Schema(d, "app"), restrict=True)
+        with pytest.raises(UnsupportedFeatureError, match="RESTRICT"):
+            expression.to_sql()

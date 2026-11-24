@@ -1,14 +1,21 @@
 # src/rhosocial/activerecord/backend/impl/mysql/expression/alter_column.py
 """MySQL-specific ALTER TABLE column actions.
 
-MySQL's ``ADD COLUMN`` accepts a positional clause that has no generic
+MySQL's ``ADD COLUMN`` accepts positional clauses that have no generic
 equivalent:
 
-* ``AFTER <column>`` — place the new column immediately after ``column``.
+* ``FIRST`` -- place the new column at the head of the table.
+* ``AFTER <column>`` -- place the new column immediately after ``column``.
 
-It lives on ``MySQLAddColumn`` (deriving the generic ``AddColumnAction``)
-and is rendered by its own entry, ``format_mysql_add_column``. MySQL
-does **not** share it with any other backend.
+Both live on ``MySQLAddColumn`` (deriving the generic ``AddColumnAction``)
+and are rendered by its own entry, ``format_mysql_add_column``. MySQL
+does **not** share them with any other backend. The two clauses are
+alternatives, not a combination; the formatter refuses an instance that
+carries both.
+
+This class only collects the parameters. The exclusivity check is a
+formatter concern, so a constructor validates nothing beyond what the
+generic base already does.
 """
 
 from typing import Optional, TYPE_CHECKING
@@ -30,7 +37,9 @@ __all__ = [
 class MySQLAddColumn(AddColumnAction):
     """A MySQL ``ADD COLUMN`` action extending the generic one.
 
-    Adds the MySQL-only ``after`` positional clause.
+    Adds MySQL's ``first`` and ``after`` positional clauses. They name the
+    same decision -- where the new column goes -- and requesting both is
+    refused when the action is rendered.
     """
 
     def __init__(
@@ -40,9 +49,11 @@ class MySQLAddColumn(AddColumnAction):
         *,
         if_not_exists: Optional[bool] = None,
         after: Optional[str] = None,
+        first: Optional[bool] = None,
     ):
         super().__init__(dialect, column, if_not_exists=if_not_exists)
         self.after = after
+        self.first = first
 
     @property
     def format_method(self) -> str:
