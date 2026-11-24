@@ -160,13 +160,18 @@ MYSQL_PROTOCOLS = [
     suggestion_protocols.PartitionTableDropSuggestionSupport,
     dialect_protocols.GeneratedColumnSupport,
     dialect_protocols.PartitionSupport,
-    # --- DDL: view / index ---
+    # --- DDL: view / index / schema ---
     dialect_protocols.CreateViewSupport,
     dialect_protocols.DropViewSupport,
     dialect_protocols.MaterializedViewSupport,
     dialect_protocols.CreateIndexSupport,
     dialect_protocols.DropIndexSupport,
     dialect_protocols.FulltextIndexSupport,
+    # MySQL spells CREATE/DROP SCHEMA as synonyms of CREATE/DROP DATABASE and
+    # renders both statements through MySQLSchemaMixin. The naming layer still
+    # answers supports_schema() False: no inner schema namespace exists.
+    dialect_protocols.CreateSchemaSupport,
+    dialect_protocols.DropSchemaSupport,
     # --- DDL: trigger / type / domain ---
     dialect_protocols.CreateTriggerSupport,
     dialect_protocols.CreateTypeSupport,
@@ -254,10 +259,6 @@ MYSQL_NOT_IMPLEMENTED = [
     # MySQL has no standalone COMMENT ON statement; inline table/column
     # comments are rendered by CREATE TABLE instead.
     dialect_protocols.CommentSupport,
-    # MySQL spells CREATE SCHEMA as a synonym for CREATE DATABASE and renders
-    # it through the database formatter, so no schema statement exists.
-    dialect_protocols.CreateSchemaSupport,
-    dialect_protocols.DropSchemaSupport,
     # MySQL does have CREATE/DROP DATABASE. MySQLDatabaseMixin implements the
     # formatters but not every probe these protocols require:
     #   CreateDatabaseSupport -- supports_database_owner, _template,
