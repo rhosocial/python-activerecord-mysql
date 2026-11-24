@@ -516,6 +516,10 @@ class MySQLDialect(
         """MySQL supports ``ALTER TABLE ... DROP COLUMN`` on every version."""
         return True
 
+    def supports_alter_table_index_actions(self) -> bool:
+        """MySQL supports ``ALTER TABLE ... ADD/DROP INDEX`` on every version."""
+        return True
+
     def supports_transactional_ddl(self) -> bool:
         """MySQL commits each DDL statement implicitly."""
         return False
