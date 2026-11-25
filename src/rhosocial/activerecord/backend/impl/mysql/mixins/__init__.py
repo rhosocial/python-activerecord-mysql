@@ -5,6 +5,7 @@ from .backend_mixin import MySQLBackendMixin
 from .trigger import MySQLTriggerMixin
 from .partition import MySQLPartitionMixin
 from .ddl_table import MySQLTableMixin
+from .ddl_alter_table_options import MySQLAlterTableOptionsMixin
 from .set_type import MySQLSetTypeMixin
 from .json import MySQLJSONFunctionMixin
 from .spatial import MySQLSpatialMixin
@@ -62,6 +63,7 @@ __all__ = [
     "MySQLTriggerMixin",
     "MySQLPartitionMixin",
     "MySQLTableMixin",
+    "MySQLAlterTableOptionsMixin",
     "MySQLSetTypeMixin",
     "MySQLJSONFunctionMixin",
     "MySQLSpatialMixin",

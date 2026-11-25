@@ -20,6 +20,7 @@ Directory structure:
 """
 
 from .table_options import MySQLRowFormat, MySQLCreateTableOptions
+from .alter_table_options import MySQLAlterTableOptionsStatement
 from .dml import MySQLInsertExpression
 from .alter_column import MySQLAddColumn
 from .alter_table_modifiers import MySQLAlterTableStatement
@@ -211,6 +212,7 @@ __all__ = [
     "MySQLLoadDataStatement",
     "LoadDataOptions",
     "MySQLCreateTableOptions",
+    "MySQLAlterTableOptionsStatement",
     "MySQLRowFormat",
     "MySQLInsertExpression",
     "MySQLAddColumn",

@@ -167,6 +167,7 @@ from .mixins import (
     MySQLFullTextSearchMixin,
     MySQLTriggerMixin,
     MySQLTableMixin,
+    MySQLAlterTableOptionsMixin,
     MySQLSetTypeMixin,
     MySQLJSONFunctionMixin,
     MySQLSpatialMixin,
@@ -377,6 +378,7 @@ class MySQLDialect(
     # MySQL's own ALTER TABLE node and delegates the unmodified case to that
     # mixin's format_alter_table_statement through super().
     MySQLAlterTableModifierMixin,
+    MySQLAlterTableOptionsMixin,
     MySQLTableMixin,
     MySQLRenameTableMixin,
     TableMixin,

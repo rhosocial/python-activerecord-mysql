@@ -235,6 +235,9 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "partition.MySQLReorganizePartitionExpression": "``into`` must be real definition nodes.",
     "column.MySQLColumnDefinition": "data_type must be a DataType instance; the "
     "generic constructor supplies a string.",
+    "alter_table_options.MySQLAlterTableOptionsStatement": "every option is "
+    "optional, so the generic constructor builds a statement with none and the "
+    "formatter refuses an empty option set; the factory supplies a real one.",
     "dml.MySQLInsertExpression": "into and source are unannotated, so the "
     "generic constructor supplies a string for each and validate() refuses.",
     "json.MySQLJSONArrayExpression": "values and args are annotated Any with a "
@@ -355,6 +358,9 @@ def _register_mysql_specials():
     from rhosocial.activerecord.backend.expression.types import IntegerType
     from rhosocial.activerecord.backend.impl.mysql.expression.column import (
         MySQLColumnDefinition,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.alter_table_options import (
+        MySQLAlterTableOptionsStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.dml import (
         MySQLInsertExpression,
@@ -532,6 +538,10 @@ def _register_mysql_specials():
             lambda d: MySQLCoalescePartitionExpression(d, table=Table(d, "t"), count=2),
         "column.MySQLColumnDefinition":
             lambda d: MySQLColumnDefinition(d, "id", IntegerType(d)),
+        "alter_table_options.MySQLAlterTableOptionsStatement":
+            lambda d: MySQLAlterTableOptionsStatement(
+                d, "t", engine="InnoDB", comment="note"
+            ),
         "dml.MySQLInsertExpression":
             lambda d: MySQLInsertExpression(
                 d, into=Table(d, "t"), source=ValuesSource(d, [[Literal(d, 1)]])
