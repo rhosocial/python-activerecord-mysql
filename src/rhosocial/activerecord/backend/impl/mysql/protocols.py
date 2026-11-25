@@ -13,6 +13,9 @@ the MySQL-specific protocol - isinstance checks for the generic protocol will st
 from typing import Protocol, runtime_checkable, Tuple, Any, Sequence, FrozenSet, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.impl.mysql.expression.alter_table_modifiers import (
+        MySQLAlterTableStatement,
+    )
     from rhosocial.activerecord.backend.expression.statements import (
         OnConflictClause,
         PartitionDefinitionExpression,
@@ -1795,6 +1798,32 @@ class MySQLTableStatementSupport(Protocol):
 
     def format_mysql_values_expression(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
         """Format a VALUES table value constructor."""
+        ...
+
+
+@runtime_checkable
+class MySQLAlterTableModifierSupport(Protocol):
+    """MySQL's ``ALTER TABLE ... ALGORITHM=..., LOCK=...`` support protocol.
+
+    Feature source: MySQL 8.0 Reference Manual §15.1.9 (grammar) and §17.12
+    (online DDL; ``ALGORITHM=INSTANT`` from 8.0.12, and ``LOCK=DEFAULT`` only
+    for instant operations).
+    """
+
+    def supports_alter_table_algorithm(self) -> bool:
+        """Whether the ``ALGORITHM`` alter_option is available."""
+        ...
+
+    def supports_alter_table_algorithm_instant(self) -> bool:
+        """Whether ``ALGORITHM=INSTANT`` is available (8.0.12+)."""
+        ...
+
+    def supports_alter_table_lock(self) -> bool:
+        """Whether the ``LOCK`` alter_option is available."""
+        ...
+
+    def format_mysql_alter_table_statement(self, expr: "MySQLAlterTableStatement") -> Tuple[str, tuple]:
+        """Format a MySQL ALTER TABLE with execution modifiers."""
         ...
 
 

@@ -135,6 +135,7 @@ from .protocols import (
     MySQLPartitionSupport,
     MySQLRenameTableSupport,
     MySQLTableStatementSupport,
+    MySQLAlterTableModifierSupport,
     MySQLMaintenanceSupport,
     MySQLRoutineSupport,
     MySQLLoadXMLSupport,
@@ -182,6 +183,7 @@ from .mixins import (
     MySQLMaintenanceMixin,
     MySQLRoutineMixin,
     MySQLTableStatementMixin,
+    MySQLAlterTableModifierMixin,
     MySQLLoadXMLLMixin,
     MySQLAdminCommandMixin,
     MySQLDateTimeMixin,
@@ -371,6 +373,10 @@ class MySQLDialect(
     MySQLPartitionMixin,
     PartitionMixin,
     MySQLTransactionMixin,
+    # MySQLAlterTableModifierMixin comes before core's TableMixin: it renders
+    # MySQL's own ALTER TABLE node and delegates the unmodified case to that
+    # mixin's format_alter_table_statement through super().
+    MySQLAlterTableModifierMixin,
     MySQLTableMixin,
     MySQLRenameTableMixin,
     TableMixin,
@@ -446,6 +452,7 @@ class MySQLDialect(
     MySQLDMLOperationSupport,
     MySQLRenameTableSupport,
     MySQLTableStatementSupport,
+    MySQLAlterTableModifierSupport,
     MySQLMaintenanceSupport,
     MySQLRoutineSupport,
     MySQLLoadXMLSupport,

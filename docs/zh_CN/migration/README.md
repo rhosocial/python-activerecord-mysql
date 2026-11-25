@@ -116,10 +116,28 @@ MySQL 方言通过 `version_at_least((major, minor, patch))` 根据服务器版�
 | 不可见、降序与函数（表达式）索引 | 8.0.0 |
 | 窗口函数 / 公共表表达式 | 8.0.0 |
 | `LATERAL` 连接 | 8.0.14 |
-| 多值表值构造器 / `ALGORITHM=INSTANT` | 8.0.19 |
+| `ALTER TABLE ... ALGORITHM` / `LOCK` 执行修饰符 | 5.6 |
+| 多值表值构造器 | 8.0.19 |
+| `ALTER TABLE ... ALGORITHM=INSTANT` | 8.0.12 |
 | 空间索引 / GeoJSON 函数 | 5.7 / 5.7.5 |
 | `VECTOR` 类型 / 向量索引 | 9.0.0 / 9.0.1 |
 | JSON 对偶视图 | 9.7.0 |
+
+MySQL 的在线 DDL 执行修饰符由后端自有节点 `MySQLAlterTableStatement` 承载：它包装表、普通的核心
+`AlterTableAction` 以及两个修饰符：
+
+```python
+MySQLAlterTableStatement(
+    dialect, Table(dialect, "orders"),
+    [AddColumnAction(dialect, ColumnDefinition(dialect, "note", MySQLTextType(dialect)))],
+    algorithm="INPLACE", lock="NONE",
+)
+# ALTER TABLE `orders` ALGORITHM=INPLACE, LOCK=NONE, ADD COLUMN `note` TEXT
+```
+
+低于 8.0.12 的服务器会拒绝 `ALGORITHM=INSTANT`；`LOCK=NONE|SHARED|EXCLUSIVE` 与 `INSTANT`
+同时出现也会被拒绝（MySQL §17.12：即时操作只支持 `LOCK=DEFAULT`）。两个修饰符都不设置时，
+生成的 SQL 与普通的 `AlterTableStatement` 完全相同。
 
 “不支持事务性 DDL” 这条规则（§4） **不受** 版本限制 —— 上述所有版本都如此。完整支持矩阵见 [Supported Versions](../introduction/supported_versions.md) 和
 [MySQL DDL 概览](../ddl/README.md)。

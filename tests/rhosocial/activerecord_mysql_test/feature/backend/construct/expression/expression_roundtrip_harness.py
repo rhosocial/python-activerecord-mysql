@@ -329,6 +329,7 @@ def special_constructors():
         "statements.dml.DeleteStatement": _delete_expr,
         "statements.ddl_alter.AlterTableStatement": _alter_table_expr,
         "alter_column.MySQLAddColumn": _mysql_add_column,
+        "alter_table_modifiers.MySQLAlterTableStatement": _mysql_alter_table_modifiers,
         "types.array.ArrayType": _array_type,
         "statements.ddl_view.CreateViewStatement": _create_view_expr,
         "graph.GraphVertex": _graph_vertex,
@@ -875,6 +876,30 @@ def _mysql_add_column(dialect):
     )
 
     return MySQLAddColumn(dialect, _column_definition(dialect), after="a")
+
+
+def _mysql_alter_table_modifiers(dialect):
+    """MySQL's wrapper with both modifiers and one real core action.
+
+    INPLACE / NONE are the pair that renders on every supported server: the
+    matrix dialect is pinned to 8.0.0, below INSTANT's 8.0.12 floor. Keeping
+    the action real means the round-trip also exercises the action list, not
+    just the two modifier fields.
+    """
+    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+        DropColumnAction,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.alter_table_modifiers import (
+        MySQLAlterTableStatement,
+    )
+
+    return MySQLAlterTableStatement(
+        dialect,
+        table=_table(dialect, "t"),
+        actions=[DropColumnAction(dialect, "a")],
+        algorithm="INPLACE",
+        lock="NONE",
+    )
 
 
 def _create_view_expr(dialect):

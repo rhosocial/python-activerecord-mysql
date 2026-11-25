@@ -39,6 +39,7 @@ from .dql import MySQLDQLMixin
 from .join import MySQLJoinMixin
 from .set_operation import MySQLSetOperationMixin
 from .ddl_column import MySQLDDLColumnMixin
+from .ddl_alter_modifiers import MySQLAlterTableModifierMixin
 from .ddl_view import MySQLViewMixin
 from .schema import MySQLSchemaMixin
 from .ddl_database import MySQLDatabaseMixin
@@ -94,6 +95,7 @@ __all__ = [
     "MySQLJoinMixin",
     "MySQLSetOperationMixin",
     "MySQLDDLColumnMixin",
+    "MySQLAlterTableModifierMixin",
     "MySQLViewMixin",
     "MySQLSchemaMixin",
     "MySQLDatabaseMixin",

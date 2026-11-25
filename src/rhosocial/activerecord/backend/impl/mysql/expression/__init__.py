@@ -22,6 +22,7 @@ Directory structure:
 from .table_options import MySQLRowFormat, MySQLCreateTableOptions
 from .dml import MySQLInsertExpression
 from .alter_column import MySQLAddColumn
+from .alter_table_modifiers import MySQLAlterTableStatement
 from .column import (
     MySQLColumnFormat,
     MySQLColumnStorage,
@@ -213,6 +214,7 @@ __all__ = [
     "MySQLRowFormat",
     "MySQLInsertExpression",
     "MySQLAddColumn",
+    "MySQLAlterTableStatement",
     "MySQLColumnFormat",
     "MySQLColumnStorage",
     "MySQLColumnDefinition",

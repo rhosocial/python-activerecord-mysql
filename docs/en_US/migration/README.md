@@ -149,10 +149,30 @@ Examples relevant to schema migrations:
 | Invisible, descending and functional (expression) indexes | 8.0.0 |
 | Window functions / Common Table Expressions | 8.0.0 |
 | `LATERAL` joins | 8.0.14 |
-| Multi-value table value constructor / `ALGORITHM=INSTANT` | 8.0.19 |
+| `ALTER TABLE ... ALGORITHM` / `LOCK` execution modifiers | 5.6 |
+| Multi-value table value constructor | 8.0.19 |
+| `ALTER TABLE ... ALGORITHM=INSTANT` | 8.0.12 |
 | Spatial indexes / GeoJSON functions | 5.7 / 5.7.5 |
 | `VECTOR` type / vector indexes | 9.0.0 / 9.0.1 |
 | JSON duality views | 9.7.0 |
+
+MySQL's online-DDL execution modifiers are a backend-owned node,
+`MySQLAlterTableStatement`, which wraps the table, the ordinary core
+`AlterTableAction`s and the two modifiers:
+
+```python
+MySQLAlterTableStatement(
+    dialect, Table(dialect, "orders"),
+    [AddColumnAction(dialect, ColumnDefinition(dialect, "note", MySQLTextType(dialect)))],
+    algorithm="INPLACE", lock="NONE",
+)
+# ALTER TABLE `orders` ALGORITHM=INPLACE, LOCK=NONE, ADD COLUMN `note` TEXT
+```
+
+`ALGORITHM=INSTANT` is refused below 8.0.12, and `LOCK=NONE|SHARED|EXCLUSIVE`
+is refused together with `INSTANT` (MySQL §17.12 allows only `LOCK=DEFAULT`
+for instant operations). Leaving both modifiers unset renders exactly the
+same SQL as a plain `AlterTableStatement`.
 
 The "no transactional DDL" rule (§4) is **not** version-gated — it holds on all of them. For the full
 support matrix, see [Supported Versions](../introduction/supported_versions.md) and the
