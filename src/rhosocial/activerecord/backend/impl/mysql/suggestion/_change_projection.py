@@ -39,10 +39,43 @@ from ....expression.statements.ddl_table import (
 
 __all__ = [
     "constraint_info",
+    "fingerprint",
     "index_definition",
     "index_name",
     "partition_strategy",
 ]
+
+
+def fingerprint(value: Any) -> Any:
+    """A stable, comparable form of a live node or of a frozen projection.
+
+    Two declarations from different model sources are distinct Python objects
+    even when they state the same clause. Reading their constructor parameters
+    (already the shape ``_freeze()`` produces) lets a suggestion tell an
+    unchanged declaration from a real redefinition without guessing.
+    """
+    if value is None or isinstance(value, (str, int, float, bool, bytes)):
+        return value
+    if isinstance(value, tuple) and len(value) == 2 and value[0] == "params":
+        pairs = value[1]
+        if isinstance(pairs, (tuple, list)) and all(
+            isinstance(pair, (tuple, list)) and len(pair) == 2 for pair in pairs
+        ):
+            return ("params", tuple(sorted((str(k), fingerprint(v)) for k, v in pairs)))
+    getter = getattr(value, "get_params", None)
+    if callable(getter):
+        try:
+            return (
+                "params",
+                tuple(sorted((str(k), fingerprint(v)) for k, v in dict(getter()).items())),
+            )
+        except Exception:  # pragma: no cover - a node with a broken get_params
+            pass
+    if isinstance(value, (list, set, frozenset, tuple)):
+        return tuple(fingerprint(item) for item in value)
+    if isinstance(value, dict):
+        return tuple(sorted((str(key), fingerprint(item)) for key, item in value.items()))
+    return ("repr", repr(value))
 
 
 def _params(value: Any) -> Optional[Dict[str, Any]]:
@@ -142,6 +175,13 @@ def index_definition(dialect: Any, value: Any) -> Optional[IndexDefinition]:
             "if_exists": value.if_exists,
         }
         if not _plain_index_options(params):
+            return None
+        # ALTER TABLE ADD INDEX quotes each column as an identifier: a live
+        # expression column cannot be rendered by this action either, so it is
+        # refused just as its frozen projection is.
+        if not value.columns or not all(
+            isinstance(column, str) and column for column in value.columns
+        ):
             return None
         return value
     params = _params(value)

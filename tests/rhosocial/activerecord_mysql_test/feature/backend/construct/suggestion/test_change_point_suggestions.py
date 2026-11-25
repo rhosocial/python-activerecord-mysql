@@ -11,7 +11,7 @@ and not a hand-written string.
 import dataclasses
 
 import pytest
-from rhosocial.activerecord.backend.expression import Column
+from rhosocial.activerecord.backend.expression import Column, Literal
 from rhosocial.activerecord.backend.expression.objects import Index, Table
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
@@ -21,8 +21,10 @@ from rhosocial.activerecord.backend.expression.statements import (
     DropIndexAction,
     DropTableConstraintAction,
 )
+from rhosocial.activerecord.backend.expression.statements.ddl_alter import ModifyColumnAction
 from rhosocial.activerecord.backend.expression.statements.ddl_partition import PartitionClause
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+    ColumnDefinition,
     IndexDefinition,
     TableCheckConstraint,
     TableConstraint,
@@ -31,6 +33,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     TablePrimaryKeyConstraint,
     TableUniqueConstraint,
 )
+from rhosocial.activerecord.backend.expression.types import IntegerType, VarCharType
 from rhosocial.activerecord.backend.suggestion import (
     ColumnReorderSuggestion,
     PartitionSchemeChangeSuggestion,
@@ -335,3 +338,230 @@ class TestPartitionSchemeChange:
         assert _alter(dialect, answer.operations[0]) == (
             "ALTER TABLE `events` DROP CONSTRAINT `ck_a`"
         )
+
+
+class TestEnrichedColumnReorder:
+    def test_full_definitions_yield_one_non_destructive_statement_per_moved_column(self, dialect):
+        fields = {
+            "created_at": ColumnDefinition(dialect, "created_at", VarCharType(dialect, 64)),
+            "id": ColumnDefinition(dialect, "id", IntegerType(dialect)),
+        }
+        point = ColumnReorderSuggestion(
+            table_name="events",
+            old_order=("id", "created_at"),
+            new_order=("created_at", "id"),
+            reordered_columns=("id", "created_at"),
+            old_fields=fields,
+            new_fields=fields,
+        )
+        answer = dialect.suggest_column_reorder(point)
+        _assert_frozen_answer(answer, point, "actions")
+        assert len(answer.operations) == 2
+        assert all(isinstance(stmt, AlterTableStatement) for stmt in answer.operations)
+        actions = [stmt.actions[0] for stmt in answer.operations]
+        assert all(isinstance(action, ModifyColumnAction) for action in actions)
+        assert actions[0].first is True and actions[0].after_column is None
+        assert actions[1].first is False and actions[1].after_column == "created_at"
+        # The very definitions carried by the point are reused, not rebuilt.
+        assert actions[0].column is fields["created_at"]
+        assert actions[1].column is fields["id"]
+        assert [stmt.to_sql()[0] for stmt in answer.operations] == [
+            "ALTER TABLE `events` MODIFY COLUMN `created_at` VARCHAR(64) FIRST",
+            "ALTER TABLE `events` MODIFY COLUMN `id` INT AFTER `created_at`",
+        ]
+        assert all("DROP" not in stmt.to_sql()[0] for stmt in answer.operations)
+
+    def test_only_columns_whose_index_changed_are_repositioned(self, dialect):
+        fields = {
+            "a": ColumnDefinition(dialect, "a", IntegerType(dialect)),
+            "b": ColumnDefinition(dialect, "b", IntegerType(dialect)),
+            "c": ColumnDefinition(dialect, "c", VarCharType(dialect, 64)),
+        }
+        point = ColumnReorderSuggestion(
+            table_name="events",
+            old_order=("a", "b", "c"),
+            new_order=("a", "c", "b"),
+            reordered_columns=("c", "b"),
+            new_fields=fields,
+        )
+        answer = dialect.suggest_column_reorder(point)
+        _assert_frozen_answer(answer, point, "actions")
+        assert [stmt.to_sql()[0] for stmt in answer.operations] == [
+            "ALTER TABLE `events` MODIFY COLUMN `c` VARCHAR(64) AFTER `a`",
+            "ALTER TABLE `events` MODIFY COLUMN `b` INT AFTER `c`",
+        ]
+
+    def test_missing_definition_is_still_unaddressable(self, dialect):
+        point = ColumnReorderSuggestion(
+            table_name="events",
+            old_order=("id", "created_at"),
+            new_order=("created_at", "id"),
+            reordered_columns=("id", "created_at"),
+            new_fields={
+                "created_at": ColumnDefinition(dialect, "created_at", IntegerType(dialect))
+            },
+        )
+        answer = dialect.suggest_column_reorder(point)
+        _assert_frozen_answer(answer, point, "unaddressable")
+        assert answer.operations is False
+
+
+class TestEnrichedConstraintChange:
+    def test_live_declarations_add_all_four_spellable_kinds(self):
+        # CHECK is enforced by this server only from 8.0.16 onward.
+        dialect = MySQLDialect((8, 0, 36))
+        check = TableConstraint(
+            dialect,
+            branch=TableCheckConstraint(
+                dialect,
+                ComparisonPredicate(dialect, ">", Column(dialect, "a"), Literal(dialect, 0)),
+            ),
+            name="ck_a",
+        )
+        declarations = (
+            TableConstraint(dialect, branch=TablePrimaryKeyConstraint(dialect, ["id"]), name="pk"),
+            TableConstraint(
+                dialect, branch=TableUniqueConstraint(dialect, ["created_at"]), name="uq_created"
+            ),
+            check,
+            TableConstraint(
+                dialect,
+                branch=TableForeignKeyConstraint(
+                    dialect, ["b"], (Table(dialect, "parents"), ["id"])
+                ),
+                name="fk_b",
+            ),
+        )
+        point = TableConstraintChangeSuggestion(
+            table_name="events", new_constraint_declarations=declarations
+        )
+        answer = dialect.suggest_table_constraint_change(point)
+        _assert_frozen_answer(answer, point, "actions")
+        assert all(isinstance(op, AddTableConstraintAction) for op in answer.operations)
+        assert [_alter(dialect, op) for op in answer.operations] == [
+            "ALTER TABLE `events` ADD CONSTRAINT `pk` PRIMARY KEY (`id`)",
+            "ALTER TABLE `events` ADD CONSTRAINT `uq_created` UNIQUE (`created_at`)",
+            "ALTER TABLE `events` ADD CONSTRAINT `ck_a` CHECK (`a` > %s)",
+            "ALTER TABLE `events` ADD CONSTRAINT `fk_b` "
+            "FOREIGN KEY (`b`) REFERENCES `parents` (`id`)",
+        ]
+        # Each declaration is passed through as-is; no node is invented.
+        assert [op.constraint for op in answer.operations] == list(declarations)
+
+    def test_exclude_and_primary_key_drop_declarations_stay_false(self, dialect):
+        excluded = TableConstraint(
+            dialect, branch=TableExcludeConstraint(dialect, ["a"]), name="ex_a"
+        )
+        primary_key = TableConstraint(
+            dialect, branch=TablePrimaryKeyConstraint(dialect, ["id"]), name="pk"
+        )
+        for point in (
+            TableConstraintChangeSuggestion(
+                table_name="events", new_constraint_declarations=(excluded,)
+            ),
+            TableConstraintChangeSuggestion(
+                table_name="events", old_constraint_declarations=(primary_key,)
+            ),
+        ):
+            answer = dialect.suggest_table_constraint_change(point)
+            _assert_frozen_answer(answer, point, "unaddressable")
+            assert answer.operations is False
+
+    def test_same_name_redefinition_is_drop_then_add(self, dialect):
+        old = TableConstraint(dialect, branch=TableUniqueConstraint(dialect, ["a"]), name="uq_a")
+        new = TableConstraint(dialect, branch=TableUniqueConstraint(dialect, ["b"]), name="uq_a")
+        point = TableConstraintChangeSuggestion(
+            table_name="events",
+            old_constraint_declarations=(old,),
+            new_constraint_declarations=(new,),
+        )
+        answer = dialect.suggest_table_constraint_change(point)
+        _assert_frozen_answer(answer, point, "actions")
+        assert [type(op) for op in answer.operations] == [
+            DropTableConstraintAction,
+            AddTableConstraintAction,
+        ]
+        assert [_alter(dialect, op) for op in answer.operations] == [
+            "ALTER TABLE `events` DROP CONSTRAINT `uq_a`",
+            "ALTER TABLE `events` ADD CONSTRAINT `uq_a` UNIQUE (`b`)",
+        ]
+
+    def test_unchanged_live_declarations_are_absent(self, dialect):
+        decl = TableConstraint(dialect, branch=TableUniqueConstraint(dialect, ["a"]), name="uq_a")
+        point = TableConstraintChangeSuggestion(
+            table_name="events",
+            old_constraint_declarations=(decl,),
+            new_constraint_declarations=(
+                TableConstraint(dialect, branch=TableUniqueConstraint(dialect, ["a"]), name="uq_a"),
+            ),
+        )
+        answer = dialect.suggest_table_constraint_change(point)
+        _assert_frozen_answer(answer, point, "absent")
+        assert answer.operations is None
+
+
+class TestEnrichedIndexChange:
+    def test_live_declarations_yield_add_and_drop_actions(self, dialect):
+        old = IndexDefinition(dialect, "idx_old", ["a"])
+        new = IndexDefinition(dialect, "idx_new", ["b"])
+        point = TableIndexChangeSuggestion(
+            table_name="events",
+            old_index_declarations=(old,),
+            new_index_declarations=(new,),
+        )
+        answer = dialect.suggest_table_index_change(point)
+        _assert_frozen_answer(answer, point, "actions")
+        assert [type(op) for op in answer.operations] == [DropIndexAction, AddIndexAction]
+        assert [_alter(dialect, op) for op in answer.operations] == [
+            "ALTER TABLE `events` DROP INDEX `idx_old`",
+            "ALTER TABLE `events` ADD INDEX `idx_new` (`b`)",
+        ]
+        assert answer.operations[1].index is new
+
+    def test_live_options_the_alter_path_cannot_spell_stay_false(self, dialect):
+        for index in (
+            IndexDefinition(dialect, "idx", ["a"], type="HASH"),
+            IndexDefinition(
+                dialect,
+                "idx",
+                ["a"],
+                partial_condition=ComparisonPredicate(
+                    dialect, ">", Column(dialect, "a"), Literal(dialect, 0)
+                ),
+            ),
+            IndexDefinition(dialect, "idx", ["a"], include_columns=["b"]),
+            IndexDefinition(dialect, "idx", ["a"], if_not_exists=True),
+            IndexDefinition(dialect, "idx", ["a"], if_exists=True),
+            IndexDefinition(dialect, "idx", ["a"], concurrent=True),
+            IndexDefinition(dialect, "idx", [Column(dialect, "a")]),
+        ):
+            point = TableIndexChangeSuggestion(table_name="events", new_index_declarations=(index,))
+            answer = dialect.suggest_table_index_change(point)
+            _assert_frozen_answer(answer, point, "unaddressable")
+            assert answer.operations is False
+
+    def test_unchanged_live_declarations_are_absent(self, dialect):
+        point = TableIndexChangeSuggestion(
+            table_name="events",
+            old_index_declarations=(IndexDefinition(dialect, "idx", ["a"]),),
+            new_index_declarations=(IndexDefinition(dialect, "idx", ["a"]),),
+        )
+        answer = dialect.suggest_table_index_change(point)
+        _assert_frozen_answer(answer, point, "absent")
+        assert answer.operations is None
+
+
+class TestEnrichedPartitionChange:
+    def test_live_declarations_do_not_rehabilitate_a_scheme_change(self, dialect):
+        old = PartitionClause(dialect, "HASH", [Column(dialect, "id")])
+        new = PartitionClause(dialect, "RANGE", [Column(dialect, "created_at")])
+        point = PartitionSchemeChangeSuggestion(
+            table_name="events",
+            old_partition=_freeze(old),
+            new_partition=_freeze(new),
+            old_partition_declaration=old,
+            new_partition_declaration=new,
+        )
+        answer = dialect.suggest_partition_scheme_change(point)
+        _assert_frozen_answer(answer, point, "unaddressable")
+        assert answer.operations is False
