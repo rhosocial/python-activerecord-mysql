@@ -8,7 +8,6 @@ used only when reading back a column's declared type.
 """
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from rhosocial.activerecord.backend.expression.types import (
@@ -28,37 +27,18 @@ from rhosocial.activerecord.backend.expression.types import (
     TimestampTzType,
     VarCharType,
 )
-from ..expression.types import (
-    MySQLBigIntType,
-    MySQLBinaryType,
-    MySQLBitType,
-    MySQLBlobType,
-    MySQLEnumType,
-    MySQLGeometryCollectionType,
-    MySQLGeometryType,
-    MySQLIntType,
-    MySQLLineStringType,
-    MySQLLongBlobType,
-    MySQLLongTextType,
-    MySQLMediumBlobType,
-    MySQLMediumIntType,
-    MySQLMediumTextType,
-    MySQLMultiLineStringType,
-    MySQLMultiPointType,
-    MySQLMultiPolygonType,
-    MySQLPointType,
-    MySQLPolygonType,
-    MySQLSetType,
-    MySQLSmallIntType,
-    MySQLTextType,
-    MySQLTinyBlobType,
-    MySQLTinyIntType,
-    MySQLTinyTextType,
-    MySQLUUIDType,
-    MySQLVarBinaryType,
-    MySQLVectorType,
-    MySQLYearType,
+
+from .._scan import (
+    digit_runs,
+    digits_after,
+    first_digit_run,
+    leading_upper_run,
+    parenthesized_digits,
+    quoted_values,
+    starts_with_word,
+    word_after,
 )
+from ..expression.types import MySQLUUIDType
 
 
 class MySQLTypeParser:
@@ -67,53 +47,73 @@ class MySQLTypeParser:
     def __init__(self, dialect: Any):
         self.dialect = dialect
 
-    _MYSQL_INTEGER_TYPES = re.compile(
-        r"^(?:TINYINT|INT1|SMALLINT|INT2|MEDIUMINT|INT|INTEGER|BIGINT|INT8)\b",
-        re.IGNORECASE,
+    #: Leading words that open the integer family. Every entry is a whole
+    #: identifier: ``INTEGER`` must not be read as ``INT`` plus a boundary, and
+    #: ``INT8`` must not be read as ``INT`` plus the digit ``8``.
+    _MYSQL_INTEGER_TYPES = (
+        "TINYINT",
+        "INT1",
+        "SMALLINT",
+        "INT2",
+        "MEDIUMINT",
+        "INT",
+        "INTEGER",
+        "BIGINT",
+        "INT8",
     )
-    _MYSQL_FLOAT_TYPES = re.compile(
-        r"^(?:FLOAT|REAL|DOUBLE)\b",
-        re.IGNORECASE,
+    _MYSQL_FLOAT_TYPES = (
+        "FLOAT",
+        "REAL",
+        "DOUBLE",
     )
     # ``DECIMAL`` / ``NUMERIC`` / ``DEC`` are the three spellings of the core
     # concept. MySQL's historical fourth synonym, ``FIXED``, is deliberately
     # absent: it is not in the closed ``SPELLINGS`` list, and mapping it onto
     # the concept with a spelling the concept never declared would make the
     # list decorative. (information_schema never reports ``fixed`` anyway.)
-    _MYSQL_DECIMAL_TYPES = re.compile(
-        r"^(?:DECIMAL|NUMERIC|DEC)\b",
-        re.IGNORECASE,
+    _MYSQL_DECIMAL_TYPES = (
+        "DECIMAL",
+        "NUMERIC",
+        "DEC",
     )
-    _MYSQL_STRING_TYPES = re.compile(
-        r"^(?:CHAR|VARCHAR|TEXT|TINYTEXT|MEDIUMTEXT|LONGTEXT|"
-        r"ENUM|SET|BINARY|VARBINARY)\b",
-        re.IGNORECASE,
+    _MYSQL_STRING_TYPES = (
+        "CHAR",
+        "VARCHAR",
+        "TEXT",
+        "TINYTEXT",
+        "MEDIUMTEXT",
+        "LONGTEXT",
+        "ENUM",
+        "SET",
+        "BINARY",
+        "VARBINARY",
     )
-    _MYSQL_BLOB_TYPES = re.compile(
-        r"^(?:BLOB|TINYBLOB|MEDIUMBLOB|LONGBLOB)\b",
-        re.IGNORECASE,
+    _MYSQL_BLOB_TYPES = (
+        "BLOB",
+        "TINYBLOB",
+        "MEDIUMBLOB",
+        "LONGBLOB",
     )
-    _MYSQL_DATE_TYPES = re.compile(
-        r"^(?:DATE|DATETIME|TIMESTAMP|TIME|YEAR)\b",
-        re.IGNORECASE,
+    _MYSQL_DATE_TYPES = (
+        "DATE",
+        "DATETIME",
+        "TIMESTAMP",
+        "TIME",
+        "YEAR",
     )
-    _MYSQL_JSON_TYPES = re.compile(
-        r"^(?:JSON)\b",
-        re.IGNORECASE,
+    _MYSQL_JSON_TYPES = ("JSON",)
+    _MYSQL_SPATIAL_TYPES = (
+        "GEOMETRY",
+        "POINT",
+        "LINESTRING",
+        "POLYGON",
+        "MULTIPOINT",
+        "MULTILINESTRING",
+        "MULTIPOLYGON",
+        "GEOMETRYCOLLECTION",
     )
-    _MYSQL_SPATIAL_TYPES = re.compile(
-        r"^(?:GEOMETRY|POINT|LINESTRING|POLYGON|"
-        r"MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_BIT_TYPES = re.compile(
-        r"^(?:BIT)\b",
-        re.IGNORECASE,
-    )
-    _MYSQL_VECTOR_TYPES = re.compile(
-        r"^(?:VECTOR)\b",
-        re.IGNORECASE,
-    )
+    _MYSQL_BIT_TYPES = ("BIT",)
+    _MYSQL_VECTOR_TYPES = ("VECTOR",)
 
     def parse(self, raw: str) -> DataType:
         """Turn a MySQL type string back into the ``DataType`` it came from.
@@ -131,10 +131,11 @@ class MySQLTypeParser:
         upper = stripped.upper()
 
         # BIT type
-        if self._MYSQL_BIT_TYPES.match(upper):
-            nums = re.findall(r"\d+", stripped)
-            n = int(nums[0]) if nums else None
+        if starts_with_word(upper, self._MYSQL_BIT_TYPES):
+            digits = first_digit_run(stripped)
+            n = int(digits) if digits is not None else None
             from ..expression.types import MySQLBitType
+
             return MySQLBitType(self.dialect, n)
 
         # BOOLEAN / BOOL — MySQL's documented aliases for TINYINT(1), so both
@@ -145,20 +146,25 @@ class MySQLTypeParser:
             return BooleanType(dialect=self.dialect, spelling="bool")
 
         # Integer family
-        if self._MYSQL_INTEGER_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_INTEGER_TYPES):
             unsigned = "UNSIGNED" in upper
             zerofill = "ZEROFILL" in upper
             if upper.startswith("TINYINT") or upper.startswith("INT1"):
                 # Read the width out of ``(n)`` only. The digits of the
-                # ``INT1`` synonym are part of the *name*, so a bare
-                # findall over the whole string would read ``INT1`` as width 1
-                # and hand back a boolean.
-                width_match = re.search(r"\(\s*(\d+)\s*\)", stripped)
-                display_width = int(width_match.group(1)) if width_match else None
+                # ``INT1`` synonym are part of the *name*, so a bare scan over
+                # the whole string would read ``INT1`` as width 1 and hand back
+                # a boolean.
+                width = parenthesized_digits(stripped, allow_blanks=True)
+                display_width = int(width) if width is not None else None
                 from ..expression.types import MySQLTinyIntType
+
                 spelling = "int1" if upper.startswith("INT1") else "tinyint"
-                t = MySQLTinyIntType(dialect=self.dialect, unsigned=unsigned,
-                                     zerofill=zerofill, spelling=spelling)
+                t = MySQLTinyIntType(
+                    dialect=self.dialect,
+                    unsigned=unsigned,
+                    zerofill=zerofill,
+                    spelling=spelling,
+                )
                 # TINYINT(1) is commonly used as BOOLEAN
                 if display_width == 1 and not unsigned and not zerofill:
                     return BooleanType(self.dialect)
@@ -190,7 +196,7 @@ class MySQLTypeParser:
                                 zerofill=zerofill, spelling=spelling)
 
         # Float family
-        if self._MYSQL_FLOAT_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_FLOAT_TYPES):
             # ``UNSIGNED`` is read here for the same reason it is read for the
             # integers above: MySQL writes ``FLOAT[(M,D)] [UNSIGNED]``,
             # ``FLOAT(p) [UNSIGNED]`` and ``DOUBLE[(M,D)] [UNSIGNED]``, so an
@@ -237,7 +243,7 @@ class MySQLTypeParser:
             # 4-byte concept, and FloatType is returned with the (M,D) display
             # spec dropped -- FloatType carries no scale, and this dialect now
             # refuses a precision it cannot round-trip.
-            nums = re.findall(r"\d+", stripped)
+            nums = digit_runs(stripped)
             if len(nums) >= 2:
                 return FloatType(self.dialect, unsigned=unsigned)
             precision = int(nums[0]) if nums else None
@@ -246,7 +252,7 @@ class MySQLTypeParser:
             return FloatType(self.dialect, unsigned=unsigned)
 
         # Decimal family
-        if self._MYSQL_DECIMAL_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_DECIMAL_TYPES):
             # One concept, three words: MySQL's manual calls DECIMAL, NUMERIC
             # and DEC synonyms, so all three reach DecimalType and the word that
             # was used is recorded rather than lost.
@@ -267,7 +273,7 @@ class MySQLTypeParser:
                 spelling = "dec"
             else:
                 spelling = "decimal"
-            nums = re.findall(r"\d+", stripped)
+            nums = digit_runs(stripped)
             if len(nums) >= 2:
                 return DecimalType(self.dialect, int(nums[0]), int(nums[1]),
                                    unsigned=unsigned, spelling=spelling)
@@ -277,7 +283,7 @@ class MySQLTypeParser:
             return DecimalType(self.dialect, unsigned=unsigned, spelling=spelling)
 
         # String family
-        if self._MYSQL_STRING_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_STRING_TYPES):
             if upper.startswith("TINYTEXT"):
                 from ..expression.types import MySQLTinyTextType
                 return MySQLTinyTextType(self.dialect)
@@ -292,31 +298,21 @@ class MySQLTypeParser:
                 return MySQLTextType(self.dialect)
             if upper.startswith("ENUM"):
                 from ..expression.types import MySQLEnumType
-                values = re.findall(r"'([^']*)'", stripped)
-                charset = None
-                collation = None
-                cs_match = re.search(r"CHARACTER\s+SET\s+(\w+)", upper)
-                if cs_match:
-                    charset = cs_match.group(1)
-                col_match = re.search(r"COLLATE\s+(\w+)", upper)
-                if col_match:
-                    collation = col_match.group(1)
+
+                values = quoted_values(stripped)
+                charset = word_after(upper, "CHARACTER", "SET")
+                collation = word_after(upper, "COLLATE")
                 return MySQLEnumType(self.dialect, values, charset=charset, collation=collation)
             if upper.startswith("SET"):
                 from ..expression.types import MySQLSetType
-                values = re.findall(r"'([^']*)'", stripped)
-                charset = None
-                collation = None
-                cs_match = re.search(r"CHARACTER\s+SET\s+(\w+)", upper)
-                if cs_match:
-                    charset = cs_match.group(1)
-                col_match = re.search(r"COLLATE\s+(\w+)", upper)
-                if col_match:
-                    collation = col_match.group(1)
+
+                values = quoted_values(stripped)
+                charset = word_after(upper, "CHARACTER", "SET")
+                collation = word_after(upper, "COLLATE")
                 return MySQLSetType(self.dialect, values, charset=charset, collation=collation)
             if upper.startswith("BINARY"):
-                nums = re.findall(r"\d+", stripped)
-                length = int(nums[0]) if nums else None
+                digits = first_digit_run(stripped)
+                length = int(digits) if digits is not None else None
                 # ``BINARY(16)`` is this backend's UUID storage, so it is read back
                 # as the UUID type: a UUID is 128 bits with no other width, so
                 # the column width *is* the identity, and reading it as a
@@ -334,8 +330,8 @@ class MySQLTypeParser:
                 from ..expression.types import MySQLBinaryType
                 return MySQLBinaryType(self.dialect, length)
             if upper.startswith("VARBINARY"):
-                nums = re.findall(r"\d+", stripped)
-                length = int(nums[0]) if nums else None
+                digits = first_digit_run(stripped)
+                length = int(digits) if digits is not None else None
                 # A bare ``VARBINARY`` cannot reach here from a live server:
                 # ``CREATE TABLE t (c VARBINARY)`` is a syntax error, so the
                 # server never reports one. It is still refused rather than
@@ -346,14 +342,14 @@ class MySQLTypeParser:
                 from ..expression.types import MySQLVarBinaryType
                 return MySQLVarBinaryType(self.dialect, length)
             # CHAR / VARCHAR
-            length_match = re.search(r"\((\d+)\)", stripped)
-            length = int(length_match.group(1)) if length_match else None
+            length_digits = parenthesized_digits(stripped)
+            length = int(length_digits) if length_digits is not None else None
             if upper.startswith("VARCHAR"):
                 return VarCharType(self.dialect, length)
             return CharType(self.dialect, length)
 
         # BLOB family
-        if self._MYSQL_BLOB_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_BLOB_TYPES):
             if upper.startswith("TINYBLOB"):
                 from ..expression.types import MySQLTinyBlobType
                 return MySQLTinyBlobType(self.dialect)
@@ -367,43 +363,42 @@ class MySQLTypeParser:
             return MySQLBlobType(self.dialect)
 
         # Date/time family
-        if self._MYSQL_DATE_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_DATE_TYPES):
             if upper.startswith("YEAR"):
-                nums = re.findall(r"\d+", stripped)
-                display_width = int(nums[0]) if nums else None
+                digits = first_digit_run(stripped)
+                display_width = int(digits) if digits is not None else None
                 from ..expression.types import MySQLYearType
+
                 return MySQLYearType(self.dialect, display_width)
             if upper.startswith("DATE"):
                 if upper.strip() == "DATE":
                     return DateType(self.dialect)
                 return DateTimeType(self.dialect)
             if upper.startswith("DATETIME"):
-                nums = re.findall(r"\d+", stripped)
-                precision = int(nums[0]) if nums else None
+                digits = first_digit_run(stripped)
+                precision = int(digits) if digits is not None else None
                 return DateTimeType(self.dialect, precision)
             if upper.startswith("TIMESTAMP"):
-                nums = re.findall(r"\d+", stripped)
-                precision = int(nums[0]) if nums else None
+                digits = first_digit_run(stripped)
+                precision = int(digits) if digits is not None else None
                 if "WITH TIME ZONE" in upper:
                     return TimestampTzType(self.dialect, precision)
                 return TimestampType(self.dialect, precision)
             if upper.startswith("TIME"):
-                nums = re.findall(r"\d+", stripped)
-                precision = int(nums[0]) if nums else None
+                digits = first_digit_run(stripped)
+                precision = int(digits) if digits is not None else None
                 if "WITH TIME ZONE" in upper:
                     return TimeTzType(self.dialect, precision)
                 return TimeType(self.dialect, precision)
 
         # JSON
-        if self._MYSQL_JSON_TYPES.match(upper):
+        if starts_with_word(upper, self._MYSQL_JSON_TYPES):
             return JsonType(self.dialect)
 
         # Spatial
-        if self._MYSQL_SPATIAL_TYPES.match(upper):
-            srid = None
-            srid_match = re.search(r"SRID\s+(\d+)", upper)
-            if srid_match:
-                srid = int(srid_match.group(1))
+        if starts_with_word(upper, self._MYSQL_SPATIAL_TYPES):
+            srid_digits = digits_after(upper, "SRID")
+            srid = int(srid_digits) if srid_digits is not None else None
             from ..expression.types import (
                 MySQLGeometryCollectionType,
                 MySQLGeometryType,
@@ -436,15 +431,15 @@ class MySQLTypeParser:
             # Every one of the eight words is a single identifier, so the
             # leading word is the whole name and the map needs no ordering
             # discipline to stay correct.
-            head = re.match(r"[A-Z]+", upper)
-            name = head.group(0) if head else upper
+            name = leading_upper_run(upper) or upper
             return spatial_map.get(name, MySQLGeometryType)(self.dialect, srid)
 
         # Vector (MySQL 9.0+)
-        if self._MYSQL_VECTOR_TYPES.match(upper):
-            nums = re.findall(r"\d+", stripped)
-            dim = int(nums[0]) if nums else 0
+        if starts_with_word(upper, self._MYSQL_VECTOR_TYPES):
+            dim_digits = first_digit_run(stripped)
+            dim = int(dim_digits) if dim_digits is not None else 0
             from ..expression.types import MySQLVectorType
+
             return MySQLVectorType(self.dialect, dim)
 
         # Fallback: an honest "I do not model this type" rather than a guess.
