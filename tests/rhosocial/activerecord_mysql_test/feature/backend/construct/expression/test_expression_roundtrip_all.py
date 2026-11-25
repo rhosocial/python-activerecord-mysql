@@ -224,6 +224,10 @@ _EXPRESSION_CONTRACT_CONSTRUCTORS = {
     "the generic constructor supplies a bare Literal.",
     "statements.ddl_alter.DropIndexAction": "requires a real Index object; "
     "the generic constructor supplies a bare Literal.",
+    "statements.ddl_alter.DropTableConstraintAction": "constraint_name now "
+    "defaults to None because the action may instead carry a declaration, and "
+    "the generic constructor supplies neither address, so the render refuses "
+    "it. The factory names the constraint.",
     "statements.ddl_partition.PartitionDefinitionExpression": "requires a name and one boundary form.",
     "statements.ddl_partition.SubpartitionDefinitionExpression": "requires a non-empty name.",
     "statements.ddl_partition.PartitionOptionsExpression": "requires an options mapping.",
@@ -421,6 +425,7 @@ def _register_mysql_specials():
     from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
         AddIndexAction,
         DropIndexAction,
+        DropTableConstraintAction,
     )
     from rhosocial.activerecord.backend.expression.statements.ddl_table import (
         IndexDefinition,
@@ -431,6 +436,8 @@ def _register_mysql_specials():
             lambda d: AddIndexAction(d, IndexDefinition(d, "i", ["a"])),
         "statements.ddl_alter.DropIndexAction":
             lambda d: DropIndexAction(d, Index(d, "i")),
+        "statements.ddl_alter.DropTableConstraintAction":
+            lambda d: DropTableConstraintAction(d, "uq_content"),
         "predicates.LikePredicate":
             lambda d: LikePredicate(d, LikeOperator.LIKE, Column(d, "a"), Literal(d, "%x%")),
         "predicates.ILikePredicate":

@@ -104,7 +104,22 @@ class MySQLDDLColumnMixin:
         return super().format_drop_column_action(expr)
 
     def format_drop_table_constraint_action(self, expr) -> Tuple[str, tuple]:
-        """Format ``DROP CONSTRAINT``."""
+        """Format ``DROP CONSTRAINT``.
+
+        MySQL addresses a constraint by name only, so a declaration
+        (``DROP CONSTRAINT by kind``) is refused even when a name is also
+        present: the generic formatter lets the name win, which would answer a
+        request for a kind-based drop with a different statement.  The one kind
+        MySQL drops without a symbol -- a PRIMARY KEY -- is spelled ``DROP
+        PRIMARY KEY`` and is not this action's business.
+        """
+        if expr.constraint is not None:
+            raise UnsupportedFeatureError(
+                self.name, "DROP CONSTRAINT by kind",
+                suggestion="MySQL drops a constraint by name only. Supply "
+                     "constraint_name; a PRIMARY KEY is dropped with DROP PRIMARY KEY, "
+                     "which this action does not carry."
+            )
         if expr.if_exists is True:
             raise UnsupportedFeatureError(
                 self.name, "DROP CONSTRAINT IF EXISTS",

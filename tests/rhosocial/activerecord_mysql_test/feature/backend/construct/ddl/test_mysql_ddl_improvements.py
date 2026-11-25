@@ -18,6 +18,7 @@ from rhosocial.activerecord.backend.expression.statements import (
     TableCheckConstraint,
     TableConstraint,
     TableForeignKeyConstraint,
+    TableUniqueConstraint,
 )
 from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
     AddTableConstraintAction,
@@ -279,6 +280,31 @@ class TestMeasuredConstraintLifecycleCapabilities:
         action = DropTableConstraintAction(dialect, "uq_content", if_exists=True)
         with pytest.raises(UnsupportedFeatureError, match="IF EXISTS"):
             action.to_sql()
+
+    def test_drop_constraint_by_kind_is_refused_by_name(self):
+        """MySQL spells drops by name, so a declaration is refused by name.
+
+        The declaration is refused even when ``constraint_name`` is also
+        present: letting the name win would answer a request for a kind-based
+        drop with a statement about something else. A name-only action is
+        unchanged, rendering ``DROP CONSTRAINT `uq_email```.
+        """
+        dialect = self._dialect()
+        assert dialect.supports_drop_constraint_by_kind() is False
+        constraint = TableConstraint(
+            dialect,
+            branch=TableUniqueConstraint(dialect, ["email"]),
+            name="uq_email",
+        )
+        with pytest.raises(UnsupportedFeatureError, match="DROP CONSTRAINT by kind"):
+            DropTableConstraintAction(dialect, constraint=constraint).to_sql()
+        with pytest.raises(UnsupportedFeatureError, match="DROP CONSTRAINT by kind"):
+            DropTableConstraintAction(
+                dialect, "uq_email", constraint=constraint
+            ).to_sql()
+        sql, params = DropTableConstraintAction(dialect, "uq_email").to_sql()
+        assert sql == "DROP CONSTRAINT `uq_email`"
+        assert params == ()
 
     def test_novalidate_is_declined_and_refused_by_name(self):
         """``NOT VALID`` is a parser error (``1064 ... near 'VALID'``)."""
