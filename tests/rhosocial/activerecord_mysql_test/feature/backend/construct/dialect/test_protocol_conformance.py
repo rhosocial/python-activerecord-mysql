@@ -92,6 +92,12 @@ MYSQL_PROTOCOLS = [
     # DataTypeSupport above answers how it is stored.
     # MySQLColumnTypeMixin supplies the table.
     suggestion_protocols.ColumnTypeSuggestionSupport,
+    # The four migration decision points: the dialect answers each with a
+    # frozen tri-state point carrying real expression instances, False or None.
+    suggestion_protocols.ColumnReorderSuggestionSupport,
+    suggestion_protocols.TableConstraintChangeSuggestionSupport,
+    suggestion_protocols.TableIndexChangeSuggestionSupport,
+    suggestion_protocols.PartitionSchemeChangeSuggestionSupport,
     # --- DML / locking / transactions ---
     dialect_protocols.ReturningSupport,
     dialect_protocols.UpsertSupport,

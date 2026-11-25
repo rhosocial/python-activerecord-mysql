@@ -10,11 +10,15 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
 from rhosocial.activerecord.backend.suggestion.protocols import (
+    ColumnReorderSuggestionSupport,
     ColumnTypeSuggestionSupport,
     CreateTableLayoutSuggestionSupport,
     DataTypeSuggestionSupport,
     JSONSuggestionSupport,
+    PartitionSchemeChangeSuggestionSupport,
     StringConcatenationSuggestionSupport,
+    TableConstraintChangeSuggestionSupport,
+    TableIndexChangeSuggestionSupport,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.dialect.protocols import (
@@ -137,11 +141,13 @@ from .protocols import (
     MySQLAdminCommandSupport,
 )
 from .suggestion import (
+    MySQLColumnReorderSuggestionMixin,
     MySQLCreateTableLayoutSuggestionMixin,
     MySQLPartitionBuildSuggestionMixin,
     MySQLPartitionAddSuggestionMixin,
     MySQLPartitionDropSuggestionMixin,
     MySQLPartitionRetentionSuggestionMixin,
+    MySQLPartitionSchemeChangeSuggestionMixin,
     MySQLPartitionTableDropSuggestionMixin,
     MySQLPartitionTableAlterSuggestionMixin,
     MySQLPartitionSplitSuggestionMixin,
@@ -150,6 +156,8 @@ from .suggestion import (
     MySQLStringConcatenationSuggestionMixin,
     MySQLDataTypeSuggestionsMixin,
     MySQLGeneratedValueSuggestionMixin,
+    MySQLTableConstraintChangeSuggestionMixin,
+    MySQLTableIndexChangeSuggestionMixin,
 )
 from .mixins import (
     MySQLNamespaceMixin,
@@ -221,6 +229,14 @@ class MySQLDialect(
     MySQLPartitionMergeSuggestionMixin,
     MySQLGeneratedValueSuggestionMixin,
     MySQLCreateTableLayoutSuggestionMixin,
+    # The four migration change points: column reorder, constraint/index
+    # change and partition-scheme change. Their answers are backend-owned
+    # suggestion mixins too, so they stay ahead of every core/base mixin; the
+    # partition-scheme mixin delegates to the table-alter suggestion above.
+    MySQLColumnReorderSuggestionMixin,
+    MySQLTableConstraintChangeSuggestionMixin,
+    MySQLTableIndexChangeSuggestionMixin,
+    MySQLPartitionSchemeChangeSuggestionMixin,
     # The bases below come in bundles: a backend mixin, then the core bundle
     # it stands in for. The backend's answer has to come first -- a mixin
     # placed after the class it overrides never wins -- so a new mixin goes
@@ -448,6 +464,12 @@ class MySQLDialect(
     JSONSuggestionSupport,
     StringConcatenationSuggestionSupport,
     ColumnTypeSuggestionSupport,
+    # The four migration decision points: the mixins above answer these
+    # minimal protocols, so a consumer can gate on isinstance(dialect, ...).
+    ColumnReorderSuggestionSupport,
+    TableConstraintChangeSuggestionSupport,
+    TableIndexChangeSuggestionSupport,
+    PartitionSchemeChangeSuggestionSupport,
     TypeObjectSupport,
     CreateTypeSupport,
     AlterTypeSupport,

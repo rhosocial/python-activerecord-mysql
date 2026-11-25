@@ -7,10 +7,12 @@ belong here, kept out of ``mixins`` so the two concerns stay separate.
 
 There is one module per partition-lifecycle point, mirroring the SQLite
 suggestion package. Shared plan-reading helpers and their common base live in
-``_common.py``.
+``_common.py``; the four migration change points read their frozen projections
+through ``_change_projection.py``.
 """
 
 from ._common import MySQLPartitionSuggestionBase
+from .column_reorder_suggestion import MySQLColumnReorderSuggestionMixin
 from .data_type_suggestions import MySQLDataTypeSuggestionsMixin
 from .general_suggestions import (
     MySQLCreateTableLayoutSuggestionMixin,
@@ -23,12 +25,16 @@ from .partition_build_suggestion import MySQLPartitionBuildSuggestionMixin
 from .partition_drop_suggestion import MySQLPartitionDropSuggestionMixin
 from .partition_merge_suggestion import MySQLPartitionMergeSuggestionMixin
 from .partition_retention_suggestion import MySQLPartitionRetentionSuggestionMixin
+from .partition_scheme_change_suggestion import MySQLPartitionSchemeChangeSuggestionMixin
 from .partition_split_suggestion import MySQLPartitionSplitSuggestionMixin
 from .partition_table_alter_suggestion import MySQLPartitionTableAlterSuggestionMixin
 from .partition_table_drop_suggestion import MySQLPartitionTableDropSuggestionMixin
+from .table_constraint_change_suggestion import MySQLTableConstraintChangeSuggestionMixin
+from .table_index_change_suggestion import MySQLTableIndexChangeSuggestionMixin
 
 __all__ = [
     "MySQLPartitionSuggestionBase",
+    "MySQLColumnReorderSuggestionMixin",
     "MySQLDataTypeSuggestionsMixin",
     "MySQLCreateTableLayoutSuggestionMixin",
     "MySQLJSONSuggestionMixin",
@@ -39,7 +45,10 @@ __all__ = [
     "MySQLPartitionDropSuggestionMixin",
     "MySQLPartitionMergeSuggestionMixin",
     "MySQLPartitionRetentionSuggestionMixin",
+    "MySQLPartitionSchemeChangeSuggestionMixin",
     "MySQLPartitionSplitSuggestionMixin",
     "MySQLPartitionTableAlterSuggestionMixin",
     "MySQLPartitionTableDropSuggestionMixin",
+    "MySQLTableConstraintChangeSuggestionMixin",
+    "MySQLTableIndexChangeSuggestionMixin",
 ]
