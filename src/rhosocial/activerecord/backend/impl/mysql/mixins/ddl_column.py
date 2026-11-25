@@ -106,19 +106,22 @@ class MySQLDDLColumnMixin:
     def format_drop_table_constraint_action(self, expr) -> Tuple[str, tuple]:
         """Format ``DROP CONSTRAINT``.
 
-        MySQL addresses a constraint by name only, so a declaration
-        (``DROP CONSTRAINT by kind``) is refused even when a name is also
-        present: the generic formatter lets the name win, which would answer a
-        request for a kind-based drop with a different statement.  The one kind
-        MySQL drops without a symbol -- a PRIMARY KEY -- is spelled ``DROP
-        PRIMARY KEY`` and is not this action's business.
+        MySQL addresses a constraint by name only, so every action's address
+        is resolved first by :meth:`_resolve_drop_constraint_address`, and this
+        formatter spells the **name** address only.  A declaration-only action
+        is refused by the resolver as ``DROP CONSTRAINT by kind`` (the probe
+        stays ``False``); an unequal or unnamed declaration accompanying a name
+        is refused as an ambiguous ``DROP CONSTRAINT address``.  A declaration
+        carrying the same name merely confirms it and renders by that name.  The
+        one kind MySQL drops without a symbol -- a PRIMARY KEY -- is spelled
+        ``DROP PRIMARY KEY`` and is not this action's business.
         """
-        if expr.constraint is not None:
-            raise UnsupportedFeatureError(
-                self.name, "DROP CONSTRAINT by kind",
-                suggestion="MySQL drops a constraint by name only. Supply "
-                     "constraint_name; a PRIMARY KEY is dropped with DROP PRIMARY KEY, "
-                     "which this action does not carry."
+        address = self._resolve_drop_constraint_address(expr)
+        if address != "name":
+            raise NotImplementedError(
+                f"{self.name} resolved a DROP CONSTRAINT by kind, but this "
+                f"formatter spells names only; implement kind addressing before "
+                f"advertising supports_drop_constraint_by_kind() as True."
             )
         if expr.if_exists is True:
             raise UnsupportedFeatureError(

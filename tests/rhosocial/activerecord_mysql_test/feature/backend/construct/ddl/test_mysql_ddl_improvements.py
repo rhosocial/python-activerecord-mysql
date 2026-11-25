@@ -242,11 +242,14 @@ class TestMeasuredConstraintLifecycleCapabilities:
 
     def _check(self, dialect, **kw):
         return TableConstraint(
-    dialect,
-    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, "=", Column(dialect, "a"), Column(dialect, "b") )),
-    name="ck",
-    **kw
-)
+            dialect,
+            branch=TableCheckConstraint(
+                dialect,
+                ComparisonPredicate(dialect, "=", Column(dialect, "a"), Column(dialect, "b")),
+            ),
+            name="ck",
+            **kw
+        )
 
     def _fk(self, dialect, **kw):
         return ForeignKeyConstraint(
@@ -281,27 +284,64 @@ class TestMeasuredConstraintLifecycleCapabilities:
         with pytest.raises(UnsupportedFeatureError, match="IF EXISTS"):
             action.to_sql()
 
-    def test_drop_constraint_by_kind_is_refused_by_name(self):
-        """MySQL spells drops by name, so a declaration is refused by name.
+    def _declaration(self, dialect, name=None):
+        return TableConstraint(
+            dialect,
+            branch=TableUniqueConstraint(dialect, ["email"]),
+            name=name,
+        )
 
-        The declaration is refused even when ``constraint_name`` is also
-        present: letting the name win would answer a request for a kind-based
-        drop with a statement about something else. A name-only action is
-        unchanged, rendering ``DROP CONSTRAINT `uq_email```.
+    def test_drop_constraint_by_kind_is_refused_by_name(self):
+        """A declaration-only drop is refused as ``DROP CONSTRAINT by kind``.
+
+        MySQL advertises no kind-based drop, so the resolver refuses it before
+        this formatter ever looks for a name.
         """
         dialect = self._dialect()
         assert dialect.supports_drop_constraint_by_kind() is False
-        constraint = TableConstraint(
-            dialect,
-            branch=TableUniqueConstraint(dialect, ["email"]),
-            name="uq_email",
-        )
-        with pytest.raises(UnsupportedFeatureError, match="DROP CONSTRAINT by kind"):
-            DropTableConstraintAction(dialect, constraint=constraint).to_sql()
-        with pytest.raises(UnsupportedFeatureError, match="DROP CONSTRAINT by kind"):
+        with pytest.raises(UnsupportedFeatureError) as excinfo:
             DropTableConstraintAction(
-                dialect, "uq_email", constraint=constraint
+                dialect, constraint=self._declaration(dialect, "uq_email")
             ).to_sql()
+        assert excinfo.value.feature_name == "DROP CONSTRAINT by kind"
+
+    def test_drop_constraint_with_equal_declaration_name_renders_by_name(self):
+        """A declaration carrying the same name only confirms it.
+
+        Both addresses agree, so the declaration adds no second address and the
+        drop renders by name, byte-identical to a name-only action.
+        """
+        dialect = self._dialect()
+        sql, params = DropTableConstraintAction(
+            dialect, "uq_email", constraint=self._declaration(dialect, "uq_email")
+        ).to_sql()
+        assert sql == "DROP CONSTRAINT `uq_email`"
+        assert params == ()
+
+    def test_drop_constraint_with_differing_declaration_name_is_ambiguous(self):
+        """Two addresses that disagree are refused, never resolved by preference."""
+        dialect = self._dialect()
+        with pytest.raises(UnsupportedFeatureError) as excinfo:
+            DropTableConstraintAction(
+                dialect, "uq_email", constraint=self._declaration(dialect, "uq_mail")
+            ).to_sql()
+        assert excinfo.value.feature_name == "DROP CONSTRAINT address"
+        message = str(excinfo.value)
+        assert "'uq_email'" in message
+        assert "'uq_mail'" in message
+
+    def test_drop_constraint_with_unnamed_declaration_is_ambiguous(self):
+        """An unnamed declaration cannot confirm the name, so it is ambiguous too."""
+        dialect = self._dialect()
+        with pytest.raises(UnsupportedFeatureError) as excinfo:
+            DropTableConstraintAction(
+                dialect, "uq_email", constraint=self._declaration(dialect)
+            ).to_sql()
+        assert excinfo.value.feature_name == "DROP CONSTRAINT address"
+
+    def test_drop_constraint_name_only_is_unchanged(self):
+        """A name-only action renders exactly as before."""
+        dialect = self._dialect()
         sql, params = DropTableConstraintAction(dialect, "uq_email").to_sql()
         assert sql == "DROP CONSTRAINT `uq_email`"
         assert params == ()
