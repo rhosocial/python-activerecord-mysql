@@ -97,7 +97,10 @@ CORE_EXPR_PKG = "rhosocial.activerecord.backend.expression"
 CLASSES = collect_expression_classes(MYSQL_EXPR_PKG)
 CORE_CLASSES = collect_expression_classes(CORE_EXPR_PKG)
 ALL_CLASSES = {**CORE_CLASSES, **CLASSES}
-register_all(ALL_CLASSES)
+# The matrix reads through its own copy of MySQL's registry, never a global:
+# a mutable twin carries core's and MySQL's kinds, plus the trusted-artifact
+# kinds the matrix itself admits (``RawSQL`` and ``RawSQLPredicate``).
+CODEC_REGISTRY = register_all(ALL_CLASSES)
 
 
 def _table(d, name="t"):
@@ -1347,7 +1350,7 @@ class TestExpressionSerialization:
     def test_get_params_roundtrip(self, expr_case, mysql_dialect):
         suffix, instance = expr_case
         try:
-            roundtrip_expression(suffix, instance, mysql_dialect)
+            roundtrip_expression(suffix, instance, mysql_dialect, CODEC_REGISTRY)
         except Exception as exc:
             row = _ROUNDTRIP_DEFECT.get(suffix)
             assert row is not None, (
@@ -1401,7 +1404,7 @@ class TestExpressionRendering:
             f"{suffix}: to_sql() returned {rendered!r}, expected a (sql, params) tuple"
         )
         try:
-            sql_consistent(suffix, instance, mysql_dialect)
+            sql_consistent(suffix, instance, mysql_dialect, CODEC_REGISTRY)
         except Exception as exc:
             # A class whose round-trip is broken by a named defect cannot be
             # asked to render identically *after* that trip: the restored
@@ -1498,8 +1501,8 @@ def _roundtrip_defects(mysql_dialect):
             continue
         suffix = _suffix(fqn)
         try:
-            roundtrip_expression(suffix, instance, mysql_dialect)
-            sql_consistent(suffix, instance, mysql_dialect)
+            roundtrip_expression(suffix, instance, mysql_dialect, CODEC_REGISTRY)
+            sql_consistent(suffix, instance, mysql_dialect, CODEC_REGISTRY)
         except Exception as exc:
             failures[suffix] = type(exc).__name__
     return failures
@@ -1712,8 +1715,10 @@ def test_core_expressions_also_roundtrip(mysql_dialect):
     expr = ComparisonPredicate(
         mysql_dialect, "=", Column(mysql_dialect, "a"), Literal(mysql_dialect, 1)
     )
-    roundtrip_expression("core", expr, mysql_dialect)
-    sql_consistent("core", expr, mysql_dialect)
+    # Core's kinds are the overlap MySQL's registry composes in, so the
+    # dialect's own table is enough here -- no test-local twin needed.
+    roundtrip_expression("core", expr, mysql_dialect, mysql_dialect.artifact_registry())
+    sql_consistent("core", expr, mysql_dialect, mysql_dialect.artifact_registry())
 
 
 # ---------------------------------------------------------------------------
