@@ -1,5 +1,5 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_table_statement.py
-from typing import List, TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
@@ -41,7 +41,13 @@ class MySQLTableStatementMixin:
         expr.validate(strict=self.strict_validation)
         table_sql = expr.table.to_sql()[0]
         parts = ["TABLE", table_sql]
-        parts.extend(self._format_statement_clauses(expr))
+        if expr.order_by:
+            cols = ", ".join(self.format_identifier(c) for c in expr.order_by)
+            parts.append(f"ORDER BY {cols}")
+        if expr.limit is not None:
+            parts.append(f"LIMIT {int(expr.limit)}")
+        if expr.offset is not None:
+            parts.append(f"OFFSET {int(expr.offset)}")
         return " ".join(part for part in parts if part), ()
 
     def format_mysql_values_expression(self, expr: "MySQLValuesExpression") -> Tuple[str, tuple]:
@@ -65,17 +71,6 @@ class MySQLTableStatementMixin:
                     params.append(value)
             row_parts.append(f"({', '.join(cell_parts)})")
         parts = ["VALUES", ", ".join(row_parts)]
-        parts.extend(self._format_statement_clauses(expr))
-        return " ".join(part for part in parts if part), tuple(params)
-
-    def _format_statement_clauses(self, expr) -> List[str]:
-        """Return the trailing ORDER BY / LIMIT / OFFSET fragments, in order.
-
-        Kept here rather than shared with the expression because assembling
-        clause order is the dialect's job: only the dialect knows the token
-        order the engine accepts.
-        """
-        parts: List[str] = []
         if expr.order_by:
             cols = ", ".join(self.format_identifier(c) for c in expr.order_by)
             parts.append(f"ORDER BY {cols}")
@@ -83,4 +78,4 @@ class MySQLTableStatementMixin:
             parts.append(f"LIMIT {int(expr.limit)}")
         if expr.offset is not None:
             parts.append(f"OFFSET {int(expr.offset)}")
-        return parts
+        return " ".join(part for part in parts if part), tuple(params)
