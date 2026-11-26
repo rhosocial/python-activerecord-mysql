@@ -485,6 +485,7 @@ print(coverage.left_coverage, coverage.right_coverage)
 | 功能 | MySQL 5.7 | MySQL 8.0+ |
 |------|-----------|------------|
 | `information_schema` | 完整支持 | 完整支持 |
+| `CHECK_CONSTRAINTS`、`TABLE_CONSTRAINTS.ENFORCED` | 不存在（CHECK 子句被解析后丢弃） | 8.0.16 起可用 |
 | `sys.schema_unused_indexes` | 支持 | 支持 |
 | 不可见列 | 不支持 | 8.0.23 起支持 |
 | 生成式隐藏主键 | 不支持 | 8.0.30 起支持 |
@@ -500,7 +501,9 @@ print(coverage.left_coverage, coverage.right_coverage)
 | `table-stats`、`index-stats`、`runtime` | 安装时启用 `performance_schema` | 探针 `True`，答案为空 |
 | 其余所有家族 | 此处未确立下限 | — |
 
-`sys` 模式门槛是本后端唯一的版本门。`unused-indexes` 读取 `sys.schema_unused_indexes`，5.7 之前语句能渲染但服务器回答 `1146`，"table does not exist"——这个缺口就是这样被发现的：CLI 是第一个在 5.6 上到达该家族的调用者，它在执行期失败而不是在能力问题上失败。因此 `supports_unused_indexes_detection()` 返回 `version_at_least((5, 7, 0))` 而不是 `True`，门槛以下 CLI 不碰内省器就拒绝这次运行。未适配的方言同样回答 `False`，因为没人确认过的版本不是被声称的能力。
+`sys` 模式门槛不是本后端唯一的版本门：内省目录本身也按版本门控。`impl/mysql/catalogue.py` 的 `CAPABILITY_MATRIX` 记录了每个实测版本上本后端可以命名的 `information_schema` 关系与列，所有语句都按它构建。MySQL 8.0.16 之前没有 `information_schema.CHECK_CONSTRAINTS`，`TABLE_CONSTRAINTS` 也没有 `ENFORCED` 列，所以 `list_constraint_states()` 在这些服务器上不命名这两者：它仍然回答能读到的主键、唯一键与外键约束，只是没有 CHECK 条目——服务器没有保留 CHECK 对象，CHECK 子句被解析后丢弃。尚未确认版本（未执行 `introspect_and_adapt()`）时按最老的一档回答，绝不命名无法证明存在的目录对象。
+
+`unused-indexes` 读取 `sys.schema_unused_indexes`，5.7 之前语句能渲染但服务器回答 `1146`，"table does not exist"——这个缺口就是这样被发现的：CLI 是第一个在 5.6 上到达该家族的调用者，它在执行期失败而不是在能力问题上失败。因此 `supports_unused_indexes_detection()` 返回 `version_at_least((5, 7, 0))` 而不是 `True`，门槛以下 CLI 不碰内省器就拒绝这次运行。未适配的方言同样回答 `False`，因为没人确认过的版本不是被声称的能力。
 
 performance schema 是安装期选项，不是版本下限。`table-stats`、`index-stats` 与 `runtime` 读取它的关系，而收集器是在服务器安装时启用的（`performance_schema=ON`）。三个探针无条件回答 `True`，因为方言看不到服务器的启动选项，而能力确实存在——数据源是一项设置。在收集器关闭的服务器上这些家族返回空，而那个空答案不是对空闲的测量；实机测试在那类服务器上跳过这些家族，而不是把空答案当作缺陷。
 
@@ -571,7 +574,7 @@ for col_name in column_names:
 | `get_partition_state(table_name)` | 单表的分区方案与边界 | `table_name`, `schema`, `include_stats` |
 | `get_table_state(table_name)` | 类型、存储选项、注释与分区 | `table_name`, `schema` |
 | `list_index_states(table_name)` | 索引的中立可用性/可见性形状 | `table_name`, `schema` |
-| `list_constraint_states(table_name)` | 约束的中立校验形状 | `table_name`, `schema` |
+| `list_constraint_states(table_name)` | 约束的中立校验形状（8.0.16 以下没有 CHECK 条目） | `table_name`, `schema` |
 | `list_derived_objects(table_name)` | 主键/唯一键隐式创建的支撑索引 | `table_name`, `schema` |
 | `list_schemas()` | 数据库名（MySQL 唯一的命名空间层级） | 无 |
 | `item_exists(kind, name)` | 模式、表或存储函数是否存在 | `kind`, `name`, `schema` |

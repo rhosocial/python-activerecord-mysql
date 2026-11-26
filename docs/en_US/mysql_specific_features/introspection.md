@@ -486,6 +486,7 @@ Introspection behavior differences across MySQL versions:
 | Feature | MySQL 5.7 | MySQL 8.0+ |
 |---------|-----------|------------|
 | `information_schema` | Full support | Full support |
+| `CHECK_CONSTRAINTS`, `TABLE_CONSTRAINTS.ENFORCED` | Absent (CHECK clauses parse and are discarded) | Available from 8.0.16 |
 | `sys.schema_unused_indexes` | Supported | Supported |
 | Invisible columns | Not supported | Supported from 8.0.23 |
 | Generated invisible primary key | Not supported | Supported from 8.0.30 |
@@ -501,7 +502,9 @@ Two limits decide whether an operational or data family can answer at all, and n
 | `table-stats`, `index-stats`, `runtime` | `performance_schema` enabled at install | probe `True`, empty answer |
 | every other family | none established here | — |
 
-The `sys` schema floor is the only version gate in this backend. `unused-indexes` reads `sys.schema_unused_indexes`, and before 5.7 the statement renders but the server answers `1146`, "table does not exist" — which is how the gap was found: the CLI was the first caller to reach the family on 5.6 and failed at execution rather than at the capability question. `supports_unused_indexes_detection()` therefore returns `version_at_least((5, 7, 0))` rather than `True`, and below it the CLI refuses the run without reaching the introspector. An unadapted dialect answers `False` too, because a version nobody confirmed is not a capability claimed.
+The `sys` schema floor is not the only version gate: the introspection catalogue itself is gated by version. `CAPABILITY_MATRIX` in `impl/mysql/catalogue.py` records which `information_schema` relations and columns this backend may name on each measured release, and every statement is built from it. Below MySQL 8.0.16 there is no `information_schema.CHECK_CONSTRAINTS` and no `TABLE_CONSTRAINTS.ENFORCED`, so `list_constraint_states()` names neither: it still answers the primary-key, unique and foreign-key constraints it can read, and simply has no CHECK entries — the server keeps no CHECK object to report, because the clause is parsed and discarded. A version nobody has resolved answers the oldest surface, so an unadapted dialect never names a catalogue object it cannot prove exists.
+
+`unused-indexes` reads `sys.schema_unused_indexes`, and before 5.7 the statement renders but the server answers `1146`, "table does not exist" — which is how that gap was found: the CLI was the first caller to reach the family on 5.6 and failed at execution rather than at the capability question. `supports_unused_indexes_detection()` therefore returns `version_at_least((5, 7, 0))` rather than `True`, and below it the CLI refuses the run without reaching the introspector. An unadapted dialect answers `False` too, because a version nobody confirmed is not a capability claimed.
 
 The performance schema is an install-time option, not a version floor. `table-stats`, `index-stats` and `runtime` read its relations, and the collector is enabled when the server is installed (`performance_schema=ON`). The three probes answer `True` unconditionally because a dialect cannot see the server's startup options, and the capability does exist — the data source is a setting. On a server where the collector is off the families return nothing, and that empty answer is not a measurement of idleness; the live tests skip those families there rather than treat the empty answer as a defect.
 
@@ -572,7 +575,7 @@ for col_name in column_names:
 | `get_partition_state(table_name)` | One table's partition scheme and bounds | `table_name`, `schema`, `include_stats` |
 | `get_table_state(table_name)` | Kind, storage options, comment and partitioning | `table_name`, `schema` |
 | `list_index_states(table_name)` | Indexes with the neutral usability/visibility shape | `table_name`, `schema` |
-| `list_constraint_states(table_name)` | Constraints with the neutral validation shape | `table_name`, `schema` |
+| `list_constraint_states(table_name)` | Constraints with the neutral validation shape (no CHECK entries below 8.0.16) | `table_name`, `schema` |
 | `list_derived_objects(table_name)` | Backing indexes created for primary/unique keys | `table_name`, `schema` |
 | `list_schemas()` | Database names (MySQL's only namespace level) | None |
 | `item_exists(kind, name)` | Whether a schema, table or stored function exists | `kind`, `name`, `schema` |

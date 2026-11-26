@@ -1083,6 +1083,17 @@ class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
         ``FOREIGN KEY`` to ``foreign_key`` and ``CHECK`` to ``check``. An
         absent ``ENFORCED`` answer is the engine default (enforced); no
         constraint can be deferred or disabled here.
+
+        **Below 8.0.16 there are no CHECK entries, and none are missing.** That
+        release line has no ``information_schema.CHECK_CONSTRAINTS`` and no
+        ``TABLE_CONSTRAINTS.ENFORCED``: a CHECK clause is parsed and discarded
+        rather than stored, so the server holds no CHECK constraint to report.
+        The statement is built from :data:`..catalogue.CAPABILITY_MATRIX`, which
+        omits both objects on those releases, so the method answers the
+        primary-key, unique and foreign-key constraints it can read instead of
+        naming a relation the server would refuse. The returned list is
+        narrower, not empty, and ``validated``/``enforced`` carry the engine
+        default because the server reported nothing to the contrary.
         """
         target = schema if schema is not None else self.default_schema
         kind_map = {
@@ -1237,9 +1248,15 @@ class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
     ) -> List[MySQLConstraintInfo]:
         """List table constraints, for one table or for the whole database.
 
-        The family follows the server's capability: CHECK constraints exist
-        from MySQL 8.0.16, and below that floor the CLI refuses the family
-        before this method runs.
+        The family follows the recorded catalogue surface: CHECK constraints
+        exist from MySQL 8.0.16, and below that floor the statement this method
+        renders does not name ``CHECK_CONSTRAINTS`` or
+        ``TABLE_CONSTRAINTS.ENFORCED``. Those releases answer the constraints
+        they keep -- primary key, unique and foreign key -- with ``expression``
+        and ``enforced`` left ``None`` rather than fabricated. The CLI still
+        refuses the family below 8.0.16 because its question is the CHECK-bearing
+        listing; the neutral state method does not, because it has an answerable
+        subset. See :data:`..catalogue.CAPABILITY_MATRIX`.
         """
         key = self._cache.key(
             IntrospectionScope.TABLE,
@@ -1468,7 +1485,12 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
     async def list_constraint_states(
         self, table_name: str, schema: Optional[str] = None
     ) -> List[ConstraintState]:
-        """Read every constraint on the table asynchronously."""
+        """Read every constraint on the table asynchronously.
+
+        Below MySQL 8.0.16 this answers the primary-key, unique and foreign-key
+        constraints and has no CHECK entries, exactly as the synchronous twin
+        does; see :meth:`MySQLIntrospector.list_constraint_states` for why.
+        """
         target = schema if schema is not None else self.default_schema
         kind_map = {
             "PRIMARY KEY": "primary_key",

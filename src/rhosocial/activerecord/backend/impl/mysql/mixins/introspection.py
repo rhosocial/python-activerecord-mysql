@@ -3,6 +3,8 @@ from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.introspection.types import ProfileSource
 
+from ..catalogue import capabilities_for_version
+
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.introspection.types import IntrospectionScope
     from rhosocial.activerecord.backend.expression.introspection import (
@@ -100,16 +102,22 @@ ROUTINE_COLUMNS = (
     "SQL_MODE",
 )
 
-#: The constraint projection. ``CHECK_CLAUSE`` and the column pair are the two
-#: side relations' facts; both are nullable because a constraint has rows in
-#: only one of them.
+#: The constraint projection's declaration half. ``CHECK_CLAUSE`` and the column
+#: pair are the two side relations' facts; both are nullable because a
+#: constraint has rows in only one of them.
 CONSTRAINT_COLUMNS = (
     "CONSTRAINT_SCHEMA",
     "TABLE_NAME",
     "CONSTRAINT_NAME",
     "CONSTRAINT_TYPE",
-    "ENFORCED",
 )
+
+#: The enforcement column. It is declared separately because it is the one
+#: constraint column that is version-dependent: ``TABLE_CONSTRAINTS.ENFORCED``
+#: arrived with CHECK enforcement in 8.0.16, and naming it below that floor is
+#: refused by the server. :data:`..catalogue.CAPABILITY_MATRIX` decides whether
+#: a projection may include it.
+CONSTRAINT_ENFORCEMENT_COLUMN = "ENFORCED"
 
 
 class MySQLIntrospectionMixin:
@@ -855,14 +863,22 @@ class MySQLIntrospectionMixin:
 
     # -- constraints ------------------------------------------------------ #
 
-    def _constraint_join(self):
-        """The three-relation constraint source, joined with LEFT JOINs.
+    def _constraint_join(self, capabilities):
+        """The constraint source, joined with LEFT JOINs.
 
         A constraint has rows in exactly one side relation: CHECK constraints
         in ``CHECK_CONSTRAINTS``, the column-bearing kinds in
         ``KEY_COLUMN_USAGE``. An inner join would therefore drop half the
         family; LEFT JOINs let one row stream carry both shapes, and the
         parser reads a NULL side as "not that kind".
+
+        ``CHECK_CONSTRAINTS`` is version-dependent: it does not exist below
+        8.0.16, where CHECK clauses parse and are discarded, so there is no
+        relation to join. The join is built from *capabilities* and omits that
+        side on those releases. The remaining side, ``KEY_COLUMN_USAGE``, still
+        answers primary-key, unique and foreign-key constraints -- the answer is
+        narrower, not empty, and the missing CHECK entries are objects the
+        server never kept.
         """
         from rhosocial.activerecord.backend.expression import (
             Column,
@@ -878,42 +894,47 @@ class MySQLIntrospectionMixin:
             Table(self, "TABLE_CONSTRAINTS", catalog_name="information_schema"),
             alias="tc",
         )
-        checks = NamedRelationRef(
-            self,
-            Table(self, "CHECK_CONSTRAINTS", catalog_name="information_schema"),
-            alias="cc",
-        )
+        if capabilities.has_relation("CHECK_CONSTRAINTS"):
+            checks = NamedRelationRef(
+                self,
+                Table(self, "CHECK_CONSTRAINTS", catalog_name="information_schema"),
+                alias="cc",
+            )
+        else:
+            checks = None
         usage = NamedRelationRef(
             self,
             Table(self, "KEY_COLUMN_USAGE", catalog_name="information_schema"),
             alias="kcu",
         )
 
-        constraints_checks = JoinClause(
-            self,
-            left_table=constraints,
-            right_table=checks,
-            join_type="LEFT JOIN",
-            condition=LogicalPredicate(
+        left = constraints
+        if checks is not None:
+            left = JoinClause(
                 self,
-                "AND",
-                ComparisonPredicate(
+                left_table=constraints,
+                right_table=checks,
+                join_type="LEFT JOIN",
+                condition=LogicalPredicate(
                     self,
-                    "eq",
-                    Column(self, "CONSTRAINT_SCHEMA", table="tc"),
-                    Column(self, "CONSTRAINT_SCHEMA", table="cc"),
+                    "AND",
+                    ComparisonPredicate(
+                        self,
+                        "eq",
+                        Column(self, "CONSTRAINT_SCHEMA", table="tc"),
+                        Column(self, "CONSTRAINT_SCHEMA", table="cc"),
+                    ),
+                    ComparisonPredicate(
+                        self,
+                        "eq",
+                        Column(self, "CONSTRAINT_NAME", table="tc"),
+                        Column(self, "CONSTRAINT_NAME", table="cc"),
+                    ),
                 ),
-                ComparisonPredicate(
-                    self,
-                    "eq",
-                    Column(self, "CONSTRAINT_NAME", table="tc"),
-                    Column(self, "CONSTRAINT_NAME", table="cc"),
-                ),
-            ),
-        )
+            )
         return JoinClause(
             self,
-            left_table=constraints_checks,
+            left_table=left,
             right_table=usage,
             join_type="LEFT JOIN",
             condition=LogicalPredicate(
@@ -949,7 +970,18 @@ class MySQLIntrospectionMixin:
     def format_constraint_list_query_statement(
         self, expr: "MySQLConstraintListQueryStatement"
     ) -> Tuple[str, tuple]:
-        """Format the constraint listing for one database or one table."""
+        """Format the constraint listing for one database or one table.
+
+        The projection follows the recorded surface in
+        :data:`..catalogue.CAPABILITY_MATRIX`, one column at a time: the
+        declaration half is always read, ``ENFORCED`` joins it from 8.0.16 on,
+        and ``CHECK_CLAUSE`` is read only where ``CHECK_CONSTRAINTS`` exists.
+        A release below that floor is therefore asked an answerable question --
+        the primary-key, unique and foreign-key constraints it does keep --
+        instead of one the server refuses outright. The parser reads the absent
+        slots as ``None``, which the state method reports as the engine default
+        rather than as a measured value.
+        """
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
@@ -959,6 +991,19 @@ class MySQLIntrospectionMixin:
         params = expr.get_params()
         schema = params.get("schema") or ""
         table_name = params.get("table_name")
+
+        capabilities = capabilities_for_version(self.version_or_none)
+        projection = [Column(self, name_, table="tc") for name_ in CONSTRAINT_COLUMNS]
+        if CONSTRAINT_ENFORCEMENT_COLUMN in capabilities.columns_of("TABLE_CONSTRAINTS"):
+            projection.append(Column(self, CONSTRAINT_ENFORCEMENT_COLUMN, table="tc"))
+        if capabilities.has_relation("CHECK_CONSTRAINTS"):
+            projection.append(Column(self, "CHECK_CLAUSE", table="cc"))
+        projection.extend(
+            [
+                Column(self, "COLUMN_NAME", table="kcu"),
+                Column(self, "ORDINAL_POSITION", table="kcu"),
+            ]
+        )
 
         conditions = [
             ComparisonPredicate(
@@ -976,21 +1021,14 @@ class MySQLIntrospectionMixin:
 
         return self._information_schema_query(
             "TABLE_CONSTRAINTS",
-            [
-                Column(self, name_, table="tc") for name_ in CONSTRAINT_COLUMNS
-            ]
-            + [
-                Column(self, "CHECK_CLAUSE", table="cc"),
-                Column(self, "COLUMN_NAME", table="kcu"),
-                Column(self, "ORDINAL_POSITION", table="kcu"),
-            ],
+            projection,
             conditions,
             [
                 Column(self, "TABLE_NAME", table="tc"),
                 Column(self, "CONSTRAINT_NAME", table="tc"),
                 Column(self, "ORDINAL_POSITION", table="kcu"),
             ],
-            source=self._constraint_join(),
+            source=self._constraint_join(capabilities),
         )
 
     def supports_unused_indexes_detection(self) -> bool:
