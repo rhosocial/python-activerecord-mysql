@@ -3,63 +3,17 @@
 MySQL backend SQL dialect implementation.
 
 This dialect implements protocols for features that MySQL actually supports,
-based on the MySQL version provided at initialization.
+based on the MySQL version provided at initialization. Each ``*Support``
+protocol is satisfied structurally -- by exposing the methods it declares --
+rather than by inheriting it: a ``runtime_checkable`` protocol already answers
+``isinstance`` for a structural match, so inheriting one would only add
+ellipsis stubs to the MRO.
 """
 
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from rhosocial.activerecord.backend.dialect.base import SQLDialectBase
-from rhosocial.activerecord.backend.suggestion.protocols import (
-    ColumnReorderSuggestionSupport,
-    ColumnTypeSuggestionSupport,
-    CreateTableLayoutSuggestionSupport,
-    DataTypeSuggestionSupport,
-    JSONSuggestionSupport,
-    PartitionSchemeChangeSuggestionSupport,
-    StorageEngineSuggestionSupport,
-    StringConcatenationSuggestionSupport,
-    TableConstraintChangeSuggestionSupport,
-    TableIndexChangeSuggestionSupport,
-    TextEncodingSuggestionSupport,
-)
 from rhosocial.activerecord.backend.expression.objects import Table
-from rhosocial.activerecord.backend.dialect.protocols import (
-    CollationSupport,
-    CTESupport,
-    FilterClauseSupport,
-    WindowFunctionSupport,
-    ReturningSupport,
-    AdvancedGroupingSupport,
-    ArraySupport,
-    ExplainSupport,
-    GraphSupport,
-    MergeSupport,
-    OrderedSetAggregationSupport,
-    QualifyClauseSupport,
-    TemporalTableSupport,
-    UpsertSupport,
-    LateralJoinSupport,
-    WildcardSupport,
-    JoinSupport,
-    ViewObjectSupport,
-    NamespaceSupport,
-    SequenceObjectSupport,
-    ConstraintSupport,
-    ColumnAttributeSupport,
-    AlterTableModifierSupport,
-    IntrospectionSupport,
-    TruncateSupport,
-    TransactionControlSupport,
-    TransactionalDDLSupport,
-    DataTypeSupport,
-    TypeObjectSupport,
-    CreateTypeSupport,
-    AlterTypeSupport,
-    DropTypeSupport,
-    CreateDomainSupport,
-    AlterDomainSupport,
-    DropDomainSupport,
-)
 from rhosocial.activerecord.backend.dialect.mixins import (
     # Named objects: each *NameMixin inherits NamespaceMixin, so they precede it.
     RelationSourceMixin,
@@ -118,29 +72,6 @@ from rhosocial.activerecord.backend.dialect.mixins import (
     DomainMixin,
     TransactionControlMixin,
     SetOperationMixin,
-)
-from .protocols import (
-    MySQLTriggerSupport,
-    MySQLTableSupport,
-    MySQLSetTypeSupport,
-    MySQLTypeSupport,
-    MySQLJSONFunctionSupport,
-    MySQLSpatialSupport,
-    MySQLVectorSupport,
-    MySQLDMLOperationSupport,
-    MySQLFullTextSearchSupport,
-    MySQLLockingSupport,
-    MySQLModifyColumnSupport,
-    MySQLJsonDualityViewSupport,
-    MySQLOptimizerHintSupport,
-    MySQLPartitionSupport,
-    MySQLRenameTableSupport,
-    MySQLTableStatementSupport,
-    MySQLAlterTableModifierSupport,
-    MySQLMaintenanceSupport,
-    MySQLRoutineSupport,
-    MySQLLoadXMLSupport,
-    MySQLAdminCommandSupport,
 )
 from .suggestion import (
     MySQLColumnReorderSuggestionMixin,
@@ -418,83 +349,10 @@ class MySQLDialect(
     ColumnAttributeMixin,
     TransactionControlMixin,
     SetOperationMixin,
-    # Protocols for type checking
-    CollationSupport,
-    CTESupport,
-    FilterClauseSupport,
-    WindowFunctionSupport,
-    MySQLJSONFunctionSupport,
-    ReturningSupport,
-    AdvancedGroupingSupport,
-    ArraySupport,
-    ExplainSupport,
-    GraphSupport,
-    MySQLLockingSupport,
-    MergeSupport,
-    OrderedSetAggregationSupport,
-    QualifyClauseSupport,
-    TemporalTableSupport,
-    UpsertSupport,
-    LateralJoinSupport,
-    WildcardSupport,
-    JoinSupport,
-    ViewObjectSupport,
-    SequenceObjectSupport,
-    MySQLTableSupport,
-    ConstraintSupport,
-    IntrospectionSupport,
-    TruncateSupport,
-    TransactionControlSupport,
-    TransactionalDDLSupport,
-    MySQLTriggerSupport,
-    MySQLSetTypeSupport,
-    MySQLTypeSupport,
-    MySQLSpatialSupport,
-    MySQLVectorSupport,
-    MySQLFullTextSearchSupport,
-    MySQLModifyColumnSupport,
-    MySQLJsonDualityViewSupport,
-    MySQLOptimizerHintSupport,
-    MySQLPartitionSupport,
-    MySQLDMLOperationSupport,
-    MySQLRenameTableSupport,
-    MySQLTableStatementSupport,
-    MySQLAlterTableModifierSupport,
-    MySQLMaintenanceSupport,
-    MySQLRoutineSupport,
-    MySQLLoadXMLSupport,
-    MySQLAdminCommandSupport,
-    DataTypeSupport,
-    ColumnAttributeSupport,
-    # The capability probes must come from the core mixin, not the protocol's
+    # The capability probes must come from the core mixin, not a protocol's
     # stub methods: without it supports_add_column_if_not_exists() and its
     # siblings resolve to None, which the suite rejects as a non-boolean.
     AlterTableModifierMixin,
-    AlterTableModifierSupport,
-    # Suggestion protocols (relocated to backend.suggestion.protocols)
-    CreateTableLayoutSuggestionSupport,
-    StorageEngineSuggestionSupport,
-    TextEncodingSuggestionSupport,
-    DataTypeSuggestionSupport,
-    JSONSuggestionSupport,
-    StringConcatenationSuggestionSupport,
-    ColumnTypeSuggestionSupport,
-    # The four migration decision points: the mixins above answer these
-    # minimal protocols, so a consumer can gate on isinstance(dialect, ...).
-    ColumnReorderSuggestionSupport,
-    TableConstraintChangeSuggestionSupport,
-    TableIndexChangeSuggestionSupport,
-    PartitionSchemeChangeSuggestionSupport,
-    TypeObjectSupport,
-    CreateTypeSupport,
-    AlterTypeSupport,
-    DropTypeSupport,
-    CreateDomainSupport,
-    AlterDomainSupport,
-    DropDomainSupport,
-    # The naming protocol every object protocol above derives from, so it has
-    # to come last: C3 requires a base to follow each of its subclasses.
-    NamespaceSupport,
 ):
     """
     MySQL dialect implementation that adapts to the MySQL version.

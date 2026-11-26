@@ -13,6 +13,13 @@ dress up as a switch: a method that demands a name fails the argument half, and
 a method that returns a mapping fails the annotation half. The check is done
 with :mod:`ast` on the real tree, not by importing, so a module that cannot be
 imported still gets checked.
+
+A third half guards the same vocabulary from the other side: a ``*Dialect``
+class must not inherit a ``*Support`` protocol. Those protocols are
+``runtime_checkable``, so structural satisfaction already makes ``isinstance``
+answer True; inheriting one adds nothing but ellipsis stub members, and those
+stubs can hide a missing implementation or answer a probe with ``None``
+instead of a bool. The tree scan is AST-only for the same reason.
 """
 
 from __future__ import annotations
@@ -80,6 +87,92 @@ def _offenders(tree: ast.AST, label: str) -> List[str]:
 def test_the_scan_reaches_the_source_tree():
     modules = _src_modules()
     assert len(modules) > 50, f"only {len(modules)} modules found under {_src_dir()}"
+
+
+def _base_name(base: ast.expr) -> str:
+    """The last name of a base expression (``Name`` or ``pkg.Name``)."""
+    if isinstance(base, ast.Name):
+        return base.id
+    if isinstance(base, ast.Attribute):
+        return base.attr
+    return ""
+
+
+def _dialect_classes(tree: ast.AST) -> List[ast.ClassDef]:
+    """Every class in ``tree`` whose name ends with ``Dialect``."""
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Dialect")
+    ]
+
+
+def _support_bases(tree: ast.AST, label: str) -> List[str]:
+    """Every ``*Dialect`` class in ``tree`` that inherits a ``*Support`` base."""
+    found: List[str] = []
+    for node in _dialect_classes(tree):
+        for base in node.bases:
+            name = _base_name(base)
+            if name.endswith("Support"):
+                found.append(f"{label}:{base.lineno} class {node.name} inherits {name}")
+    return found
+
+
+def test_the_dialect_scan_reaches_dialect_classes():
+    """The scan must see a ``*Dialect`` class, or it proves nothing."""
+    seen = 0
+    for path in _src_modules():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        seen += len(_dialect_classes(tree))
+    assert seen > 0, f"no ``*Dialect`` class found under {_src_dir()}"
+
+
+def test_no_dialect_class_inherits_a_support_protocol():
+    offenders: List[str] = []
+    for path in _src_modules():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        offenders.extend(_support_bases(tree, path.name))
+    assert not offenders, (
+        "a ``*Dialect`` class must satisfy ``*Support`` protocols structurally; "
+        "inheriting one only adds ellipsis stubs and can hide a missing "
+        "implementation:\n" + "\n".join(offenders)
+    )
+
+
+def test_the_dialect_scan_flags_a_planted_support_base(tmp_path):
+    """Self-check: the fabricated violation below must be reported."""
+    probe = tmp_path / "_fabricated_dialect.py"
+    probe.write_text(
+        "class ThingSupport:\n"
+        "    def supports_thing(self) -> bool:\n"
+        "        ...\n"
+        "class FabricatedDialect(ThingSupport):\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+    tree = ast.parse(probe.read_text(encoding="utf-8"))
+    offenders = _support_bases(tree, probe.name)
+    assert offenders, "the scan did not flag a *Dialect inheriting a *Support"
+    assert offenders[0].startswith(f"{probe.name}:4 class FabricatedDialect inherits ThingSupport")
+
+
+def test_the_dialect_scan_accepts_a_clean_dialect(tmp_path):
+    """Control: a mixin base is fine, and so is a non-dialect support user."""
+    probe = tmp_path / "_clean_dialect.py"
+    probe.write_text(
+        "class ThingSupport:\n"
+        "    def supports_thing(self) -> bool:\n"
+        "        ...\n"
+        "class SomeMixin:\n"
+        "    pass\n"
+        "class CleanDialect(SomeMixin):\n"
+        "    pass\n"
+        "class NotAParticipant(ThingSupport):\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+    tree = ast.parse(probe.read_text(encoding="utf-8"))
+    assert not _support_bases(tree, probe.name)
 
 
 def test_no_support_switch_requires_an_argument():

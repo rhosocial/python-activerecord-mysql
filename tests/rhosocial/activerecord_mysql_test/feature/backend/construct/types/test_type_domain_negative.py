@@ -154,10 +154,28 @@ def test_type_and_domain_protocols_are_composed(dialect: MySQLDialect) -> None:
     assert isinstance(dialect, DataTypeSupport)
 
 
-def test_type_and_domain_mixins_precede_protocols() -> None:
+def test_type_and_domain_protocols_are_structural_not_inherited() -> None:
+    """The TYPE/DOMAIN protocols are answered structurally, never as bases.
+
+    Each protocol is ``runtime_checkable``, so a structural match already makes
+    ``isinstance`` answer True; naming one as a base would only add ellipsis
+    stubs to the dialect's MRO. The generic type and domain mixins still
+    precede the one protocol that reaches the MRO through a mixin
+    (``MySQLTypeSupportMixin``'s ``DataTypeSupport``).
+    """
     mro = MySQLDialect.__mro__
-    assert mro.index(UserDefinedTypeMixin) < mro.index(CreateTypeSupport)
-    assert mro.index(DomainMixin) < mro.index(CreateDomainSupport)
+    for protocol in (
+        CreateTypeSupport,
+        AlterTypeSupport,
+        DropTypeSupport,
+        CreateDomainSupport,
+        AlterDomainSupport,
+        DropDomainSupport,
+        TypeObjectSupport,
+    ):
+        assert protocol not in mro, (
+            f"{protocol.__name__} must be satisfied structurally, not inherited"
+        )
     assert mro.index(DataTypeMixin) < mro.index(DataTypeSupport)
     assert mro.index(MySQLTypeSupportMixin) < mro.index(DataTypeSupport)
     assert issubclass(MySQLTypeSupportMixin, DataTypeMixin)

@@ -5,14 +5,9 @@ from rhosocial.activerecord.backend.suggestion.definitions import (
     CreateTableLayoutSuggestion,
     JSONAccessOperatorSuggestion,
 )
-from rhosocial.activerecord.backend.suggestion.protocols import (
-    CreateTableLayoutSuggestionSupport,
-    JSONSuggestionSupport,
-    StringConcatenationSuggestionSupport,
-)
 
 
-class MySQLCreateTableLayoutSuggestionMixin(CreateTableLayoutSuggestionSupport):
+class MySQLCreateTableLayoutSuggestionMixin:
     """MySQL inlines both indexes and table comments in ``CREATE TABLE``."""
 
     def suggest_create_table_layout(self) -> CreateTableLayoutSuggestion:
@@ -26,14 +21,14 @@ class MySQLCreateTableLayoutSuggestionMixin(CreateTableLayoutSuggestionSupport):
         )
 
 
-class MySQLJSONSuggestionMixin(JSONSuggestionSupport):
+class MySQLJSONSuggestionMixin:
     """The JSON access operator MySQL renders for ``->`` / ``->>``."""
 
     def suggest_json_access_operator(self) -> JSONAccessOperatorSuggestion:
         return JSONAccessOperatorSuggestion(operator="->")
 
 
-class MySQLStringConcatenationSuggestionMixin(StringConcatenationSuggestionSupport):
+class MySQLStringConcatenationSuggestionMixin:
     """MySQL spells string concatenation with the ``CONCAT`` function."""
 
     def suggest_concatenation_function(self) -> ConcatenationFunctionSuggestion:

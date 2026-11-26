@@ -4,13 +4,9 @@ from rhosocial.activerecord.backend.suggestion.definitions import (
     StorageEngineSuggestion,
     TextEncodingSuggestion,
 )
-from rhosocial.activerecord.backend.suggestion.protocols import (
-    StorageEngineSuggestionSupport,
-    TextEncodingSuggestionSupport,
-)
 
 
-class MySQLTextEncodingSuggestionMixin(TextEncodingSuggestionSupport):
+class MySQLTextEncodingSuggestionMixin:
     """``utf8mb4``, spelled with the collation this server version defaults to.
 
     ``utf8mb4`` is available on every version this backend supports (5.5.3 is
@@ -42,7 +38,7 @@ class MySQLTextEncodingSuggestionMixin(TextEncodingSuggestionSupport):
         )
 
 
-class MySQLStorageEngineSuggestionMixin(StorageEngineSuggestionSupport):
+class MySQLStorageEngineSuggestionMixin:
     """``InnoDB``, the engine that carries transactions and foreign keys."""
 
     def suggest_storage_engine(self) -> StorageEngineSuggestion:
