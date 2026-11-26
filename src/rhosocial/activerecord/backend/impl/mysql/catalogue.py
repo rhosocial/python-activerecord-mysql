@@ -26,7 +26,7 @@ The facts below were measured, not inferred, by reading
   ``CONSTRAINT_SCHEMA``, ``CONSTRAINT_NAME``, ``CHECK_CLAUSE``, and
   ``TABLE_CONSTRAINTS`` gains ``ENFORCED``. This is the first release that can
   answer a CHECK constraint as a declaration rather than discard it.
-* **8.4.11** -- the 8.0.16 surface for every relation and column read here
+* **8.4.13** -- the 8.0.16 surface for every relation and column read here
   (``STATISTICS`` gains ``IS_VISIBLE`` / ``EXPRESSION`` and ``COLUMNS`` gains
   ``SRS_ID``, neither of which is read here).
 

@@ -11,7 +11,7 @@ on 5.6 / 5.7.
 
 This guard reads the recorded surface in
 ``impl.mysql.catalogue.CAPABILITY_MATRIX`` -- measured on 5.6.51, 5.7.44,
-8.0.15, 8.0.16 and 8.4.11 -- and renders every introspection statement for
+8.0.15, 8.0.16 and 8.4.13 -- and renders every introspection statement for
 every recorded version. Every ``information_schema`` relation and every column
 the rendered SQL names must be one the version's entry records, so a statement
 that reaches for a newer relation or column fails here instead of on the oldest
