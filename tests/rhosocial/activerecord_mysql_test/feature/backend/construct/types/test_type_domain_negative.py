@@ -176,8 +176,8 @@ def test_type_and_domain_protocols_are_structural_not_inherited() -> None:
         assert protocol not in mro, (
             f"{protocol.__name__} must be satisfied structurally, not inherited"
         )
-    assert mro.index(DataTypeMixin) < mro.index(DataTypeSupport)
-    assert mro.index(MySQLTypeSupportMixin) < mro.index(DataTypeSupport)
+    assert DataTypeMixin in mro
+    assert DataTypeSupport not in mro
     assert issubclass(MySQLTypeSupportMixin, DataTypeMixin)
     assert issubclass(MySQLTypeSupportMixin, DataTypeSupport)
     assert not issubclass(MySQLTypeSupportMixin, UserDefinedTypeMixin)

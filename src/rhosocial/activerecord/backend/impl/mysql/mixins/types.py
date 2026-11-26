@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 from rhosocial.activerecord.backend.dialect.mixins.data_type import DataTypeMixin
-from rhosocial.activerecord.backend.dialect.protocols import DataTypeSupport
 from rhosocial.activerecord.backend.suggestion.definitions import (
     SubstituteAdviceSuggestion,
     SubstituteTypeSuggestion,
@@ -71,7 +70,7 @@ from ..expression.types import (
 )
 
 
-class MySQLTypeSupportMixin(DataTypeMixin, DataTypeSupport):
+class MySQLTypeSupportMixin(DataTypeMixin):
     """MySQL DataType formatting and parsing.
 
     Implements ``DataTypeSupport`` so the dialect can render ``DataType``
