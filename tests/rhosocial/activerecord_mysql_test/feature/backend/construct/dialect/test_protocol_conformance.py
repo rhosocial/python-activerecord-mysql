@@ -109,7 +109,9 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.JoinSupport,
     dialect_protocols.TransactionControlSupport,
     dialect_protocols.IntrospectionSupport,
-    dialect_protocols.SQLFunctionSupport,
+    # The function catalogue is a suggestion, not a switch: it answers with
+    # core's frozen FunctionSuggestion rather than a parameterless bool.
+    suggestion_protocols.FunctionSuggestionSupport,
     # --- Naming: which namespace levels a name may be qualified with ---
     # MySQL's database is the catalog and there is no inner schema, so this is
     # answered True for the catalog and False for schema qualification. It is

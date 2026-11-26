@@ -51,7 +51,6 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TruncateSupport,
     TransactionControlSupport,
     TransactionalDDLSupport,
-    SQLFunctionSupport,
     DataTypeSupport,
     TypeObjectSupport,
     CreateTypeSupport,
@@ -465,7 +464,6 @@ class MySQLDialect(
     MySQLRoutineSupport,
     MySQLLoadXMLSupport,
     MySQLAdminCommandSupport,
-    SQLFunctionSupport,
     DataTypeSupport,
     ColumnAttributeSupport,
     # The capability probes must come from the core mixin, not the protocol's

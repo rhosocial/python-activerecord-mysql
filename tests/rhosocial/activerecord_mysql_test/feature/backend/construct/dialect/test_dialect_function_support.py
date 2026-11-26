@@ -1,35 +1,41 @@
 # tests/rhosocial/activerecord_mysql_test/feature/backend/construct/dialect/test_dialect_function_support.py
-"""
-Test SQLFunctionSupport protocol implementation for MySQL dialect.
+"""Test the MySQL function catalogue suggestion and version gating.
 
-This module tests the supports_functions() method and version-dependent
-function availability detection in MySQLDialect.
+``suggest_functions()`` answers with core's frozen ``FunctionSuggestion``; the
+catalogue itself is read as ``.suggest_functions().functions``.
 """
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
+from rhosocial.activerecord.backend.suggestion.definitions import FunctionSuggestion
 
 
-class TestFunctionSupportBasic:
-    """Basic tests for MySQL function support detection."""
+class TestFunctionSuggestionBasic:
+    """Basic tests for the MySQL function catalogue."""
 
-    def test_supports_functions_returns_dict(self):
-        """Test that supports_functions returns a dictionary."""
+    def test_suggest_functions_returns_function_suggestion(self):
+        """Test that suggest_functions returns a FunctionSuggestion value."""
         dialect = MySQLDialect((8, 0, 0))
-        result = dialect.supports_functions()
+        result = dialect.suggest_functions()
+        assert isinstance(result, FunctionSuggestion)
+
+    def test_the_catalogue_is_the_functions_mapping(self):
+        """Test that the catalogue is read from the suggestion's functions."""
+        dialect = MySQLDialect((8, 0, 0))
+        result = dialect.suggest_functions().functions
         assert isinstance(result, dict)
         assert len(result) > 0
 
-    def test_supports_functions_all_values_are_bool(self):
-        """Test that all values in the returned dict are booleans."""
+    def test_suggest_functions_all_values_are_bool(self):
+        """Test that all values in the returned catalogue are booleans."""
         dialect = MySQLDialect((8, 0, 0))
-        result = dialect.supports_functions()
+        result = dialect.suggest_functions().functions
         for func_name, supported in result.items():
             assert isinstance(supported, bool), f"Value for {func_name} is not bool"
 
     def test_core_functions_always_supported(self):
         """Test that core functions are marked as supported."""
         dialect = MySQLDialect((8, 0, 0))
-        result = dialect.supports_functions()
+        result = dialect.suggest_functions().functions
         core_functions = ["count", "sum_", "avg", "min_", "max_", "coalesce", "nullif"]
         for func in core_functions:
             assert func in result, f"Core function {func} not in result"
@@ -38,7 +44,7 @@ class TestFunctionSupportBasic:
     def test_sqlxml_constructors_are_not_plain_functions(self):
         """Test that standard SQL/XML constructors are not plain functions."""
         dialect = MySQLDialect((8, 0, 0))
-        result = dialect.supports_functions()
+        result = dialect.suggest_functions().functions
         sqlxml_constructors = [
             "xmlparse",
             "xmlserialize",
@@ -58,8 +64,8 @@ class TestFunctionSupportBasic:
             assert func not in result
 
 
-class TestFunctionSupportVersionDependent:
-    """Tests for version-dependent function support."""
+class TestFunctionSuggestionVersionDependent:
+    """Tests for version-dependent function availability."""
 
     def test_json_functions_require_mysql_5_7_8(self):
         """Test that JSON functions require MySQL 5.7.8+."""
@@ -77,12 +83,12 @@ class TestFunctionSupportVersionDependent:
         ]
 
         dialect_old = MySQLDialect(version=(5, 7, 7))
-        result_old = dialect_old.supports_functions()
+        result_old = dialect_old.suggest_functions().functions
         for func in json_functions:
             assert result_old.get(func) is False
 
         dialect_new = MySQLDialect(version=(5, 7, 8))
-        result_new = dialect_new.supports_functions()
+        result_new = dialect_new.suggest_functions().functions
         for func in json_functions:
             assert result_new.get(func) is True
 
@@ -99,29 +105,29 @@ class TestFunctionSupportVersionDependent:
         ]
 
         dialect_old = MySQLDialect(version=(5, 6, 99))
-        result_old = dialect_old.supports_functions()
+        result_old = dialect_old.suggest_functions().functions
         for func in spatial_functions:
             assert result_old.get(func) is False
 
         dialect_new = MySQLDialect(version=(5, 7, 0))
-        result_new = dialect_new.supports_functions()
+        result_new = dialect_new.suggest_functions().functions
         for func in spatial_functions:
             assert result_new.get(func) is True
 
     def test_st_as_geojson_requires_mysql_5_7_5(self):
         """Test that st_as_geojson requires MySQL 5.7.5+."""
         dialect_old = MySQLDialect(version=(5, 7, 4))
-        result_old = dialect_old.supports_functions()
+        result_old = dialect_old.suggest_functions().functions
         assert result_old.get("st_as_geojson") is False
 
         dialect_new = MySQLDialect(version=(5, 7, 5))
-        result_new = dialect_new.supports_functions()
+        result_new = dialect_new.suggest_functions().functions
         assert result_new.get("st_as_geojson") is True
 
     def test_always_available_functions(self):
         """Test functions that are available in all MySQL versions."""
         dialect = MySQLDialect((8, 0, 0))
-        result = dialect.supports_functions()
+        result = dialect.suggest_functions().functions
 
         always_available = [
             "match_against",
@@ -150,13 +156,13 @@ class TestFunctionSupportVersionDependent:
     def test_bit_shift_functions_require_mysql_8_0(self):
         """Test that bit shift functions require MySQL 8.0+."""
         dialect_old = MySQLDialect(version=(7, 99, 99))
-        result_old = dialect_old.supports_functions()
+        result_old = dialect_old.suggest_functions().functions
         assert result_old.get("bit_shift_left") is False
         assert result_old.get("bit_shift_right") is False
         assert result_old.get("bit_get_bit") is False
 
         dialect_new = MySQLDialect(version=(8, 0, 0))
-        result_new = dialect_new.supports_functions()
+        result_new = dialect_new.suggest_functions().functions
         assert result_new.get("bit_shift_left") is True
         assert result_new.get("bit_shift_right") is True
         assert result_new.get("bit_get_bit") is True
@@ -185,18 +191,18 @@ class TestFunctionSupportPrivateMethod:
 
     def test_version_restricted_function_above_minimum(self):
         """Test that version-restricted function returns True above minimum."""
-        dialect = MySQLDialect(version=(8, 0, 0))
+        dialect = MySQLDialect((8, 0, 0))
         result = dialect._is_mysql_function_supported("json_extract")
         assert result is True
 
 
-class TestFunctionSupportIntegration:
-    """Integration tests for function support detection."""
+class TestFunctionSuggestionIntegration:
+    """Integration tests for function availability detection."""
 
-    def test_function_dict_contains_both_core_and_backend_functions(self):
-        """Test that the result contains both core and MySQL-specific functions."""
+    def test_function_catalogue_contains_both_core_and_backend_functions(self):
+        """Test that the catalogue contains both core and MySQL-specific functions."""
         dialect = MySQLDialect((8, 0, 0))
-        result = dialect.supports_functions()
+        result = dialect.suggest_functions().functions
 
         assert any(func in result for func in ["count", "sum_", "avg"])
         assert any(func in result for func in ["json_extract", "st_distance", "find_in_set"])
@@ -206,8 +212,8 @@ class TestFunctionSupportIntegration:
         old_dialect = MySQLDialect(version=(5, 6, 0))
         new_dialect = MySQLDialect(version=(8, 0, 0))
 
-        old_result = old_dialect.supports_functions()
-        new_result = new_dialect.supports_functions()
+        old_result = old_dialect.suggest_functions().functions
+        new_result = new_dialect.suggest_functions().functions
 
         assert old_result.get("json_extract") is False
         assert new_result.get("json_extract") is True

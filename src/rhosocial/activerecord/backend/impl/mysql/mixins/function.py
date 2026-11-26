@@ -1,7 +1,8 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/function.py
-from typing import Dict, Tuple
+from typing import Tuple
 
 from rhosocial.activerecord.backend.expression import bases
+from rhosocial.activerecord.backend.suggestion.definitions import FunctionSuggestion
 
 # MySQL function version support: function_name -> (min_version, max_version)
 # min_version: minimum supported version (inclusive), None = all versions
@@ -65,8 +66,8 @@ class MySQLFunctionMixin:
     STRING_CONCATENATION = "CONCAT"
 
 
-    def supports_functions(self) -> Dict[str, bool]:
-        """Return supported SQL functions as function_name -> bool mapping."""
+    def suggest_functions(self) -> "FunctionSuggestion":
+        """Return the SQL function catalogue this dialect renders."""
         from rhosocial.activerecord.backend.expression.functions import (
             __all__ as core_functions,
         )
@@ -97,7 +98,7 @@ class MySQLFunctionMixin:
             if func_name not in result:
                 result[func_name] = self._is_mysql_function_supported(func_name)
 
-        return result
+        return FunctionSuggestion(result)
 
     def _is_mysql_function_supported(self, func_name: str) -> bool:
         """Check if a MySQL-specific function is supported based on version.
@@ -105,7 +106,7 @@ class MySQLFunctionMixin:
         This is a capability check, so it answers before adaptation rather
         than raising: a name with no version bound is available on every
         server, and a version-bounded one is not claimed until a version is
-        known. ``supports_functions()`` reports the result as-is.
+        known. ``suggest_functions()`` reports the result as-is.
         """
         version_range = self._MYSQL_FUNCTION_VERSIONS.get(func_name)
         if version_range is None:
