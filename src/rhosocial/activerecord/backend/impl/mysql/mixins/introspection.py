@@ -123,9 +123,17 @@ CONSTRAINT_ENFORCEMENT_COLUMN = "ENFORCED"
 class MySQLIntrospectionMixin:
     """MySQL introspection capability declaration and query formatting.
 
-    This mixin implements the IntrospectionSupport protocol by:
+    This mixin implements all four introspection support protocols by:
     1. Declaring which introspection features MySQL supports (supports_* methods)
     2. Formatting SQL queries for introspection (format_*_query methods)
+
+    The four families are ``StructureIntrospectionSupport`` (what the catalogue
+    declares an object to be), ``OperationalStatsIntrospectionSupport`` (how it
+    has behaved), ``DataProfileIntrospectionSupport`` (what its rows look like)
+    and ``DdlExtractionIntrospectionSupport`` (the text that recreates it).
+    This one mixin answers every family because every one reads
+    ``information_schema`` here; the split is in the protocol declarations, not
+    in the implementation.
 
     The format_*_query methods are called by Expression.to_sql() to generate
     database-specific SQL using information_schema.

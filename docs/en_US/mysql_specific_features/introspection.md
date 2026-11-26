@@ -41,16 +41,16 @@ Every question in the introspection contract has a probe on the dialect, and a p
 | `supports_column_data_profile()` | `True` | What each column of a table holds |
 | `supports_column_value_sample()` | `True` | Which values occur, and how often |
 | `supports_join_coverage()` | `True` | How much two columns' domains overlap |
-| `supports_partition_info()` | `False` | Core's partition family |
+| `supports_partition_metadata_introspection()` | `True` | Core's partition family: a table's scheme and bounds |
 | `supports_extensions()` | `False` | Installed add-on components |
 
 `supports_unused_indexes_detection()` is the only probe here whose answer depends on the server's version: `True` from MySQL 5.7.0 and `False` below, because `sys.schema_unused_indexes` is part of the `sys` schema and 5.6 has no `sys` schema. Answering `True` there would turn a definition-time question into an execution error — `1146`, "table does not exist" — so the accessor is asked rather than a bare `True`. A dialect that has not been adapted answers `False` as well, because no version has been confirmed.
 
-`supports_partition_info()` stays `False` by inheritance. MySQL answers a table's partitions through its own `supports_partition_introspection()` and `get_partition_state()`, which returns core's neutral `PartitionState`; `scheme is None` means "this table is not partitioned". The CLI's `partitions` type reads the engine's own switch.
+MySQL answers core's partition family through `supports_partition_metadata_introspection()`, which it overrides with `True`; `supports_partition_info()`, the probe that used to stand in that row, was removed from core. MySQL reads a table's partitions through its own `supports_partition_introspection()` and `get_partition_state()`, which returns core's neutral `PartitionState`; `scheme is None` means "this table is not partitioned". The CLI's `partitions` type is gated on the metadata probe.
 
 `supports_extensions()` stays `False` by inheritance, too: MySQL's installable units are plugins, and this backend declares no catalogue for them — nothing maps the extension family onto `information_schema.PLUGINS` or `SHOW PLUGINS`, so there is no answer behind a `True`.
 
-Two switches beyond core's set are this backend's own: `supports_table_options_introspection()` for the `table-options` family and `supports_partition_introspection()` for `partitions`. Both answer `True`, and each CLI type is gated on its own switch. A `True` promises only that the query renders and the server accepts it; it says nothing about the shape of the answer or its price, and the price of every family is stated where the family is described.
+One switch beyond core's set is this backend's own: `supports_table_options_introspection()` for the `table-options` family. `supports_partition_introspection()` is the backend's spelling of the partition question, beside core's `supports_partition_metadata_introspection()`, which gates the CLI's `partitions` type. Both answer `True`, and a `True` promises only that the query renders and the server accepts it; it says nothing about the shape of the answer or its price, and the price of every family is stated where the family is described.
 
 ## Basic Usage
 

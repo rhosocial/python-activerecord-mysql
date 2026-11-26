@@ -39,7 +39,13 @@ _TYPE_CAPABILITIES = {
     "routines": "supports_routine_introspection",
     "constraints": "supports_constraint_introspection",
     "table-options": "supports_table_options_introspection",
-    "partitions": "supports_partition_introspection",
+    #: The partitions family gates on core's metadata probe, not on the
+    #: backend's own ``supports_partition_introspection``: the question "can
+    #: this engine read a table's partitions" is core's partition family, and
+    #: ``supports_partition_info`` -- the probe that used to stand here -- was
+    #: removed from core. MySQL overrides the metadata probe with ``True``, so
+    #: the family is offered.
+    "partitions": "supports_partition_metadata_introspection",
     "unused-indexes": "supports_unused_indexes_detection",
     "table-stats": "supports_table_stats",
     "runtime": "supports_runtime_stats",

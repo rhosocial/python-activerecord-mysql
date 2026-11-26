@@ -108,7 +108,14 @@ MYSQL_PROTOCOLS = [
     dialect_protocols.LateralJoinSupport,
     dialect_protocols.JoinSupport,
     dialect_protocols.TransactionControlSupport,
-    dialect_protocols.IntrospectionSupport,
+    # Introspection is four families. MySQL answers every one of them, so each
+    # family's protocol belongs here rather than being folded into one entry:
+    # a family that is absent would be a separate statement, and MySQL makes
+    # none of them here.
+    dialect_protocols.StructureIntrospectionSupport,
+    dialect_protocols.OperationalStatsIntrospectionSupport,
+    dialect_protocols.DataProfileIntrospectionSupport,
+    dialect_protocols.DdlExtractionIntrospectionSupport,
     # The function catalogue is a suggestion, not a switch: it answers with
     # core's frozen FunctionSuggestion rather than a parameterless bool.
     suggestion_protocols.FunctionSuggestionSupport,
@@ -215,7 +222,12 @@ MYSQL_PROTOCOLS = [
     mysql_protocols.MySQLLoadXMLSupport,
     mysql_protocols.MySQLAdminCommandSupport,
     # Family protocols added by the core refactor (all satisfied by the mixins).
-    dialect_protocols.AsyncIntrospectionSupport,
+    # The async introspection twins mirror the four sync families above, member
+    # for member: the async mixins are present, so all four belong here too.
+    dialect_protocols.AsyncStructureIntrospectionSupport,
+    dialect_protocols.AsyncOperationalStatsIntrospectionSupport,
+    dialect_protocols.AsyncDataProfileIntrospectionSupport,
+    dialect_protocols.AsyncDdlExtractionIntrospectionSupport,
     dialect_protocols.DDLColumnSupport,
     dialect_protocols.DMLSupport,
     dialect_protocols.DQLSupport,
@@ -412,8 +424,12 @@ class TestProtocolNonOverlap:
             ("AlterTableSupport", "MySQLRenameTableSupport"),
             ("UpsertSupport", "MySQLDMLOperationSupport"),
             # Family protocols added by the core refactor deliberately restate
-            # members of the specialised protocols above.
-            ("IntrospectionSupport", "AsyncIntrospectionSupport"),
+            # members of the specialised protocols above. The async introspection
+            # twin shares its family's interface by design (sync/async forms).
+            ("StructureIntrospectionSupport", "AsyncStructureIntrospectionSupport"),
+            ("OperationalStatsIntrospectionSupport", "AsyncOperationalStatsIntrospectionSupport"),
+            ("DataProfileIntrospectionSupport", "AsyncDataProfileIntrospectionSupport"),
+            ("DdlExtractionIntrospectionSupport", "AsyncDdlExtractionIntrospectionSupport"),
             ("MySQLTableSupport", "DDLColumnSupport"),
             ("MySQLModifyColumnSupport", "DDLColumnSupport"),
             ("MySQLTableStatementSupport", "RelationSourceSupport"),

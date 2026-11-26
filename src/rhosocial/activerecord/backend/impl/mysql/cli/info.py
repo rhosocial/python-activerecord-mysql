@@ -40,6 +40,14 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     NamespaceSupport,
     SequenceObjectSupport,
     TemporalTableSupport,
+    # Introspection is four families, split by the question asked. Only the
+    # sync forms are listed: the async twins declare the same switches and the
+    # check calls them on one dialect, so listing both would print each number
+    # twice.
+    StructureIntrospectionSupport,
+    OperationalStatsIntrospectionSupport,
+    DataProfileIntrospectionSupport,
+    DdlExtractionIntrospectionSupport,
 )
 from rhosocial.activerecord.backend.impl.mysql.protocols import (
     MySQLTriggerSupport,
@@ -76,6 +84,15 @@ PROTOCOL_FAMILY_GROUPS: Dict[str, list] = {
         OrderedSetAggregationSupport,
     ],
     "Transaction & Locking": [LockingSupport, TemporalTableSupport],
+    # What the catalogue declares, how objects have behaved, what the rows look
+    # like, and the text that recreates them -- one group per question, so a
+    # family's switches are read together rather than mixed into other groups.
+    "Introspection": [
+        StructureIntrospectionSupport,
+        OperationalStatsIntrospectionSupport,
+        DataProfileIntrospectionSupport,
+        DdlExtractionIntrospectionSupport,
+    ],
     "Query Analysis": [ExplainSupport, GraphSupport, QualifyClauseSupport],
     "DDL - Table": [TableObjectSupport, TruncateSupport, GeneratedColumnSupport],
     "DDL - View": [ViewObjectSupport],
