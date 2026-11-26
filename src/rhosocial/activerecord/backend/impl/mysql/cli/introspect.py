@@ -39,12 +39,12 @@ _TYPE_CAPABILITIES = {
     "routines": "supports_routine_introspection",
     "constraints": "supports_constraint_introspection",
     "table-options": "supports_table_options_introspection",
-    #: The partitions family gates on core's metadata probe, not on the
-    #: backend's own ``supports_partition_introspection``: the question "can
-    #: this engine read a table's partitions" is core's partition family, and
-    #: ``supports_partition_info`` -- the probe that used to stand here -- was
-    #: removed from core. MySQL overrides the metadata probe with ``True``, so
-    #: the family is offered.
+    #: The partitions family gates on core's metadata probe: "can this engine
+    #: read a table's partitions" is core's partition question, and MySQL
+    #: overrides that probe with ``True``, so the family is offered. The
+    #: backend-local spelling that used to sit here is gone -- one engine
+    #: question, one probe -- and ``supports_partition_info``, the probe that
+    #: preceded both, was removed from core.
     "partitions": "supports_partition_metadata_introspection",
     "unused-indexes": "supports_unused_indexes_detection",
     "table-stats": "supports_table_stats",

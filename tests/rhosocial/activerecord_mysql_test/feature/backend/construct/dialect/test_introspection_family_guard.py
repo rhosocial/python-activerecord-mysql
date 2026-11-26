@@ -3,22 +3,26 @@
 
 Core split the single ``IntrospectionSupport`` protocol into four families and
 deleted ``supports_partition_info``. This backend keeps one mixin, so the split
-is a declaration change only -- but three things must stay true for it to be a
+is a declaration change only -- but four things must stay true for it to be a
 declaration change rather than a silent regression:
 
 * the deleted partition probe is not resurrected anywhere on the dialect;
+* the backend-local second spelling of the partition question stays gone: one
+  engine question is answered by one probe, core's;
 * the CLI's ``partitions`` family is gated on core's surviving metadata probe,
   which MySQL answers ``True`` (the old probe under-reported it);
 * each family is imported from its own core module, and the retired aggregate
   names are not re-introduced as aliases.
 
 These assertions read the public surfaces the rest of the suite reaches for
-(the dialect, the CLI map and the protocols package), so a later edit cannot
-quietly answer them differently.
+(the dialect, the CLI map, the protocols package and the shipped docs), so a
+later edit cannot quietly answer them differently.
 """
 
 import importlib
 import inspect
+import re
+from pathlib import Path
 
 from rhosocial.activerecord.backend.dialect import protocols as dialect_protocols
 from rhosocial.activerecord.backend.impl.mysql.cli import introspect as cli_introspect
@@ -51,6 +55,18 @@ FAMILIES = [
 #: The aggregate and probe names core removed, with no aliases left behind.
 RETIRED_NAMES = ("IntrospectionSupport", "AsyncIntrospectionSupport", "supports_partition_info")
 
+#: The one probe that answers the partition family here. Any other spelled
+#: partition probe in the docs is a second name for the same answer.
+PARTITION_PROBE = "supports_partition_metadata_introspection"
+PROBE_PATTERN = re.compile(r"supports_partition_[a-z_]+")
+
+#: The docs may quote the retired probe only while saying what became of it;
+#: a bare mention would read as a live spelling.
+RETIREMENT_WORDS = ("was removed from core", "已从核心库删除")
+
+#: ``docs/`` sits at the repository root, seven levels above this module.
+DOCS_ROOT = Path(__file__).resolve().parents[7] / "docs"
+
 
 def test_retired_partition_probe_is_absent_from_a_constructed_dialect():
     """``supports_partition_info`` no longer exists, and MySQL adds none back."""
@@ -62,10 +78,21 @@ def test_retired_partition_probe_is_absent_from_a_constructed_dialect():
         )
 
 
+def test_no_backend_local_spelling_of_the_partition_probe():
+    """One engine question, one probe: the backend-local alias stayed deleted."""
+    assert not hasattr(MySQLDialect, "supports_partition_introspection"), (
+        "MySQLDialect declares supports_partition_introspection again; it answered "
+        f"the same question as {PARTITION_PROBE!r} and was removed for that"
+    )
+    assert not hasattr(
+        MySQLDialect(), "supports_partition_introspection"
+    ), "a constructed dialect still exposes supports_partition_introspection"
+
+
 def test_partitions_family_gates_on_the_metadata_probe():
     """The CLI's partitions type resolves to core's partition-metadata probe."""
     capability = cli_introspect._TYPE_CAPABILITIES["partitions"]
-    assert capability == "supports_partition_metadata_introspection", (
+    assert capability == PARTITION_PROBE, (
         "the partitions family must be gated on the surviving metadata probe, "
         f"not {capability!r}"
     )
@@ -73,8 +100,33 @@ def test_partitions_family_gates_on_the_metadata_probe():
 
     dialect = MySQLDialect()
     assert dialect.supports_partition_metadata_introspection() is True
-    # The backend's own spelling of the same question stays true beside it.
-    assert dialect.supports_partition_introspection() is True
+
+
+def test_docs_name_no_second_partition_probe():
+    """The shipped docs name exactly one partition probe.
+
+    The alias removal is easy to undo in prose alone, where no runtime check
+    would see it; so the docs are scanned for every ``supports_partition_*``
+    name and only the surviving probe is allowed. The historical sentence that
+    says the older probe was removed may keep naming it, provided the line also
+    says what became of it.
+    """
+    assert DOCS_ROOT.is_dir(), f"docs directory not found at {DOCS_ROOT}"
+    offenders = []
+    for path in sorted(DOCS_ROOT.rglob("*.md")):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for name in PROBE_PATTERN.findall(line):
+                if name == PARTITION_PROBE:
+                    continue
+                if name == "supports_partition_info" and any(
+                    words in line for words in RETIREMENT_WORDS
+                ):
+                    continue
+                offenders.append(f"{path.relative_to(DOCS_ROOT.parent)}:{lineno}: {name}")
+    assert not offenders, (
+        "the docs name a partition probe other than "
+        f"{PARTITION_PROBE!r}:\n" + "\n".join(offenders)
+    )
 
 
 def test_families_import_from_their_own_core_modules():

@@ -76,16 +76,6 @@ class MySQLPartitionMixin:
         """MySQL supports ``SUBPARTITION BY {HASH|KEY}`` since 5.1."""
         return True
 
-    def supports_partition_introspection(self) -> bool:
-        """MySQL answers for a table's partitions from ``information_schema.PARTITIONS``.
-
-        The backend's own switch for the ``introspect partitions`` question. An
-        empty answer means the table is not partitioned, which is a different
-        statement from "this engine has no partitions". Core's
-        ``supports_partition_metadata_introspection`` -- also ``True`` -- is
-        what the CLI's ``partitions`` family is gated on."""
-        return True
-
     def supports_range_columns_partitioning(self) -> bool:
         return True
 

@@ -103,7 +103,7 @@ partition of a table is never dropped.
 The catalogue side is answered by introspection:
 
 ```python
-if dialect.supports_partition_introspection():
+if dialect.supports_partition_metadata_introspection():
     state = backend.introspector.get_partition_state("orders")
     if state.scheme is None:
         print("not partitioned")
@@ -114,10 +114,9 @@ if dialect.supports_partition_introspection():
 `get_partition_state()` returns core's neutral `PartitionState`: `scheme is
 None` means the table is not partitioned, `upper` carries
 `PARTITION_DESCRIPTION`, `MAXVALUE` sets `is_maxvalue`, and per-partition
-`row_count` / `size_bytes` are filled only when `include_stats=True`.  Core's
-partition-info probe stays `False` because MySQL answers through its own
-switch; see [Database Introspection](introspection.md) for the full probe
-table.
+`row_count` / `size_bytes` are filled only when `include_stats=True`.  The
+probe above is core's, and it is the only one for the partition family here;
+see [Database Introspection](introspection.md) for the full probe table.
 
 ## Subpartitioning
 

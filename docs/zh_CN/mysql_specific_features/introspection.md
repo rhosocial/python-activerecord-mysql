@@ -46,11 +46,11 @@ MySQL 内省系统位于 `backend.introspector` 属性中，提供：
 
 `supports_unused_indexes_detection()` 是本页唯一一个答案取决于服务器版本的探针：MySQL 5.7.0 起为 `True`，以下为 `False`，因为 `sys.schema_unused_indexes` 属于 `sys` 模式，而 5.6 没有 `sys` 模式。在那里回答 `True` 会把一个定义期的问题变成执行期错误——`1146`，"table does not exist"——所以这里问的是版本访问器，而不是裸的 `True`。尚未适配的方言同样回答 `False`，因为还没有任何版本被确认。
 
-MySQL 通过核心库的 `supports_partition_metadata_introspection()` 回答分区家族，它以 `True` 覆盖该探针；原先占据这一行的 `supports_partition_info()` 已从核心库删除。MySQL 通过它自己的 `supports_partition_introspection()` 与 `get_partition_state()` 回答一张表的分区，返回核心库的中立 `PartitionState`；`scheme is None` 表示该表未分区。CLI 的 `partitions` 类型由元数据探针把守。
+MySQL 通过核心库的 `supports_partition_metadata_introspection()` 回答分区家族，它以 `True` 覆盖该探针；原先占据这一行的 `supports_partition_info()` 已从核心库删除。MySQL 通过 `get_partition_state()` 回答一张表的分区，返回核心库的中立 `PartitionState`；`scheme is None` 表示该表未分区。CLI 的 `partitions` 类型由元数据探针把守。
 
 `supports_extensions()` 同样因继承而保持 `False`：MySQL 的可安装单元是插件，而本后端没有为它们声明任何目录——没有任何东西把扩展家族映射到 `information_schema.PLUGINS` 或 `SHOW PLUGINS`，所以 `True` 背后没有答案。
 
-超出核心库集合、属于本后端自己的只剩一个：`supports_table_options_introspection()` 把守 `table-options` 家族。`supports_partition_introspection()` 是分区问题在本后端的拼写，与核心库的 `supports_partition_metadata_introspection()` 并列，后者把守 CLI 的 `partitions` 类型。两者都回答 `True`；`True` 只承诺语句能渲染、服务器会接受，它不说明答案的形状，也不说明代价，每个家族的代价都在描述该家族的地方写明。
+超出核心库集合、属于本后端自己的只剩一个：`supports_table_options_introspection()` 把守 `table-options` 家族。分区家族属于核心库，本后端不另立第二个开关：回答它的探针只有 `supports_partition_metadata_introspection()`，CLI 的 `partitions` 类型也由它把守。`True` 只承诺语句能渲染、服务器会接受，它不说明答案的形状，也不说明代价，每个家族的代价都在描述该家族的地方写明。
 
 ## 基本用法
 

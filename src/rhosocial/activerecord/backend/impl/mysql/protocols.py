@@ -428,19 +428,6 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
     expressions and formatted by the methods declared here.
     """
 
-    def supports_partition_introspection(self) -> bool:
-        """Whether MySQL can read a table's partitions back.
-
-        The backend's own switch, beside core's
-        ``supports_partition_metadata_introspection``. An empty answer means
-        the table is not partitioned, which is a different statement from
-        "this engine has no partitions" -- hence a switch of its own. The CLI's
-        ``partitions`` family is gated on core's metadata probe, which MySQL
-        answers ``True``; this name stays as the backend's spelling of the
-        same question.
-        """
-        ...
-
     def supports_range_columns_partitioning(self) -> bool:
         """Whether RANGE COLUMNS partitioning is supported."""
         ...

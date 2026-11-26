@@ -145,7 +145,7 @@ retention = dialect.suggest_partition_retention(
 目录侧通过内省回答：
 
 ```python
-if dialect.supports_partition_introspection():
+if dialect.supports_partition_metadata_introspection():
     state = backend.introspector.get_partition_state("orders")
     if state.scheme is None:
         print("未分区")
@@ -156,8 +156,8 @@ if dialect.supports_partition_introspection():
 `get_partition_state()` 返回核心库的中立 `PartitionState`：`scheme is None`
 表示该表未分区，`upper` 携带 `PARTITION_DESCRIPTION`，`MAXVALUE` 会设置
 `is_maxvalue`，而每个分区的 `row_count` / `size_bytes` 仅在
-`include_stats=True` 时填充。核心库的分区信息探针保持 `False`，因为 MySQL
-通过自己的开关回答；完整的探针表见 [数据库内省](introspection.md)。
+`include_stats=True` 时填充。上面这个探针来自核心库，也是本后端分区家族
+唯一的探针；完整的探针表见 [数据库内省](introspection.md)。
 
 ## 子分区
 
