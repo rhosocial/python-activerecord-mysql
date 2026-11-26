@@ -16,9 +16,11 @@ from rhosocial.activerecord.backend.suggestion.protocols import (
     DataTypeSuggestionSupport,
     JSONSuggestionSupport,
     PartitionSchemeChangeSuggestionSupport,
+    StorageEngineSuggestionSupport,
     StringConcatenationSuggestionSupport,
     TableConstraintChangeSuggestionSupport,
     TableIndexChangeSuggestionSupport,
+    TextEncodingSuggestionSupport,
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.dialect.protocols import (
@@ -159,6 +161,8 @@ from .suggestion import (
     MySQLGeneratedValueSuggestionMixin,
     MySQLTableConstraintChangeSuggestionMixin,
     MySQLTableIndexChangeSuggestionMixin,
+    MySQLStorageEngineSuggestionMixin,
+    MySQLTextEncodingSuggestionMixin,
 )
 from .mixins import (
     MySQLNamespaceMixin,
@@ -232,6 +236,8 @@ class MySQLDialect(
     MySQLPartitionMergeSuggestionMixin,
     MySQLGeneratedValueSuggestionMixin,
     MySQLCreateTableLayoutSuggestionMixin,
+    MySQLStorageEngineSuggestionMixin,
+    MySQLTextEncodingSuggestionMixin,
     # The four migration change points: column reorder, constraint/index
     # change and partition-scheme change. Their answers are backend-owned
     # suggestion mixins too, so they stay ahead of every core/base mixin; the
@@ -469,6 +475,8 @@ class MySQLDialect(
     AlterTableModifierSupport,
     # Suggestion protocols (relocated to backend.suggestion.protocols)
     CreateTableLayoutSuggestionSupport,
+    StorageEngineSuggestionSupport,
+    TextEncodingSuggestionSupport,
     DataTypeSuggestionSupport,
     JSONSuggestionSupport,
     StringConcatenationSuggestionSupport,

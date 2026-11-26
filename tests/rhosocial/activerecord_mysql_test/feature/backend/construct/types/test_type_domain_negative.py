@@ -30,7 +30,6 @@ from rhosocial.activerecord.backend.expression.statements import (
     CreateDomainStatement,
     CreateTypeStatement,
     DomainCheckConstraint,
-    DomainNullability,
     DomainValueExpression,
     DropDomainDefaultAction,
     DropDomainStatement,
@@ -183,11 +182,14 @@ def test_core_type_and_domain_formatters_own_the_mro() -> None:
 def test_schema_level_type_and_domain_support_is_false(dialect: MySQLDialect) -> None:
     for name in TYPE_SUPPORT_FLAGS + DOMAIN_SUPPORT_FLAGS:
         assert getattr(dialect, name)() is False, name
-    assert dialect.supports_type_definition(_TestTypeDefinition) is False
-    assert dialect.supports_type_alter_action(_TestTypeAlterAction) is False
-    for nullability in DomainNullability:
-        assert dialect.supports_domain_nullability(nullability) is False
-    assert dialect.supports_alter_domain_action(DropDomainDefaultAction) is False
+    # A kind-based "can you render this class" question is not a capability
+    # flag: the formatters fail on the node itself (see the two tests below),
+    # and ``supported_type_definitions()`` is empty.
+    assert not hasattr(dialect, "supports_type_definition")
+    assert not hasattr(dialect, "supports_type_alter_action")
+    assert dialect.supports_domain_nullable() is False
+    assert dialect.supports_domain_not_null() is False
+    assert not hasattr(dialect, "supports_alter_domain_action")
     assert dialect.supported_type_definitions() == ()
 
 

@@ -328,7 +328,7 @@ class TestCLIUtilityFunctions:
 
         assert _format_method_display("supports_window_function") == "window function"
         assert _format_method_display("is_cte_available") == "is cte available"
-        assert _format_method_display("supports_explain_format") == "explain format"
+        assert _format_method_display("supports_explain_format_json") == "explain format json"
 
     def test_calculate_protocol_stats(self):
         """Test _calculate_protocol_stats function."""
@@ -435,8 +435,8 @@ class TestCLICheckProtocolSupport:
         assert results["supports_window_functions"] is True
         assert "supports_window_frame_clause" in results
 
-    def test_check_protocol_support_with_params(self):
-        """Test check_protocol_support with parameterized methods."""
+    def test_check_protocol_support_with_switches(self):
+        """ExplainSupport's probes are parameterless and answer with a bool."""
         from rhosocial.activerecord.backend.impl.mysql.cli.info import check_protocol_support
         from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
         from rhosocial.activerecord.backend.dialect.protocols import ExplainSupport
@@ -444,12 +444,12 @@ class TestCLICheckProtocolSupport:
         dialect = MySQLDialect(version=(8, 0, 0))
 
         results = check_protocol_support(dialect, ExplainSupport)
-        assert "supports_explain_format" in results
-        # Should return dict with args for parameterized methods
-        if isinstance(results["supports_explain_format"], dict):
-            assert "supported" in results["supports_explain_format"]
-            assert "total" in results["supports_explain_format"]
-            assert "args" in results["supports_explain_format"]
+        assert all(isinstance(value, bool) for value in results.values())
+        assert results["supports_explain_format_text"] is True
+        assert results["supports_explain_format_json"] is True
+        assert results["supports_explain_format_xml"] is False
+        # The name-taking probe this table used to enumerate is gone.
+        assert "supports_explain_format" not in results
 
 
 class TestCLIBuildProtocolInfo:

@@ -81,8 +81,8 @@ result = User.query().explain(format=ExplainFormat.TREE).all()
 ```
 
 **重要说明：**
-- 在低版本 MySQL 上请求不支持的格式时，服务器将返回错误。
-- 使用前可通过 `backend.dialect.supports_explain_format("TREE")` 检查可用性。
+- 格式化器会拒绝当前配置版本不接受的格式（抛出 `UnsupportedFeatureError`），而不是把它发送给服务器。
+- 使用前可通过 `backend.dialect.supports_explain_format_tree()` 检查可用性。
 
 ## EXPLAIN ANALYZE（MySQL 8.0.18+）
 
@@ -184,7 +184,7 @@ if dialect.supports_explain_analyze():
     result = User.query().explain(analyze=True).all()
 
 # 检查特定格式
-if dialect.supports_explain_format("TREE"):
+if dialect.supports_explain_format_tree():
     result = User.query().explain(format=ExplainFormat.TREE).all()
 else:
     result = User.query().explain(format=ExplainFormat.TEXT).all()
@@ -238,9 +238,9 @@ result = (
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `analyze` | `bool` | `False` | 生成 `ANALYZE` 关键字（需要 8.0.18+） |
-| `format` | `Optional[ExplainFormat]` | `None` | 输出格式（`TEXT`/`JSON`/`TREE`） |
+| `format` | `Optional[ExplainFormat]` | `None` | 输出格式（`TEXT`/`JSON`/`TREE`/`TRADITIONAL`） |
 
-其他 `ExplainOptions` 字段（如 `verbose`、`buffers`、`timing`）会被接受，但 MySQL 方言不会将其写入生成的 SQL。
+其他 `ExplainOptions` 字段（`verbose`、`costs=False`、`buffers`、`timing`、`settings`、`wal`）是 MySQL 语法不接受的 PostgreSQL 选项词；请求其中任何一个时，格式化器会抛出 `UnsupportedFeatureError`，而不是静默丢弃。
 
 ### `MySQLExplainResult` 方法
 
@@ -260,14 +260,14 @@ result = (
 | 方法 | 返回值 | 说明 |
 |---|---|---|
 | `supports_explain_analyze()` | `bool` | 服务器版本 ≥ 8.0.18 时为 `True` |
-| `supports_explain_format(fmt)` | `bool` | 指定格式字符串受支持时为 `True` |
+| `supports_explain_format_text/json/tree/traditional()` | `bool` | 服务器接受该格式词时为 `True`；XML/YAML 恒为 `False` |
 | `format_explain_statement(expr)` | `str` | 构建 `EXPLAIN [ANALYZE] [FORMAT=X]` 前缀 |
 
 ## 最佳实践
 
 - **程序化分析推荐使用 JSON 格式。** `FORMAT=JSON` 提供结构化的计划树，比纯文本更易解析。
 - **`EXPLAIN ANALYZE` 仅用于开发阶段。** 该语句会真正执行查询，仅在需要实际行数和耗时数据时使用。
-- **混合版本环境中使用前检查格式支持。** 在多版本 MySQL 环境下，始终调用 `dialect.supports_explain_format()` 进行检查。
+- **混合版本环境中使用前检查格式支持。** 在多版本 MySQL 环境下，始终调用 `dialect.supports_explain_format_tree()` 进行检查。
 - **结合索引分析。** 在集成测试中使用 `result.is_full_scan` 作为快速冒烟测试，及时发现意外的全表扫描。
 
 💡 *AI 提示词：说明如何在 rhosocial-activerecord 中使用 MySQL 8.0 的 EXPLAIN ANALYZE FORMAT=JSON 诊断慢查询。*

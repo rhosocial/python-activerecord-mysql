@@ -35,35 +35,43 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
 class TestJSONFunctionProtocol:
     """Test JSON function protocol implementation."""
 
-    def test_supports_json_function_basic(self):
-        """Test basic JSON function support (5.7.8+)."""
+    def test_supports_json_type_basic(self):
+        """Test native JSON type support (5.7.8+)."""
         dialect_56 = MySQLDialect(version=(5, 6, 0))
-        assert not dialect_56.supports_json_function("JSON_EXTRACT")
+        assert not dialect_56.supports_json_type()
 
         dialect_57 = MySQLDialect(version=(5, 7, 8))
-        assert dialect_57.supports_json_function("JSON_EXTRACT")
+        assert dialect_57.supports_json_type()
 
         dialect_80 = MySQLDialect(version=(8, 0, 0))
-        assert dialect_80.supports_json_function("JSON_EXTRACT")
+        assert dialect_80.supports_json_type()
 
-    def test_supports_json_function_json_table(self):
+    def test_supports_json_path_basic(self):
+        """Test JSON path reads (5.7.0+), which predate the JSON column type."""
+        dialect_56 = MySQLDialect(version=(5, 6, 0))
+        assert not dialect_56.supports_json_path()
+
+        dialect_570 = MySQLDialect(version=(5, 7, 0))
+        assert dialect_570.supports_json_path()
+
+    def test_supports_json_table_switch(self):
         """Test JSON_TABLE support (8.0.4+)."""
         dialect_57 = MySQLDialect(version=(5, 7, 8))
-        assert not dialect_57.supports_json_function("JSON_TABLE")
+        assert not dialect_57.supports_json_table()
 
         dialect_800 = MySQLDialect(version=(8, 0, 0))
-        assert not dialect_800.supports_json_function("JSON_TABLE")
+        assert not dialect_800.supports_json_table()
 
         dialect_804 = MySQLDialect(version=(8, 0, 4))
-        assert dialect_804.supports_json_function("JSON_TABLE")
+        assert dialect_804.supports_json_table()
 
-    def test_supports_json_function_json_value(self):
-        """Test JSON_VALUE support (8.0.21+)."""
-        dialect_80 = MySQLDialect(version=(8, 0, 0))
-        assert not dialect_80.supports_json_function("JSON_VALUE")
+    def test_supports_json_merge_patch_switch(self):
+        """Test JSON_MERGE_PATCH support (8.0.3+)."""
+        dialect_802 = MySQLDialect(version=(8, 0, 2))
+        assert not dialect_802.supports_json_merge_patch()
 
-        dialect_8021 = MySQLDialect(version=(8, 0, 21))
-        assert dialect_8021.supports_json_function("JSON_VALUE")
+        dialect_803 = MySQLDialect(version=(8, 0, 3))
+        assert dialect_803.supports_json_merge_patch()
 
     def test_format_json_extract_single_path(self):
         """Test JSON_EXTRACT with single path."""
@@ -266,10 +274,10 @@ class TestAsyncJSONFunctionProtocol:
     """Test async JSON function protocol (same as sync, but verifies parity)."""
 
     @pytest.mark.asyncio
-    async def test_async_supports_json_function(self):
-        """Test async version of supports_json_function."""
+    async def test_async_supports_json_type(self):
+        """Test async version of supports_json_type."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        assert dialect.supports_json_function("JSON_EXTRACT")
+        assert dialect.supports_json_type()
 
     @pytest.mark.asyncio
     async def test_async_format_json_extract(self):

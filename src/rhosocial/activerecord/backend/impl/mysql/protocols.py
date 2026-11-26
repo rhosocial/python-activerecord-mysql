@@ -13,6 +13,10 @@ the MySQL-specific protocol - isinstance checks for the generic protocol will st
 from typing import Protocol, runtime_checkable, Tuple, Any, Sequence, FrozenSet, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.suggestion.definitions import (
+        SubstituteAdviceSuggestion,
+        SubstituteTypeSuggestion,
+    )
     from rhosocial.activerecord.backend.impl.mysql.expression.alter_table_modifiers import (
         MySQLAlterTableStatement,
     )
@@ -1090,17 +1094,6 @@ class MySQLJSONFunctionSupport(JSONSupport, Protocol):
         """Whether JSON_TABLE is supported (MySQL 8.0.4+)."""
         ...
 
-    def supports_json_function(self, function_name: str) -> bool:
-        """Whether a specific JSON function is supported.
-
-        Args:
-            function_name: Name of the JSON function (e.g. 'json_extract')
-
-        Returns:
-            True if the function is supported
-        """
-        ...
-
     def format_mysql_json_extract_expression(self, expr: Any) -> Tuple[str, tuple]:
         """Format a MySQLJSONExtractExpression node."""
         ...
@@ -1211,17 +1204,6 @@ class MySQLSpatialSupport(Protocol):
     - Basic spatial types: MySQL 5.7+ (InnoDB), all versions (MyISAM)
     - Spatial index restrictions: MySQL 5.7.5+ for correct SRID handling
     """
-
-    def supports_spatial_type(self, type_name: str) -> bool:
-        """Whether a specific spatial data type is supported.
-
-        Args:
-            type_name: Spatial type name (e.g. 'POINT', 'LINESTRING')
-
-        Returns:
-            True if the spatial type is supported
-        """
-        ...
 
     def supports_spatial_index(self) -> bool:
         """Whether SPATIAL index is supported."""
@@ -2104,20 +2086,12 @@ class MySQLCharsetCollationSupport(Protocol):
         """Character sets available on the configured server version."""
         ...
 
-    def supports_charset(self, name: object) -> bool:
-        """Whether ``name`` is a known charset (version-gated)."""
-        ...
-
     def validate_charset_name(self, name: object) -> str:
         """Return the normalized charset name or raise ``ValueError``."""
         ...
 
     def supported_collations(self, charset: Optional[str] = None) -> FrozenSet[str]:
         """Collations available on the configured server version."""
-        ...
-
-    def supports_collation_name(self, name: str) -> bool:
-        """Whether ``name`` is a known collation (version-gated)."""
         ...
 
     def validate_collation_by_name(self, name: str) -> str:
@@ -2128,8 +2102,56 @@ class MySQLCharsetCollationSupport(Protocol):
         """Storage engines available on the configured server version."""
         ...
 
-    def supports_storage_engine(self, name: object) -> bool:
-        """Whether ``name`` is a known storage engine (version-gated)."""
+    def supports_storage_engine_innodb(self) -> bool:
+        """Whether InnoDB is available on this server version."""
+        ...
+
+    def supports_storage_engine_myisam(self) -> bool:
+        """Whether MyISAM is available on this server version."""
+        ...
+
+    def supports_storage_engine_memory(self) -> bool:
+        """Whether MEMORY is available on this server version."""
+        ...
+
+    def supports_storage_engine_csv(self) -> bool:
+        """Whether CSV is available on this server version."""
+        ...
+
+    def supports_storage_engine_archive(self) -> bool:
+        """Whether ARCHIVE is available on this server version."""
+        ...
+
+    def supports_storage_engine_blackhole(self) -> bool:
+        """Whether BLACKHOLE is available on this server version."""
+        ...
+
+    def supports_storage_engine_mrg_myisam(self) -> bool:
+        """Whether MRG_MyISAM is available on this server version."""
+        ...
+
+    def supports_storage_engine_federated(self) -> bool:
+        """Whether FEDERATED is available on this server version."""
+        ...
+
+    def supports_storage_engine_ndb(self) -> bool:
+        """Whether NDB is available on this server version."""
+        ...
+
+    def supports_storage_engine_ndbcluster(self) -> bool:
+        """Whether NDBCLUSTER is available on this server version."""
+        ...
+
+    def supports_storage_engine_example(self) -> bool:
+        """Whether EXAMPLE is available on this server version."""
+        ...
+
+    def supports_storage_engine_performance_schema(self) -> bool:
+        """Whether PERFORMANCE_SCHEMA is available as a storage engine."""
+        ...
+
+    def supports_storage_engine_temporary(self) -> bool:
+        """Whether TEMPORARY is available on this server version."""
         ...
 
     def validate_storage_engine_name(self, name: object) -> str:

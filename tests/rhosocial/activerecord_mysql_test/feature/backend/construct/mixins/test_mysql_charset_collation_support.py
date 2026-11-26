@@ -58,8 +58,80 @@ def test_table_options_reject_unknown_values():
 
 
 def test_charset_version_gating():
-    assert MySQLDialect(version=(5, 5, 3)).supports_charset("utf8mb4") is True
-    assert MySQLDialect(version=(5, 5, 2)).supports_charset("utf8mb4") is False
+    legacy = MySQLDialect(version=(5, 5, 2))
+    modern = MySQLDialect(version=(5, 5, 3))
+    assert "utf8mb4" not in legacy.supported_charsets()
+    with pytest.raises(ValueError):
+        legacy.validate_charset_name("utf8mb4")
+    assert "utf8mb4" in modern.supported_charsets()
+    assert modern.validate_charset_name("utf8mb4") == "utf8mb4"
+
+
+def test_every_builtin_engine_has_a_parameterless_switch():
+    """Storage-engine support is asked one engine at a time, never by name."""
+    dialect = MySQLDialect(version=(8, 0, 0))
+    for switch in (
+        "supports_storage_engine_innodb",
+        "supports_storage_engine_myisam",
+        "supports_storage_engine_memory",
+        "supports_storage_engine_csv",
+        "supports_storage_engine_archive",
+        "supports_storage_engine_blackhole",
+        "supports_storage_engine_mrg_myisam",
+        "supports_storage_engine_federated",
+        "supports_storage_engine_ndb",
+        "supports_storage_engine_ndbcluster",
+        "supports_storage_engine_example",
+        "supports_storage_engine_performance_schema",
+        "supports_storage_engine_temporary",
+    ):
+        assert getattr(dialect, switch)() is True
+    assert getattr(dialect, "supports_storage_engine", None) is None
+
+
+def test_engine_switches_mirror_the_available_set():
+    """A switch is True exactly when its engine is in the available set."""
+    dialect = MySQLDialect(version=(8, 0, 0))
+    available = dialect.supported_storage_engines()
+    assert dialect.supports_storage_engine_innodb() is ("InnoDB" in available)
+    assert dialect.supports_storage_engine_mrg_myisam() is ("MRG_MyISAM" in available)
+
+
+def test_text_encoding_suggestion_uses_the_version_default_collation():
+    from rhosocial.activerecord.backend.suggestion.definitions import (
+        TextEncodingSuggestion,
+    )
+
+    modern = MySQLDialect(version=(8, 0, 0)).suggest_text_encoding()
+    assert isinstance(modern, TextEncodingSuggestion)
+    assert modern.charset == "utf8mb4"
+    assert modern.collation == "utf8mb4_0900_ai_ci"
+
+    legacy = MySQLDialect(version=(5, 7, 0)).suggest_text_encoding()
+    assert legacy.charset == "utf8mb4"
+    assert legacy.collation == "utf8mb4_general_ci"
+
+
+def test_storage_engine_suggestion_is_transactional_innodb():
+    from rhosocial.activerecord.backend.suggestion.definitions import (
+        StorageEngineSuggestion,
+    )
+
+    suggestion = MySQLDialect(version=(8, 0, 0)).suggest_storage_engine()
+    assert isinstance(suggestion, StorageEngineSuggestion)
+    assert suggestion.engine == "InnoDB"
+    assert suggestion.transactional is True
+
+
+def test_suggestion_protocols_are_answered():
+    from rhosocial.activerecord.backend.suggestion.protocols import (
+        StorageEngineSuggestionSupport,
+        TextEncodingSuggestionSupport,
+    )
+
+    dialect = MySQLDialect(version=(8, 0, 0))
+    assert isinstance(dialect, TextEncodingSuggestionSupport)
+    assert isinstance(dialect, StorageEngineSuggestionSupport)
 
 
 def test_auto_increment_and_row_format_rendered():

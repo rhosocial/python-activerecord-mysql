@@ -2,7 +2,7 @@
 """The operations on MySQL's own geometry column class.
 
 The ``ST_*`` façades are thin wrappers over functions/spatial.py, gated on
-supports_spatial_type(). These are render and gate assertions; the live
+supports_geometry_type(). These are render and gate assertions; the live
 round-trip is run against the configured MySQL scenario.
 """
 
@@ -39,8 +39,8 @@ def test_spatial_functions(geometry, dialect, method, name):
 
 @pytest.mark.parametrize("method", ["st_distance", "st_contains", "st_within", "st_intersects"])
 def test_spatial_functions_fail_without_the_capability(geometry, monkeypatch, method):
-    monkeypatch.setattr(geometry._dialect, "supports_spatial_type", lambda *_: False)
-    with pytest.raises(UnsupportedFeatureError, match="supports_spatial_type"):
+    monkeypatch.setattr(geometry._dialect, "supports_geometry_type", lambda: False)
+    with pytest.raises(UnsupportedFeatureError, match="supports_geometry_type"):
         getattr(geometry, method)(geometry)
 
 

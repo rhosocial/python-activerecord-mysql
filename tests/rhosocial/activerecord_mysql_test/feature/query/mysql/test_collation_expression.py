@@ -39,11 +39,18 @@ def collation_table(mysql_backend):
 
 class TestMySQLCollationSupport:
     def test_supports_known_legacy_collation(self):
-        assert MySQLDialect(version=(5, 7, 0)).supports_collation_name("utf8mb4_unicode_ci")
+        dialect = MySQLDialect(version=(5, 7, 0))
+        assert "utf8mb4_unicode_ci" in dialect.supported_collations()
+        assert dialect.validate_collation_by_name("utf8mb4_unicode_ci") == "utf8mb4_unicode_ci"
 
     def test_rejects_mysql_8_collation_on_older_version(self):
-        assert not MySQLDialect(version=(5, 7, 0)).supports_collation_name("utf8mb4_0900_ai_ci")
-        assert MySQLDialect(version=(8, 0, 0)).supports_collation_name("utf8mb4_0900_ai_ci")
+        legacy = MySQLDialect(version=(5, 7, 0))
+        modern = MySQLDialect(version=(8, 0, 0))
+        assert "utf8mb4_0900_ai_ci" not in legacy.supported_collations()
+        with pytest.raises(ValueError):
+            legacy.validate_collation_by_name("utf8mb4_0900_ai_ci")
+        assert "utf8mb4_0900_ai_ci" in modern.supported_collations()
+        assert modern.validate_collation_by_name("utf8mb4_0900_ai_ci") == "utf8mb4_0900_ai_ci"
 
     def test_validate_normalizes_case(self):
         assert (

@@ -453,13 +453,6 @@ class MySQLCharsetCollationMixin:
             or version >= _CHARSET_MIN_VERSIONS[member.value]
         )
 
-    def supports_charset(self, name: object) -> bool:
-        try:
-            self.validate_charset_name(name)
-        except (TypeError, ValueError):
-            return False
-        return True
-
     def validate_charset_name(self, name: object) -> str:
         version = self._mysql_capability_version()
         if isinstance(name, MySQLCharset):
@@ -497,13 +490,6 @@ class MySQLCharsetCollationMixin:
             names.add(name)
         return frozenset(names)
 
-    def supports_collation_name(self, name: str) -> bool:
-        try:
-            self.validate_collation_by_name(name)
-        except (TypeError, ValueError):
-            return False
-        return True
-
     def validate_collation_by_name(self, name: str) -> str:
         version = self._mysql_capability_version()
         if not isinstance(name, str):
@@ -529,12 +515,61 @@ class MySQLCharsetCollationMixin:
             or version >= _ENGINE_MIN_VERSIONS[member.value]
         )
 
-    def supports_storage_engine(self, name: object) -> bool:
-        try:
-            self.validate_storage_engine_name(name)
-        except (TypeError, ValueError):
-            return False
-        return True
+    def supports_storage_engine_innodb(self) -> bool:
+        """Whether the InnoDB engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.INNODB)
+
+    def supports_storage_engine_myisam(self) -> bool:
+        """Whether the MyISAM engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.MYISAM)
+
+    def supports_storage_engine_memory(self) -> bool:
+        """Whether the MEMORY engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.MEMORY)
+
+    def supports_storage_engine_csv(self) -> bool:
+        """Whether the CSV engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.CSV)
+
+    def supports_storage_engine_archive(self) -> bool:
+        """Whether the ARCHIVE engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.ARCHIVE)
+
+    def supports_storage_engine_blackhole(self) -> bool:
+        """Whether the BLACKHOLE engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.BLACKHOLE)
+
+    def supports_storage_engine_mrg_myisam(self) -> bool:
+        """Whether the MRG_MyISAM (MERGE) engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.MRG_MYISAM)
+
+    def supports_storage_engine_federated(self) -> bool:
+        """Whether the FEDERATED engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.FEDERATED)
+
+    def supports_storage_engine_ndb(self) -> bool:
+        """Whether the NDB engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.NDB)
+
+    def supports_storage_engine_ndbcluster(self) -> bool:
+        """Whether the NDBCLUSTER engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.NDBCLUSTER)
+
+    def supports_storage_engine_example(self) -> bool:
+        """Whether the EXAMPLE engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.EXAMPLE)
+
+    def supports_storage_engine_performance_schema(self) -> bool:
+        """Whether PERFORMANCE_SCHEMA is available as a storage engine."""
+        return self._has_storage_engine(MySQLStorageEngine.PERFORMANCE_SCHEMA)
+
+    def supports_storage_engine_temporary(self) -> bool:
+        """Whether the TEMPORARY engine is available on this server version."""
+        return self._has_storage_engine(MySQLStorageEngine.TEMPORARY)
+
+    def _has_storage_engine(self, engine: MySQLStorageEngine) -> bool:
+        """Membership in the version-gated engine set (the one gate)."""
+        return engine.value in self.supported_storage_engines()
 
     def validate_storage_engine_name(self, name: object) -> str:
         version = self._mysql_capability_version()

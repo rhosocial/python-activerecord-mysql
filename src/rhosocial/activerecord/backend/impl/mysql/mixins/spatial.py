@@ -5,15 +5,6 @@ from typing import Optional, Tuple
 class MySQLSpatialMixin:
     """MySQL spatial data type implementation."""
 
-    def supports_spatial_type(self, type_name: str) -> bool:
-        valid_types = {
-            "GEOMETRY", "POINT", "LINESTRING", "POLYGON",
-            "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
-        }
-        if type_name.upper() not in valid_types:
-            return False
-        return self.version_at_least((5, 7, 0))
-
     def supports_spatial_index(self) -> bool:
         return self.version_at_least((5, 7, 0))
 

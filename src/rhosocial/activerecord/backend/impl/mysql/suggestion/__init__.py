@@ -31,6 +31,10 @@ from .partition_table_alter_suggestion import MySQLPartitionTableAlterSuggestion
 from .partition_table_drop_suggestion import MySQLPartitionTableDropSuggestionMixin
 from .table_constraint_change_suggestion import MySQLTableConstraintChangeSuggestionMixin
 from .table_index_change_suggestion import MySQLTableIndexChangeSuggestionMixin
+from .table_options_suggestion import (
+    MySQLStorageEngineSuggestionMixin,
+    MySQLTextEncodingSuggestionMixin,
+)
 
 __all__ = [
     "MySQLPartitionSuggestionBase",
@@ -51,4 +55,6 @@ __all__ = [
     "MySQLPartitionTableDropSuggestionMixin",
     "MySQLTableConstraintChangeSuggestionMixin",
     "MySQLTableIndexChangeSuggestionMixin",
+    "MySQLStorageEngineSuggestionMixin",
+    "MySQLTextEncodingSuggestionMixin",
 ]

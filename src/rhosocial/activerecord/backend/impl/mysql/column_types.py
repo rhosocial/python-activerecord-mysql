@@ -7,7 +7,7 @@ names a subclass that carries them; a field annotated with ``Geometry`` resolves
 to it on this backend.
 
 The operations are thin façades over the function factories in
-``functions/spatial.py``. Each one is gated on ``supports_spatial_type()``: a
+``functions/spatial.py``. Each one is gated on ``supports_geometry_type()``: a
 server without spatial types fails loudly by capability name instead of
 rendering SQL the server would refuse.
 """
@@ -21,9 +21,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
 
-def _require(dialect, switch: str, *args) -> None:
+def _require(dialect, switch: str) -> None:
     answer = getattr(dialect, switch, None)
-    if answer is None or not answer(*args):
+    if answer is None or not answer():
         raise UnsupportedFeatureError(
             type(dialect).__name__,
             switch,
@@ -36,28 +36,28 @@ class MySQLGeometryColumn(GeometryColumn):
 
     def st_distance(self, other) -> "BaseExpression":
         """``ST_DISTANCE(col, other)``."""
-        _require(self._dialect, "supports_spatial_type", "GEOMETRY")
+        _require(self._dialect, "supports_geometry_type")
         from .functions.spatial import st_distance
 
         return st_distance(self._dialect, self, other)
 
     def st_contains(self, other) -> "BaseExpression":
         """``ST_CONTAINS(col, other)``."""
-        _require(self._dialect, "supports_spatial_type", "GEOMETRY")
+        _require(self._dialect, "supports_geometry_type")
         from .functions.spatial import st_contains
 
         return st_contains(self._dialect, self, other)
 
     def st_within(self, other) -> "BaseExpression":
         """``ST_WITHIN(col, other)``."""
-        _require(self._dialect, "supports_spatial_type", "GEOMETRY")
+        _require(self._dialect, "supports_geometry_type")
         from .functions.spatial import st_within
 
         return st_within(self._dialect, self, other)
 
     def st_intersects(self, other) -> "BaseExpression":
         """``ST_INTERSECTS(col, other)``."""
-        _require(self._dialect, "supports_spatial_type", "GEOMETRY")
+        _require(self._dialect, "supports_geometry_type")
         from .functions.spatial import st_intersects
 
         return st_intersects(self._dialect, self, other)

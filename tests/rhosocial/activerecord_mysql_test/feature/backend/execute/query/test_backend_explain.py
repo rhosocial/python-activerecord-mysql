@@ -257,7 +257,7 @@ class TestExplainFormat:
     def test_format_json_when_supported(self, indexed_backend):
         """EXPLAIN FORMAT=JSON returns a result (may not be MySQLExplainResult rows)."""
         dialect = indexed_backend.dialect
-        if not dialect.supports_explain_format("JSON"):
+        if not dialect.supports_explain_format_json():
             pytest.skip("MySQL version does not support FORMAT=JSON")
         from rhosocial.activerecord.backend.expression.statements import ExplainFormat
 
@@ -271,7 +271,7 @@ class TestExplainFormat:
     def test_format_tree_when_supported(self, indexed_backend):
         """EXPLAIN FORMAT=TREE (MySQL 8.0.16+)."""
         dialect = indexed_backend.dialect
-        if not dialect.supports_explain_format("TREE"):
+        if not dialect.supports_explain_format_tree():
             pytest.skip("MySQL version does not support FORMAT=TREE")
         from rhosocial.activerecord.backend.expression.statements import ExplainFormat
 

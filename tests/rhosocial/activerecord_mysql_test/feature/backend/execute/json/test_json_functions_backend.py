@@ -20,13 +20,10 @@ from rhosocial.activerecord.backend.impl.mysql.expression import MySQLJSONExtrac
 class TestJSONFunctionBackend:
     """Synchronous tests for MySQL JSON functions with real database."""
 
-    def test_supports_json_function(self, mysql_backend):
-        """Test that JSON functions are supported."""
+    def test_supports_json_type(self, mysql_backend):
+        """Test that the native JSON type is supported."""
         dialect = mysql_backend.dialect
-        if dialect.version >= (5, 7, 8):
-            assert dialect.supports_json_function("JSON_EXTRACT")
-        else:
-            assert not dialect.supports_json_function("JSON_EXTRACT")
+        assert dialect.supports_json_type() is (dialect.version >= (5, 7, 8))
 
     def test_create_table_with_json_column(self, mysql_backend, json_column_adapter):
         """Test creating table with JSON column type."""
@@ -146,13 +143,10 @@ class TestAsyncJSONFunctionBackend:
     """Asynchronous tests for MySQL JSON functions with real database."""
 
     @pytest.mark.asyncio
-    async def test_async_supports_json_function(self, async_mysql_backend):
-        """Test that JSON functions are supported (async)."""
+    async def test_async_supports_json_type(self, async_mysql_backend):
+        """Test that the native JSON type is supported (async)."""
         dialect = async_mysql_backend.dialect
-        if dialect.version >= (5, 7, 8):
-            assert dialect.supports_json_function("JSON_EXTRACT")
-        else:
-            assert not dialect.supports_json_function("JSON_EXTRACT")
+        assert dialect.supports_json_type() is (dialect.version >= (5, 7, 8))
 
     @pytest.mark.asyncio
     async def test_async_create_table_with_json_column(self, async_mysql_backend, json_column_adapter):

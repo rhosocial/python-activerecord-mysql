@@ -189,11 +189,12 @@ class TestJSONCapabilityVersions:
         assert MySQLDialect(version=(8, 0, 3)).supports_json_table() is False
         assert MySQLDialect(version=(8, 0, 4)).supports_json_table() is True
 
-    def test_supports_json_function_known_and_unknown(self):
-        assert MySQLDialect(version=(8, 0, 2)).supports_json_function("JSON_MERGE_PATCH") is False
-        assert MySQLDialect(version=(8, 0, 4)).supports_json_function("JSON_TABLE") is True
-        assert MySQLDialect(version=(5, 7, 0)).supports_json_function("CUSTOM_FN") is False
-        assert MySQLDialect(version=(5, 7, 8)).supports_json_function("CUSTOM_FN") is True
+    def test_the_json_probes_are_parameterless_switches(self):
+        """JSON function support is asked through switches, never a name."""
+        dialect = MySQLDialect(version=(5, 7, 8))
+        assert dialect.supports_json_type() is True
+        probe = getattr(dialect, "supports_json_function", None)
+        assert probe is None, "a name-taking JSON probe must not exist"
 
     def test_supports_json_arrow_operators(self):
         assert MySQLDialect(version=(5, 7, 8)).supports_json_arrow_operators() is False

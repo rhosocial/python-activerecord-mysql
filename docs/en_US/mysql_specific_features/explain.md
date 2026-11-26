@@ -81,8 +81,8 @@ result = User.query().explain(format=ExplainFormat.TREE).all()
 ```
 
 **Important Notes:**
-- Requesting an unsupported format on an older MySQL version may raise an error from the server.
-- Use `backend.dialect.supports_explain_format("TREE")` to check availability before use.
+- The formatter refuses a format the configured version does not accept (`UnsupportedFeatureError`) instead of sending it to the server.
+- Use `backend.dialect.supports_explain_format_tree()` to check availability before use.
 
 ## EXPLAIN ANALYZE (MySQL 8.0.18+)
 
@@ -184,7 +184,7 @@ if dialect.supports_explain_analyze():
     result = User.query().explain(analyze=True).all()
 
 # Check a specific format
-if dialect.supports_explain_format("TREE"):
+if dialect.supports_explain_format_tree():
     result = User.query().explain(format=ExplainFormat.TREE).all()
 else:
     result = User.query().explain(format=ExplainFormat.TEXT).all()
@@ -238,9 +238,9 @@ result = (
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `analyze` | `bool` | `False` | Emit `ANALYZE` keyword (8.0.18+) |
-| `format` | `Optional[ExplainFormat]` | `None` | Output format (`TEXT`/`JSON`/`TREE`) |
+| `format` | `Optional[ExplainFormat]` | `None` | Output format (`TEXT`/`JSON`/`TREE`/`TRADITIONAL`) |
 
-Other `ExplainOptions` fields (such as `verbose`, `buffers`, `timing`) are accepted but not emitted in the SQL by the MySQL dialect.
+Other `ExplainOptions` fields (`verbose`, `costs=False`, `buffers`, `timing`, `settings`, `wal`) are PostgreSQL option words MySQL's grammar does not parse; the formatter raises `UnsupportedFeatureError` when one is requested rather than dropping it silently.
 
 ### `MySQLExplainResult` Methods
 
@@ -260,14 +260,18 @@ Other `ExplainOptions` fields (such as `verbose`, `buffers`, `timing`) are accep
 | Method | Return | Description |
 |---|---|---|
 | `supports_explain_analyze()` | `bool` | `True` if server version ≥ 8.0.18 |
-| `supports_explain_format(fmt)` | `bool` | `True` if the given format string is supported |
+| `supports_explain_format_text()` | `bool` | `True` on every MySQL version |
+| `supports_explain_format_json()` | `bool` | `True` if server version ≥ 5.6.5 |
+| `supports_explain_format_tree()` | `bool` | `True` if server version ≥ 8.0.16 |
+| `supports_explain_format_traditional()` | `bool` | `True` if server version ≥ 8.0.16 |
+| `supports_explain_format_xml()` / `_yaml()` | `bool` | Always `False`: MySQL has no such format |
 | `format_explain_statement(expr)` | `str` | Builds `EXPLAIN [ANALYZE] [FORMAT=X]` prefix |
 
 ## Best Practices
 
 - **Use JSON format for programmatic analysis.** `FORMAT=JSON` provides a structured tree that is easier to parse than plain text.
 - **Reserve `EXPLAIN ANALYZE` for development.** The statement executes the query, so use it only when you need actual row counts and timing figures.
-- **Check format support before use.** Always call `dialect.supports_explain_format()` when targeting mixed MySQL version environments.
+- **Check format support before use.** Always call `dialect.supports_explain_format_tree()` (or the matching `supports_explain_format_*()` switch) when targeting mixed MySQL version environments.
 - **Combine with index analysis.** Use `result.is_full_scan` as a quick smoke test in integration tests to catch inadvertent full-table scans.
 
 💡 *AI Prompt: Explain how to use EXPLAIN ANALYZE with JSON format on MySQL 8.0 to diagnose slow queries in rhosocial-activerecord.*

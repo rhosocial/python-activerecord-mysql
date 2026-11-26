@@ -20,9 +20,8 @@ Every statement handed to a backend API is built with the expression system:
 ``QueryStatement`` / ``InsertStatement`` / ``CreateTableStatement`` /
 ``DropTableStatement``. No raw SQL string is ever passed to execute/fetch/explain.
 Option support is version-gated through the dialect's
-``supports_explain_analyze()`` / ``supports_explain_format()`` methods; the
-renderer itself does not refuse unsupported options, so every option test first
-asserts the corresponding capability gate.
+``supports_explain_analyze()`` / ``supports_explain_format_*()`` switches; the
+renderer refuses an option whose switch says no instead of dropping it.
 """
 
 import json
@@ -54,6 +53,7 @@ from rhosocial.activerecord.backend.expression.statements import (
     ExplainOptions,
     ExplainType,
 )
+from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.types import (
     BigIntType,
     DateTimeType,
@@ -249,20 +249,52 @@ class TestMySQLExplainConstruction:
         assert MySQLDialect(version=(9, 0, 0)).supports_explain_analyze() is True
 
     def test_format_capability_is_version_gated(self):
-        """TEXT is universal, JSON needs 5.6.5+, TREE needs 8.0.16+."""
+        """TEXT is universal, JSON needs 5.6.5+, TREE/TRADITIONAL need 8.0.16+."""
         d56 = MySQLDialect(version=(5, 6, 4))
         d565 = MySQLDialect(version=(5, 6, 5))
         d8015 = MySQLDialect(version=(8, 0, 15))
         d8016 = MySQLDialect(version=(8, 0, 16))
-        assert d56.supports_explain_format("TEXT") is True
-        assert d565.supports_explain_format("TEXT") is True
-        assert d56.supports_explain_format("JSON") is False
-        assert d565.supports_explain_format("JSON") is True
-        assert d8015.supports_explain_format("TREE") is False
-        assert d8016.supports_explain_format("TREE") is True
-        assert d8016.supports_explain_format("XML") is False
-        assert d8016.supports_explain_format("YAML") is False
-        assert d8016.supports_explain_format("DOT") is False
+        assert d56.supports_explain_format_text() is True
+        assert d565.supports_explain_format_text() is True
+        assert d56.supports_explain_format_json() is False
+        assert d565.supports_explain_format_json() is True
+        assert d8015.supports_explain_format_tree() is False
+        assert d8016.supports_explain_format_tree() is True
+        assert d8015.supports_explain_format_traditional() is False
+        assert d8016.supports_explain_format_traditional() is True
+        assert d8016.supports_explain_format_xml() is False
+        assert d8016.supports_explain_format_yaml() is False
+
+    def test_mysql_has_no_postgresql_option_words(self):
+        """VERBOSE/COSTS/BUFFERS/TIMING/SETTINGS/WAL are not MySQL grammar."""
+        dialect = MySQLDialect(version=(8, 0, 0))
+        for switch in (
+            dialect.supports_explain_verbose,
+            dialect.supports_explain_costs,
+            dialect.supports_explain_buffers,
+            dialect.supports_explain_timing,
+            dialect.supports_explain_settings,
+            dialect.supports_explain_wal,
+        ):
+            assert switch() is False
+
+    def test_unsupported_format_is_refused_at_render_time(self):
+        """A format no version of MySQL parses fails by name, not by dropping it."""
+        dialect = MySQLDialect(version=(8, 0, 16))
+        with pytest.raises(UnsupportedFeatureError, match="FORMAT=XML"):
+            _render(dialect, ExplainOptions(format=ExplainFormat.XML))
+
+    def test_unsupported_option_word_is_refused_at_render_time(self):
+        dialect = MySQLDialect(version=(8, 0, 16))
+        with pytest.raises(UnsupportedFeatureError, match="VERBOSE"):
+            _render(dialect, ExplainOptions(verbose=True))
+        with pytest.raises(UnsupportedFeatureError, match="COSTS"):
+            _render(dialect, ExplainOptions(costs=False))
+
+    def test_analyze_is_refused_below_its_version_floor(self):
+        dialect = MySQLDialect(version=(8, 0, 17))
+        with pytest.raises(UnsupportedFeatureError, match="ANALYZE"):
+            _render(dialect, ExplainOptions(analyze=True))
 
     def test_basic_explain_renders_plain_prefix(self):
         dialect = MySQLDialect(version=(8, 0, 0))
@@ -279,14 +311,14 @@ class TestMySQLExplainConstruction:
 
     def test_json_format_renders_when_supported(self):
         dialect = MySQLDialect(version=(5, 7, 0))
-        assert dialect.supports_explain_format("JSON") is True
+        assert dialect.supports_explain_format_json() is True
         sql, params = _render(dialect, ExplainOptions(format=ExplainFormat.JSON))
         assert sql == f"EXPLAIN FORMAT=JSON {_BASE_SQL}"
         assert params == ()
 
     def test_tree_format_renders_when_supported(self):
         dialect = MySQLDialect(version=(8, 0, 18))
-        assert dialect.supports_explain_format("TREE") is True
+        assert dialect.supports_explain_format_tree() is True
         sql, params = _render(dialect, ExplainOptions(format=ExplainFormat.TREE))
         assert sql == f"EXPLAIN FORMAT=TREE {_BASE_SQL}"
         assert params == ()
@@ -384,7 +416,7 @@ class TestMySQLExplainDeep:
         User, _, _ = order_fixtures
         dialect = User.backend().dialect
         _require_explain(dialect)
-        if not dialect.supports_explain_format("JSON"):
+        if not dialect.supports_explain_format_json():
             pytest.skip("server does not support EXPLAIN FORMAT=JSON")
         plan = User.query().explain(format=ExplainFormat.JSON).aggregate()
         assert plan and isinstance(plan[0], dict) and "EXPLAIN" in plan[0]
@@ -451,7 +483,7 @@ class TestAsyncMySQLExplainDeep:
         User, _, _ = async_order_fixtures
         dialect = User.backend().dialect
         _require_explain(dialect)
-        if not dialect.supports_explain_format("JSON"):
+        if not dialect.supports_explain_format_json():
             pytest.skip("server does not support EXPLAIN FORMAT=JSON")
         plan = await User.query().explain(format=ExplainFormat.JSON).aggregate()
         assert plan and isinstance(plan[0], dict) and "EXPLAIN" in plan[0]

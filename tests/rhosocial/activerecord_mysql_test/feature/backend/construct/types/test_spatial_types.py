@@ -27,39 +27,35 @@ from rhosocial.activerecord.backend.impl.mysql.expression import (
 class TestSpatialTypeProtocol:
     """Test spatial data type protocol implementation."""
 
-    def test_supports_spatial_type_point(self):
-        """Test POINT type support."""
+    def test_supports_geometry_type(self):
+        """Test POINT/geometry type support (MySQL 5.7.0+)."""
         dialect_55 = MySQLDialect(version=(5, 5, 0))
-        assert not dialect_55.supports_spatial_type("POINT")
+        assert not dialect_55.supports_point_type()
+        assert not dialect_55.supports_geometry_type()
 
         dialect_57 = MySQLDialect(version=(5, 7, 0))
-        assert dialect_57.supports_spatial_type("POINT")
+        assert dialect_57.supports_point_type()
+        assert dialect_57.supports_geometry_type()
 
         dialect_80 = MySQLDialect(version=(8, 0, 0))
-        assert dialect_80.supports_spatial_type("POINT")
+        assert dialect_80.supports_point_type()
+        assert dialect_80.supports_geometry_type()
 
-    def test_supports_spatial_type_all_types(self):
-        """Test all spatial types support."""
+    def test_spatial_type_switches_cover_the_family(self):
+        """Each spatial family has its own parameterless switch."""
         dialect = MySQLDialect(version=(8, 0, 0))
+        for switch in (
+            dialect.supports_geometry_type,
+            dialect.supports_point_type,
+            dialect.supports_curve_type,
+            dialect.supports_surface_type,
+            dialect.supports_geometry_collection_type,
+        ):
+            assert switch() is True
 
-        spatial_types = [
-            "GEOMETRY",
-            "POINT",
-            "LINESTRING",
-            "POLYGON",
-            "MULTIPOINT",
-            "MULTILINESTRING",
-            "MULTIPOLYGON",
-            "GEOMETRYCOLLECTION",
-        ]
-
-        for stype in spatial_types:
-            assert dialect.supports_spatial_type(stype), f"{stype} should be supported"
-
-    def test_supports_spatial_type_invalid(self):
-        """Test invalid spatial type."""
-        dialect = MySQLDialect(version=(8, 0, 0))
-        assert not dialect.supports_spatial_type("INVALID_TYPE")
+    def test_spatial_type_is_not_a_name_taking_probe(self):
+        """The type vocabulary is a set of switches, not an argument."""
+        assert getattr(MySQLDialect(version=(8, 0, 0)), "supports_spatial_type", None) is None
 
     def test_supports_spatial_index(self):
         """Test SPATIAL index support."""
@@ -210,10 +206,11 @@ class TestAsyncSpatialTypeProtocol:
     """Test async spatial data type protocol (same as sync, but verifies parity)."""
 
     @pytest.mark.asyncio
-    async def test_async_supports_spatial_type(self):
-        """Test async version of supports_spatial_type."""
+    async def test_async_supports_spatial_type_switches(self):
+        """Test async version of the spatial type switches."""
         dialect = MySQLDialect(version=(8, 0, 0))
-        assert dialect.supports_spatial_type("POINT")
+        assert dialect.supports_point_type()
+        assert dialect.supports_geometry_type()
 
     @pytest.mark.asyncio
     async def test_async_supports_spatial_index(self):

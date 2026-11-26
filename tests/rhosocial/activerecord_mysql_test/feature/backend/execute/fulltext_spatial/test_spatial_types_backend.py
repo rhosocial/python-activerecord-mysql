@@ -30,11 +30,10 @@ class TestSpatialTypeBackend:
         dialect = mysql_backend.dialect
 
         if dialect.version >= (5, 7, 0):
-            assert dialect.supports_spatial_type("POINT")
-            assert dialect.supports_spatial_type("GEOMETRY")
-            assert not dialect.supports_spatial_type("INVALID_TYPE")
+            assert dialect.supports_point_type()
+            assert dialect.supports_geometry_type()
         else:
-            assert not dialect.supports_spatial_type("POINT")
+            assert not dialect.supports_point_type()
 
     def test_supports_spatial_index_detection(self, mysql_backend):
         """Test that dialect correctly detects SPATIAL index support."""
@@ -183,7 +182,9 @@ class TestSpatialTypeBackend:
         dialect = mysql_backend.dialect
 
         point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
-        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
+        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(
+            dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))"
+        ).to_sql()
 
         within_sql, _ = MySQLSTWithinExpression(dialect, point_sql, polygon_sql).to_sql()
 
@@ -196,7 +197,9 @@ class TestSpatialTypeBackend:
         """Test format_mysql_st_contains_expression generates correct SQL."""
         dialect = mysql_backend.dialect
 
-        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
+        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(
+            dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))"
+        ).to_sql()
         point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
 
         contains_sql, _ = MySQLSTContainsExpression(dialect, polygon_sql, point_sql).to_sql()
@@ -244,10 +247,10 @@ class TestAsyncSpatialTypeBackend:
         dialect = async_mysql_backend.dialect
 
         if dialect.version >= (5, 7, 0):
-            assert dialect.supports_spatial_type("POINT")
-            assert dialect.supports_spatial_type("GEOMETRY")
+            assert dialect.supports_point_type()
+            assert dialect.supports_geometry_type()
         else:
-            assert not dialect.supports_spatial_type("POINT")
+            assert not dialect.supports_point_type()
 
     @pytest.mark.asyncio
     @requires_protocol(MySQLSpatialSupport)
@@ -306,7 +309,9 @@ class TestAsyncSpatialTypeBackend:
         dialect = async_mysql_backend.dialect
 
         point_sql, point_params = MySQLSTGeomFromTextExpression(dialect, "POINT(5 5)").to_sql()
-        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))").to_sql()
+        polygon_sql, polygon_params = MySQLSTGeomFromTextExpression(
+            dialect, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))"
+        ).to_sql()
 
         within_sql, _ = MySQLSTWithinExpression(dialect, point_sql, polygon_sql).to_sql()
 
