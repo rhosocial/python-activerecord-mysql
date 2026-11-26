@@ -100,6 +100,8 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
     - Default schema handling
     - The version a database record reports (``server_version``)
     - parse_* implementations
+    - The neutral object-state reductions (``table_state_kind``,
+      ``charset_from_collation``, ``parse_storage_options_state``)
 
     SQL generation is delegated to the Dialect layer via Expression.to_sql()
     which calls MySQLIntrospectionMixin.format_*_query() methods.
@@ -638,6 +640,66 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         )
 
     # ------------------------------------------------------------------ #
+    # Neutral object state — reductions
+    #
+    # The state methods are I/O-shaped and therefore exist once per twin, but
+    # the reductions they apply to what was read are pure Python and live
+    # here so the sync and async answers cannot drift apart. A helper only
+    # one twin defines is unreachable from the other; the parity test in
+    # ``construct/introspection/test_introspection_state_parity.py`` fails if
+    # one is ever put back on a concrete class.
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def table_state_kind(table_type: TableType) -> str:
+        """The neutral kind for a catalogue ``TableType``."""
+        return {
+            TableType.BASE_TABLE: "regular",
+            TableType.VIEW: "view",
+            TableType.SYSTEM_TABLE: "system_view",
+            TableType.MATERIALIZED_VIEW: "materialized_view",
+            TableType.FOREIGN_TABLE: "foreign_table",
+            TableType.PARTITIONED_TABLE: "regular",
+            TableType.TEMPORARY: "temporary",
+            TableType.EXTERNAL: "external",
+        }.get(table_type, "regular")
+
+    @staticmethod
+    def charset_from_collation(collation: Optional[str]) -> Optional[str]:
+        """The character set a collation belongs to, as MySQL names it.
+
+        MySQL spells every collation as ``<charset>_<rules>`` (``binary`` is
+        the one single-word collation, and is its own character set), so the
+        prefix is the table's character set. It is derived rather than
+        queried because ``information_schema.TABLES`` carries the collation
+        and no character-set column of its own.
+        """
+        if not collation:
+            return None
+        return collation.split("_", 1)[0] or None
+
+    def parse_storage_options_state(
+        self, options: Optional[MySQLTableOptions]
+    ) -> StorageOptionsState:
+        """Project the MySQL storage record onto the neutral shape."""
+        if options is None:
+            return StorageOptionsState()
+        return StorageOptionsState(
+            engine=options.engine,
+            charset=self.charset_from_collation(options.table_collation),
+            collation=options.table_collation,
+            compression=None,
+            tablespace=None,
+            raw={
+                "row_format": options.row_format,
+                "auto_increment": options.auto_increment,
+                "create_options": options.create_options,
+                "data_length": options.data_length,
+                "index_length": options.index_length,
+            },
+        )
+
+    # ------------------------------------------------------------------ #
     # Routines and constraints — parsing
     # ------------------------------------------------------------------ #
 
@@ -914,55 +976,6 @@ class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
         if table is None:
             raise ObjectNotFoundError("Table", table_name, schema)
         return table
-
-    @staticmethod
-    def table_state_kind(table_type: TableType) -> str:
-        """The neutral kind for a catalogue ``TableType``."""
-        return {
-            TableType.BASE_TABLE: "regular",
-            TableType.VIEW: "view",
-            TableType.SYSTEM_TABLE: "system_view",
-            TableType.MATERIALIZED_VIEW: "materialized_view",
-            TableType.FOREIGN_TABLE: "foreign_table",
-            TableType.PARTITIONED_TABLE: "regular",
-            TableType.TEMPORARY: "temporary",
-            TableType.EXTERNAL: "external",
-        }.get(table_type, "regular")
-
-    @staticmethod
-    def charset_from_collation(collation: Optional[str]) -> Optional[str]:
-        """The character set a collation belongs to, as MySQL names it.
-
-        MySQL spells every collation as ``<charset>_<rules>`` (``binary`` is
-        the one single-word collation, and is its own character set), so the
-        prefix is the table's character set. It is derived rather than
-        queried because ``information_schema.TABLES`` carries the collation
-        and no character-set column of its own.
-        """
-        if not collation:
-            return None
-        return collation.split("_", 1)[0] or None
-
-    def parse_storage_options_state(
-        self, options: Optional[MySQLTableOptions]
-    ) -> StorageOptionsState:
-        """Project the MySQL storage record onto the neutral shape."""
-        if options is None:
-            return StorageOptionsState()
-        return StorageOptionsState(
-            engine=options.engine,
-            charset=self.charset_from_collation(options.table_collation),
-            collation=options.table_collation,
-            compression=None,
-            tablespace=None,
-            raw={
-                "row_format": options.row_format,
-                "auto_increment": options.auto_increment,
-                "create_options": options.create_options,
-                "data_length": options.data_length,
-                "index_length": options.index_length,
-            },
-        )
 
     def get_table_state(
         self,
