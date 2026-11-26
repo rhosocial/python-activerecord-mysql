@@ -46,7 +46,7 @@ MySQL 内省系统位于 `backend.introspector` 属性中，提供：
 
 `supports_unused_indexes_detection()` 是本页唯一一个答案取决于服务器版本的探针：MySQL 5.7.0 起为 `True`，以下为 `False`，因为 `sys.schema_unused_indexes` 属于 `sys` 模式，而 5.6 没有 `sys` 模式。在那里回答 `True` 会把一个定义期的问题变成执行期错误——`1146`，"table does not exist"——所以这里问的是版本访问器，而不是裸的 `True`。尚未适配的方言同样回答 `False`，因为还没有任何版本被确认。
 
-`supports_partition_info()` 因继承而保持 `False`。MySQL 通过它自己的 `supports_partition_introspection()` 回答一张表的分区，其结果类型是 `MySQLPartitionInfo`，空答案表示"这张表没有分区"。核心库的分区家族在这个后端上没有可承诺的方法，所以该探针就照实说它无法承诺，而不是把它指向一个 MySQL 并未实现的家族。CLI 的 `partitions` 类型读的是引擎自己的开关。
+`supports_partition_info()` 因继承而保持 `False`。MySQL 通过它自己的 `supports_partition_introspection()` 与 `get_partition_state()` 回答一张表的分区，返回核心库的中立 `PartitionState`；`scheme is None` 表示该表未分区。CLI 的 `partitions` 类型读的是引擎自己的开关。
 
 `supports_extensions()` 同样因继承而保持 `False`：MySQL 的可安装单元是插件，而本后端没有为它们声明任何目录——没有任何东西把扩展家族映射到 `information_schema.PLUGINS` 或 `SHOW PLUGINS`，所以 `True` 背后没有答案。
 
@@ -568,7 +568,13 @@ for col_name in column_names:
 | `list_triggers(table_name)` | 列出触发器 | `table_name`, `schema` |
 | `list_table_options()` | 所有基表的存储选项 | `schema` |
 | `get_table_options(name)` | 单表的存储选项 | `name`, `schema` |
-| `list_partitions(table_name)` | 单表的分区 | `table_name`, `schema` |
+| `get_partition_state(table_name)` | 单表的分区方案与边界 | `table_name`, `schema`, `include_stats` |
+| `get_table_state(table_name)` | 类型、存储选项、注释与分区 | `table_name`, `schema` |
+| `list_index_states(table_name)` | 索引的中立可用性/可见性形状 | `table_name`, `schema` |
+| `list_constraint_states(table_name)` | 约束的中立校验形状 | `table_name`, `schema` |
+| `list_derived_objects(table_name)` | 主键/唯一键隐式创建的支撑索引 | `table_name`, `schema` |
+| `list_schemas()` | 数据库名（MySQL 唯一的命名空间层级） | 无 |
+| `item_exists(kind, name)` | 模式、表或存储函数是否存在 | `kind`, `name`, `schema` |
 | `list_unused_indexes()` | 无访问记录的索引 | `schema` |
 | `list_table_usage_stats()` | 每表 I/O 计数器 | `schema` |
 | `list_runtime_metrics()` | 实时运行事实 | `schema` |

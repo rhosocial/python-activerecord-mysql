@@ -7,7 +7,7 @@ Run::
 
 The example creates a small partitioned table, asks the introspector for
 its storage options (``list_table_options`` / ``get_table_options``) and
-its partitions (``list_partitions``), and prints what the server answered.
+its partitions (``get_partition_state``), and prints what the server answered.
 It then walks the schema twice, counting the questions each walk actually
 puts to the server:
 
@@ -191,7 +191,8 @@ def walk_schema(backend: MySQLBackend) -> int:
         answers += 1
         one = introspector.get_table_options(option.table_name)
         answers += 1 if one is not None else 0
-        answers += len(introspector.list_partitions(option.table_name))
+        state = introspector.get_partition_state(option.table_name)
+        answers += len(state.bounds)
     return answers
 
 
@@ -267,17 +268,15 @@ def print_demo(backend: MySQLBackend) -> None:
     print(f"  data length         {options.data_length} bytes (server estimate)")
     print(f"  index length        {options.index_length} bytes (server estimate)")
 
-    partitions = introspector.list_partitions(DEMO_TABLE)
-    print(f"\nPartitions of {DEMO_TABLE} ({len(partitions)}):")
-    for partition in partitions:
+    state = introspector.get_partition_state(DEMO_TABLE, include_stats=True)
+    print(f"\nPartitions of {DEMO_TABLE} ({len(state.bounds)}), scheme={state.scheme}:")
+    for position, bound in enumerate(state.bounds, start=1):
         print(
-            f"  {partition.partition_ordinal_position}. "
-            f"{partition.partition_name:<16} "
-            f"method={partition.partition_method} "
-            f"expression={partition.partition_expression} "
-            f"boundary={partition.partition_description} "
-            f"rows={partition.table_rows} "
-            f"data={partition.data_length}B index={partition.index_length}B"
+            f"  {position}. {bound.name:<16} "
+            f"upper={bound.upper} "
+            f"maxvalue={bound.is_maxvalue} "
+            f"rows={bound.row_count} "
+            f"data={bound.size_bytes}B"
         )
 
 

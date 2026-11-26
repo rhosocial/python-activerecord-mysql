@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from ...expression.introspection import (
         MySQLTableOptionsListQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
-        MySQLPartitionListQueryStatement,
+        MySQLPartitionStateQueryStatement,
         MySQLRoutineListQueryStatement,
         MySQLRoutineInfoQueryStatement,
         MySQLConstraintListQueryStatement,
@@ -55,17 +55,25 @@ TABLE_OPTION_COLUMNS = (
 )
 
 #: The partition projection: one row per partition or subpartition, in the
-#: engine's ordinal order.
+#: engine's ordinal order. This is the declaration half -- it is selected
+#: every time the partition state is asked for.
 PARTITION_COLUMNS = (
     "TABLE_SCHEMA",
     "TABLE_NAME",
     "PARTITION_NAME",
     "SUBPARTITION_NAME",
     "PARTITION_METHOD",
+    "SUBPARTITION_METHOD",
     "PARTITION_EXPRESSION",
     "PARTITION_DESCRIPTION",
     "PARTITION_ORDINAL_POSITION",
     "SUBPARTITION_ORDINAL_POSITION",
+)
+
+#: The per-partition physical estimates. They are selected only when
+#: ``include_stats`` asks for them, because they are measurements rather than
+#: declarations and must not be read on the caller's behalf.
+PARTITION_STAT_COLUMNS = (
     "TABLE_ROWS",
     "DATA_LENGTH",
     "INDEX_LENGTH",
@@ -666,14 +674,16 @@ class MySQLIntrospectionMixin:
             ],
         )
 
-    def format_partition_list_query_statement(
-        self, expr: "MySQLPartitionListQueryStatement"
+    def format_partition_state_query_statement(
+        self, expr: "MySQLPartitionStateQueryStatement"
     ) -> Tuple[str, tuple]:
         """Format the partition query for one table.
 
         ``PARTITION_NAME IS NOT NULL`` drops the row a non-partitioned table
         always has, so an empty answer means "not partitioned" and nothing
-        weaker than that.
+        weaker than that. The statistics columns are added to the projection
+        only when the expression asked for them: a caller that did not request
+        sizes must not have them read on its behalf.
         """
         from rhosocial.activerecord.backend.expression import (
             Column,
@@ -684,10 +694,15 @@ class MySQLIntrospectionMixin:
         params = expr.get_params()
         schema = params.get("schema") or ""
         table_name = params.get("table_name", "")
+        include_stats = params.get("include_stats", False)
+
+        projection = list(PARTITION_COLUMNS)
+        if include_stats:
+            projection.extend(PARTITION_STAT_COLUMNS)
 
         return self._information_schema_query(
             "PARTITIONS",
-            [Column(self, name) for name in PARTITION_COLUMNS],
+            [Column(self, name) for name in projection],
             [
                 ComparisonPredicate(
                     self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)

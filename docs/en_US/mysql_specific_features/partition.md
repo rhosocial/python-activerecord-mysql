@@ -104,15 +104,20 @@ The catalogue side is answered by introspection:
 
 ```python
 if dialect.supports_partition_introspection():
-    partitions = backend.introspector.list_partitions("orders")
-    for part in partitions:
-        print(part.name, part.description)
+    state = backend.introspector.get_partition_state("orders")
+    if state.scheme is None:
+        print("not partitioned")
+    for bound in state.bounds:
+        print(bound.name, bound.upper, bound.is_maxvalue)
 ```
 
-`list_partitions()` returns this backend's `MySQLPartitionInfo` records (an
-empty result means the table is not partitioned).  Core's partition-info probe
-stays `False` because MySQL answers through its own switch; see
-[Database Introspection](introspection.md) for the full probe table.
+`get_partition_state()` returns core's neutral `PartitionState`: `scheme is
+None` means the table is not partitioned, `upper` carries
+`PARTITION_DESCRIPTION`, `MAXVALUE` sets `is_maxvalue`, and per-partition
+`row_count` / `size_bytes` are filled only when `include_stats=True`.  Core's
+partition-info probe stays `False` because MySQL answers through its own
+switch; see [Database Introspection](introspection.md) for the full probe
+table.
 
 ## Subpartitioning
 

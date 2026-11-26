@@ -18,7 +18,8 @@ Key behaviours:
   - Queries information_schema.TABLES, COLUMNS, STATISTICS,
     KEY_COLUMN_USAGE, REFERENTIAL_CONSTRAINTS, VIEWS, TRIGGERS
   - MySQL-only families: ``list_table_options`` / ``get_table_options``
-    (storage options from TABLES) and ``list_partitions`` (from PARTITIONS)
+    (storage options from TABLES), and the neutral object-state answers
+    (``get_table_state`` / ``get_partition_state``) built on them
   - parse_* methods are pure Python — shared by sync and async introspectors
 
 Design principle: Sync and Async are separate and cannot coexist.
@@ -27,11 +28,11 @@ Design principle: Sync and Async are separate and cannot coexist.
 """
 
 import copy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..expression.introspection import (
-        MySQLPartitionListQueryStatement,
+        MySQLPartitionStateQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
         MySQLTableOptionsListQueryStatement,
         MySQLRoutineListQueryStatement,
@@ -45,13 +46,22 @@ from rhosocial.activerecord.backend.introspection.base import (
     AsyncAbstractIntrospector,
 )
 from rhosocial.activerecord.backend.introspection.cache import IntrospectionCache
+from rhosocial.activerecord.backend.introspection.errors import ObjectNotFoundError
 from rhosocial.activerecord.backend.introspection.executor import (
     IntrospectorExecutor,
     AsyncIntrospectorExecutor,
 )
 from rhosocial.activerecord.backend.introspection.types import (
+    ConstraintState,
+    DerivedObjectState,
+    IndexState,
     IntrospectionDatabaseInfo,
     IntrospectionTableInfo,
+    ItemKind,
+    PartitionBound,
+    PartitionScheme,
+    PartitionState,
+    TableState,
     TableType,
     IntrospectionColumnInfo,
     ColumnNullable,
@@ -63,10 +73,10 @@ from rhosocial.activerecord.backend.introspection.types import (
     IntrospectionViewInfo,
     IntrospectionTriggerInfo,
     IntrospectionScope,
+    StorageOptionsState,
     DDLStatement,
 )
 from .types import (
-    MySQLPartitionInfo,
     MySQLTableOptions,
     MySQLRoutineInfo,
     MySQLRoutineParameter,
@@ -401,21 +411,29 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             self.dialect, table_name=table_name, schema=target_db
         )
 
-    def partition_list_statement(
-        self, *, table_name: str, schema: Optional[str]
-    ) -> "MySQLPartitionListQueryStatement":
-        """Return the statement that lists one table's partitions.
+    def partition_state_statement(
+        self,
+        *,
+        table_name: str,
+        schema: Optional[str],
+        include_stats: bool = False,
+    ) -> "MySQLPartitionStateQueryStatement":
+        """Return the statement that reads one table's partition state.
 
         Rows without a ``PARTITION_NAME`` describe a non-partitioned table
         and are not partitions, so the predicate excludes them rather than
         filtering after the fact: an empty result then means exactly "this
-        table is not partitioned".
+        table is not partitioned". ``include_stats`` adds the physical
+        estimates to the projection; it is the only switch that does.
         """
-        from ..expression.introspection import MySQLPartitionListQueryStatement
+        from ..expression.introspection import MySQLPartitionStateQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
-        return MySQLPartitionListQueryStatement(
-            self.dialect, table_name=table_name, schema=target_db
+        return MySQLPartitionStateQueryStatement(
+            self.dialect,
+            table_name=table_name,
+            schema=target_db,
+            include_stats=include_stats,
         )
 
     def routine_list_statement(
@@ -474,24 +492,150 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
             for row in rows
         ]
 
-    def parse_partitions(self, rows: List[Dict[str, Any]]) -> List[MySQLPartitionInfo]:
-        return [
-            MySQLPartitionInfo(
-                schema=row.get("TABLE_SCHEMA", ""),
-                table_name=row.get("TABLE_NAME", ""),
-                partition_name=row.get("PARTITION_NAME"),
-                partition_method=row.get("PARTITION_METHOD"),
-                partition_expression=row.get("PARTITION_EXPRESSION"),
-                partition_description=row.get("PARTITION_DESCRIPTION"),
-                partition_ordinal_position=row.get("PARTITION_ORDINAL_POSITION"),
-                subpartition_name=row.get("SUBPARTITION_NAME"),
-                subpartition_ordinal_position=row.get("SUBPARTITION_ORDINAL_POSITION"),
-                table_rows=row.get("TABLE_ROWS"),
-                data_length=row.get("DATA_LENGTH"),
-                index_length=row.get("INDEX_LENGTH"),
+    #: The server's ``PARTITION_METHOD`` spelling to the neutral scheme.
+    #: ``RANGE COLUMNS`` is the column form of ``RANGE`` and ``LIST COLUMNS``
+    #: the column form of ``LIST``; the linear hash/key forms are still hash
+    #: and key partitioning with a different placement rule.
+    _PARTITION_SCHEMES = {
+        "RANGE": PartitionScheme.RANGE,
+        "RANGE COLUMNS": PartitionScheme.RANGE,
+        "LIST": PartitionScheme.LIST,
+        "LIST COLUMNS": PartitionScheme.LIST,
+        "HASH": PartitionScheme.HASH,
+        "LINEAR HASH": PartitionScheme.HASH,
+        "KEY": PartitionScheme.KEY,
+        "LINEAR KEY": PartitionScheme.KEY,
+    }
+
+    @staticmethod
+    def partition_scheme(method: Optional[str]) -> PartitionScheme:
+        """The neutral scheme for the server's ``PARTITION_METHOD``.
+
+        The engine names a method for every partitioned table, so an
+        unrecognised spelling still answers "partitioned": it falls back to
+        :attr:`PartitionScheme.EXPRESSION` rather than to ``None``, which
+        would read as "this table is not partitioned".
+        """
+        if not method:
+            return PartitionScheme.EXPRESSION
+        return MySQLIntrospectorMixin._PARTITION_SCHEMES.get(
+            method.upper(), PartitionScheme.EXPRESSION
+        )
+
+    @staticmethod
+    def key_columns(expression: Optional[str]) -> Tuple[str, ...]:
+        """The column list of a KEY partition, or an empty tuple.
+
+        ``PARTITION_EXPRESSION`` for ``PARTITION BY KEY (...)`` is the column
+        list itself, backtick-quoted and comma separated; for every other
+        method it is an expression, which stays in ``key_expression`` and is
+        not split here.
+        """
+        if not expression:
+            return ()
+        names = tuple(part.strip().strip("`") for part in expression.split(","))
+        return tuple(name for name in names if name)
+
+    def parse_partition_state(
+        self,
+        rows: List[Dict[str, Any]],
+        table_name: str,
+        schema: str,
+        include_stats: bool = False,
+    ) -> PartitionState:
+        """Turn ``information_schema.PARTITIONS`` rows into neutral state.
+
+        ``scheme`` is ``None`` when no partition row came back -- the one
+        neutral answer to "this table is not partitioned". A subpartitioned
+        table reports one row per (partition, subpartition) pair, so the
+        bounds are grouped by partition name: each bound carries its
+        subpartition count, and its statistics are summed across the pair
+        rows when ``include_stats`` asked for them.
+
+        ``PARTITION_DESCRIPTION`` is the engine's boundary spelling for
+        RANGE and LIST partitions and is carried as ``upper`` unchanged;
+        the literal ``MAXVALUE`` also sets ``is_maxvalue``. MySQL has no
+        default partition, so ``is_default`` stays ``False``.
+        """
+        if not rows:
+            return PartitionState(scheme=None)
+
+        first = rows[0]
+        method = first.get("PARTITION_METHOD")
+        subpartition_method = first.get("SUBPARTITION_METHOD")
+        expression = first.get("PARTITION_EXPRESSION") or ""
+        scheme = self.partition_scheme(method)
+        if subpartition_method:
+            scheme = PartitionScheme.COMPOSITE
+
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
+        for row in rows:
+            name = row.get("PARTITION_NAME")
+            if not name:
+                continue
+            grouped.setdefault(name, []).append(row)
+
+        bounds: List[PartitionBound] = []
+        for name, partition_rows in grouped.items():
+            row = partition_rows[0]
+            description = row.get("PARTITION_DESCRIPTION")
+            row_count: Optional[int] = None
+            size_bytes: Optional[int] = None
+            if include_stats:
+                reported = [
+                    r.get("TABLE_ROWS")
+                    for r in partition_rows
+                    if r.get("TABLE_ROWS") is not None
+                ]
+                row_count = sum(reported) if reported else None
+                reported_bytes = [
+                    r.get("DATA_LENGTH")
+                    for r in partition_rows
+                    if r.get("DATA_LENGTH") is not None
+                ]
+                size_bytes = sum(reported_bytes) if reported_bytes else None
+            subpartition_names = tuple(
+                r.get("SUBPARTITION_NAME")
+                for r in partition_rows
+                if r.get("SUBPARTITION_NAME")
             )
-            for row in rows
-        ]
+            bounds.append(
+                PartitionBound(
+                    name=str(name),
+                    upper=None if description is None else str(description),
+                    values=(),
+                    is_default=False,
+                    is_maxvalue=(
+                        str(description).strip().upper() == "MAXVALUE"
+                        if description is not None
+                        else False
+                    ),
+                    row_count=row_count,
+                    size_bytes=size_bytes,
+                    subpartition_count=len(subpartition_names),
+                    tablespace=None,
+                )
+            )
+
+        key_columns = (
+            self.key_columns(expression)
+            if (method or "").upper() in ("KEY", "LINEAR KEY")
+            else ()
+        )
+        return PartitionState(
+            scheme=scheme,
+            key_expression=expression,
+            key_columns=key_columns,
+            has_default=False,
+            auto_extend=False,
+            bounds=tuple(bounds),
+            raw={
+                "table_schema": first.get("TABLE_SCHEMA", schema),
+                "table_name": first.get("TABLE_NAME", table_name),
+                "partition_method": method,
+                "subpartition_method": subpartition_method,
+            },
+        )
 
     # ------------------------------------------------------------------ #
     # Routines and constraints — parsing
@@ -752,24 +896,275 @@ class MySQLIntrospector(MySQLIntrospectorMixin, AbstractIntrospector):
             self._cache.set(key, result)
         return result
 
-    def list_partitions(
-        self, table_name: str, schema: Optional[str] = None
-    ) -> List[MySQLPartitionInfo]:
-        """List the partitions of one table, from ``information_schema.PARTITIONS``.
+    # ------------------------------------------------------------------ #
+    # Neutral object state
+    # ------------------------------------------------------------------ #
 
-        Returns an empty list for a table that is not partitioned.
+    def _require_table(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> IntrospectionTableInfo:
+        """The table record, or ``ObjectNotFoundError`` when it is absent.
+
+        A missing table and an unpartitioned table both produce no
+        ``PARTITIONS`` row, so the table is resolved first: only a table that
+        exists can be reported as unpartitioned.
         """
+        tables = self.list_tables(schema)
+        table = next((t for t in tables if t.name == table_name), None)
+        if table is None:
+            raise ObjectNotFoundError("Table", table_name, schema)
+        return table
+
+    @staticmethod
+    def table_state_kind(table_type: TableType) -> str:
+        """The neutral kind for a catalogue ``TableType``."""
+        return {
+            TableType.BASE_TABLE: "regular",
+            TableType.VIEW: "view",
+            TableType.SYSTEM_TABLE: "system_view",
+            TableType.MATERIALIZED_VIEW: "materialized_view",
+            TableType.FOREIGN_TABLE: "foreign_table",
+            TableType.PARTITIONED_TABLE: "regular",
+            TableType.TEMPORARY: "temporary",
+            TableType.EXTERNAL: "external",
+        }.get(table_type, "regular")
+
+    @staticmethod
+    def charset_from_collation(collation: Optional[str]) -> Optional[str]:
+        """The character set a collation belongs to, as MySQL names it.
+
+        MySQL spells every collation as ``<charset>_<rules>`` (``binary`` is
+        the one single-word collation, and is its own character set), so the
+        prefix is the table's character set. It is derived rather than
+        queried because ``information_schema.TABLES`` carries the collation
+        and no character-set column of its own.
+        """
+        if not collation:
+            return None
+        return collation.split("_", 1)[0] or None
+
+    def parse_storage_options_state(
+        self, options: Optional[MySQLTableOptions]
+    ) -> StorageOptionsState:
+        """Project the MySQL storage record onto the neutral shape."""
+        if options is None:
+            return StorageOptionsState()
+        return StorageOptionsState(
+            engine=options.engine,
+            charset=self.charset_from_collation(options.table_collation),
+            collation=options.table_collation,
+            compression=None,
+            tablespace=None,
+            raw={
+                "row_format": options.row_format,
+                "auto_increment": options.auto_increment,
+                "create_options": options.create_options,
+                "data_length": options.data_length,
+                "index_length": options.index_length,
+            },
+        )
+
+    def get_table_state(
+        self,
+        table_name: str,
+        schema: Optional[str] = None,
+    ) -> TableState:
+        """Read the table's kind, storage options, comment and partitioning."""
         key = self._cache.key(
-            IntrospectionScope.TABLE, table_name, schema=schema, extra="partitions"
+            IntrospectionScope.TABLE, table_name, schema=schema, extra="table_state"
         )
         cached = self._cache.get(key)
         if cached is not None:
             return cached
 
-        sql, params = self.partition_list_statement(table_name=table_name, schema=schema).to_sql()
-        result = self.parse_partitions(self._executor.execute(sql, params))
+        table = self._require_table(table_name, schema)
+        options = self.get_table_options(table_name, schema)
+        comment = options.table_comment if options is not None else table.comment
+        state = TableState(
+            name=table_name,
+            schema=table.schema,
+            kind=self.table_state_kind(table.table_type),
+            traits=(),
+            storage=self.parse_storage_options_state(options),
+            comment=comment or None,
+            partitioning=self.get_partition_state(table_name, schema),
+        )
+        self._cache.set(key, state)
+        return state
+
+    def get_partition_state(
+        self,
+        table_name: str,
+        schema: Optional[str] = None,
+        include_stats: bool = False,
+    ) -> PartitionState:
+        """Read the table's partition scheme and bounds.
+
+        ``PartitionState.scheme is None`` is the answer for a table that is
+        not partitioned. ``include_stats`` decides whether the per-partition
+        row and byte estimates are read; with it ``False`` the query does not
+        select them at all.
+        """
+        key = self._cache.key(
+            IntrospectionScope.TABLE,
+            table_name,
+            schema=schema,
+            extra=f"partition_state:{include_stats}",
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        table = self._require_table(table_name, schema)
+        sql, params = self.partition_state_statement(
+            table_name=table_name, schema=schema, include_stats=include_stats
+        ).to_sql()
+        rows = self._executor.execute(sql, params)
+        result = self.parse_partition_state(
+            rows, table_name, table.schema or "", include_stats=include_stats
+        )
         self._cache.set(key, result)
         return result
+
+    def list_index_states(self, table_name: str, schema: Optional[str] = None) -> List[IndexState]:
+        """Read every index on the table.
+
+        MySQL has no unusable index state and does not carry index visibility
+        in the projection this backend reads, so both answer their engine
+        default; the facts the catalogue does carry (unique, kind, primary)
+        are reported as read.
+        """
+        target = schema if schema is not None else self.default_schema
+        states: List[IndexState] = []
+        for index in self.list_indexes(table_name, schema):
+            method = (
+                None if index.index_type is IndexType.UNKNOWN else index.index_type.value.lower()
+            )
+            states.append(
+                IndexState(
+                    name=index.name,
+                    table=table_name,
+                    schema=index.schema or target,
+                    unique=index.is_unique,
+                    method=method,
+                    predicate=index.filter_condition,
+                    visible=True,
+                    usable=True,
+                    backs_constraint=(index.name if index.is_primary or index.is_unique else None),
+                    raw={
+                        "is_primary": index.is_primary,
+                        "index_type": index.index_type.value,
+                        "columns": [column.name for column in index.columns],
+                    },
+                )
+            )
+        return states
+
+    def list_constraint_states(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[ConstraintState]:
+        """Read every constraint on the table, including its enforcement.
+
+        MySQL constraint kinds map onto the neutral spelling used elsewhere:
+        ``PRIMARY KEY`` to ``primary_key``, ``UNIQUE`` to ``unique``,
+        ``FOREIGN KEY`` to ``foreign_key`` and ``CHECK`` to ``check``. An
+        absent ``ENFORCED`` answer is the engine default (enforced); no
+        constraint can be deferred or disabled here.
+        """
+        target = schema if schema is not None else self.default_schema
+        kind_map = {
+            "PRIMARY KEY": "primary_key",
+            "UNIQUE": "unique",
+            "FOREIGN KEY": "foreign_key",
+            "CHECK": "check",
+        }
+        states: List[ConstraintState] = []
+        for constraint in self.list_constraints(table_name, schema):
+            kind = kind_map.get(constraint.constraint_type, constraint.constraint_type.lower())
+            states.append(
+                ConstraintState(
+                    name=constraint.name,
+                    table=constraint.table_name or table_name,
+                    kind=kind,
+                    schema=constraint.schema or target,
+                    validated=True,
+                    enforced=(True if constraint.enforced is None else constraint.enforced),
+                    deferred=False,
+                    disabled=False,
+                    backing_index=(constraint.name if kind in ("primary_key", "unique") else None),
+                    raw={
+                        "columns": list(constraint.columns),
+                        "expression": constraint.expression,
+                        "enforced": constraint.enforced,
+                    },
+                )
+            )
+        return states
+
+    def list_derived_objects(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[DerivedObjectState]:
+        """Read the indexes MySQL created for a primary key or unique key."""
+        states: List[DerivedObjectState] = []
+        for constraint in self.list_constraints(table_name, schema):
+            if constraint.constraint_type not in ("PRIMARY KEY", "UNIQUE"):
+                continue
+            states.append(
+                DerivedObjectState(
+                    kind="backing_index",
+                    name=constraint.name,
+                    owned_by=constraint.table_name or table_name,
+                    raw={
+                        "constraint": constraint.name,
+                        "constraint_type": constraint.constraint_type,
+                        "columns": list(constraint.columns),
+                    },
+                )
+            )
+        return states
+
+    def list_schemas(self) -> List[str]:
+        """The databases the server exposes.
+
+        MySQL's only namespace level above a table is the database, so a
+        schema name here is a database name.
+        """
+        key = self._cache.key(IntrospectionScope.DATABASE, extra="schemas")
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        names = [database.name for database in self.show.databases()]
+        self._cache.set(key, names)
+        return names
+
+    def item_exists(
+        self,
+        kind: ItemKind,
+        name: str,
+        schema: Optional[str] = None,
+    ) -> bool:
+        """Whether a shared object of this kind exists.
+
+        MySQL can answer schemas, tables (views included, as SQLite does for
+        its catalog) and stored functions. Kinds the engine does not have --
+        sequences, user-defined types and domains, extensions, partition
+        functions/schemes and full-text catalogues -- answer ``False``.
+        An index cannot be answered from a name alone: MySQL scopes index
+        names to a table, and no table was named, so that question is refused
+        rather than answered for a possibly different table.
+        """
+        if kind == ItemKind.SCHEMA:
+            return name in self.list_schemas()
+        if kind == ItemKind.TABLE:
+            return any(table.name == name for table in self.list_tables(schema))
+        if kind == ItemKind.FUNCTION:
+            return self.get_routine_info(name, schema=schema, kind="FUNCTION") is not None
+        if kind in (
+            ItemKind.INDEX,
+            ItemKind.TABLESPACE,
+        ):
+            self._refuse("StructureIntrospectionSupport", "item_exists")
+        return False
 
     # ------------------------------------------------------------------ #
     # MySQL-specific: routines and constraints
@@ -957,24 +1352,191 @@ class AsyncMySQLIntrospector(MySQLIntrospectorMixin, AsyncAbstractIntrospector):
             self._cache.set(key, result)
         return result
 
-    async def list_partitions(
-        self, table_name: str, schema: Optional[str] = None
-    ) -> List[MySQLPartitionInfo]:
-        """List the partitions of one table, from ``information_schema.PARTITIONS``.
+    # ------------------------------------------------------------------ #
+    # Neutral object state (async twins)
+    # ------------------------------------------------------------------ #
 
-        Returns an empty list for a table that is not partitioned.
-        """
+    async def _require_table(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> IntrospectionTableInfo:
+        """The table record, or ``ObjectNotFoundError`` when it is absent."""
+        tables = await self.list_tables(schema)
+        table = next((t for t in tables if t.name == table_name), None)
+        if table is None:
+            raise ObjectNotFoundError("Table", table_name, schema)
+        return table
+
+    async def get_table_state(
+        self,
+        table_name: str,
+        schema: Optional[str] = None,
+    ) -> TableState:
+        """Read the table's kind, storage options, comment and partitioning."""
         key = self._cache.key(
-            IntrospectionScope.TABLE, table_name, schema=schema, extra="partitions"
+            IntrospectionScope.TABLE, table_name, schema=schema, extra="table_state"
         )
         cached = self._cache.get(key)
         if cached is not None:
             return cached
 
-        sql, params = self.partition_list_statement(table_name=table_name, schema=schema).to_sql()
-        result = self.parse_partitions(await self._executor.execute(sql, params))
+        table = await self._require_table(table_name, schema)
+        options = await self.get_table_options(table_name, schema)
+        comment = options.table_comment if options is not None else table.comment
+        state = TableState(
+            name=table_name,
+            schema=table.schema,
+            kind=self.table_state_kind(table.table_type),
+            traits=(),
+            storage=self.parse_storage_options_state(options),
+            comment=comment or None,
+            partitioning=await self.get_partition_state(table_name, schema),
+        )
+        self._cache.set(key, state)
+        return state
+
+    async def get_partition_state(
+        self,
+        table_name: str,
+        schema: Optional[str] = None,
+        include_stats: bool = False,
+    ) -> PartitionState:
+        """Read the table's partition scheme and bounds asynchronously."""
+        key = self._cache.key(
+            IntrospectionScope.TABLE,
+            table_name,
+            schema=schema,
+            extra=f"partition_state:{include_stats}",
+        )
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
+        table = await self._require_table(table_name, schema)
+        sql, params = self.partition_state_statement(
+            table_name=table_name, schema=schema, include_stats=include_stats
+        ).to_sql()
+        rows = await self._executor.execute(sql, params)
+        result = self.parse_partition_state(
+            rows, table_name, table.schema or "", include_stats=include_stats
+        )
         self._cache.set(key, result)
         return result
+
+    async def list_index_states(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[IndexState]:
+        """Read every index on the table asynchronously."""
+        target = schema if schema is not None else self.default_schema
+        states: List[IndexState] = []
+        for index in await self.list_indexes(table_name, schema):
+            method = (
+                None if index.index_type is IndexType.UNKNOWN else index.index_type.value.lower()
+            )
+            states.append(
+                IndexState(
+                    name=index.name,
+                    table=table_name,
+                    schema=index.schema or target,
+                    unique=index.is_unique,
+                    method=method,
+                    predicate=index.filter_condition,
+                    visible=True,
+                    usable=True,
+                    backs_constraint=(index.name if index.is_primary or index.is_unique else None),
+                    raw={
+                        "is_primary": index.is_primary,
+                        "index_type": index.index_type.value,
+                        "columns": [column.name for column in index.columns],
+                    },
+                )
+            )
+        return states
+
+    async def list_constraint_states(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[ConstraintState]:
+        """Read every constraint on the table asynchronously."""
+        target = schema if schema is not None else self.default_schema
+        kind_map = {
+            "PRIMARY KEY": "primary_key",
+            "UNIQUE": "unique",
+            "FOREIGN KEY": "foreign_key",
+            "CHECK": "check",
+        }
+        states: List[ConstraintState] = []
+        for constraint in await self.list_constraints(table_name, schema):
+            kind = kind_map.get(constraint.constraint_type, constraint.constraint_type.lower())
+            states.append(
+                ConstraintState(
+                    name=constraint.name,
+                    table=constraint.table_name or table_name,
+                    kind=kind,
+                    schema=constraint.schema or target,
+                    validated=True,
+                    enforced=(True if constraint.enforced is None else constraint.enforced),
+                    deferred=False,
+                    disabled=False,
+                    backing_index=(constraint.name if kind in ("primary_key", "unique") else None),
+                    raw={
+                        "columns": list(constraint.columns),
+                        "expression": constraint.expression,
+                        "enforced": constraint.enforced,
+                    },
+                )
+            )
+        return states
+
+    async def list_derived_objects(
+        self, table_name: str, schema: Optional[str] = None
+    ) -> List[DerivedObjectState]:
+        """Read the indexes MySQL created for a primary key or unique key."""
+        states: List[DerivedObjectState] = []
+        for constraint in await self.list_constraints(table_name, schema):
+            if constraint.constraint_type not in ("PRIMARY KEY", "UNIQUE"):
+                continue
+            states.append(
+                DerivedObjectState(
+                    kind="backing_index",
+                    name=constraint.name,
+                    owned_by=constraint.table_name or table_name,
+                    raw={
+                        "constraint": constraint.name,
+                        "constraint_type": constraint.constraint_type,
+                        "columns": list(constraint.columns),
+                    },
+                )
+            )
+        return states
+
+    async def list_schemas(self) -> List[str]:
+        """The databases the server exposes, asynchronously."""
+        key = self._cache.key(IntrospectionScope.DATABASE, extra="schemas")
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        names = [database.name for database in await self.show.databases()]
+        self._cache.set(key, names)
+        return names
+
+    async def item_exists(
+        self,
+        kind: ItemKind,
+        name: str,
+        schema: Optional[str] = None,
+    ) -> bool:
+        """Whether a shared object of this kind exists, asynchronously."""
+        if kind == ItemKind.SCHEMA:
+            return name in await self.list_schemas()
+        if kind == ItemKind.TABLE:
+            return any(table.name == name for table in await self.list_tables(schema))
+        if kind == ItemKind.FUNCTION:
+            return await self.get_routine_info(name, schema=schema, kind="FUNCTION") is not None
+        if kind in (
+            ItemKind.INDEX,
+            ItemKind.TABLESPACE,
+        ):
+            self._refuse("StructureIntrospectionSupport", "item_exists")
+        return False
 
     # ------------------------------------------------------------------ #
     # MySQL-specific: routines and constraints

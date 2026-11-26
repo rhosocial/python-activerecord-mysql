@@ -208,6 +208,48 @@ class TestTriggers:
         assert params == ("app", "users")
 
 
+class TestPartitionState:
+    """The partition question asks for statistics only when told to."""
+
+    def test_declaration_projection_excludes_estimates(self, dialect):
+        from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+            MySQLPartitionStateQueryStatement,
+        )
+
+        sql, params = MySQLPartitionStateQueryStatement(dialect, "orders", schema="app").to_sql()
+
+        assert "`PARTITION_NAME`" in sql
+        assert "`SUBPARTITION_METHOD`" in sql
+        assert "`TABLE_ROWS`" not in sql
+        assert "`DATA_LENGTH`" not in sql
+        assert "`INDEX_LENGTH`" not in sql
+        assert params == ("app", "orders")
+
+    def test_include_stats_adds_the_estimates_to_the_projection(self, dialect):
+        from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+            MySQLPartitionStateQueryStatement,
+        )
+
+        sql, params = MySQLPartitionStateQueryStatement(
+            dialect, "orders", schema="app", include_stats=True
+        ).to_sql()
+
+        assert "`TABLE_ROWS`" in sql
+        assert "`DATA_LENGTH`" in sql
+        assert "`INDEX_LENGTH`" in sql
+        # The estimate columns ride the same question: still one filter pair.
+        assert params == ("app", "orders")
+
+    def test_a_non_partitioned_row_is_excluded_by_the_question(self, dialect):
+        from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+            MySQLPartitionStateQueryStatement,
+        )
+
+        sql, _ = MySQLPartitionStateQueryStatement(dialect, "orders", schema="app").to_sql()
+
+        assert "`PARTITION_NAME` IS NOT NULL" in sql
+
+
 class TestNoStatementTextSurvives:
     """The formatters build nodes; they do not assemble text.
 

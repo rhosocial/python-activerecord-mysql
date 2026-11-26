@@ -527,9 +527,9 @@ def _handle_introspect_sync(args, backend: MySQLBackend, provider):
                 provider.display_results(_serialize_for_output(options), title="Table options")
 
         elif args.type == "partitions":
-            partitions = introspector.list_partitions(args.name, schema=None)
+            state = introspector.get_partition_state(args.name, schema=None)
             provider.display_results(
-                _serialize_for_output(partitions), title=f"Partitions of {args.name}"
+                _serialize_for_output(state), title=f"Partitions of {args.name}"
             )
 
         elif args.type == "unused-indexes":
@@ -723,9 +723,9 @@ async def _handle_introspect_async(args, backend: AsyncMySQLBackend, provider):
                 provider.display_results(_serialize_for_output(options), title="Table options")
 
         elif args.type == "partitions":
-            partitions = await introspector.list_partitions(args.name, schema=None)
+            state = await introspector.get_partition_state(args.name, schema=None)
             provider.display_results(
-                _serialize_for_output(partitions), title=f"Partitions of {args.name}"
+                _serialize_for_output(state), title=f"Partitions of {args.name}"
             )
 
         elif args.type == "unused-indexes":

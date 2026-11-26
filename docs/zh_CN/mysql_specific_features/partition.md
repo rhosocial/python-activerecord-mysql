@@ -146,14 +146,18 @@ retention = dialect.suggest_partition_retention(
 
 ```python
 if dialect.supports_partition_introspection():
-    partitions = backend.introspector.list_partitions("orders")
-    for part in partitions:
-        print(part.name, part.description)
+    state = backend.introspector.get_partition_state("orders")
+    if state.scheme is None:
+        print("未分区")
+    for bound in state.bounds:
+        print(bound.name, bound.upper, bound.is_maxvalue)
 ```
 
-`list_partitions()` 返回本后端的 `MySQLPartitionInfo` 记录（空结果表示该表未分区）。
-核心库的分区信息探针保持 `False`，因为 MySQL 通过自己的开关回答；完整的探针表见
-[数据库内省](introspection.md)。
+`get_partition_state()` 返回核心库的中立 `PartitionState`：`scheme is None`
+表示该表未分区，`upper` 携带 `PARTITION_DESCRIPTION`，`MAXVALUE` 会设置
+`is_maxvalue`，而每个分区的 `row_count` / `size_bytes` 仅在
+`include_stats=True` 时填充。核心库的分区信息探针保持 `False`，因为 MySQL
+通过自己的开关回答；完整的探针表见 [数据库内省](introspection.md)。
 
 ## 子分区
 

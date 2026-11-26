@@ -46,7 +46,7 @@ Every question in the introspection contract has a probe on the dialect, and a p
 
 `supports_unused_indexes_detection()` is the only probe here whose answer depends on the server's version: `True` from MySQL 5.7.0 and `False` below, because `sys.schema_unused_indexes` is part of the `sys` schema and 5.6 has no `sys` schema. Answering `True` there would turn a definition-time question into an execution error — `1146`, "table does not exist" — so the accessor is asked rather than a bare `True`. A dialect that has not been adapted answers `False` as well, because no version has been confirmed.
 
-`supports_partition_info()` stays `False` by inheritance. MySQL answers a table's partitions through its own `supports_partition_introspection()`, whose result type is `MySQLPartitionInfo` and whose empty answer means "this table is not partitioned". Core's partition family has no method on this backend to oblige, so the probe is left saying it cannot be promised rather than repointed at a family MySQL does not implement. The CLI's `partitions` type reads the engine's own switch.
+`supports_partition_info()` stays `False` by inheritance. MySQL answers a table's partitions through its own `supports_partition_introspection()` and `get_partition_state()`, which returns core's neutral `PartitionState`; `scheme is None` means "this table is not partitioned". The CLI's `partitions` type reads the engine's own switch.
 
 `supports_extensions()` stays `False` by inheritance, too: MySQL's installable units are plugins, and this backend declares no catalogue for them — nothing maps the extension family onto `information_schema.PLUGINS` or `SHOW PLUGINS`, so there is no answer behind a `True`.
 
@@ -569,7 +569,13 @@ for col_name in column_names:
 | `list_triggers(table_name)` | List triggers | `table_name`, `schema` |
 | `list_table_options()` | Storage options of every base table | `schema` |
 | `get_table_options(name)` | Storage options of one table | `name`, `schema` |
-| `list_partitions(table_name)` | One table's partitions | `table_name`, `schema` |
+| `get_partition_state(table_name)` | One table's partition scheme and bounds | `table_name`, `schema`, `include_stats` |
+| `get_table_state(table_name)` | Kind, storage options, comment and partitioning | `table_name`, `schema` |
+| `list_index_states(table_name)` | Indexes with the neutral usability/visibility shape | `table_name`, `schema` |
+| `list_constraint_states(table_name)` | Constraints with the neutral validation shape | `table_name`, `schema` |
+| `list_derived_objects(table_name)` | Backing indexes created for primary/unique keys | `table_name`, `schema` |
+| `list_schemas()` | Database names (MySQL's only namespace level) | None |
+| `item_exists(kind, name)` | Whether a schema, table or stored function exists | `kind`, `name`, `schema` |
 | `list_unused_indexes()` | Indexes with no recorded access | `schema` |
 | `list_table_usage_stats()` | Per-table I/O counters | `schema` |
 | `list_runtime_metrics()` | Live runtime facts | `schema` |

@@ -10,7 +10,6 @@ Provides:
   MySQLStatusIntrospector  — synchronous MySQL status introspector
   AsyncMySQLStatusIntrospector -- asynchronous MySQL status introspector
   MySQLTableOptions       — storage options of one table
-  MySQLPartitionInfo      — one partition (or subpartition) of one table
   MySQLRoutineInfo        — one procedure or function, with its arguments
   MySQLRoutineParameter   — one argument of a stored routine
   MySQLConstraintInfo      — one table constraint, CHECK expression included
@@ -24,7 +23,6 @@ from .introspector import (
     AsyncMySQLIntrospector,
 )
 from .types import (
-    MySQLPartitionInfo,
     MySQLTableOptions,
     MySQLRoutineInfo,
     MySQLRoutineParameter,
@@ -56,7 +54,6 @@ __all__ = [
     "MySQLStatusIntrospector",
     "AsyncMySQLStatusIntrospector",
     "MySQLTableOptions",
-    "MySQLPartitionInfo",
     "MySQLRoutineInfo",
     "MySQLRoutineParameter",
     "MySQLConstraintInfo",

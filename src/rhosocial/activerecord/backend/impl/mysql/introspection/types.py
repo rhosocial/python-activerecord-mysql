@@ -2,11 +2,13 @@
 """MySQL-specific introspection result types.
 
 The core introspection types describe what every backend can answer about
-tables, columns and indexes. MySQL can answer two further questions that
-have no cross-backend shape: what a table's *storage* options are (engine,
-row format, collation, comment, self-managed auto-increment counter), and
-how it is *partitioned*. Both are reported here as frozen dataclasses so a
-result cannot be edited in place after the cache handed it out.
+tables, columns and indexes. MySQL can answer one further question that
+has no cross-backend shape: what a table's *storage* options are (engine,
+row format, collation, comment, self-managed auto-increment counter). It is
+reported here as a frozen dataclass so a result cannot be edited in place
+after the cache handed it out. Partitioning answers in core's neutral
+:class:`PartitionState` instead, because every engine can be asked whether
+a table is partitioned.
 
 Units are stated on the fields rather than implied: MySQL reports
 ``DATA_LENGTH`` and ``INDEX_LENGTH`` in bytes, and those are the values
@@ -69,51 +71,6 @@ class MySQLTableOptions:
         if self.data_length is None and self.index_length is None:
             return None
         return (self.data_length or 0) + (self.index_length or 0)
-
-
-@dataclass(frozen=True)
-class MySQLPartitionInfo:
-    """One row of ``information_schema.PARTITIONS`` for a table.
-
-    A subpartitioned table reports one row per (partition, subpartition)
-    pair, which is why the subpartition identity is carried too: without
-    it two rows of the same partition would be indistinguishable.
-
-    Attributes:
-        schema: The database the table lives in.
-        table_name: The partitioned table's name.
-        partition_name: The partition's name, or ``None`` for a
-            non-partitioned table (those rows are filtered out before
-            parsing, so this is a plain string in practice).
-        partition_method: ``RANGE``, ``LIST``, ``HASH``, ``KEY`` or
-            ``LINEAR`` as reported by the server.
-        partition_expression: The expression the method was applied to,
-            e.g. ``"YEAR(`created_at`)"``; ``None`` for ``KEY`` partitions.
-        partition_description: The boundary value for RANGE/LIST
-            partitions; ``None`` for HASH/KEY.
-        partition_ordinal_position: 1-based position of the partition.
-        subpartition_name: The subpartition's name, ``None`` when the table
-            is not subpartitioned.
-        subpartition_ordinal_position: 1-based position within the
-            partition, ``None`` when not subpartitioned.
-        table_rows: Rows the server estimates the partition holds.
-        data_length: Bytes the server accounts to this partition's rows.
-        index_length: Bytes the server accounts to this partition's
-            indexes.
-    """
-
-    schema: str
-    table_name: str
-    partition_name: Optional[str] = None
-    partition_method: Optional[str] = None
-    partition_expression: Optional[str] = None
-    partition_description: Optional[str] = None
-    partition_ordinal_position: Optional[int] = None
-    subpartition_name: Optional[str] = None
-    subpartition_ordinal_position: Optional[int] = None
-    table_rows: Optional[int] = None
-    data_length: Optional[int] = None
-    index_length: Optional[int] = None
 
 
 @dataclass(frozen=True)

@@ -42,7 +42,7 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = [
     "MySQLTableOptionsListQueryStatement",
     "MySQLTableOptionsInfoQueryStatement",
-    "MySQLPartitionListQueryStatement",
+    "MySQLPartitionStateQueryStatement",
     "MySQLRoutineListQueryStatement",
     "MySQLRoutineInfoQueryStatement",
     "MySQLConstraintListQueryStatement",
@@ -101,13 +101,19 @@ class MySQLTableOptionsInfoQueryStatement(IntrospectionExpression):
         return "format_table_options_info_query_statement"
 
 
-class MySQLPartitionListQueryStatement(IntrospectionExpression):
+class MySQLPartitionStateQueryStatement(IntrospectionExpression):
     """Partitions and subpartitions of one table.
 
     A non-partitioned table is reported by one row whose ``PARTITION_NAME`` is
     NULL, so the predicate excludes it rather than filtering afterwards: an
     empty result then means exactly "this table is not partitioned", and the
     order is the engine's own ordinal pair.
+
+    ``include_stats`` decides whether ``TABLE_ROWS``, ``DATA_LENGTH`` and
+    ``INDEX_LENGTH`` are asked for at all. The answers are physical estimates
+    rather than declarations, and the neutral partition state only carries
+    them when the caller requested them, so the projection changes with the
+    flag instead of reading columns the caller did not ask for.
     """
 
     def __init__(
@@ -115,6 +121,7 @@ class MySQLPartitionListQueryStatement(IntrospectionExpression):
         dialect: "SQLDialectBase",
         table_name: str,
         schema: Optional[str] = None,
+        include_stats: bool = False,
     ):
         """
         Args:
@@ -122,14 +129,17 @@ class MySQLPartitionListQueryStatement(IntrospectionExpression):
             table_name: The table whose partitions are wanted.
             schema: The database to read, or ``None`` to leave the resolution
                 to the formatter.
+            include_stats: Ask for the per-partition row count and byte
+                estimates as part of the same question.
         """
         super().__init__(dialect, schema=schema)
         self.table_name: str = table_name
+        self.include_stats: bool = include_stats
 
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""
-        return "format_partition_list_query_statement"
+        return "format_partition_state_query_statement"
 
 
 class MySQLRoutineListQueryStatement(IntrospectionExpression):

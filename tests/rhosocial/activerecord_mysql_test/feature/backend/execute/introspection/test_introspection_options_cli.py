@@ -86,11 +86,7 @@ class TestTableOptionsCommand:
 
     def test_unknown_table_exits_non_zero(self, backend_with_tables, capsys):
         with pytest.raises(SystemExit) as excinfo:
-            main(
-                _cli_args(
-                    backend_with_tables, "table-options", "table_options_does_not_exist"
-                )
-            )
+            main(_cli_args(backend_with_tables, "table-options", "table_options_does_not_exist"))
 
         assert excinfo.value.code == 1
         assert "not found" in capsys.readouterr().err
@@ -106,8 +102,9 @@ class TestPartitionsCommand:
         )
 
         payload = json.loads(out)
-        assert len(payload) == 3
-        assert [row["partition_name"] for row in payload] == ["p2020", "p2021", "p_max"]
+        assert payload["scheme"] == "range"
+        assert [row["name"] for row in payload["bounds"]] == ["p2020", "p2021", "p_max"]
+        assert [row["is_maxvalue"] for row in payload["bounds"]] == [False, False, True]
 
     def test_requires_a_table_name(self, backend_with_tables, capsys):
         with pytest.raises(SystemExit) as excinfo:

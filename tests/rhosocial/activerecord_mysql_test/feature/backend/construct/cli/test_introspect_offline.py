@@ -300,7 +300,7 @@ class TestSyncBranches:
             (
                 "partitions",
                 "orders",
-                "list_partitions",
+                "get_partition_state",
                 ("orders",),
                 {"schema": None},
                 "Partitions of orders",
@@ -365,7 +365,7 @@ class TestAsyncBranches:
             ("foreign-keys", "users", "list_foreign_keys", ("users",), {"schema": None}),
             ("triggers", "users", "list_triggers", (), {"table_name": "users", "schema": None}),
             ("table-options", None, "list_table_options", (), {"schema": None}),
-            ("partitions", "orders", "list_partitions", ("orders",), {"schema": None}),
+            ("partitions", "orders", "get_partition_state", ("orders",), {"schema": None}),
             ("database", None, "get_database_info", (), {}),
         ],
     )
