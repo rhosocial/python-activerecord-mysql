@@ -47,6 +47,22 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Create mysql scenario config
+        run: |
+          cat > mysql_scenarios.yaml << EOF
+          scenarios:
+            mysql_default:
+              host: 127.0.0.1
+              port: 3318
+              database: test_db
+              username: root
+              password: password
+              charset: utf8mb4
+              autocommit: true
+              ssl_disabled: true
+          EOF
+          echo "MYSQL_SCENARIOS_CONFIG_PATH=$(pwd)/mysql_scenarios.yaml" >> $GITHUB_ENV
+
       - name: Formal rules contracts
         run: |
           export PYTHONPATH=src:tests
