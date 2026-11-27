@@ -106,18 +106,18 @@ class TestAlterColumnDefault:
 
     def test_set_default_string(self, dialect):
         action = AlterColumnAction(dialect, "col", ColumnAlterOperation.SET_DEFAULT, new_value="ABC")
-        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
+        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), action).to_sql()
         assert "ALTER COLUMN `col` SET DEFAULT 'ABC'" in sql
         assert params == ()
 
     def test_set_default_integer(self, dialect):
         action = AlterColumnAction(dialect, "num", ColumnAlterOperation.SET_DEFAULT, new_value=5)
-        sql, _ = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
+        sql, _ = AlterTableStatement(dialect, Table(dialect, "t"), action).to_sql()
         assert "ALTER COLUMN `num` SET DEFAULT 5" in sql
 
     def test_drop_default(self, dialect):
         action = AlterColumnAction(dialect, "col", ColumnAlterOperation.DROP_DEFAULT)
-        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), [action]).to_sql()
+        sql, params = AlterTableStatement(dialect, Table(dialect, "t"), action).to_sql()
         assert "ALTER COLUMN `col` DROP DEFAULT" in sql
         assert params == ()
 

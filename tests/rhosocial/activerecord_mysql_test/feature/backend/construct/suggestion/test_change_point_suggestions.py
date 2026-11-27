@@ -68,7 +68,7 @@ def dialect():
 
 def _alter(dialect, action):
     """One action in one statement: no multi-action SQL strings."""
-    return AlterTableStatement(dialect, Table(dialect, "events"), [action]).to_sql()[0]
+    return AlterTableStatement(dialect, Table(dialect, "events"), action).to_sql()[0]
 
 
 def _assert_frozen_answer(answer, point, state):
@@ -358,7 +358,7 @@ class TestEnrichedColumnReorder:
         _assert_frozen_answer(answer, point, "actions")
         assert len(answer.operations) == 2
         assert all(isinstance(stmt, AlterTableStatement) for stmt in answer.operations)
-        actions = [stmt.actions[0] for stmt in answer.operations]
+        actions = [stmt.action for stmt in answer.operations]
         assert all(isinstance(action, ModifyColumnAction) for action in actions)
         assert actions[0].first is True and actions[0].after_column is None
         assert actions[1].first is False and actions[1].after_column == "created_at"

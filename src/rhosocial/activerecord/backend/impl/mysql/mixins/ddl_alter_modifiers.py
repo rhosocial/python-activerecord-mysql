@@ -66,16 +66,16 @@ class MySQLAlterTableModifierMixin:
     def format_mysql_alter_table_statement(
         self, expr: "MySQLAlterTableStatement"
     ) -> Tuple[str, tuple]:
-        """Render one statement with the modifiers ahead of the actions.
+        """Render one statement with the modifiers ahead of the action.
 
         With neither modifier supplied the call is handed to core's
         ``format_alter_table_statement`` unchanged, so an unmodified wrapper
         is byte-identical to the core statement it wraps. With modifiers, the
-        same action renderers are used and every clause is joined into the
-        single comma-separated list MySQL's grammar requires.
+        action renderer is used and the clauses join into MySQL's single
+        comma-separated form.
 
         Raises:
-            TypeError: the table is not a ``Table``, or an action is not an
+            TypeError: the table is not a ``Table``, or the action is not an
                 ``AlterTableAction``. A wrong kind would otherwise render a
                 well-formed statement against the wrong object or silently
                 skip the clause that cannot be dispatched.
@@ -84,12 +84,11 @@ class MySQLAlterTableModifierMixin:
                 other than ``DEFAULT`` (§17.12).
         """
         require_kind(expr.table, Table, "MySQLAlterTableStatement.table")
-        for position, action in enumerate(expr.actions):
-            if not isinstance(action, AlterTableAction):
-                raise TypeError(
-                    "MySQLAlterTableStatement.actions must hold AlterTableAction "
-                    f"implementations, got {type(action).__name__} at position {position}"
-                )
+        if not isinstance(expr.action, AlterTableAction):
+            raise TypeError(
+                "MySQLAlterTableStatement.action must be an AlterTableAction "
+                f"implementation, got {type(expr.action).__name__}"
+            )
 
         if expr.algorithm is None and expr.lock is None:
             return super().format_alter_table_statement(expr)
@@ -141,13 +140,10 @@ class MySQLAlterTableModifierMixin:
             modifiers.append(f"LOCK={lock_word}")
 
         all_params = []
-        action_parts = []
-        for action in expr.actions:
-            action_sql, action_params = action.to_sql()
-            action_parts.append(action_sql)
-            all_params.extend(action_params)
+        action_sql, action_params = expr.action.to_sql()
+        all_params.extend(action_params)
         table_sql = expr.table.to_sql()[0]
-        clauses = ", ".join([*modifiers, *action_parts])
+        clauses = ", ".join([*modifiers, action_sql])
         return f"ALTER TABLE {table_sql} {clauses}", tuple(all_params)
 
     @staticmethod

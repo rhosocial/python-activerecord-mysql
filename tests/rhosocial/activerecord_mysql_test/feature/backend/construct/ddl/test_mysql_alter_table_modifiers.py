@@ -76,11 +76,11 @@ def _action(dialect, name="c"):
     return AddColumnAction(dialect, ColumnDefinition(dialect, name, IntegerType(dialect)))
 
 
-def _statement(dialect, *, algorithm=None, lock=None, actions=None):
+def _statement(dialect, *, algorithm=None, lock=None, action=None):
     return MySQLAlterTableStatement(
         dialect,
         Table(dialect, "t"),
-        [_action(dialect)] if actions is None else actions,
+        _action(dialect) if action is None else action,
         algorithm=algorithm,
         lock=lock,
     )
@@ -150,21 +150,11 @@ class TestExactSQL:
         assert sql == "ALTER TABLE `t` ALGORITHM=INPLACE, LOCK=NONE, ADD COLUMN `c` INT"
         assert params == ()
 
-    def test_modifiers_with_multiple_actions(self):
+    def test_modifiers_with_one_action(self):
         d = _dialect()
-        actions = [_action(d, "a"), DropColumnAction(d, "b")]
-        sql, params = _statement(d, algorithm="COPY", lock="EXCLUSIVE", actions=actions).to_sql()
-        assert sql == (
-            "ALTER TABLE `t` ALGORITHM=COPY, LOCK=EXCLUSIVE, "
-            "ADD COLUMN `a` INT, DROP COLUMN `b`"
-        )
+        sql, params = _statement(d, algorithm="COPY", lock="EXCLUSIVE", action=_action(d, "a")).to_sql()
+        assert sql == "ALTER TABLE `t` ALGORITHM=COPY, LOCK=EXCLUSIVE, ADD COLUMN `a` INT"
         assert params == ()
-
-    def test_modifiers_with_no_actions(self):
-        """The grammar permits a statement carrying only alter_options."""
-        d = _dialect()
-        sql, _ = _statement(d, algorithm="INPLACE", lock="SHARED", actions=[]).to_sql()
-        assert sql == "ALTER TABLE `t` ALGORITHM=INPLACE, LOCK=SHARED"
 
     def test_action_rendering_is_reused_unchanged(self):
         from rhosocial.activerecord.backend.expression.core import Literal
@@ -175,15 +165,15 @@ class TestExactSQL:
 
         d = _dialect()
         action = AlterColumnAction(d, "c", ColumnAlterOperation.SET_DEFAULT, new_value=Literal(d, 7))
-        sql, params = _statement(d, algorithm="INPLACE", actions=[action]).to_sql()
+        sql, params = _statement(d, algorithm="INPLACE", action=action).to_sql()
         assert sql == "ALTER TABLE `t` ALGORITHM=INPLACE, ALTER COLUMN `c` SET DEFAULT 7"
         assert params == ()
 
     def test_omitting_modifiers_is_byte_identical_to_core(self):
         d = _dialect()
-        actions = [_action(d, "a"), DropColumnAction(d, "b")]
-        wrapped = _statement(d, actions=actions).to_sql()
-        plain = core_statements.AlterTableStatement(d, Table(d, "t"), actions).to_sql()
+        action = _action(d, "a")
+        wrapped = _statement(d, action=action).to_sql()
+        plain = core_statements.AlterTableStatement(d, Table(d, "t"), action).to_sql()
         assert wrapped == plain
 
     def test_explicit_default_words_render_the_clauses(self):
@@ -192,7 +182,7 @@ class TestExactSQL:
         sql, _ = _statement(d, algorithm="DEFAULT", lock="DEFAULT").to_sql()
         assert sql == "ALTER TABLE `t` ALGORITHM=DEFAULT, LOCK=DEFAULT, ADD COLUMN `c` INT"
         plain = core_statements.AlterTableStatement(
-            d, Table(d, "t"), [_action(d)]
+            d, Table(d, "t"), _action(d)
         ).to_sql()[0]
         assert sql != plain
 
@@ -238,15 +228,15 @@ class TestRefusals:
         # The last case is a Table, so it must be replaced by a genuinely
         # wrong kind to keep the parameter meaningful.
         wrong = object() if isinstance(bad, Table) else bad
-        expr = MySQLAlterTableStatement(d, wrong, [_action(d)], algorithm="INPLACE")
+        expr = MySQLAlterTableStatement(d, wrong, _action(d), algorithm="INPLACE")
         with pytest.raises(TypeError, match="MySQLAlterTableStatement.table"):
             expr.to_sql()
 
     @pytest.mark.parametrize("bad", ["ADD COLUMN", 7, object()])
     def test_wrong_action_type_is_refused(self, bad):
         d = _dialect()
-        expr = MySQLAlterTableStatement(d, Table(d, "t"), [bad], lock="NONE")
-        with pytest.raises(TypeError, match="MySQLAlterTableStatement.actions"):
+        expr = MySQLAlterTableStatement(d, Table(d, "t"), bad, lock="NONE")
+        with pytest.raises(TypeError, match="MySQLAlterTableStatement.action"):
             expr.to_sql()
 
 
@@ -255,11 +245,11 @@ class TestProprietaryNode:
 
     def test_constructor_keeps_the_values_without_a_dialect(self):
         d = None
-        expr = MySQLAlterTableStatement(d, Table(d, "t"), [], algorithm="inplace", lock="none")
+        expr = MySQLAlterTableStatement(d, Table(d, "t"), "add", algorithm="inplace", lock="none")
         assert expr._dialect is None
         assert expr.algorithm == "inplace"
         assert expr.lock == "none"
-        assert expr.actions == []
+        assert expr.action == "add"
         assert expr.format_method == "format_mysql_alter_table_statement"
 
     def test_kind_is_mysql_prefixed_and_core_does_not_export_it(self):

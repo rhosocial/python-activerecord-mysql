@@ -72,12 +72,12 @@ class MySQLAlterTableStatement(AlterTableStatement):
         self,
         dialect: "SQLDialectBase",
         table: "Table",
-        actions: List[AlterTableAction],
+        action: AlterTableAction,
         *,
         algorithm: Optional[str] = None,
         lock: Optional[str] = None,
     ) -> None:
-        super().__init__(dialect, table, actions)
+        super().__init__(dialect, table, action)
         self.algorithm = algorithm
         self.lock = lock
 

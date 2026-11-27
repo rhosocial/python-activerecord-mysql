@@ -82,7 +82,7 @@ snapshot_before = builder.build()
 # Add `age` column between `name` and `email` — shifts email to position 4
 add_col = MySQLAddColumn(dialect, ColumnDefinition(dialect, "age", IntegerType(dialect)),
                          after="name")
-alter_expr = AlterTableStatement(dialect, Table(dialect, "users"), [add_col])
+alter_expr = AlterTableStatement(dialect, Table(dialect, "users"), add_col)
 sql, params = alter_expr.to_sql()
 backend.execute(sql, params)
 

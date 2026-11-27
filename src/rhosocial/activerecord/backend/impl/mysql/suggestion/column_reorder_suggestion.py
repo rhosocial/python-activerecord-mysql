@@ -73,14 +73,12 @@ class MySQLColumnReorderSuggestionMixin:
                 AlterTableStatement(
                     self,
                     table,
-                    [
-                        ModifyColumnAction(
+                    ModifyColumnAction(
                             self,
                             column,
                             first=previous is None,
                             after_column=previous,
-                        )
-                    ],
+                        ),
                 )
             )
             previous = name

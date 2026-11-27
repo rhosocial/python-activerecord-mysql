@@ -65,7 +65,6 @@ TYPE_SUPPORT_FLAGS = (
     "supports_create_type_or_replace",
     "supports_alter_type_if_exists",
     "supports_drop_type_if_exists",
-    "supports_multiple_type_alter_actions",
 )
 
 DOMAIN_SUPPORT_FLAGS = (
@@ -78,7 +77,6 @@ DOMAIN_SUPPORT_FLAGS = (
     "supports_named_domain_checks",
     "supports_multiple_domain_checks",
     "supports_domain_collation",
-    "supports_multiple_domain_alter_actions",
     "supports_drop_domain_if_exists",
     "supports_drop_domain_cascade",
     "supports_drop_domain_restrict",
@@ -113,7 +111,7 @@ def _type_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
     action = _TestTypeAlterAction(dialect)
     return (
         CreateTypeStatement(dialect, Type(dialect, "status"), definition),
-        AlterTypeStatement(dialect, Type(dialect, "status"), [action]),
+        AlterTypeStatement(dialect, Type(dialect, "status"), action),
         DropTypeStatement(dialect, Type(dialect, "status")),
         definition,
         action,
@@ -128,7 +126,7 @@ def _domain_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
     check = DomainCheckConstraint(dialect, condition)
     return (
         CreateDomainStatement(dialect, Domain(dialect, "positive"), IntegerType(dialect)),
-        AlterDomainStatement(dialect, Domain(dialect, "positive"), [DropDomainDefaultAction(dialect)]),
+        AlterDomainStatement(dialect, Domain(dialect, "positive"), DropDomainDefaultAction(dialect)),
         DropDomainStatement(dialect, Domain(dialect, "positive")),
         DomainValueExpression(dialect),
         check,

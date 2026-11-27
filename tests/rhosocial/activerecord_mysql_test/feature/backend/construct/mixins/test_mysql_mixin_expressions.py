@@ -767,7 +767,7 @@ class TestMySQLColumnModificationExpressions:
             column=ColumnDefinition(dialect, "name", VarCharType(dialect, 200)),
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "ALTER TABLE" in sql
@@ -781,7 +781,7 @@ class TestMySQLColumnModificationExpressions:
             first=True,
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "MODIFY COLUMN" in sql
@@ -795,7 +795,7 @@ class TestMySQLColumnModificationExpressions:
             after_column="id",
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "MODIFY COLUMN" in sql
@@ -809,7 +809,7 @@ class TestMySQLColumnModificationExpressions:
             column=ColumnDefinition(dialect, "login_name", VarCharType(dialect, 150)),
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -823,7 +823,7 @@ class TestMySQLColumnModificationExpressions:
             first=True,
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -838,7 +838,7 @@ class TestMySQLColumnModificationExpressions:
             after_column="id",
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "CHANGE COLUMN" in sql
@@ -857,7 +857,7 @@ class TestMySQLColumnModificationExpressions:
             ),
         )
         expr = AlterTableStatement(
-            dialect=dialect, table=Table(dialect, "users"), actions=[action]
+            dialect=dialect, table=Table(dialect, "users"), action=action
         )
         sql, params = expr.to_sql()
         assert "NOT NULL" in sql
@@ -913,7 +913,7 @@ class TestMySQLAddColumnPosition:
         statement = AlterTableStatement(
             dialect=dialect,
             table=Table(dialect, "users"),
-            actions=[self._action(dialect, first=True)],
+            action=self._action(dialect, first=True),
         )
         sql, params = statement.to_sql()
         assert sql == "ALTER TABLE `users` ADD COLUMN `email` VARCHAR(255) FIRST"
