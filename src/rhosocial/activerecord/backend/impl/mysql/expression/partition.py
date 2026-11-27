@@ -144,7 +144,14 @@ class MySQLPartitionMaxValue(BaseExpression):
 
 
 class MySQLPartitionValue(BaseExpression):
-    """Literal value used in MySQL partition boundary definitions."""
+    """Literal value used in MySQL partition boundary definitions.
+
+    ``None`` is the SQL ``NULL``, which LIST partitioning may name explicitly
+    in ``VALUES IN``, so it is a value this position carries, not a missing
+    field.
+    """
+
+    NULLABLE_REQUIRED = frozenset({"value"})
 
     def __init__(self, dialect: "MySQLDialect", value: Any):
         super().__init__(dialect)
