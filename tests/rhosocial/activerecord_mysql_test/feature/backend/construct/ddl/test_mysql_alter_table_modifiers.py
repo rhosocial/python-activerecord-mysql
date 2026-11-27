@@ -35,10 +35,7 @@ import pytest
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression import statements as core_statements
 from rhosocial.activerecord.backend.expression.objects import Table
-from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
-    AddColumnAction,
-    DropColumnAction,
-)
+from rhosocial.activerecord.backend.expression.statements.ddl_alter import AddColumnAction
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     ColumnDefinition,
 )
@@ -229,7 +226,14 @@ class TestRefusals:
         # wrong kind to keep the parameter meaningful.
         wrong = object() if isinstance(bad, Table) else bad
         expr = MySQLAlterTableStatement(d, wrong, _action(d), algorithm="INPLACE")
-        with pytest.raises(TypeError, match="MySQLAlterTableStatement.table"):
+        # ``None`` passes construction as a missing required parameter and is
+        # refused only when rendered; a wrong *kind* keeps the qualified message.
+        expected = (
+            r"required parameter\(s\) table are None"
+            if wrong is None
+            else r"MySQLAlterTableStatement\.table"
+        )
+        with pytest.raises(TypeError, match=expected):
             expr.to_sql()
 
     @pytest.mark.parametrize("bad", ["ADD COLUMN", 7, object()])

@@ -165,9 +165,9 @@ class TestConstraintSwitchValues:
         (core's ``constraint_kind`` view, and PostgreSQL's, both derive the
         string by that same rule), so the test asserts the spelling that
         actually round-trips instead of the one the constructor's docstring
-        advertises. ``"CHECK"`` is refused by the constructor with a
-        ``ValueError``; the expression layer owns that mapping and this
-        backend has no say in it.
+        advertises. ``"CHECK"`` stays unmatched by that rule and is refused
+        at render time by the expression's ``check_renderable`` gate; the
+        expression layer owns that mapping and this backend has no say in it.
         """
         from rhosocial.activerecord.backend.expression import AlterConstraintAction
 
@@ -179,13 +179,14 @@ class TestConstraintSwitchValues:
         ).to_sql()
         assert sql == "ALTER CONSTRAINT `ck` NOT ENFORCED"
 
-        with pytest.raises(ValueError):
-            AlterConstraintAction(
-                _dialect(),
-                constraint_name="ck",
-                not_enforced=True,
-                constraint_kind="CHECK",
-            )
+        expr = AlterConstraintAction(
+            _dialect(),
+            constraint_name="ck",
+            not_enforced=True,
+            constraint_kind="CHECK",
+        )
+        with pytest.raises(TypeError, match="constraint_kind must name a CHECK or FOREIGN KEY constraint"):
+            expr.to_sql()
 
 
 class TestConstraintSwitchesAreDeclaredLocally:
