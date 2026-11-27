@@ -1,5 +1,12 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/set_type.py
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
+
+if TYPE_CHECKING:
+    from ..expression.set_type import (
+        MySQLFindInSetExpression,
+        MySQLSetContainsExpression,
+        MySQLSetLiteralExpression,
+    )
 
 
 class MySQLSetTypeMixin:
@@ -8,7 +15,7 @@ class MySQLSetTypeMixin:
     def supports_set_type(self) -> bool:
         return True
 
-    def format_mysql_set_literal_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_set_literal_expression(self, expr: "MySQLSetLiteralExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSetLiteralExpression` node."""
         from ..expression.set_type import MySQLSetLiteralExpression
 
@@ -37,7 +44,7 @@ class MySQLSetTypeMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, (literal,)
 
-    def format_mysql_find_in_set_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_find_in_set_expression(self, expr: "MySQLFindInSetExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLFindInSetExpression` node."""
         from ..expression.set_type import MySQLFindInSetExpression
 
@@ -51,7 +58,7 @@ class MySQLSetTypeMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, (expr.value,)
 
-    def format_mysql_set_contains_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_set_contains_expression(self, expr: "MySQLSetContainsExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSetContainsExpression` node."""
         from ..expression.set_type import MySQLSetContainsExpression
 

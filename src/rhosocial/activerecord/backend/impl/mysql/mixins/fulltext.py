@@ -1,5 +1,11 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/fulltext.py
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from ..expression.fulltext import (
+        MySQLFulltextIndexOptionsExpression,
+        MySQLMatchAgainstExpression,
+    )
 
 
 class MySQLFullTextSearchMixin:
@@ -25,7 +31,9 @@ class MySQLFullTextSearchMixin:
     def supports_fulltext_query_expansion(self) -> bool:
         return True
 
-    def format_mysql_fulltext_index_options_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_fulltext_index_options_expression(
+        self, expr: "MySQLFulltextIndexOptionsExpression"
+    ) -> Tuple[str, tuple]:
         """Format a :class:`MySQLFulltextIndexOptionsExpression` node."""
         from ..expression.fulltext import MySQLFulltextIndexOptionsExpression
 
@@ -41,7 +49,7 @@ class MySQLFullTextSearchMixin:
             sql += f" WITH PARSER {self.format_identifier(expr.parser_name)}"
         return sql, ()
 
-    def format_mysql_match_against_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_match_against_expression(self, expr: "MySQLMatchAgainstExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLMatchAgainstExpression` node."""
         cols_sql = ", ".join(self.format_identifier(c) for c in expr.columns)
 

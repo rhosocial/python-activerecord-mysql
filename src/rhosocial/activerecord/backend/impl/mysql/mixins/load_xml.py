@@ -17,6 +17,10 @@ class MySQLLoadXMLLMixin:
     def supports_load_xml(self) -> bool:
         return True
 
+    def _escape_file_path_atom(self, file_path: str) -> str:
+        """Escape a declared file-path atom; MySQL treats backslash as escape."""
+        return file_path.replace("\\", "\\\\").replace("'", "\\'")
+
     def format_mysql_load_xml_statement(self, expr: "MySQLLoadXMLStatement") -> Tuple[str, tuple]:
         """Format ``LOAD XML ... INFILE ... INTO TABLE ...``.
 
@@ -36,7 +40,7 @@ class MySQLLoadXMLLMixin:
             parts.append("LOCAL")
 
         parts.append("INFILE")
-        file_path_escaped = expr.file_path.replace("\\", "\\\\").replace("'", "\\'")
+        file_path_escaped = self._escape_file_path_atom(expr.file_path)
         parts.append(f"'{file_path_escaped}'")
 
         if expr.conflict_mode.value:

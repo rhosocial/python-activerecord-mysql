@@ -211,7 +211,7 @@ class MySQLPartitionMixin:
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
-                partition_sql, partition_params = self.format_partition_definition(partition)
+                partition_sql, partition_params = self.format_partition_definition_expression(partition)
                 partition_sql_parts.append(partition_sql)
                 params.extend(partition_params)
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
@@ -240,7 +240,7 @@ class MySQLPartitionMixin:
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
-                partition_sql, partition_params = self.format_partition_definition(partition)
+                partition_sql, partition_params = self.format_partition_definition_expression(partition)
                 partition_sql_parts.append(partition_sql)
                 params.extend(partition_params)
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
@@ -269,7 +269,7 @@ class MySQLPartitionMixin:
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
-                partition_sql, partition_params = self.format_partition_definition(partition)
+                partition_sql, partition_params = self.format_partition_definition_expression(partition)
                 partition_sql_parts.append(partition_sql)
                 params.extend(partition_params)
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
@@ -298,7 +298,7 @@ class MySQLPartitionMixin:
         if partitions:
             partition_sql_parts = []
             for partition in partitions:
-                partition_sql, partition_params = self.format_partition_definition(partition)
+                partition_sql, partition_params = self.format_partition_definition_expression(partition)
                 partition_sql_parts.append(partition_sql)
                 params.extend(partition_params)
             sql = f"{sql} ({', '.join(partition_sql_parts)})"
@@ -352,7 +352,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} PARTITIONS {partitions_count}"
         return sql, tuple(params)
 
-    def format_partition_definition(
+    def format_partition_definition_expression(
         self, expr: "PartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a MySQL partition definition."""
@@ -388,7 +388,7 @@ class MySQLPartitionMixin:
         else:
             raise ValueError("Partition definition requires less_than or in_values.")
         if partition_options is not None:
-            options_sql, options_params = self.format_partition_definition_options(
+            options_sql, options_params = self.format_partition_options_expression(
                 partition_options
             )
             if options_sql:
@@ -400,13 +400,13 @@ class MySQLPartitionMixin:
                 raise UnsupportedFeatureError(self.name, "subpartition definitions")
             sub_parts = []
             for sub_def in subpartition_defs:
-                sub_sql, sub_params = self.format_subpartition_definition(sub_def)
+                sub_sql, sub_params = self.format_subpartition_definition_expression(sub_def)
                 sub_parts.append(sub_sql)
                 params.extend(sub_params)
             parts.append(f"({', '.join(sub_parts)})")
         return " ".join(parts), tuple(params)
 
-    def format_partition_definition_options(
+    def format_partition_options_expression(
         self, expr: Optional["PartitionOptionsExpression"]
     ) -> Tuple[str, tuple]:
         """Format MySQL partition definition options from an expression node."""
@@ -593,7 +593,7 @@ class MySQLPartitionMixin:
             sql = f"{sql} SUBPARTITIONS {expr.count}"
         return sql, tuple(params)
 
-    def format_subpartition_definition(
+    def format_subpartition_definition_expression(
         self, expr: "SubpartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.
@@ -614,7 +614,7 @@ class MySQLPartitionMixin:
         params: List[Any] = []
         partition_options = getattr(expr, "options", None)
         if partition_options is not None:
-            options_sql, options_params = self.format_partition_definition_options(
+            options_sql, options_params = self.format_partition_options_expression(
                 partition_options
             )
             if options_sql:
@@ -640,7 +640,7 @@ class MySQLPartitionMixin:
         params: List[Any] = list(table_params)
         partition_sql_parts = []
         for partition in expr.partitions:
-            partition_sql, partition_params = self.format_partition_definition(partition)
+            partition_sql, partition_params = self.format_partition_definition_expression(partition)
             partition_sql_parts.append(partition_sql)
             params.extend(partition_params)
         sql = f"ALTER TABLE {table_sql} ADD PARTITION ({', '.join(partition_sql_parts)})"
@@ -705,7 +705,7 @@ class MySQLPartitionMixin:
         params: List[Any] = list(table_params)
         into_sql_parts = []
         for partition in expr.into:
-            partition_sql, partition_params = self.format_partition_definition(partition)
+            partition_sql, partition_params = self.format_partition_definition_expression(partition)
             into_sql_parts.append(partition_sql)
             params.extend(partition_params)
         sql = (

@@ -1,5 +1,18 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/spatial.py
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
+
+if TYPE_CHECKING:
+    from ..expression.spatial import (
+        MySQLCreateSpatialIndexStatement,
+        MySQLSTAsGeoJSONExpression,
+        MySQLSTAsTextExpression,
+        MySQLSTContainsExpression,
+        MySQLSTDistanceExpression,
+        MySQLSTGeomFromTextExpression,
+        MySQLSTGeomFromWKBExpression,
+        MySQLSTWithinExpression,
+        MySQLSpatialLiteralExpression,
+    )
 
 
 class MySQLSpatialMixin:
@@ -26,7 +39,7 @@ class MySQLSpatialMixin:
     def supports_geometry_collection_type(self) -> bool:
         return self.version_at_least((5, 7, 0))
 
-    def format_mysql_spatial_literal_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_spatial_literal_expression(self, expr: "MySQLSpatialLiteralExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSpatialLiteralExpression` node."""
         from ..expression.spatial import MySQLSpatialLiteralExpression
 
@@ -47,7 +60,7 @@ class MySQLSpatialMixin:
             return f"ST_GeomFromText({self.p()}, {self.p()})", (wkt, srid)
         return f"ST_GeomFromText({self.p()})", (wkt,)
 
-    def format_mysql_st_geom_from_text_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_geom_from_text_expression(self, expr: "MySQLSTGeomFromTextExpression") -> Tuple[str, tuple]:
         """Format MySQLSTGeomFromTextExpression or a raw WKT string."""
         from ..expression.spatial import MySQLSTGeomFromTextExpression
 
@@ -62,7 +75,7 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_st_geom_from_wkb_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_geom_from_wkb_expression(self, expr: "MySQLSTGeomFromWKBExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSTGeomFromWKBExpression` node."""
         from ..expression.spatial import MySQLSTGeomFromWKBExpression
 
@@ -82,7 +95,7 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, params
 
-    def format_mysql_st_as_text_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_as_text_expression(self, expr: "MySQLSTAsTextExpression") -> Tuple[str, tuple]:
         """Format MySQLSTAsTextExpression or a raw geometry reference."""
         from ..expression.spatial import MySQLSTAsTextExpression
 
@@ -98,7 +111,7 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_st_as_geo_json_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_as_geo_json_expression(self, expr: "MySQLSTAsGeoJSONExpression") -> Tuple[str, tuple]:
         """Format MySQLSTAsGeoJSONExpression or a raw geometry reference."""
         from ..expression.spatial import MySQLSTAsGeoJSONExpression
 
@@ -117,7 +130,9 @@ class MySQLSpatialMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_create_spatial_index_statement(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_create_spatial_index_statement(
+        self, expr: "MySQLCreateSpatialIndexStatement"
+    ) -> Tuple[str, tuple]:
         """Format a :class:`MySQLCreateSpatialIndexStatement` node."""
         from ..expression.spatial import MySQLCreateSpatialIndexStatement
 
@@ -137,19 +152,19 @@ class MySQLSpatialMixin:
             (),
         )
 
-    def format_mysql_st_distance_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_distance_expression(self, expr: "MySQLSTDistanceExpression") -> Tuple[str, tuple]:
         sql = f"ST_Distance({expr.geom1}, {expr.geom2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_mysql_st_within_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_within_expression(self, expr: "MySQLSTWithinExpression") -> Tuple[str, tuple]:
         sql = f"ST_Within({expr.geom1}, {expr.geom2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, ()
 
-    def format_mysql_st_contains_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_st_contains_expression(self, expr: "MySQLSTContainsExpression") -> Tuple[str, tuple]:
         sql = f"ST_Contains({expr.geom1}, {expr.geom2})"
         if expr.alias:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"

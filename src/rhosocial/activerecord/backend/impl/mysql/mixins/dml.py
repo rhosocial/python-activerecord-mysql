@@ -10,6 +10,7 @@ from .object_kind import require_kind
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+        LoadDataOptions,
         MySQLLoadDataStatement,
     )
 
@@ -25,6 +26,10 @@ class MySQLDMLOperationMixin:
 
     def supports_load_data(self) -> bool:
         return True
+
+    def _escape_file_path_atom(self, file_path: str) -> str:
+        """Escape a declared file-path atom; MySQL treats backslash as escape."""
+        return file_path.replace("\\", "\\\\").replace("'", "\\'")
 
     def format_mysql_load_data_statement(self, expr: "MySQLLoadDataStatement") -> Tuple[str, tuple]:
         """Format LOAD DATA INFILE statement.
@@ -46,7 +51,7 @@ class MySQLDMLOperationMixin:
 
         parts.append("INFILE")
 
-        file_path_escaped = expr.file_path.replace("\\", "\\\\").replace("'", "\\'")
+        file_path_escaped = self._escape_file_path_atom(expr.file_path)
         parts.append(f"'{file_path_escaped}'")
 
         if expr.options.replace:
@@ -57,39 +62,56 @@ class MySQLDMLOperationMixin:
         parts.append("INTO TABLE")
         parts.append(expr.table.to_sql()[0])
 
-        if expr.options.character_set:
-            parts.append(f"CHARACTER SET {expr.options.character_set}")
+        options_sql, options_params = self.format_load_data_options(expr.options)
+        if options_sql:
+            parts.append(options_sql)
+        all_params.extend(options_params)
+
+        return " ".join(parts), tuple(all_params)
+
+    def format_load_data_options(self, expr: "LoadDataOptions") -> Tuple[str, tuple]:
+        """Render the LOAD DATA clauses that follow ``INTO TABLE``.
+
+        The options node is a kind in its own right, so it carries its own
+        dispatch entry; the statement formatter composes its result with the
+        leading ``LOAD DATA [LOCAL] INFILE '<path>' [REPLACE|IGNORE]`` parts.
+        """
+        parts: List[str] = []
+        all_params: List[Any] = []
+
+        if expr.character_set:
+            parts.append(f"CHARACTER SET {expr.character_set}")
 
         field_parts = []
-        if expr.options.fields_terminated_by is not None:
-            field_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.options.fields_terminated_by)}'")
-        if expr.options.fields_enclosed_by is not None:
-            field_parts.append(f"ENCLOSED BY '{self.escape_sql_string(expr.options.fields_enclosed_by)}'")
-        if expr.options.fields_escaped_by is not None:
-            field_parts.append(f"ESCAPED BY '{self.escape_sql_string(expr.options.fields_escaped_by)}'")
+        if expr.fields_terminated_by is not None:
+            field_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.fields_terminated_by)}'")
+        if expr.fields_enclosed_by is not None:
+            field_parts.append(f"ENCLOSED BY '{self.escape_sql_string(expr.fields_enclosed_by)}'")
+        if expr.fields_escaped_by is not None:
+            field_parts.append(f"ESCAPED BY '{self.escape_sql_string(expr.fields_escaped_by)}'")
         if field_parts:
             parts.append("FIELDS")
             parts.append(" ".join(field_parts))
 
         line_parts = []
-        if expr.options.lines_starting_by is not None:
-            line_parts.append(f"STARTING BY '{self.escape_sql_string(expr.options.lines_starting_by)}'")
-        if expr.options.lines_terminated_by is not None:
-            line_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.options.lines_terminated_by)}'")
+        if expr.lines_starting_by is not None:
+            line_parts.append(f"STARTING BY '{self.escape_sql_string(expr.lines_starting_by)}'")
+        if expr.lines_terminated_by is not None:
+            line_parts.append(f"TERMINATED BY '{self.escape_sql_string(expr.lines_terminated_by)}'")
         if line_parts:
             parts.append("LINES")
             parts.append(" ".join(line_parts))
 
-        if expr.options.ignore_lines is not None:
-            parts.append(f"IGNORE {expr.options.ignore_lines} LINES")
+        if expr.ignore_lines is not None:
+            parts.append(f"IGNORE {expr.ignore_lines} LINES")
 
-        if expr.options.column_list:
-            columns = ", ".join(self.format_identifier(c) for c in expr.options.column_list)
+        if expr.column_list:
+            columns = ", ".join(self.format_identifier(c) for c in expr.column_list)
             parts.append(f"({columns})")
 
-        if expr.options.set_assignments:
+        if expr.set_assignments:
             set_parts = []
-            for col, val in expr.options.set_assignments.items():
+            for col, val in expr.set_assignments.items():
                 col_sql = self.format_identifier(col)
                 if isinstance(val, BaseExpression):
                     val_sql, val_params = val.to_sql()

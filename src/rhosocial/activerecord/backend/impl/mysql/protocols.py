@@ -530,13 +530,13 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """Whether ALTER TABLE ... REPAIR PARTITION is supported."""
         ...
 
-    def format_partition_definition(
+    def format_partition_definition_expression(
         self, expr: "PartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a MySQL PARTITION definition."""
         ...
 
-    def format_partition_definition_options(
+    def format_partition_options_expression(
         self, expr: "PartitionOptionsExpression"
     ) -> Tuple[str, tuple]:
         """Format MySQL PARTITION definition options."""
@@ -576,7 +576,7 @@ class MySQLPartitionSupport(PartitionSupport, Protocol):
         """
         ...
 
-    def format_subpartition_definition(
+    def format_subpartition_definition_expression(
         self, expr: "SubpartitionDefinitionExpression"
     ) -> Tuple[str, tuple]:
         """Format a single ``SUBPARTITION name ...`` clause.

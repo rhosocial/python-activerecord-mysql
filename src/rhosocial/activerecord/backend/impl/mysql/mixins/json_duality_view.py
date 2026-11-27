@@ -5,6 +5,8 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
         CreateJsonDualityViewStatement,
         DropJsonDualityViewStatement,
+        DualityNestedMapping,
+        DualityObjectSpec,
     )
 
 
@@ -38,7 +40,7 @@ class MySQLJsonDualityViewMixin:
             return f"DROP VIEW IF EXISTS `{expr.view_name}`", ()
         return f"DROP VIEW `{expr.view_name}`", ()
 
-    def render_mysql_duality_object_select_expression(self, expr) -> str:
+    def render_mysql_duality_object_select_expression(self, expr: "DualityObjectSpec") -> str:
         """Format the SELECT JSON_DUALITY_OBJECT(...) FROM table clause."""
         obj_body = self.render_mysql_duality_object_body_expression(expr)
         table_ref = f"`{expr.from_table}`"
@@ -46,7 +48,7 @@ class MySQLJsonDualityViewMixin:
             table_ref += f" `{expr.from_alias}`"
         return f"SELECT {obj_body} FROM {table_ref}"
 
-    def render_mysql_duality_object_body_expression(self, expr) -> str:
+    def render_mysql_duality_object_body_expression(self, expr: "DualityObjectSpec") -> str:
         """Format JSON_DUALITY_OBJECT( WITH(...) 'key': col, ... )."""
         inner_parts = []
 
@@ -70,7 +72,7 @@ class MySQLJsonDualityViewMixin:
             fields_str = ", ".join(inner_parts)
             return f"JSON_DUALITY_OBJECT({fields_str})"
 
-    def render_mysql_nested_duality_expression(self, expr) -> str:
+    def render_mysql_nested_duality_expression(self, expr: "DualityNestedMapping") -> str:
         """Format a nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery."""
         sub_spec = expr.subquery
         obj_body = self.render_mysql_duality_object_body_expression(sub_spec)

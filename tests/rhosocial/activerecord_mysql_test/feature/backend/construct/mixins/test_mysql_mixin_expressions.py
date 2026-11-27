@@ -1176,7 +1176,7 @@ class TestMySQLPartitionExpressionEdgeCases:
         from unittest.mock import MagicMock
         mixin.format_identifier = MagicMock(side_effect=lambda x: f"`{x}`")
         defn = SubpartitionDefinitionExpression(dialect, name="subp_1")
-        sql, params = mixin.format_subpartition_definition(defn)
+        sql, params = mixin.format_subpartition_definition_expression(defn)
         assert "SUBPARTITION `subp_1`" in sql
 
     def test_coalesce_partition_expression(self):
@@ -1201,7 +1201,7 @@ class TestMySQLPartitionExpressionEdgeCases:
             in_values=[MySQLPartitionValue(dialect, "2024-01-01")],
             options=PartitionOptionsExpression(dialect, {"comment": "Partition for 2024 data"}),
         )
-        sql, params = mixin.format_partition_definition(defn)
+        sql, params = mixin.format_partition_definition_expression(defn)
         assert "COMMENT" in sql
 
 

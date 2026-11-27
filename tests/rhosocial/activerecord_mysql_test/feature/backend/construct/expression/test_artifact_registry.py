@@ -17,6 +17,7 @@ refused by name, and the published table refuses mutation.
 
 import pytest
 
+from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.registry import (
     RegistryError,
     RegistryReason,
@@ -32,10 +33,17 @@ from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
     MySQLFlushStatement,
 )
 from rhosocial.activerecord.backend.impl.mysql.registry import backend_registry
-from rhosocial.activerecord.backend.impl.sqlite.dialect import SQLiteDialect
-from rhosocial.activerecord.backend.impl.sqlite.expression.vacuum import (
-    SQLiteVacuumStatement,
-)
+
+
+class ForeignBackendKind(BaseExpression):
+    """A kind owned by no registry here; stands in for another backend's node.
+
+    The refusal under test is about the *kind name*, so a locally declared node
+    exercises it without importing a foreign backend's implementation package.
+    """
+
+    def __init__(self, dialect):
+        super().__init__(dialect)
 
 
 def test_the_dialect_answers_with_the_mysql_registry():
@@ -72,21 +80,21 @@ def test_mysql_proprietary_kind_resolves_through_the_dialect():
 
 
 def test_another_backends_kind_is_refused():
-    """MySQL's table is core plus MySQL: SQLite's kinds are not included."""
+    """MySQL's table is core plus MySQL: a foreign kind is not included."""
     dialect = MySQLDialect((8, 0, 0))
     registry = dialect.artifact_registry()
 
-    sqlite_kind = SQLiteVacuumStatement.kind()
-    assert sqlite_kind not in registry.node_kinds()
+    foreign_kind = ForeignBackendKind.kind()
+    assert foreign_kind not in registry.node_kinds()
     with pytest.raises(RegistryError) as caught:
-        registry.resolve_node(sqlite_kind)
+        registry.resolve_node(foreign_kind)
     assert caught.value.reason is RegistryReason.KIND_NOT_REGISTERED
-    assert sqlite_kind in str(caught.value)
+    assert foreign_kind in str(caught.value)
 
-    artifact = serialize(SQLiteVacuumStatement(SQLiteDialect((3, 38, 0))))
+    artifact = serialize(ForeignBackendKind(dialect))
     with pytest.raises(ExpressionDeserializationError) as caught:
         deserialize(artifact, dialect)
-    assert sqlite_kind in str(caught.value)
+    assert foreign_kind in str(caught.value)
 
 
 def test_the_published_registry_is_frozen():
@@ -102,9 +110,9 @@ def test_the_published_registry_is_frozen():
     # A twin is the mutable workspace, and it cannot change the source.
     twin = registry.twin()
     assert not twin.is_frozen
-    twin.register_node(SQLiteVacuumStatement)
-    assert SQLiteVacuumStatement.kind() in twin.node_kinds()
-    assert SQLiteVacuumStatement.kind() not in registry.node_kinds()
+    twin.register_node(ForeignBackendKind)
+    assert ForeignBackendKind.kind() in twin.node_kinds()
+    assert ForeignBackendKind.kind() not in registry.node_kinds()
 
 
 def test_the_expression_roundtrip_matrix_still_round_trips(mysql_dialect):

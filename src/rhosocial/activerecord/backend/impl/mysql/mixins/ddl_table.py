@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         TableForeignKeyConstraint,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.table_expr import (
+        MySQLInlineIndexExpression,
         MySQLStorageOptionsExpression,
     )
 
@@ -290,11 +291,25 @@ class MySQLTableMixin:
             on_update=expr.on_update,
             match_type=expr.match_type,
         )
+        ref_sql, ref_params = self._references_with_spaced_columns(references)
+        return f"FOREIGN KEY ({cols_str}) {ref_sql}", tuple(ref_params)
+
+    def _references_with_spaced_columns(self, references) -> Tuple[str, tuple]:
+        """Render REFERENCES with MySQL's space before the column list.
+
+        The shared clause emits ``REFERENCES <table>(<cols>)``; MySQL spells
+        it ``REFERENCES <table> (<cols>)``. The adjustment is made here, on
+        the declared clause, so the formatter stays pure concatenation.
+        """
         ref_sql, ref_params = self.format_references_clause(references)
-        # The shared clause renders "REFERENCES <table>(<cols>)..."; MySQL
-        # spells the column list with a space: "REFERENCES <table> (<cols>)...".
         head, rest = ref_sql.split("(", 1)
-        return f"FOREIGN KEY ({cols_str}) {head} ({rest}", tuple(ref_params)
+        return f"{head} ({rest}", tuple(ref_params)
+
+    def format_mysql_inline_index_expression(
+        self, expr: "MySQLInlineIndexExpression"
+    ) -> Tuple[str, tuple]:
+        """Format :class:`MySQLInlineIndexExpression` from its declared index."""
+        return self.format_index_definition(expr.idx_def)
 
     def format_index_definition(self, expr: "IndexDefinition") -> Tuple[str, tuple]:
         """Format an inline INDEX definition within CREATE TABLE (MySQL-specific)."""

@@ -9,6 +9,20 @@ if TYPE_CHECKING:
         JSONTextValue,
     )
 
+    from ..expression.json import (
+        MySQLJSONArrayExpression,
+        MySQLJSONContainsExpression,
+        MySQLJSONExtractExpression,
+        MySQLJSONObjectExpression,
+        MySQLJSONRemoveExpression,
+        MySQLJSONSearchExpression,
+        MySQLJSONSetExpression,
+        MySQLJSONTableExpression,
+        MySQLJSONTypeExpression,
+        MySQLJSONUnquoteExpression,
+        MySQLJSONValidExpression,
+    )
+
     #: What the two formatters below accept. Core used to have one class for
     #: both JSON access operators; it now has one per operator, and MySQL renders
     #: ``->`` and ``->>`` from these same two methods, so the parameter is a
@@ -51,7 +65,7 @@ class MySQLJSONFunctionMixin:
     def supports_json_table(self) -> bool:
         return self.version_at_least((8, 0, 4))
 
-    def format_mysql_json_extract_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_extract_expression(self, expr: "MySQLJSONExtractExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONExtractExpression` node."""
         sql, params = self._format_json_extract_parts(expr.json_column, expr.path)
         if expr.alias:
@@ -68,7 +82,7 @@ class MySQLJSONFunctionMixin:
         path_placeholders = ", ".join([self.p() for _ in all_paths])
         return f"JSON_EXTRACT({json_doc}, {path_placeholders})", tuple(all_paths)
 
-    def format_mysql_json_unquote_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_unquote_expression(self, expr: "MySQLJSONUnquoteExpression") -> Tuple[str, tuple]:
         """Format MySQLJSONUnquoteExpression or a raw JSON value string."""
         from ..expression.json import MySQLJSONUnquoteExpression
 
@@ -84,7 +98,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_json_object_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_object_expression(self, expr: "MySQLJSONObjectExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONObjectExpression` node."""
         sql, params = self._format_json_object_parts(expr.pairs)
         if expr.alias:
@@ -107,7 +121,7 @@ class MySQLJSONFunctionMixin:
 
         return f"JSON_OBJECT({', '.join(parts)})", tuple(params)
 
-    def format_mysql_json_array_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_array_expression(self, expr: "MySQLJSONArrayExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONArrayExpression` node."""
         sql, params = self._format_json_array_parts(expr.values)
         if expr.alias:
@@ -121,7 +135,7 @@ class MySQLJSONFunctionMixin:
         placeholders = ", ".join([self.p() for _ in values])
         return f"JSON_ARRAY({placeholders})", tuple(values)
 
-    def format_mysql_json_contains_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_contains_expression(self, expr: "MySQLJSONContainsExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONContainsExpression` node."""
         sql, params = self._format_json_contains_parts(expr.json_column, expr.value, expr.path)
         if expr.alias:
@@ -134,7 +148,7 @@ class MySQLJSONFunctionMixin:
             return f"JSON_CONTAINS({target}, {self.p()}, {self.p()})", (candidate, path)
         return f"JSON_CONTAINS({target}, {self.p()})", (candidate,)
 
-    def format_mysql_json_set_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_set_expression(self, expr: "MySQLJSONSetExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSetExpression` node."""
         from ..expression.json import MySQLJSONSetExpression
 
@@ -155,7 +169,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, tuple(params)
 
-    def format_mysql_json_remove_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_remove_expression(self, expr: "MySQLJSONRemoveExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONRemoveExpression` node."""
         from ..expression.json import MySQLJSONRemoveExpression
 
@@ -171,7 +185,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(expr.alias)}"
         return sql, tuple(all_paths)
 
-    def format_mysql_json_type_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_type_expression(self, expr: "MySQLJSONTypeExpression") -> Tuple[str, tuple]:
         """Format MySQLJSONTypeExpression or a raw JSON value string."""
         from ..expression.json import MySQLJSONTypeExpression
 
@@ -187,7 +201,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_json_valid_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_valid_expression(self, expr: "MySQLJSONValidExpression") -> Tuple[str, tuple]:
         """Format MySQLJSONValidExpression or a raw JSON value string."""
         from ..expression.json import MySQLJSONValidExpression
 
@@ -203,7 +217,7 @@ class MySQLJSONFunctionMixin:
             sql = f"{sql} AS {self.format_identifier(alias)}"
         return sql, params
 
-    def format_mysql_json_search_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_search_expression(self, expr: "MySQLJSONSearchExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSearchExpression` node."""
         from ..expression.json import MySQLJSONSearchExpression
 
@@ -292,7 +306,7 @@ class MySQLJSONFunctionMixin:
 
         return sql, params
 
-    def format_mysql_json_table_expression(self, expr) -> Tuple[str, tuple]:
+    def format_mysql_json_table_expression(self, expr: "MySQLJSONTableExpression") -> Tuple[str, tuple]:
         """Format :class:`MySQLJSONTableExpression` with safe literal escaping.
 
         The entry the MySQL node names. It is not an override of core's

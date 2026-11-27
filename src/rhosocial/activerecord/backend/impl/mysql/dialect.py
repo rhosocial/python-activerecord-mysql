@@ -497,6 +497,10 @@ class MySQLDialect(
         value = value.replace("'", "''")
         return value
 
+    def _escape_identifier_atom(self, identifier: str) -> str:
+        """Double backticks in a declared identifier atom before quoting."""
+        return identifier.replace("`", "``")
+
     def format_identifier(self, identifier: str, need_quote: bool = True) -> str:
         """
         Format identifier using MySQL's backtick quoting mechanism.
@@ -521,7 +525,7 @@ class MySQLDialect(
                 )
             return identifier
         # Escape any internal backticks by doubling them
-        escaped = identifier.replace("`", "``")
+        escaped = self._escape_identifier_atom(identifier)
         return f"`{escaped}`"
 
     def supports_json_arrow_operators(self) -> bool:

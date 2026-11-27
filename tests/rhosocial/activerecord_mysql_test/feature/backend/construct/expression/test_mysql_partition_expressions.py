@@ -259,7 +259,7 @@ def test_partition_definition_rejects_invalid_value_mode_combinations(dialect):
         )
 
     with pytest.raises(ValueError, match="requires less_than or in_values"):
-        dialect.format_partition_definition(PartitionDefinitionExpression(dialect, name="p_bad"))
+        dialect.format_partition_definition_expression(PartitionDefinitionExpression(dialect, name="p_bad"))
 
 
 def test_partition_value_rejects_unsafe_or_invalid_values(dialect):
@@ -310,7 +310,7 @@ def test_partition_definition_options_are_formatted(dialect):
         ),
     )
 
-    sql, params = dialect.format_partition_definition(definition)
+    sql, params = dialect.format_partition_definition_expression(definition)
 
     assert "ENGINE" in sql and "InnoDB" in sql
     assert "COMMENT" in sql and "tenant''s partition" in sql
@@ -322,10 +322,10 @@ def test_partition_definition_options_are_formatted(dialect):
 def test_partition_definition_options_reject_invalid_options(dialect):
     """Unsupported or invalid partition options should fail clearly."""
     with pytest.raises(TypeError, match="engine option must be a non-empty string"):
-        dialect.format_partition_definition_options(PartitionOptionsExpression(dialect, {"engine": ""}))
+        dialect.format_partition_options_expression(PartitionOptionsExpression(dialect, {"engine": ""}))
 
     with pytest.raises(TypeError, match="max_rows option"):
-        dialect.format_partition_definition_options(PartitionOptionsExpression(dialect, {"max_rows": -1}))
+        dialect.format_partition_options_expression(PartitionOptionsExpression(dialect, {"max_rows": -1}))
 
 def test_extended_partition_maintenance_expressions(dialect):
     """MySQL maintenance expressions should delegate to public formatters."""
@@ -494,7 +494,7 @@ def test_subpartition_with_explicit_definitions(dialect):
         ],
     )
 
-    sql, params = dialect.format_partition_definition(definition)
+    sql, params = dialect.format_partition_definition_expression(definition)
 
     assert "`p0`" in sql
     assert "`sp0`" in sql
@@ -548,7 +548,7 @@ def test_subpartition_preserves_partition_options_on_subpartition_definitions(di
         ),
     )
 
-    sql, params = dialect.format_subpartition_definition(sub_def)
+    sql, params = dialect.format_subpartition_definition_expression(sub_def)
 
     assert "`sp_active`" in sql
     assert "ENGINE" in sql
@@ -714,7 +714,7 @@ def test_partition_value_with_datetime(dialect):
 def test_partition_definition_rejects_invalid_partition_options(dialect):
     """The formatter refuses option payloads that are not an expression node."""
     with pytest.raises(TypeError, match="partition options must be a PartitionOptionsExpression"):
-        dialect.format_partition_definition_options("invalid")  # type: ignore[arg-type]
+        dialect.format_partition_options_expression("invalid")  # type: ignore[arg-type]
 
 
 def test_partition_by_range_rejects_invalid_subpartition_by(dialect):
