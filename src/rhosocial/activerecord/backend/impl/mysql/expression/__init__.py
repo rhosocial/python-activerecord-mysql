@@ -30,7 +30,7 @@ from .column import (
     MySQLColumnDefinition,
     MySQLColumnOptions,
 )
-from .load_data import MySQLLoadDataStatement, LoadDataOptions
+from .load_data import MySQLLoadDataStatement, MySQLLoadDataOptions
 from .json_table import MySQLJSONTableExpression, JSONTableColumn, NestedPath
 from .json import (
     MySQLJSONExtractExpression,
@@ -74,8 +74,8 @@ from .fulltext import MySQLFulltextIndexOptionsExpression
 from .table_expr import MySQLInlineIndexExpression, MySQLStorageOptionsExpression
 from .match_against import MySQLMatchAgainstExpression, MatchAgainstMode
 from .json_duality_view import (
-    CreateJsonDualityViewStatement,
-    DropJsonDualityViewStatement,
+    MySQLCreateJsonDualityViewStatement,
+    MySQLDropJsonDualityViewStatement,
     DualityObjectSpec,
     DualityColumnMapping,
     DualityNestedMapping,
@@ -210,7 +210,7 @@ from .types import (
 
 __all__ = [
     "MySQLLoadDataStatement",
-    "LoadDataOptions",
+    "MySQLLoadDataOptions",
     "MySQLCreateTableOptions",
     "MySQLAlterTableOptionsStatement",
     "MySQLRowFormat",
@@ -259,8 +259,8 @@ __all__ = [
     "MySQLStorageOptionsExpression",
     "MySQLMatchAgainstExpression",
     "MatchAgainstMode",
-    "CreateJsonDualityViewStatement",
-    "DropJsonDualityViewStatement",
+    "MySQLCreateJsonDualityViewStatement",
+    "MySQLDropJsonDualityViewStatement",
     "DualityObjectSpec",
     "DualityColumnMapping",
     "DualityNestedMapping",

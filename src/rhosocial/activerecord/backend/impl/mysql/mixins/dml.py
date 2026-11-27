@@ -10,7 +10,7 @@ from .object_kind import require_kind
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
-        LoadDataOptions,
+        MySQLLoadDataOptions,
         MySQLLoadDataStatement,
     )
 
@@ -69,7 +69,7 @@ class MySQLDMLOperationMixin:
 
         return " ".join(parts), tuple(all_params)
 
-    def format_load_data_options(self, expr: "LoadDataOptions") -> Tuple[str, tuple]:
+    def format_load_data_options(self, expr: "MySQLLoadDataOptions") -> Tuple[str, tuple]:
         """Render the LOAD DATA clauses that follow ``INTO TABLE``.
 
         The options node is a kind in its own right, so it carries its own

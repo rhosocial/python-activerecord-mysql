@@ -684,7 +684,7 @@ _DECLARED_GAP = {
         "nothing in src or tests constructs it.",
     ),
     # --- The clause travels as a node; its rendering is inline. -----------
-    "load_data.LoadDataOptions": (
+    "load_data.MySQLLoadDataOptions": (
         "format_load_data_options",
         "DECLARED BUT NOT RENDERED. The LOAD DATA statement's own formatter "
         "renders the options inline, reading the fields this clause declares; "
@@ -1034,7 +1034,7 @@ _NOT_RENDERED = {
         "Temporal options cannot be empty, and the generic constructor cannot "
         "know which one to pick.",
     ),
-    "json_duality_view.CreateJsonDualityViewStatement": (
+    "json_duality_view.MySQLCreateJsonDualityViewStatement": (
         "AttributeError",
         "The JSON duality view takes duality object specs; the generic "
         "constructor supplies strings.",

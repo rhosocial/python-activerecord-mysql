@@ -42,7 +42,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
 from rhosocial.activerecord.backend.expression.objects import Function, Table, Trigger
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
-    LoadDataOptions,
+    MySQLLoadDataOptions,
     MySQLLoadDataStatement,
 )
 from rhosocial.activerecord.backend.expression import (
@@ -143,7 +143,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_local_replace(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(dialect, local=True, replace=True)
+        options = MySQLLoadDataOptions(dialect, local=True, replace=True)
         expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "products"), options=options
         )
@@ -152,7 +152,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_ignore(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(dialect, local=True, ignore=True)
+        options = MySQLLoadDataOptions(dialect, local=True, ignore=True)
         expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "products"), options=options
         )
@@ -161,7 +161,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_full_options(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(dialect, 
+        options = MySQLLoadDataOptions(dialect,
             local=True,
             character_set="utf8mb4",
             fields_terminated_by=",",
@@ -188,7 +188,7 @@ class TestMySQLDMLOperationExpressions:
 
     def test_load_data_validate_replaces_ignore_raises(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        options = LoadDataOptions(dialect, replace=True, ignore=True)
+        options = MySQLLoadDataOptions(dialect, replace=True, ignore=True)
         expr = MySQLLoadDataStatement(
             dialect, file_path="data.csv", table=Table(dialect, "t"), options=options
         )
@@ -1450,7 +1450,7 @@ class TestMySQLJsonDualityViewExpressions:
     def test_create_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            CreateJsonDualityViewStatement,
+            MySQLCreateJsonDualityViewStatement,
             DualityObjectSpec,
             DualityColumnMapping,
             DualityViewDMLTag,
@@ -1463,7 +1463,7 @@ class TestMySQLJsonDualityViewExpressions:
             ],
             tags=[DualityViewDMLTag.INSERT, DualityViewDMLTag.UPDATE],
         )
-        expr = CreateJsonDualityViewStatement(
+        expr = MySQLCreateJsonDualityViewStatement(
             dialect=dialect, view_name="my_view", root_spec=spec
         )
         sql, params = expr.to_sql()
@@ -1472,7 +1472,7 @@ class TestMySQLJsonDualityViewExpressions:
     def test_create_or_replace_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            CreateJsonDualityViewStatement,
+            MySQLCreateJsonDualityViewStatement,
             DualityObjectSpec,
             DualityColumnMapping,
         )
@@ -1482,7 +1482,7 @@ class TestMySQLJsonDualityViewExpressions:
                 DualityColumnMapping(json_key="userId", column_expr="id"),
             ],
         )
-        expr = CreateJsonDualityViewStatement(
+        expr = MySQLCreateJsonDualityViewStatement(
             dialect=dialect, view_name="my_view", root_spec=spec, replace=True
         )
         sql, params = expr.to_sql()
@@ -1491,18 +1491,18 @@ class TestMySQLJsonDualityViewExpressions:
     def test_drop_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            DropJsonDualityViewStatement,
+            MySQLDropJsonDualityViewStatement,
         )
-        expr = DropJsonDualityViewStatement(dialect=dialect, view_name="my_view")
+        expr = MySQLDropJsonDualityViewStatement(dialect=dialect, view_name="my_view")
         sql, params = expr.to_sql()
         assert sql == "DROP VIEW `my_view`"
 
     def test_drop_duality_view_if_exists(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            DropJsonDualityViewStatement,
+            MySQLDropJsonDualityViewStatement,
         )
-        expr = DropJsonDualityViewStatement(
+        expr = MySQLDropJsonDualityViewStatement(
             dialect=dialect, view_name="my_view", if_exists=True
         )
         sql, params = expr.to_sql()
@@ -1511,7 +1511,7 @@ class TestMySQLJsonDualityViewExpressions:
     def test_duality_view_with_nested(self):
         dialect = MySQLDialect(version=(8, 0, 0))
         from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-            CreateJsonDualityViewStatement,
+            MySQLCreateJsonDualityViewStatement,
             DualityColumnMapping,
             DualityNestedMapping,
             DualityObjectSpec,
@@ -1532,7 +1532,7 @@ class TestMySQLJsonDualityViewExpressions:
             ],
             nested=[nested],
         )
-        expr = CreateJsonDualityViewStatement(
+        expr = MySQLCreateJsonDualityViewStatement(
             dialect=dialect, view_name="user_view", root_spec=spec
         )
         sql, params = expr.to_sql()

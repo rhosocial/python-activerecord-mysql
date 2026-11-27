@@ -18,25 +18,25 @@ from rhosocial.activerecord.backend.introspection.executor import (
     AsyncIntrospectorExecutor,
 )
 from ..expression.show import (
-    ShowCreateTableStatement,
-    ShowCreateViewStatement,
-    ShowColumnsStatement,
-    ShowIndexStatement,
-    ShowTablesStatement,
-    ShowDatabasesStatement,
-    ShowTableStatusStatement,
-    ShowTriggersStatement,
-    ShowCreateTriggerStatement,
-    ShowVariablesStatement,
-    ShowStatusStatement,
-    ShowProcessListStatement,
-    ShowWarningsStatement,
-    ShowErrorsStatement,
-    ShowEnginesStatement,
-    ShowCharsetStatement,
-    ShowCollationStatement,
-    ShowGrantsStatement,
-    ShowPluginsStatement,
+    MySQLShowCreateTableStatement,
+    MySQLShowCreateViewStatement,
+    MySQLShowColumnsStatement,
+    MySQLShowIndexStatement,
+    MySQLShowTablesStatement,
+    MySQLShowDatabasesStatement,
+    MySQLShowTableStatusStatement,
+    MySQLShowTriggersStatement,
+    MySQLShowCreateTriggerStatement,
+    MySQLShowVariablesStatement,
+    MySQLShowStatusStatement,
+    MySQLShowProcessListStatement,
+    MySQLShowWarningsStatement,
+    MySQLShowErrorsStatement,
+    MySQLShowEnginesStatement,
+    MySQLShowCharsetStatement,
+    MySQLShowCollationStatement,
+    MySQLShowGrantsStatement,
+    MySQLShowPluginsStatement,
 )
 
 
@@ -345,13 +345,13 @@ class ShowIntrospector(ShowMixin):
 
     def create_table(self, table_name: str, schema: Optional[str] = None):
         """Get CREATE TABLE statement for a table."""
-        expr = ShowCreateTableStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowCreateTableStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_create_table(self._exec(sql, params), table_name)
 
     def create_view(self, view_name: str, schema: Optional[str] = None):
         """Get CREATE VIEW statement for a view."""
-        expr = ShowCreateViewStatement(self.dialect, view_name, schema=schema)
+        expr = MySQLShowCreateViewStatement(self.dialect, view_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_create_view(self._exec(sql, params), view_name)
 
@@ -363,7 +363,7 @@ class ShowIntrospector(ShowMixin):
         like: Optional[str] = None,
     ):
         """Get column information for a table."""
-        expr = ShowColumnsStatement(
+        expr = MySQLShowColumnsStatement(
             self.dialect, table_name, schema=schema, full=full, like_pattern=like
         )
         sql, params = expr.to_sql()
@@ -371,7 +371,7 @@ class ShowIntrospector(ShowMixin):
 
     def indexes(self, table_name: str, schema: Optional[str] = None):
         """Get index information for a table."""
-        expr = ShowIndexStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowIndexStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_indexes(self._exec(sql, params))
 
@@ -382,91 +382,91 @@ class ShowIntrospector(ShowMixin):
         full: bool = False,
     ):
         """List tables in the database."""
-        expr = ShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
+        expr = MySQLShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_tables(self._exec(sql, params))
 
     def databases(self, like: Optional[str] = None):
         """List databases."""
-        expr = ShowDatabasesStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowDatabasesStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_databases(self._exec(sql, params))
 
     def table_status(self, schema: Optional[str] = None, like: Optional[str] = None):
         """Get table status information."""
-        expr = ShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
+        expr = MySQLShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_table_status(self._exec(sql, params))
 
     def triggers(self, schema: Optional[str] = None, table_name: Optional[str] = None):
         """List triggers."""
-        expr = ShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
+        expr = MySQLShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
         sql, params = expr.to_sql()
         return self.parse_triggers(self._exec(sql, params))
 
     def create_trigger(self, trigger_name: str, schema: Optional[str] = None):
         """Get CREATE TRIGGER statement."""
-        expr = ShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
+        expr = MySQLShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_create_trigger(self._exec(sql, params), trigger_name)
 
     def variables(self, like: Optional[str] = None, session: bool = True):
         """Show server variables."""
-        expr = ShowVariablesStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowVariablesStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         return self.parse_variables(self._exec(sql, params))
 
     def status(self, like: Optional[str] = None, session: bool = True):
         """Show server status."""
-        expr = ShowStatusStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowStatusStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         return self.parse_status(self._exec(sql, params))
 
     def processlist(self, full: bool = False):
         """Show process list."""
-        expr = ShowProcessListStatement(self.dialect, full=full)
+        expr = MySQLShowProcessListStatement(self.dialect, full=full)
         sql, params = expr.to_sql()
         return self.parse_processlist(self._exec(sql, params))
 
     def warnings(self, limit: Optional[int] = None):
         """Show warnings."""
-        expr = ShowWarningsStatement(self.dialect, limit=limit)
+        expr = MySQLShowWarningsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         return self.parse_warnings(self._exec(sql, params))
 
     def errors(self, limit: Optional[int] = None):
         """Show errors."""
-        expr = ShowErrorsStatement(self.dialect, limit=limit)
+        expr = MySQLShowErrorsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         return self.parse_warnings(self._exec(sql, params))
 
     def engines(self):
         """Show storage engines."""
-        expr = ShowEnginesStatement(self.dialect)
+        expr = MySQLShowEnginesStatement(self.dialect)
         sql, params = expr.to_sql()
         return self.parse_engines(self._exec(sql, params))
 
     def charset(self, like: Optional[str] = None):
         """Show character sets."""
-        expr = ShowCharsetStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCharsetStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_charset(self._exec(sql, params))
 
     def collation(self, like: Optional[str] = None):
         """Show collations."""
-        expr = ShowCollationStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCollationStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_collation(self._exec(sql, params))
 
     def grants(self, user: Optional[str] = None, host: Optional[str] = None):
         """Show grants."""
-        expr = ShowGrantsStatement(self.dialect, user=user, host=host)
+        expr = MySQLShowGrantsStatement(self.dialect, user=user, host=host)
         sql, params = expr.to_sql()
         return self.parse_grants(self._exec(sql, params))
 
     def plugins(self):
         """Show plugins."""
-        expr = ShowPluginsStatement(self.dialect)
+        expr = MySQLShowPluginsStatement(self.dialect)
         sql, params = expr.to_sql()
         return self.parse_plugins(self._exec(sql, params))
 
@@ -498,13 +498,13 @@ class AsyncShowIntrospector(ShowMixin):
 
     async def create_table(self, table_name: str, schema: Optional[str] = None):
         """Get CREATE TABLE statement for a table."""
-        expr = ShowCreateTableStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowCreateTableStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_create_table(await self._exec(sql, params), table_name)
 
     async def create_view(self, view_name: str, schema: Optional[str] = None):
         """Get CREATE VIEW statement for a view."""
-        expr = ShowCreateViewStatement(self.dialect, view_name, schema=schema)
+        expr = MySQLShowCreateViewStatement(self.dialect, view_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_create_view(await self._exec(sql, params), view_name)
 
@@ -516,7 +516,7 @@ class AsyncShowIntrospector(ShowMixin):
         like: Optional[str] = None,
     ):
         """Get column information for a table."""
-        expr = ShowColumnsStatement(
+        expr = MySQLShowColumnsStatement(
             self.dialect, table_name, schema=schema, full=full, like_pattern=like
         )
         sql, params = expr.to_sql()
@@ -524,7 +524,7 @@ class AsyncShowIntrospector(ShowMixin):
 
     async def indexes(self, table_name: str, schema: Optional[str] = None):
         """Get index information for a table."""
-        expr = ShowIndexStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowIndexStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_indexes(await self._exec(sql, params))
 
@@ -535,90 +535,90 @@ class AsyncShowIntrospector(ShowMixin):
         full: bool = False,
     ):
         """List tables in the database."""
-        expr = ShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
+        expr = MySQLShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_tables(await self._exec(sql, params))
 
     async def databases(self, like: Optional[str] = None):
         """List databases."""
-        expr = ShowDatabasesStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowDatabasesStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_databases(await self._exec(sql, params))
 
     async def table_status(self, schema: Optional[str] = None, like: Optional[str] = None):
         """Get table status information."""
-        expr = ShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
+        expr = MySQLShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_table_status(await self._exec(sql, params))
 
     async def triggers(self, schema: Optional[str] = None, table_name: Optional[str] = None):
         """List triggers."""
-        expr = ShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
+        expr = MySQLShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
         sql, params = expr.to_sql()
         return self.parse_triggers(await self._exec(sql, params))
 
     async def create_trigger(self, trigger_name: str, schema: Optional[str] = None):
         """Get CREATE TRIGGER statement."""
-        expr = ShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
+        expr = MySQLShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
         sql, params = expr.to_sql()
         return self.parse_create_trigger(await self._exec(sql, params), trigger_name)
 
     async def variables(self, like: Optional[str] = None, session: bool = True):
         """Show server variables."""
-        expr = ShowVariablesStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowVariablesStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         return self.parse_variables(await self._exec(sql, params))
 
     async def status(self, like: Optional[str] = None, session: bool = True):
         """Show server status."""
-        expr = ShowStatusStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowStatusStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         return self.parse_status(await self._exec(sql, params))
 
     async def processlist(self, full: bool = False):
         """Show process list."""
-        expr = ShowProcessListStatement(self.dialect, full=full)
+        expr = MySQLShowProcessListStatement(self.dialect, full=full)
         sql, params = expr.to_sql()
         return self.parse_processlist(await self._exec(sql, params))
 
     async def warnings(self, limit: Optional[int] = None):
         """Show warnings."""
-        expr = ShowWarningsStatement(self.dialect, limit=limit)
+        expr = MySQLShowWarningsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         return self.parse_warnings(await self._exec(sql, params))
 
     async def errors(self, limit: Optional[int] = None):
         """Show errors."""
-        expr = ShowErrorsStatement(self.dialect, limit=limit)
+        expr = MySQLShowErrorsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         return self.parse_warnings(await self._exec(sql, params))
 
     async def engines(self):
         """Show storage engines."""
-        expr = ShowEnginesStatement(self.dialect)
+        expr = MySQLShowEnginesStatement(self.dialect)
         sql, params = expr.to_sql()
         return self.parse_engines(await self._exec(sql, params))
 
     async def charset(self, like: Optional[str] = None):
         """Show character sets."""
-        expr = ShowCharsetStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCharsetStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_charset(await self._exec(sql, params))
 
     async def collation(self, like: Optional[str] = None):
         """Show collations."""
-        expr = ShowCollationStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCollationStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         return self.parse_collation(await self._exec(sql, params))
 
     async def grants(self, user: Optional[str] = None, host: Optional[str] = None):
         """Show grants."""
-        expr = ShowGrantsStatement(self.dialect, user=user, host=host)
+        expr = MySQLShowGrantsStatement(self.dialect, user=user, host=host)
         sql, params = expr.to_sql()
         return self.parse_grants(await self._exec(sql, params))
 
     async def plugins(self):
         """Show plugins."""
-        expr = ShowPluginsStatement(self.dialect)
+        expr = MySQLShowPluginsStatement(self.dialect)
         sql, params = expr.to_sql()
         return self.parse_plugins(await self._exec(sql, params))

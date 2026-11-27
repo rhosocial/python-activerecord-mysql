@@ -367,6 +367,27 @@ class MySQLPartitionByKey(MySQLPartitionClause):
         self.partitions_count = partitions_count
         self.linear = linear
 
+    def check_renderable(self) -> None:
+        """An empty key list is payload here, not a missing field.
+
+        MySQL's ``PARTITION BY KEY()`` tells the server to use every primary
+        key column, so core's ``PartitionClause`` rule (at least one key) does
+        not apply to this subclass. Core's constructor no longer refuses an
+        empty key list; the render-time hook must not reintroduce that refusal.
+        Only a malformed strategy word or a non-expression key is rejected.
+        """
+        if not isinstance(self.method, str) or not self.method.strip():
+            raise TypeError(
+                f"{type(self).__name__}.method must be a non-empty strategy word, "
+                f"got {self.method!r}"
+            )
+        for key in self.keys:
+            if not isinstance(key, BaseExpression):
+                raise TypeError(
+                    f"{type(self).__name__}.keys must contain BaseExpression instances, "
+                    f"got {type(key).__name__}"
+                )
+
     @property
     def format_method(self) -> str:
         """The dialect formatting method that renders this expression."""

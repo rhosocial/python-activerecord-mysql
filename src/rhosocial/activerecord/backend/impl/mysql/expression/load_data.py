@@ -2,7 +2,7 @@
 """
 MySQL-specific LOAD DATA expression.
 
-This module provides MySQLLoadDataStatement and LoadDataOptions for
+This module provides MySQLLoadDataStatement and MySQLLoadDataOptions for
 MySQL's LOAD DATA INFILE functionality.
 """
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
 
 
-class LoadDataOptions(BaseExpression):
+class MySQLLoadDataOptions(BaseExpression):
     """Options for LOAD DATA INFILE statement, as a node.
 
     A clause node rather than a plain dataclass: ``options`` is a
@@ -104,7 +104,7 @@ class MySQLLoadDataStatement(BaseExpression):
 
     def __init__(
         self,
-        dialect: "SQLDialectBase", file_path: str, table: "Table", options: Optional[LoadDataOptions] = None
+        dialect: "SQLDialectBase", file_path: str, table: "Table", options: Optional[MySQLLoadDataOptions] = None
     ):
         """Initialize LOAD DATA expression.
 
@@ -116,12 +116,12 @@ class MySQLLoadDataStatement(BaseExpression):
                 Supplying an object rather than a bare string is what makes
                 ``LOAD DATA ... INTO TABLE `other_db`.`users``` expressible;
                 a string can only ever mean the session's current database.
-            options: Load options (default: LoadDataOptions(dialect))
+            options: Load options (default: MySQLLoadDataOptions(dialect))
         """
         super().__init__(dialect)
         self.file_path = file_path
         self.table = table
-        self.options = options or LoadDataOptions(dialect)
+        self.options = options or MySQLLoadDataOptions(dialect)
 
     def validate(self, strict: bool = True) -> None:
         """Validate expression parameters.
@@ -145,8 +145,8 @@ class MySQLLoadDataStatement(BaseExpression):
                 f"pass Table(self.dialect, 'users', catalog_name='app') to qualify the name"
             )
 
-        if not isinstance(self.options, LoadDataOptions):
-            raise TypeError(f"options must be LoadDataOptions, got {type(self.options)}")
+        if not isinstance(self.options, MySQLLoadDataOptions):
+            raise TypeError(f"options must be MySQLLoadDataOptions, got {type(self.options)}")
 
         if self.options.replace and self.options.ignore:
             raise ValueError("Cannot use both REPLACE and IGNORE in LOAD DATA")

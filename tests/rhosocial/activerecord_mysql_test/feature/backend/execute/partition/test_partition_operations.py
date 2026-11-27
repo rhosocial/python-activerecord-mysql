@@ -31,7 +31,7 @@ from rhosocial.activerecord.backend.expression import (
 )
 from rhosocial.activerecord.backend.expression.types import BigIntType, DateTimeType, DateType, VarCharType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.show import ShowCreateTableStatement
+from rhosocial.activerecord.backend.impl.mysql.show import MySQLShowCreateTableStatement
 from rhosocial.activerecord.backend.impl.mysql.expression import (
     MySQLAddPartitionExpression,
     MySQLCoalescePartitionExpression,
@@ -263,12 +263,12 @@ def _assert_base_partition_metadata(rows):
 
 
 def _show_create_table_sql(backend):
-    row = backend.fetch_one(*ShowCreateTableStatement(backend.dialect, PARTITION_TABLE).to_sql())
+    row = backend.fetch_one(*MySQLShowCreateTableStatement(backend.dialect, PARTITION_TABLE).to_sql())
     return row.get("Create Table") or row.get("create table")
 
 
 async def _async_show_create_table_sql(backend):
-    row = await backend.fetch_one(*ShowCreateTableStatement(backend.dialect, PARTITION_TABLE).to_sql())
+    row = await backend.fetch_one(*MySQLShowCreateTableStatement(backend.dialect, PARTITION_TABLE).to_sql())
     return row.get("Create Table") or row.get("create table")
 
 

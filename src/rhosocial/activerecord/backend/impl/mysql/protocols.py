@@ -64,8 +64,8 @@ if TYPE_CHECKING:
         MySQLUninstallPluginStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-        CreateJsonDualityViewStatement,
-        DropJsonDualityViewStatement,
+        MySQLCreateJsonDualityViewStatement,
+        MySQLDropJsonDualityViewStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
         MySQLLoadDataStatement,
@@ -1639,18 +1639,20 @@ class MySQLJsonDualityViewSupport(Protocol):
         """Whether DML on JSON Duality Views is supported (MySQL 9.7+)."""
         ...
 
-    def format_create_json_duality_view_statement(self, expr: "CreateJsonDualityViewStatement") -> Tuple[str, tuple]:
+    def format_create_json_duality_view_statement(
+        self, expr: "MySQLCreateJsonDualityViewStatement"
+    ) -> Tuple[str, tuple]:
         """Format CREATE JSON RELATIONAL DUALITY VIEW statement.
 
         Args:
-            expr: CreateJsonDualityViewStatement instance
+            expr: MySQLCreateJsonDualityViewStatement instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
         """
         ...
 
-    def format_drop_json_duality_view_statement(self, expr: "DropJsonDualityViewStatement") -> Tuple[str, tuple]:
+    def format_drop_json_duality_view_statement(self, expr: "MySQLDropJsonDualityViewStatement") -> Tuple[str, tuple]:
         """Format DROP VIEW statement for a JSON Duality View."""
         ...
 

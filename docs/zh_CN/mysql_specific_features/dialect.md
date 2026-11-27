@@ -300,12 +300,12 @@ MySQL 9.7+ 支持 JSON 二象性视图（JSON Duality View）：
 
 ```python
 from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
-    CreateJsonDualityViewStatement, DropJsonDualityViewStatement,
+    MySQLCreateJsonDualityViewStatement, MySQLDropJsonDualityViewStatement,
     DualityObjectSpec, DualityDMLTag, DualityColumnMapping,
 )
 
 # 创建 JSON 二象性视图
-create = CreateJsonDualityViewStatement(
+create = MySQLCreateJsonDualityViewStatement(
     dialect,
     view_name="user_details",
     root_spec=DualityObjectSpec(

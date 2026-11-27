@@ -16,25 +16,25 @@ The implementation:
 from typing import Optional, Tuple, TYPE_CHECKING
 
 from ..expression.show import (
-    ShowCreateTableStatement,
-    ShowCreateViewStatement,
-    ShowColumnsStatement,
-    ShowIndexStatement,
-    ShowTablesStatement,
-    ShowDatabasesStatement,
-    ShowTableStatusStatement,
-    ShowTriggersStatement,
-    ShowCreateTriggerStatement,
-    ShowVariablesStatement,
-    ShowStatusStatement,
-    ShowProcessListStatement,
-    ShowWarningsStatement,
-    ShowErrorsStatement,
-    ShowEnginesStatement,
-    ShowCharsetStatement,
-    ShowCollationStatement,
-    ShowGrantsStatement,
-    ShowPluginsStatement,
+    MySQLShowCreateTableStatement,
+    MySQLShowCreateViewStatement,
+    MySQLShowColumnsStatement,
+    MySQLShowIndexStatement,
+    MySQLShowTablesStatement,
+    MySQLShowDatabasesStatement,
+    MySQLShowTableStatusStatement,
+    MySQLShowTriggersStatement,
+    MySQLShowCreateTriggerStatement,
+    MySQLShowVariablesStatement,
+    MySQLShowStatusStatement,
+    MySQLShowProcessListStatement,
+    MySQLShowWarningsStatement,
+    MySQLShowErrorsStatement,
+    MySQLShowEnginesStatement,
+    MySQLShowCharsetStatement,
+    MySQLShowCollationStatement,
+    MySQLShowGrantsStatement,
+    MySQLShowPluginsStatement,
 )
 
 if TYPE_CHECKING:
@@ -382,7 +382,7 @@ class MySQLShowFunctionality:
             ShowCreateTableResult with table name and CREATE statement,
             or None if table doesn't exist.
         """
-        expr = ShowCreateTableStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowCreateTableStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_create_table_result(result, table_name)
@@ -399,7 +399,7 @@ class MySQLShowFunctionality:
         Returns:
             ShowCreateViewResult with view details, or None if view doesn't exist.
         """
-        expr = ShowCreateViewStatement(self.dialect, view_name, schema=schema)
+        expr = MySQLShowCreateViewStatement(self.dialect, view_name, schema=schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_create_view_result(result, view_name)
@@ -424,7 +424,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowColumnResult objects.
         """
-        expr = ShowColumnsStatement(
+        expr = MySQLShowColumnsStatement(
             self.dialect, table_name, schema=schema, full=full, like_pattern=like
         )
         sql, params = expr.to_sql()
@@ -443,7 +443,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowIndexResult objects.
         """
-        expr = ShowIndexStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowIndexStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_indexes_result(result)
@@ -466,7 +466,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowTableResult objects.
         """
-        expr = ShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
+        expr = MySQLShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_tables_result(result)
@@ -482,7 +482,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowDatabaseResult objects.
         """
-        expr = ShowDatabasesStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowDatabasesStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_databases_result(result)
@@ -499,7 +499,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowTableStatusResult objects.
         """
-        expr = ShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
+        expr = MySQLShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_table_status_result(result)
@@ -516,7 +516,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowTriggerResult objects.
         """
-        expr = ShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
+        expr = MySQLShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_triggers_result(result)
@@ -531,7 +531,7 @@ class MySQLShowFunctionality:
         Returns:
             ShowCreateTriggerResult or None if not found.
         """
-        expr = ShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
+        expr = MySQLShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_create_trigger_result(result, trigger_name)
@@ -548,7 +548,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowVariableResult objects.
         """
-        expr = ShowVariablesStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowVariablesStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_variables_result(result)
@@ -565,7 +565,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowStatusResult objects.
         """
-        expr = ShowStatusStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowStatusStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_status_result(result)
@@ -581,7 +581,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowProcessListResult objects.
         """
-        expr = ShowProcessListStatement(self.dialect, full=full)
+        expr = MySQLShowProcessListStatement(self.dialect, full=full)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_processlist_result(result)
@@ -597,7 +597,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowWarningResult objects.
         """
-        expr = ShowWarningsStatement(self.dialect, limit=limit)
+        expr = MySQLShowWarningsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_warnings_result(result)
@@ -611,7 +611,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowWarningResult objects.
         """
-        expr = ShowErrorsStatement(self.dialect, limit=limit)
+        expr = MySQLShowErrorsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_errors_result(result)
@@ -624,7 +624,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowEngineResult objects.
         """
-        expr = ShowEnginesStatement(self.dialect)
+        expr = MySQLShowEnginesStatement(self.dialect)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_engines_result(result)
@@ -640,7 +640,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowCharsetResult objects.
         """
-        expr = ShowCharsetStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCharsetStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_charset_result(result)
@@ -656,7 +656,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowCollationResult objects.
         """
-        expr = ShowCollationStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCollationStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_collation_result(result)
@@ -673,7 +673,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowGrantResult objects.
         """
-        expr = ShowGrantsStatement(self.dialect, user=user, host=host)
+        expr = MySQLShowGrantsStatement(self.dialect, user=user, host=host)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_grants_result(result)
@@ -686,7 +686,7 @@ class MySQLShowFunctionality:
         Returns:
             List of ShowPluginResult objects.
         """
-        expr = ShowPluginsStatement(self.dialect)
+        expr = MySQLShowPluginsStatement(self.dialect)
         sql, params = expr.to_sql()
         result = self._backend.execute(sql, params)
         return self._parse_plugins_result(result)
@@ -716,7 +716,7 @@ class AsyncMySQLShowFunctionality:
 
     async def create_table(self, table_name: str, schema: Optional[str] = None):
         """Async version of create_table."""
-        expr = ShowCreateTableStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowCreateTableStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_table_result(result, table_name)
@@ -725,7 +725,7 @@ class AsyncMySQLShowFunctionality:
 
     async def create_view(self, view_name: str, schema: Optional[str] = None):
         """Async version of create_view."""
-        expr = ShowCreateViewStatement(self.dialect, view_name, schema=schema)
+        expr = MySQLShowCreateViewStatement(self.dialect, view_name, schema=schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_view_result(result, view_name)
@@ -740,7 +740,7 @@ class AsyncMySQLShowFunctionality:
         like: Optional[str] = None,
     ):
         """Async version of columns."""
-        expr = ShowColumnsStatement(
+        expr = MySQLShowColumnsStatement(
             self.dialect, table_name, schema=schema, full=full, like_pattern=like
         )
         sql, params = expr.to_sql()
@@ -751,7 +751,7 @@ class AsyncMySQLShowFunctionality:
 
     async def indexes(self, table_name: str, schema: Optional[str] = None):
         """Async version of indexes."""
-        expr = ShowIndexStatement(self.dialect, table_name, schema=schema)
+        expr = MySQLShowIndexStatement(self.dialect, table_name, schema=schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_indexes_result(result)
@@ -765,7 +765,7 @@ class AsyncMySQLShowFunctionality:
         full: bool = False,
     ):
         """Async version of tables."""
-        expr = ShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
+        expr = MySQLShowTablesStatement(self.dialect, schema=schema, full=full, like_pattern=like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_tables_result(result)
@@ -774,7 +774,7 @@ class AsyncMySQLShowFunctionality:
 
     async def databases(self, like: Optional[str] = None):
         """Async version of databases."""
-        expr = ShowDatabasesStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowDatabasesStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_databases_result(result)
@@ -783,7 +783,7 @@ class AsyncMySQLShowFunctionality:
 
     async def table_status(self, schema: Optional[str] = None, like: Optional[str] = None):
         """Async version of table_status."""
-        expr = ShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
+        expr = MySQLShowTableStatusStatement(self.dialect, schema=schema, like_pattern=like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_table_status_result(result)
@@ -792,14 +792,14 @@ class AsyncMySQLShowFunctionality:
 
     async def triggers(self, schema: Optional[str] = None, table_name: Optional[str] = None):
         """Async version of triggers."""
-        expr = ShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
+        expr = MySQLShowTriggersStatement(self.dialect, schema=schema, table_name=table_name)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_triggers_result(result)
 
     async def create_trigger(self, trigger_name: str, schema: Optional[str] = None):
         """Async version of create_trigger."""
-        expr = ShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
+        expr = MySQLShowCreateTriggerStatement(self.dialect, trigger_name, schema=schema)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_create_trigger_result(result, trigger_name)
@@ -808,7 +808,7 @@ class AsyncMySQLShowFunctionality:
 
     async def variables(self, like: Optional[str] = None, session: bool = True):
         """Async version of variables."""
-        expr = ShowVariablesStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowVariablesStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_variables_result(result)
@@ -817,7 +817,7 @@ class AsyncMySQLShowFunctionality:
 
     async def status(self, like: Optional[str] = None, session: bool = True):
         """Async version of status."""
-        expr = ShowStatusStatement(self.dialect, like_pattern=like, session=session)
+        expr = MySQLShowStatusStatement(self.dialect, like_pattern=like, session=session)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_status_result(result)
@@ -826,7 +826,7 @@ class AsyncMySQLShowFunctionality:
 
     async def processlist(self, full: bool = False):
         """Async version of processlist."""
-        expr = ShowProcessListStatement(self.dialect, full=full)
+        expr = MySQLShowProcessListStatement(self.dialect, full=full)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_processlist_result(result)
@@ -835,14 +835,14 @@ class AsyncMySQLShowFunctionality:
 
     async def warnings(self, limit: Optional[int] = None):
         """Async version of warnings."""
-        expr = ShowWarningsStatement(self.dialect, limit=limit)
+        expr = MySQLShowWarningsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_warnings_result(result)
 
     async def errors(self, limit: Optional[int] = None):
         """Async version of errors."""
-        expr = ShowErrorsStatement(self.dialect, limit=limit)
+        expr = MySQLShowErrorsStatement(self.dialect, limit=limit)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_errors_result(result)
@@ -851,7 +851,7 @@ class AsyncMySQLShowFunctionality:
 
     async def engines(self):
         """Async version of engines."""
-        expr = ShowEnginesStatement(self.dialect)
+        expr = MySQLShowEnginesStatement(self.dialect)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_engines_result(result)
@@ -860,7 +860,7 @@ class AsyncMySQLShowFunctionality:
 
     async def charset(self, like: Optional[str] = None):
         """Async version of charset."""
-        expr = ShowCharsetStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCharsetStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_charset_result(result)
@@ -869,7 +869,7 @@ class AsyncMySQLShowFunctionality:
 
     async def collation(self, like: Optional[str] = None):
         """Async version of collation."""
-        expr = ShowCollationStatement(self.dialect, like_pattern=like)
+        expr = MySQLShowCollationStatement(self.dialect, like_pattern=like)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_collation_result(result)
@@ -878,7 +878,7 @@ class AsyncMySQLShowFunctionality:
 
     async def grants(self, user: Optional[str] = None, host: Optional[str] = None):
         """Async version of grants."""
-        expr = ShowGrantsStatement(self.dialect, user=user, host=host)
+        expr = MySQLShowGrantsStatement(self.dialect, user=user, host=host)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_grants_result(result)
@@ -887,7 +887,7 @@ class AsyncMySQLShowFunctionality:
 
     async def plugins(self):
         """Async version of plugins."""
-        expr = ShowPluginsStatement(self.dialect)
+        expr = MySQLShowPluginsStatement(self.dialect)
         sql, params = expr.to_sql()
         result = await self._backend.execute(sql, params)
         return self._sync_impl._parse_plugins_result(result)

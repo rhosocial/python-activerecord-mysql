@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from ..dialect import MySQLDialect
 
 
-class ShowExpression(BaseExpression):
+class MySQLShowExpression(BaseExpression):
     """Base class for MySQL SHOW command expressions.
 
     All MySQL SHOW expressions inherit from this class. Parameters are
@@ -54,7 +54,7 @@ class ShowExpression(BaseExpression):
     # overriding the `format_method` property (inherited from BaseExpression).
 
 
-class ShowCreateTableStatement(ShowExpression):
+class MySQLShowCreateTableStatement(MySQLShowExpression):
     """Expression for SHOW CREATE TABLE command."""
 
     def __init__(
@@ -73,7 +73,7 @@ class ShowCreateTableStatement(ShowExpression):
         return "format_show_create_table_statement"
 
 
-class ShowCreateViewStatement(ShowExpression):
+class MySQLShowCreateViewStatement(MySQLShowExpression):
     """Expression for SHOW CREATE VIEW command."""
 
     def __init__(
@@ -92,7 +92,7 @@ class ShowCreateViewStatement(ShowExpression):
         return "format_show_create_view_statement"
 
 
-class ShowColumnsStatement(ShowExpression):
+class MySQLShowColumnsStatement(MySQLShowExpression):
     """Expression for SHOW [FULL] COLUMNS command."""
 
     def __init__(
@@ -115,7 +115,7 @@ class ShowColumnsStatement(ShowExpression):
         return "format_show_columns_statement"
 
 
-class ShowIndexStatement(ShowExpression):
+class MySQLShowIndexStatement(MySQLShowExpression):
     """Expression for SHOW INDEX command."""
 
     def __init__(
@@ -134,7 +134,7 @@ class ShowIndexStatement(ShowExpression):
         return "format_show_index_statement"
 
 
-class ShowTablesStatement(ShowExpression):
+class MySQLShowTablesStatement(MySQLShowExpression):
     """Expression for SHOW [FULL] TABLES command."""
 
     def __init__(
@@ -155,7 +155,7 @@ class ShowTablesStatement(ShowExpression):
         return "format_show_tables_statement"
 
 
-class ShowDatabasesStatement(ShowExpression):
+class MySQLShowDatabasesStatement(MySQLShowExpression):
     """Expression for SHOW DATABASES command."""
 
     def __init__(
@@ -173,7 +173,7 @@ class ShowDatabasesStatement(ShowExpression):
         return "format_show_databases_statement"
 
 
-class ShowTableStatusStatement(ShowExpression):
+class MySQLShowTableStatusStatement(MySQLShowExpression):
     """Expression for SHOW TABLE STATUS command."""
 
     def __init__(
@@ -192,7 +192,7 @@ class ShowTableStatusStatement(ShowExpression):
         return "format_show_table_status_statement"
 
 
-class ShowTriggersStatement(ShowExpression):
+class MySQLShowTriggersStatement(MySQLShowExpression):
     """Expression for SHOW TRIGGERS command."""
 
     def __init__(
@@ -211,7 +211,7 @@ class ShowTriggersStatement(ShowExpression):
         return "format_show_triggers_statement"
 
 
-class ShowCreateTriggerStatement(ShowExpression):
+class MySQLShowCreateTriggerStatement(MySQLShowExpression):
     """Expression for SHOW CREATE TRIGGER command."""
 
     def __init__(
@@ -230,7 +230,7 @@ class ShowCreateTriggerStatement(ShowExpression):
         return "format_show_create_trigger_statement"
 
 
-class ShowVariablesStatement(ShowExpression):
+class MySQLShowVariablesStatement(MySQLShowExpression):
     """Expression for SHOW [GLOBAL] VARIABLES command."""
 
     def __init__(
@@ -250,7 +250,7 @@ class ShowVariablesStatement(ShowExpression):
         return "format_show_variables_statement"
 
 
-class ShowStatusStatement(ShowExpression):
+class MySQLShowStatusStatement(MySQLShowExpression):
     """Expression for SHOW [GLOBAL] STATUS command."""
 
     def __init__(
@@ -270,7 +270,7 @@ class ShowStatusStatement(ShowExpression):
         return "format_show_status_statement"
 
 
-class ShowProcessListStatement(ShowExpression):
+class MySQLShowProcessListStatement(MySQLShowExpression):
     """Expression for SHOW [FULL] PROCESSLIST command."""
 
     def __init__(
@@ -288,7 +288,7 @@ class ShowProcessListStatement(ShowExpression):
         return "format_show_process_list_statement"
 
 
-class ShowWarningsStatement(ShowExpression):
+class MySQLShowWarningsStatement(MySQLShowExpression):
     """Expression for SHOW WARNINGS command."""
 
     def __init__(
@@ -306,7 +306,7 @@ class ShowWarningsStatement(ShowExpression):
         return "format_show_warnings_statement"
 
 
-class ShowErrorsStatement(ShowExpression):
+class MySQLShowErrorsStatement(MySQLShowExpression):
     """Expression for SHOW ERRORS command."""
 
     def __init__(
@@ -324,7 +324,7 @@ class ShowErrorsStatement(ShowExpression):
         return "format_show_errors_statement"
 
 
-class ShowEnginesStatement(ShowExpression):
+class MySQLShowEnginesStatement(MySQLShowExpression):
     """Expression for SHOW ENGINES command."""
 
     @property
@@ -333,7 +333,7 @@ class ShowEnginesStatement(ShowExpression):
         return "format_show_engines_statement"
 
 
-class ShowCharsetStatement(ShowExpression):
+class MySQLShowCharsetStatement(MySQLShowExpression):
     """Expression for SHOW CHARACTER SET command."""
 
     def __init__(
@@ -351,7 +351,7 @@ class ShowCharsetStatement(ShowExpression):
         return "format_show_charset_statement"
 
 
-class ShowCollationStatement(ShowExpression):
+class MySQLShowCollationStatement(MySQLShowExpression):
     """Expression for SHOW COLLATION command."""
 
     def __init__(
@@ -369,7 +369,7 @@ class ShowCollationStatement(ShowExpression):
         return "format_show_collation_statement"
 
 
-class ShowGrantsStatement(ShowExpression):
+class MySQLShowGrantsStatement(MySQLShowExpression):
     """Expression for SHOW GRANTS command."""
 
     def __init__(
@@ -389,7 +389,7 @@ class ShowGrantsStatement(ShowExpression):
         return "format_show_grants_statement"
 
 
-class ShowPluginsStatement(ShowExpression):
+class MySQLShowPluginsStatement(MySQLShowExpression):
     """Expression for SHOW PLUGINS command."""
 
     @property
@@ -398,7 +398,7 @@ class ShowPluginsStatement(ShowExpression):
         return "format_show_plugins_statement"
 
 
-class ShowBinaryLogsStatement(ShowExpression):
+class MySQLShowBinaryLogsStatement(MySQLShowExpression):
     """Expression for SHOW BINARY LOGS command.
 
     Its own node rather than a flag on another one: the command takes no
@@ -412,7 +412,7 @@ class ShowBinaryLogsStatement(ShowExpression):
         return "format_show_binary_logs_statement"
 
 
-class ShowMasterStatusStatement(ShowExpression):
+class MySQLShowMasterStatusStatement(MySQLShowExpression):
     """Expression for SHOW MASTER STATUS command.
 
     MySQL 8.4 removed this command in favour of
@@ -426,7 +426,7 @@ class ShowMasterStatusStatement(ShowExpression):
         return "format_show_master_status_statement"
 
 
-class ShowSlaveStatusStatement(ShowExpression):
+class MySQLShowSlaveStatusStatement(MySQLShowExpression):
     """Expression for SHOW SLAVE STATUS command.
 
     MySQL 8.0.22 added ``SHOW REPLICA STATUS`` as the preferred spelling and

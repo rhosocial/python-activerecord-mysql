@@ -1427,7 +1427,7 @@ class MySQLIntrospectionMixin:
         others gets ``UnsupportedFeatureError`` rather than the table answer.
         """
         from rhosocial.activerecord.backend.impl.mysql.expression.show import (
-            ShowCreateTableStatement,
+            MySQLShowCreateTableStatement,
         )
 
         params = expr.get_params()
@@ -1449,7 +1449,7 @@ class MySQLIntrospectionMixin:
             )
         schema = params.get("schema") or self.default_schema
 
-        return ShowCreateTableStatement(self, object_name, schema=schema).to_sql()
+        return MySQLShowCreateTableStatement(self, object_name, schema=schema).to_sql()
 
     # ========== Data Profiles (row-shaped answers) ==========
 

@@ -80,7 +80,7 @@ class DualityObjectSpec:
     join_condition: Optional[str] = None
 
 
-class CreateJsonDualityViewStatement(BaseExpression):
+class MySQLCreateJsonDualityViewStatement(BaseExpression):
     """CREATE JSON RELATIONAL DUALITY VIEW expression (MySQL 9.7+).
 
     Attributes:
@@ -108,7 +108,7 @@ class CreateJsonDualityViewStatement(BaseExpression):
 
 
 
-class DropJsonDualityViewStatement(BaseExpression):
+class MySQLDropJsonDualityViewStatement(BaseExpression):
     """DROP VIEW expression for JSON Duality Views.
 
     Uses standard DROP VIEW syntax since MySQL has no special DROP for duality views.

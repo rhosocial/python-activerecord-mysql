@@ -13,7 +13,7 @@ import pytest
 import pytest_asyncio
 
 from rhosocial.activerecord.backend.expression.objects import Table
-from rhosocial.activerecord.backend.impl.mysql.expression import MySQLLoadDataStatement, LoadDataOptions
+from rhosocial.activerecord.backend.impl.mysql.expression import MySQLLoadDataStatement, MySQLLoadDataOptions
 
 
 class TestMySQLLoadData:
@@ -69,7 +69,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True),
         )
 
         sql, params = expr.to_sql()
@@ -81,7 +81,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, fields_terminated_by=","),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, fields_terminated_by=","),
         )
 
         sql, params = expr.to_sql()
@@ -93,7 +93,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, ignore_lines=1),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, ignore_lines=1),
         )
 
         sql, params = expr.to_sql()
@@ -105,7 +105,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, replace=True),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, replace=True),
         )
 
         sql, params = expr.to_sql()
@@ -117,7 +117,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, ignore=True),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, ignore=True),
         )
 
         sql, params = expr.to_sql()
@@ -130,7 +130,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, replace=True, ignore=True),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, replace=True, ignore=True),
         )
 
         with pytest.raises(ValueError, match="Cannot use both REPLACE and IGNORE"):
@@ -142,7 +142,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, column_list=["name", "email", "age"]),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, column_list=["name", "email", "age"]),
         )
 
         sql, params = expr.to_sql()
@@ -154,7 +154,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, lines_terminated_by="\n"),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, lines_terminated_by="\n"),
         )
 
         sql, params = expr.to_sql()
@@ -166,7 +166,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/test.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, local=True, character_set="utf8mb4"),
+            options=MySQLLoadDataOptions(mysql_backend.dialect, local=True, character_set="utf8mb4"),
         )
 
         sql, params = expr.to_sql()
@@ -178,7 +178,7 @@ class TestMySQLLoadData:
             dialect=mysql_backend.dialect,
             file_path="/tmp/data.csv",
             table=Table(mysql_backend.dialect, "users"),
-            options=LoadDataOptions(mysql_backend.dialect, 
+            options=MySQLLoadDataOptions(mysql_backend.dialect,
                 local=True,
                 fields_terminated_by=",",
                 fields_enclosed_by='"',
