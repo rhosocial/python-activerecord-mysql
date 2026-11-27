@@ -45,7 +45,12 @@ def test_mysql_format_column_definition_default_string_escaping(dialect):
 
 def test_mysql_format_column_definition_comment_string_escaping(dialect):
     """Test COMMENT string is escaped in MySQL column definition."""
-    col_def = ColumnDefinition(dialect, "test_col", VarCharType(dialect, 255), comment=ColumnCommentClause(dialect, "Comment with 'single quote'"))
+    col_def = ColumnDefinition(
+        dialect,
+        "test_col",
+        VarCharType(dialect, 255),
+        comment=ColumnCommentClause(dialect, "Comment with 'single quote'"),
+    )
 
     sql, params = dialect.format_column_definition(col_def)
     assert "Comment with ''single quote''" in sql
@@ -190,17 +195,21 @@ def test_mysql_format_cast_expression_valid(dialect):
 
 
 def test_mysql_format_cast_expression_rejects_injection(dialect):
-    """A string in the type position is refused at construction.
+    """A string in the type position is refused at render time.
 
     The type position cannot be bound as a parameter, so whatever lands there is
-    rendered into the statement text. That is why a string is not accepted at
-    all rather than being escaped: there is nothing to escape it into, since it
-    is code and not data."""
+    rendered into the statement text. It is code, not bindable data, so a string
+    is not accepted at all rather than being escaped: there is nothing to escape
+    it into. The constructor only collects the node; the formatter validates the
+    type position before spelling it into the SQL.
+    """
     from rhosocial.activerecord.backend.expression.core import CastExpression, Column
 
+    expr = CastExpression(dialect, Column(dialect, "column"),
+                          "INTEGER; DROP TABLE users--")
+
     with pytest.raises(TypeError, match="takes a DataType instance"):
-        CastExpression(dialect, Column(dialect, "column"),
-                       "INTEGER; DROP TABLE users--")
+        expr.to_sql()
 
 
 class TestEscapeSqlStringBackslash:
@@ -496,7 +505,10 @@ class TestCreateTableCommentEscaping:
             dialect=dialect,
             table=Table(dialect, "test_table"),
             columns=[],
-            table_options=CreateTableOptions(dialect, comment=TableCommentClause(dialect, "Table's comment with 'quotes'")),
+            table_options=CreateTableOptions(
+                dialect,
+                comment=TableCommentClause(dialect, "Table's comment with 'quotes'"),
+            ),
         )
 
         sql, params = dialect.format_create_table_statement(expr)
