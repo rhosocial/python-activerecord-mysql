@@ -68,6 +68,7 @@ if TYPE_CHECKING:
         MySQLDropJsonDualityViewStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+        MySQLLoadDataOptions,
         MySQLLoadDataStatement,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
@@ -109,6 +110,9 @@ if TYPE_CHECKING:
         MySQLCreateProcedureStatement,
         MySQLDropFunctionStatement,
         MySQLDropProcedureStatement,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.table_expr import (
+        MySQLInlineIndexExpression,
     )
     from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
         MySQLTableStatement,
@@ -187,6 +191,17 @@ class MySQLDMLOperationSupport(Protocol):
 
         Args:
             expr: MySQLLoadDataStatement instance
+
+        Returns:
+            Tuple of (SQL string, parameters tuple)
+        """
+        ...
+
+    def format_load_data_options(self, expr: "MySQLLoadDataOptions") -> Tuple[str, tuple]:
+        """Format the LOAD DATA clauses that follow ``INTO TABLE``.
+
+        Args:
+            expr: MySQLLoadDataOptions instance
 
         Returns:
             Tuple of (SQL string, parameters tuple)
@@ -407,6 +422,12 @@ class MySQLTableSupport(TableObjectSupport, Protocol):
 
     def format_index_definition(self, expr: Any) -> Tuple[str, tuple]:
         """Format an inline INDEX definition inside CREATE TABLE."""
+        ...
+
+    def format_mysql_inline_index_expression(
+        self, expr: "MySQLInlineIndexExpression"
+    ) -> Tuple[str, tuple]:
+        """Format a MySQLInlineIndexExpression from its declared index."""
         ...
 
     def format_storage_options_expression(self, expr: Any) -> Tuple[str, tuple]:
