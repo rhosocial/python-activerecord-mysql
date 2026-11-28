@@ -69,7 +69,7 @@ def _normalize_subpartition_strategy(
         word = str(strategy).strip().upper()
         if word in {"RANGE", "RANGE COLUMNS", "LIST", "LIST COLUMNS"}:
             raise UnsupportedFeatureError(
-                getattr(dialect, "name", "MySQL"),
+                dialect.name,
                 f"SUBPARTITION BY {word}",
                 "MySQL and MariaDB support only HASH and KEY subpartitioning.",
             ) from error
@@ -186,7 +186,7 @@ class MySQLPartitionClause(PartitionClause):
 
     def __init__(self, dialect: "MySQLDialect", method: str, keys: Sequence[BaseExpression]):
         BaseExpression.__init__(self, dialect)
-        word = getattr(method, "value", method)
+        word = method.value if isinstance(method, Enum) else method
         self.method = str(word).strip().upper()
         self.word = self.method
         if not keys:

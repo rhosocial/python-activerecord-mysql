@@ -21,9 +21,17 @@ if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
 
+#: The capability switches this module may ask a dialect for. A switch is a
+#: declared name bound to the probe the dialect actually defines; a name that
+#: is not here is not a capability this module owns.
+_CAPABILITY_PROBES = {
+    "supports_geometry_type": lambda dialect: dialect.supports_geometry_type,
+}
+
+
 def _require(dialect, switch: str) -> None:
-    answer = getattr(dialect, switch, None)
-    if answer is None or not answer():
+    probe = _CAPABILITY_PROBES[switch](dialect)
+    if not probe():
         raise UnsupportedFeatureError(
             type(dialect).__name__,
             switch,
