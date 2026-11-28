@@ -36,82 +36,104 @@ from rhosocial.activerecord.backend.schema import StatementType
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 from rhosocial.activerecord.backend.expression.objects import Table
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", 3306)),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
-dml_options = ExecutionOptions(stmt_type=StatementType.DML)
+    dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
+    dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "accounts"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition(
-            "name",
-            "VARCHAR(100)",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-        ),
-        ColumnDefinition(
-            "balance",
-            "DECIMAL(10,2)",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
-            ],
-        ),
-    ],
-    if_not_exists=True,
-    table_options=MySQLCreateTableOptions(dialect, engine="InnoDB"),
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
-
-insert_expr = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "accounts"),
-    columns=["name", "balance"],
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, "Alice"), Literal(dialect, 1000)],
-            [Literal(dialect, "Bob"), Literal(dialect, 500)],
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "accounts"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition(
+                "name",
+                "VARCHAR(100)",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+            ),
+            ColumnDefinition(
+                "balance",
+                "DECIMAL(10,2)",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
+                ],
+            ),
         ],
-    ),
-)
-sql, params = insert_expr.to_sql()
-backend.execute(sql, params)
+        if_not_exists=True,
+        table_options=MySQLCreateTableOptions(dialect, engine="InnoDB"),
+    )
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
+    insert_expr = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "accounts"),
+        columns=["name", "balance"],
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, "Alice"), Literal(dialect, 1000)],
+                [Literal(dialect, "Bob"), Literal(dialect, 500)],
+            ],
+        ),
+    )
+    sql, params = insert_expr.to_sql()
+    backend.execute(sql, params)
 
-# 1. READ COMMITTED isolation level
-# Prevents dirty reads: only committed data is visible.
-# Non-repeatable reads and phantom reads can still occur.
-print("--- READ COMMITTED ---")
-with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ_COMMITTED):
-    # Read Alice's balance
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+
+    # 1. READ COMMITTED isolation level
+    # Prevents dirty reads: only committed data is visible.
+    # Non-repeatable reads and phantom reads can still occur.
+    print("--- READ COMMITTED ---")
+    with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ_COMMITTED):
+        # Read Alice's balance
+        query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        )
+        sql, params = query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"READ COMMITTED - Alice's balance: {result.data[0]['balance']}")
+
+        # Update within the transaction
+        update_expr = UpdateStatement(
+            dialect=dialect,
+            table=Table(dialect, "accounts"),
+            assignments={"balance": Literal(dialect, 1100)},
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        )
+        sql, params = update_expr.to_sql()
+        backend.execute(sql, params, options=dml_options)
+
+    # After commit, the change is visible to all subsequent transactions
     query = QueryStatement(
         dialect=dialect,
         select=[Column(dialect, "name"), Column(dialect, "balance")],
@@ -120,124 +142,103 @@ with backend.transaction_manager.transaction(isolation_level=IsolationLevel.READ
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
-    print(f"READ COMMITTED - Alice's balance: {result.data[0]['balance']}")
+    print(f"After commit - Alice's balance: {result.data[0]['balance']}")
 
-    # Update within the transaction
-    update_expr = UpdateStatement(
-        dialect=dialect,
-        table=Table(dialect, "accounts"),
-        assignments={"balance": Literal(dialect, 1100)},
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-    )
-    sql, params = update_expr.to_sql()
-    backend.execute(sql, params, options=dml_options)
+    # 2. REPEATABLE READ isolation level (MySQL default)
+    # Prevents dirty reads and non-repeatable reads.
+    # Phantom reads are also prevented in MySQL due to next-key locking.
+    print("\n--- REPEATABLE READ (MySQL default) ---")
+    with backend.transaction_manager.transaction(isolation_level=IsolationLevel.REPEATABLE_READ):
+        # First read
+        query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        )
+        sql, params = query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        first_read = result.data[0]["balance"]
 
-# After commit, the change is visible to all subsequent transactions
-query = QueryStatement(
-    dialect=dialect,
-    select=[Column(dialect, "name"), Column(dialect, "balance")],
-    from_=Table(dialect, "accounts"),
-    where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-)
-sql, params = query.to_sql()
-result = backend.execute(sql, params, options=dql_options)
-print(f"After commit - Alice's balance: {result.data[0]['balance']}")
+        # Second read in the same transaction returns the same result
+        # even if another transaction committed changes in between
+        sql, params = query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        second_read = result.data[0]["balance"]
 
-# 2. REPEATABLE READ isolation level (MySQL default)
-# Prevents dirty reads and non-repeatable reads.
-# Phantom reads are also prevented in MySQL due to next-key locking.
-print("\n--- REPEATABLE READ (MySQL default) ---")
-with backend.transaction_manager.transaction(isolation_level=IsolationLevel.REPEATABLE_READ):
-    # First read
-    query = QueryStatement(
-        dialect=dialect,
-        select=[Column(dialect, "name"), Column(dialect, "balance")],
-        from_=Table(dialect, "accounts"),
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-    )
-    sql, params = query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    first_read = result.data[0]["balance"]
+        print(f"First read: {first_read}, Second read: {second_read}")
+        print(f"Consistent reads: {first_read == second_read}")
 
-    # Second read in the same transaction returns the same result
-    # even if another transaction committed changes in between
-    sql, params = query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    second_read = result.data[0]["balance"]
+    # 3. SERIALIZABLE isolation level
+    # The strictest level: prevents dirty reads, non-repeatable reads,
+    # and phantom reads. Transactions appear to execute sequentially.
+    print("\n--- SERIALIZABLE ---")
+    with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
+        # Read all accounts
+        query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            order_by=OrderByClause(dialect, [Column(dialect, "id")]),
+        )
+        sql, params = query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"SERIALIZABLE - All accounts: {result.data}")
 
-    print(f"First read: {first_read}, Second read: {second_read}")
-    print(f"Consistent reads: {first_read == second_read}")
+        # Update Bob's balance
+        update_expr = UpdateStatement(
+            dialect=dialect,
+            table=Table(dialect, "accounts"),
+            assignments={"balance": Literal(dialect, 600)},
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Bob")),
+        )
+        sql, params = update_expr.to_sql()
+        backend.execute(sql, params, options=dml_options)
 
-# 3. SERIALIZABLE isolation level
-# The strictest level: prevents dirty reads, non-repeatable reads,
-# and phantom reads. Transactions appear to execute sequentially.
-print("\n--- SERIALIZABLE ---")
-with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
-    # Read all accounts
-    query = QueryStatement(
-        dialect=dialect,
-        select=[Column(dialect, "name"), Column(dialect, "balance")],
-        from_=Table(dialect, "accounts"),
-        order_by=OrderByClause(dialect, [Column(dialect, "id")]),
-    )
-    sql, params = query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    print(f"SERIALIZABLE - All accounts: {result.data}")
+    # 4. Setting isolation level per transaction
+    # The isolation_level parameter on transaction() sets the level
+    # for that specific transaction only, without affecting the
+    # default level of subsequent transactions.
+    print("\n--- Per-transaction isolation level ---")
 
-    # Update Bob's balance
-    update_expr = UpdateStatement(
-        dialect=dialect,
-        table=Table(dialect, "accounts"),
-        assignments={"balance": Literal(dialect, 600)},
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Bob")),
-    )
-    sql, params = update_expr.to_sql()
-    backend.execute(sql, params, options=dml_options)
+    # Transaction 1: SERIALIZABLE
+    with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
+        update_expr = UpdateStatement(
+            dialect=dialect,
+            table=Table(dialect, "accounts"),
+            assignments={"balance": Literal(dialect, 1200)},
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        )
+        sql, params = update_expr.to_sql()
+        backend.execute(sql, params, options=dml_options)
 
-# 4. Setting isolation level per transaction
-# The isolation_level parameter on transaction() sets the level
-# for that specific transaction only, without affecting the
-# default level of subsequent transactions.
-print("\n--- Per-transaction isolation level ---")
+    # Transaction 2: defaults to REPEATABLE READ (MySQL default)
+    with backend.transaction():
+        query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            order_by=OrderByClause(dialect, [Column(dialect, "id")]),
+        )
+        sql, params = query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"Default isolation - All accounts: {result.data}")
 
-# Transaction 1: SERIALIZABLE
-with backend.transaction_manager.transaction(isolation_level=IsolationLevel.SERIALIZABLE):
-    update_expr = UpdateStatement(
-        dialect=dialect,
-        table=Table(dialect, "accounts"),
-        assignments={"balance": Literal(dialect, 1200)},
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-    )
-    sql, params = update_expr.to_sql()
-    backend.execute(sql, params, options=dml_options)
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
+    backend.disconnect()
 
-# Transaction 2: defaults to REPEATABLE READ (MySQL default)
-with backend.transaction():
-    query = QueryStatement(
-        dialect=dialect,
-        select=[Column(dialect, "name"), Column(dialect, "balance")],
-        from_=Table(dialect, "accounts"),
-        order_by=OrderByClause(dialect, [Column(dialect, "id")]),
-    )
-    sql, params = query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    print(f"Default isolation - All accounts: {result.data}")
-
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
-backend.disconnect()
-
-# ============================================================
-# SECTION: Summary
-# ============================================================
-# Key points:
-# 1. Use isolation_level parameter in backend.transaction_manager.transaction() to set isolation
-# 2. READ COMMITTED: prevents dirty reads, allows non-repeatable reads
-# 3. REPEATABLE READ: MySQL default, prevents dirty and non-repeatable reads
-# 4. SERIALIZABLE: strictest level, all transactions appear sequential
-# 5. MySQL uses next-key locking in REPEATABLE READ to prevent phantom reads
-# 6. Requires InnoDB engine for transaction isolation support
+    # ============================================================
+    # SECTION: Summary
+    # ============================================================
+    # Key points:
+    # 1. Use isolation_level parameter in backend.transaction_manager.transaction() to set isolation
+    # 2. READ COMMITTED: prevents dirty reads, allows non-repeatable reads
+    # 3. REPEATABLE READ: MySQL default, prevents dirty and non-repeatable reads
+    # 4. SERIALIZABLE: strictest level, all transactions appear sequential
+    # 5. MySQL uses next-key locking in REPEATABLE READ to prevent phantom reads
+    # 6. Requires InnoDB engine for transaction isolation support

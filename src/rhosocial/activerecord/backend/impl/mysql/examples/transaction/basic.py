@@ -15,178 +15,179 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", 3306)),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableStatement,
-    DropTableStatement,
-    InsertStatement,
-    ValuesSource,
-    UpdateStatement,
-    QueryStatement,
-)
-from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
-from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnConstraint,
-    ColumnDefaultConstraint,
-    ColumnDefinition,
-    ColumnNotNullConstraint,
-    ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
-from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
-from rhosocial.activerecord.backend.expression.objects import Table
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        CreateTableStatement,
+        DropTableStatement,
+        InsertStatement,
+        ValuesSource,
+        UpdateStatement,
+        QueryStatement,
+    )
+    from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+    from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+    from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
+        ColumnConstraint,
+        ColumnDefaultConstraint,
+        ColumnDefinition,
+        ColumnNotNullConstraint,
+        ColumnPrimaryKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
+    from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-# Drop table first for clean setup
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    # Drop table first for clean setup
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "accounts"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition(
-            "name",
-            "VARCHAR(100)",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-        ),
-        ColumnDefinition(
-            "balance",
-            "DECIMAL(10,2)",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
-            ],
-        ),
-    ],
-    if_not_exists=True,
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
-
-insert_expr = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "accounts"),
-    columns=["name", "balance"],
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, "Alice"), Literal(dialect, 100)],
-        ],
-    ),
-)
-sql, params = insert_expr.to_sql()
-backend.execute(sql, params)
-
-dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
-dml_options = ExecutionOptions(stmt_type=StatementType.DML)
-
-# ============================================================
-# SECTION: Transaction Context Manager
-# ============================================================
-# The transaction() method returns a context manager
-# that automatically handles COMMIT/ROLLBACK
-
-# Simple transaction - auto commits on success
-with backend.transaction():
-    update_expr = UpdateStatement(
+    create_table = CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, "accounts"),
-        assignments={"balance": Literal(dialect, 50)},
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition(
+                "name",
+                "VARCHAR(100)",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+            ),
+            ColumnDefinition(
+                "balance",
+                "DECIMAL(10,2)",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
+                ],
+            ),
+        ],
+        if_not_exists=True,
     )
-    sql, params = update_expr.to_sql()
-    backend.execute(sql, params, options=dml_options)
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
 
-# Verify
-query = QueryStatement(
-    dialect=dialect,
-    select=[Column(dialect, "balance")],
-    from_=Table(dialect, "accounts"),
-    where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-)
-sql, params = query.to_sql()
-result = backend.execute(sql, params, options=dql_options)
-if result.data:
-    print(f"Balance after transaction: {result.data[0]['balance']}")
+    insert_expr = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "accounts"),
+        columns=["name", "balance"],
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, "Alice"), Literal(dialect, 100)],
+            ],
+        ),
+    )
+    sql, params = insert_expr.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Transaction with Rollback
-# ============================================================
-# If an exception is raised, the transaction is rolled back
+    dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
+    dml_options = ExecutionOptions(stmt_type=StatementType.DML)
 
-try:
+    # ============================================================
+    # SECTION: Transaction Context Manager
+    # ============================================================
+    # The transaction() method returns a context manager
+    # that automatically handles COMMIT/ROLLBACK
+
+    # Simple transaction - auto commits on success
     with backend.transaction():
         update_expr = UpdateStatement(
             dialect=dialect,
             table=Table(dialect, "accounts"),
-            assignments={"balance": Literal(dialect, -100)},
+            assignments={"balance": Literal(dialect, 50)},
             where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
         )
         sql, params = update_expr.to_sql()
         backend.execute(sql, params, options=dml_options)
-        raise RuntimeError("Simulated error to trigger rollback")
-except Exception as e:
-    print(f"Transaction rolled back: {e}")
 
-# ============================================================
-# SECTION: Savepoints (Nested Transactions)
-# ============================================================
-# MySQL supports savepoints for nested transactions
-
-with backend.transaction():
-    update_expr = UpdateStatement(
+    # Verify
+    query = QueryStatement(
         dialect=dialect,
-        table=Table(dialect, "accounts"),
-        assignments={"balance": Literal(dialect, 40)},
+        select=[Column(dialect, "balance")],
+        from_=Table(dialect, "accounts"),
         where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
     )
-    sql, params = update_expr.to_sql()
-    backend.execute(sql, params, options=dml_options)
-    backend.transaction_manager.savepoint("sp1")
+    sql, params = query.to_sql()
+    result = backend.execute(sql, params, options=dql_options)
+    if result.data:
+        print(f"Balance after transaction: {result.data[0]['balance']}")
+
+    # ============================================================
+    # SECTION: Transaction with Rollback
+    # ============================================================
+    # If an exception is raised, the transaction is rolled back
 
     try:
-        update_expr2 = UpdateStatement(
+        with backend.transaction():
+            update_expr = UpdateStatement(
+                dialect=dialect,
+                table=Table(dialect, "accounts"),
+                assignments={"balance": Literal(dialect, -100)},
+                where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+            )
+            sql, params = update_expr.to_sql()
+            backend.execute(sql, params, options=dml_options)
+            raise RuntimeError("Simulated error to trigger rollback")
+    except Exception as e:
+        print(f"Transaction rolled back: {e}")
+
+    # ============================================================
+    # SECTION: Savepoints (Nested Transactions)
+    # ============================================================
+    # MySQL supports savepoints for nested transactions
+
+    with backend.transaction():
+        update_expr = UpdateStatement(
             dialect=dialect,
             table=Table(dialect, "accounts"),
-            assignments={"balance": Literal(dialect, 20)},
+            assignments={"balance": Literal(dialect, 40)},
             where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
         )
-        sql, params = update_expr2.to_sql()
+        sql, params = update_expr.to_sql()
         backend.execute(sql, params, options=dml_options)
-    except Exception:
-        backend.transaction_manager.rollback_to("sp1")
+        backend.transaction_manager.savepoint("sp1")
 
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-backend.disconnect()
+        try:
+            update_expr2 = UpdateStatement(
+                dialect=dialect,
+                table=Table(dialect, "accounts"),
+                assignments={"balance": Literal(dialect, 20)},
+                where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+            )
+            sql, params = update_expr2.to_sql()
+            backend.execute(sql, params, options=dml_options)
+        except Exception:
+            backend.transaction_manager.rollback_to("sp1")
 
-# ============================================================
-# SECTION: Summary
-# ============================================================
-# Key points:
-# 1. Use backend.transaction() as a context manager
-# 2. Exceptions automatically trigger rollback
-# 3. Use savepoints for partial rollback
-# 4. MySQL requires InnoDB engine for transactions
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    backend.disconnect()
+
+    # ============================================================
+    # SECTION: Summary
+    # ============================================================
+    # Key points:
+    # 1. Use backend.transaction() as a context manager
+    # 2. Exceptions automatically trigger rollback
+    # 3. Use savepoints for partial rollback
+    # 4. MySQL requires InnoDB engine for transactions

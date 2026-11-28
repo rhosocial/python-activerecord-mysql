@@ -20,95 +20,96 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-backend.introspect_and_adapt()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    backend.introspect_and_adapt()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableStatement, CreateTableStatement, ColumnDefinition,
- ColumnConstraint,
-    ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
-    IntegerType, JsonType,
-)
-from rhosocial.activerecord.backend.impl.mysql.expression.types import (  # noqa: E402
-    MySQLLongTextType,
-)
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        DropTableStatement, CreateTableStatement, ColumnDefinition,
+     ColumnConstraint,
+        ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
+        IntegerType, JsonType,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression.types import (  # noqa: E402
+        MySQLLongTextType,
+    )
 
-expr = DropTableStatement(dialect, Table(dialect, "documents56"), if_exists=True)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
-expr = DropTableStatement(dialect, Table(dialect, "documents57"), if_exists=True)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
+    expr = DropTableStatement(dialect, Table(dialect, "documents56"), if_exists=True)
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
+    expr = DropTableStatement(dialect, Table(dialect, "documents57"), if_exists=True)
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
 
-# Simulate MySQL 5.6: store JSON as TEXT
-expr = CreateTableStatement(
-    dialect=dialect, table=Table(dialect, "documents56"), columns=[
-        ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
-        ColumnDefinition(dialect, "data", MySQLLongTextType(dialect)),
-    ]
-)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
-# Simulate MySQL 5.7+: native JSON column
-expr = CreateTableStatement(
-    dialect=dialect, table=Table(dialect, "documents57"), columns=[
-        ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
-        ColumnDefinition(dialect, "data", JsonType(dialect)),
-    ]
-)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
+    # Simulate MySQL 5.6: store JSON as TEXT
+    expr = CreateTableStatement(
+        dialect=dialect, table=Table(dialect, "documents56"), columns=[
+            ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
+            ColumnDefinition(dialect, "data", MySQLLongTextType(dialect)),
+        ]
+    )
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
+    # Simulate MySQL 5.7+: native JSON column
+    expr = CreateTableStatement(
+        dialect=dialect, table=Table(dialect, "documents57"), columns=[
+            ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
+            ColumnDefinition(dialect, "data", JsonType(dialect)),
+        ]
+    )
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-from rhosocial.activerecord.backend.schema import (  # noqa: E402
-    SyncSchemaSnapshotBuilder,
-)
-from rhosocial.activerecord.backend.expression.objects import Table
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    from rhosocial.activerecord.backend.schema import (  # noqa: E402
+        SyncSchemaSnapshotBuilder,
+    )
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
-snapshot = builder.build()
+    builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
+    snapshot = builder.build()
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-# Examine the introspected data_type for both tables
-for tbl_name in ("documents56", "documents57"):
-    if tbl_name in snapshot.tables:
-        for col in snapshot.tables[tbl_name].columns:
-            if col.name == "data":
-                print(f"{tbl_name}.data: data_type='{col.data_type}',"
-                      f" parsed_type={type(col.parsed_data_type).__name__ if col.parsed_data_type else 'None'}"
-                      f" char_max_length={col.character_maximum_length}")
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    # Examine the introspected data_type for both tables
+    for tbl_name in ("documents56", "documents57"):
+        if tbl_name in snapshot.tables:
+            for col in snapshot.tables[tbl_name].columns:
+                if col.name == "data":
+                    print(f"{tbl_name}.data: data_type='{col.data_type}',"
+                          f" parsed_type={type(col.parsed_data_type).__name__ if col.parsed_data_type else 'None'}"
+                          f" char_max_length={col.character_maximum_length}")
 
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-expr = DropTableStatement(dialect, Table(dialect, "documents56"), if_exists=True)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
-expr = DropTableStatement(dialect, Table(dialect, "documents57"), if_exists=True)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
-backend.disconnect()
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    expr = DropTableStatement(dialect, Table(dialect, "documents56"), if_exists=True)
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
+    expr = DropTableStatement(dialect, Table(dialect, "documents57"), if_exists=True)
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
+    backend.disconnect()

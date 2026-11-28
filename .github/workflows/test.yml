@@ -70,6 +70,7 @@ jobs:
 
   benchmark-python-315-mysql-97:
     name: Run benchmarks with Python 3.15 / MySQL 9.7
+    needs: formal-rules-contracts
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -253,6 +254,7 @@ jobs:
 
   test-python-315:
     name: Python ${{ matrix.python-version }}${{ matrix.freethreaded && 't' || '' }} / MySQL ${{ matrix.mysql-version }}
+    needs: formal-rules-contracts
     runs-on: ubuntu-26.04
     permissions:
       contents: read
@@ -345,10 +347,11 @@ jobs:
       - name: Run tests
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ -n 8 --dist=loadgroup --tb=short -x --ignore=tests/benchmark
+          python -m pytest tests/ -n 8 --dist=loadgroup --tb=short -x --ignore=tests/benchmark --ignore=tests/rhosocial/activerecord_mysql_test/feature/rules
 
   test:
     name: Python ${{ matrix.python-version }} / MySQL ${{ matrix.mysql-version }}
+    needs: formal-rules-contracts
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -453,14 +456,14 @@ jobs:
         if: matrix.mysql-version != '9.6'
         run: |
           export PYTHONPATH=src:tests
-          python -m pytest tests/ -n 8 --dist=loadgroup --tb=short -x --ignore=tests/benchmark
+          python -m pytest tests/ -n 8 --dist=loadgroup --tb=short -x --ignore=tests/benchmark --ignore=tests/rhosocial/activerecord_mysql_test/feature/rules
 
       - name: Run tests with coverage (only for MySQL 9.7 on Python 3.14)
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'
         run: |
           export PYTHONPATH=src:tests
           pip install codecov
-          python -m pytest tests/ -n 8 --dist=loadgroup --cov=rhosocial.activerecord.backend.impl.mysql --cov-branch --cov-report=xml --tb=short --ignore=tests/benchmark
+          python -m pytest tests/ -n 8 --dist=loadgroup --cov=rhosocial.activerecord.backend.impl.mysql --cov-branch --cov-report=xml --tb=short --ignore=tests/benchmark --ignore=tests/rhosocial/activerecord_mysql_test/feature/rules
 
       - name: Upload coverage to Codecov
         if: matrix.mysql-version == '9.7' && matrix.python-version == '3.14'

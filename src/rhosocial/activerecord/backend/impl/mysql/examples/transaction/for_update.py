@@ -16,216 +16,217 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", 3306)),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
-
-from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableStatement,
-    InsertStatement,
-    ValuesSource,
-    DropTableStatement,
-    QueryStatement,
-    UpdateStatement,
-)
-from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
-from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
-from rhosocial.activerecord.backend.expression.query_parts import ForUpdateClause  # noqa: E402
-from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnConstraint,
-    ColumnDefaultConstraint,
-    ColumnDefinition,
-    ColumnNotNullConstraint,
-    ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
-from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
-
-dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
-dml_options = ExecutionOptions(stmt_type=StatementType.DML)
-
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
-
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "accounts"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition(
-            "name",
-            "VARCHAR(100)",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-        ),
-        ColumnDefinition(
-            "balance",
-            "DECIMAL(10,2)",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
-            ],
-        ),
-    ],
-    if_not_exists=True,
-    table_options=MySQLCreateTableOptions(dialect, engine="InnoDB"),
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
-
-insert_expr = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "accounts"),
-    columns=["name", "balance"],
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, "Alice"), Literal(dialect, 1000)],
-            [Literal(dialect, "Bob"), Literal(dialect, 500)],
-        ],
-    ),
-)
-sql, params = insert_expr.to_sql()
-backend.execute(sql, params)
-
-# ============================================================
-# SECTION: SELECT FOR UPDATE
-# ============================================================
-# Lock rows to prevent concurrent modifications
-
-# In a transaction, select with FOR UPDATE
-with backend.transaction():
-    # Lock Alice's row using ForUpdateClause
-    lock_query = QueryStatement(
-        dialect=dialect,
-        select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
-        from_=Table(dialect, "accounts"),
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-        for_update=ForUpdateClause(dialect),
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
     )
-    sql, params = lock_query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    print(f"Locked row: {result.data}")
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-    # Update the balance
-    update_expr = UpdateStatement(
+    from rhosocial.activerecord.backend.impl.mysql.expression import MySQLCreateTableOptions
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        CreateTableStatement,
+        InsertStatement,
+        ValuesSource,
+        DropTableStatement,
+        QueryStatement,
+        UpdateStatement,
+    )
+    from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+    from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
+    from rhosocial.activerecord.backend.expression.query_parts import ForUpdateClause  # noqa: E402
+    from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
+        ColumnConstraint,
+        ColumnDefaultConstraint,
+        ColumnDefinition,
+        ColumnNotNullConstraint,
+        ColumnPrimaryKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.options import ExecutionOptions  # noqa: E402
+    from rhosocial.activerecord.backend.schema import StatementType  # noqa: E402
+
+    dql_options = ExecutionOptions(stmt_type=StatementType.DQL)
+    dml_options = ExecutionOptions(stmt_type=StatementType.DML)
+
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
+
+    create_table = CreateTableStatement(
         dialect=dialect,
         table=Table(dialect, "accounts"),
-        assignments={"balance": Literal(dialect, 900)},
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition(
+                "name",
+                "VARCHAR(100)",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+            ),
+            ColumnDefinition(
+                "balance",
+                "DECIMAL(10,2)",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 0)),
+                ],
+            ),
+        ],
+        if_not_exists=True,
+        table_options=MySQLCreateTableOptions(dialect, engine="InnoDB"),
     )
-    sql, params = update_expr.to_sql()
-    backend.execute(sql, params, options=dml_options)
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
 
-# The lock is released after commit
+    insert_expr = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "accounts"),
+        columns=["name", "balance"],
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, "Alice"), Literal(dialect, 1000)],
+                [Literal(dialect, "Bob"), Literal(dialect, 500)],
+            ],
+        ),
+    )
+    sql, params = insert_expr.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: FOR UPDATE with WHERE Conditions
-# ============================================================
-# Lock specific rows based on conditions
+    # ============================================================
+    # SECTION: SELECT FOR UPDATE
+    # ============================================================
+    # Lock rows to prevent concurrent modifications
 
-with backend.transaction():
-    lock_query = QueryStatement(
+    # In a transaction, select with FOR UPDATE
+    with backend.transaction():
+        # Lock Alice's row using ForUpdateClause
+        lock_query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+            for_update=ForUpdateClause(dialect),
+        )
+        sql, params = lock_query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"Locked row: {result.data}")
+
+        # Update the balance
+        update_expr = UpdateStatement(
+            dialect=dialect,
+            table=Table(dialect, "accounts"),
+            assignments={"balance": Literal(dialect, 900)},
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        )
+        sql, params = update_expr.to_sql()
+        backend.execute(sql, params, options=dml_options)
+
+    # The lock is released after commit
+
+    # ============================================================
+    # SECTION: FOR UPDATE with WHERE Conditions
+    # ============================================================
+    # Lock specific rows based on conditions
+
+    with backend.transaction():
+        lock_query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            where=ComparisonPredicate(dialect, ">", Column(dialect, "balance"), Literal(dialect, 500)),
+            for_update=ForUpdateClause(dialect),
+        )
+        sql, params = lock_query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"Locked high balance accounts: {len(result.data)} rows")
+
+    # ============================================================
+    # SECTION: SKIP LOCKED (MySQL 8.0+)
+    # ============================================================
+    # Skip locked rows instead of waiting
+
+    skip_query = QueryStatement(
         dialect=dialect,
         select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
         from_=Table(dialect, "accounts"),
-        where=ComparisonPredicate(dialect, ">", Column(dialect, "balance"), Literal(dialect, 500)),
-        for_update=ForUpdateClause(dialect),
+        for_update=ForUpdateClause(dialect, skip_locked=True),
     )
-    sql, params = lock_query.to_sql()
+    sql, params = skip_query.to_sql()
+    print(f"SKIP LOCKED SQL: {sql}")
     result = backend.execute(sql, params, options=dql_options)
-    print(f"Locked high balance accounts: {len(result.data)} rows")
+    print(f"SKIP LOCKED result: {result.data}")
 
-# ============================================================
-# SECTION: SKIP LOCKED (MySQL 8.0+)
-# ============================================================
-# Skip locked rows instead of waiting
+    # ============================================================
+    # SECTION: NOWAIT (MySQL 8.0+)
+    # ============================================================
+    # Fail immediately if rows are locked
 
-skip_query = QueryStatement(
-    dialect=dialect,
-    select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
-    from_=Table(dialect, "accounts"),
-    for_update=ForUpdateClause(dialect, skip_locked=True),
-)
-sql, params = skip_query.to_sql()
-print(f"SKIP LOCKED SQL: {sql}")
-result = backend.execute(sql, params, options=dql_options)
-print(f"SKIP LOCKED result: {result.data}")
+    try:
+        nowait_query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+            for_update=ForUpdateClause(dialect, nowait=True),
+        )
+        sql, params = nowait_query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"NOWAIT result: {result.data}")
+    except Exception as e:
+        print(f"NOWAIT failed (expected if locked): {e}")
 
-# ============================================================
-# SECTION: NOWAIT (MySQL 8.0+)
-# ============================================================
-# Fail immediately if rows are locked
+    # ============================================================
+    # SECTION: Lock Modes
+    # ============================================================
+    # FOR UPDATE - exclusive lock (write lock)
+    # FOR SHARE - shared lock (read lock)
 
-try:
-    nowait_query = QueryStatement(
-        dialect=dialect,
-        select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
-        from_=Table(dialect, "accounts"),
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
-        for_update=ForUpdateClause(dialect, nowait=True),
+    # Use the generic ForUpdateClause with LockStrength.SHARE for FOR SHARE
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        ForUpdateClause,
+        LockStrength,
     )
-    sql, params = nowait_query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    print(f"NOWAIT result: {result.data}")
-except Exception as e:
-    print(f"NOWAIT failed (expected if locked): {e}")
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-# ============================================================
-# SECTION: Lock Modes
-# ============================================================
-# FOR UPDATE - exclusive lock (write lock)
-# FOR SHARE - shared lock (read lock)
+    with backend.transaction():
+        share_query = QueryStatement(
+            dialect=dialect,
+            select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
+            from_=Table(dialect, "accounts"),
+            for_update=ForUpdateClause(dialect, strength=LockStrength.SHARE),
+        )
+        sql, params = share_query.to_sql()
+        result = backend.execute(sql, params, options=dql_options)
+        print(f"FOR SHARE result: {len(result.data)} rows")
 
-# Use the generic ForUpdateClause with LockStrength.SHARE for FOR SHARE
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    ForUpdateClause,
-    LockStrength,
-)
-from rhosocial.activerecord.backend.expression.objects import Table
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
+    backend.disconnect()
 
-with backend.transaction():
-    share_query = QueryStatement(
-        dialect=dialect,
-        select=[Column(dialect, "id"), Column(dialect, "name"), Column(dialect, "balance")],
-        from_=Table(dialect, "accounts"),
-        for_update=ForUpdateClause(dialect, strength=LockStrength.SHARE),
-    )
-    sql, params = share_query.to_sql()
-    result = backend.execute(sql, params, options=dql_options)
-    print(f"FOR SHARE result: {len(result.data)} rows")
-
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "accounts"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
-backend.disconnect()
-
-# ============================================================
-# SECTION: Summary
-# ============================================================
-# Key points:
-# 1. Use ForUpdateClause with QueryStatement for SELECT ... FOR UPDATE
-# 2. ForUpdateClause(dialect, skip_locked=True) for SKIP LOCKED (MySQL 8.0+)
-# 3. ForUpdateClause(dialect, nowait=True) for NOWAIT (MySQL 8.0+)
-# 4. Use ForUpdateClause with LockStrength.SHARE for FOR SHARE (MySQL 8.0+)
-# 5. Requires InnoDB engine
-# 6. Locks released on COMMIT/ROLLBACK
+    # ============================================================
+    # SECTION: Summary
+    # ============================================================
+    # Key points:
+    # 1. Use ForUpdateClause with QueryStatement for SELECT ... FOR UPDATE
+    # 2. ForUpdateClause(dialect, skip_locked=True) for SKIP LOCKED (MySQL 8.0+)
+    # 3. ForUpdateClause(dialect, nowait=True) for NOWAIT (MySQL 8.0+)
+    # 4. Use ForUpdateClause with LockStrength.SHARE for FOR SHARE (MySQL 8.0+)
+    # 5. Requires InnoDB engine
+    # 6. Locks released on COMMIT/ROLLBACK

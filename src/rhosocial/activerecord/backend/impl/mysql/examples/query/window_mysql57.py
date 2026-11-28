@@ -22,102 +22,103 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableStatement,
-    InsertStatement,
-    ValuesSource,
-    DropTableStatement,
-)
-from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
-from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnConstraint,
-    ColumnDefinition,
-    ColumnNotNullConstraint,
-    ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.expression.objects import Table
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        CreateTableStatement,
+        InsertStatement,
+        ValuesSource,
+        DropTableStatement,
+    )
+    from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+    from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
+        ColumnConstraint,
+        ColumnDefinition,
+        ColumnNotNullConstraint,
+        ColumnPrimaryKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "sales_data"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "sales_data"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "sales_data"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition("salesperson", "VARCHAR(100)"),
-        ColumnDefinition("region", "VARCHAR(50)"),
-        ColumnDefinition("amount", "DECIMAL(10,2)"),
-    ],
-    if_not_exists=True,
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
-
-insert = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "sales_data"),
-    columns=["salesperson", "region", "amount"],
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, "Alice"), Literal(dialect, "North"), Literal(dialect, 1000)],
-            [Literal(dialect, "Alice"), Literal(dialect, "North"), Literal(dialect, 1500)],
-            [Literal(dialect, "Bob"), Literal(dialect, "North"), Literal(dialect, 1200)],
-            [Literal(dialect, "Bob"), Literal(dialect, "South"), Literal(dialect, 1800)],
-            [Literal(dialect, "Charlie"), Literal(dialect, "South"), Literal(dialect, 2000)],
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "sales_data"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition("salesperson", "VARCHAR(100)"),
+            ColumnDefinition("region", "VARCHAR(50)"),
+            ColumnDefinition("amount", "DECIMAL(10,2)"),
         ],
-    ),
-)
-sql, params = insert.to_sql()
-backend.execute(sql, params)
+        if_not_exists=True,
+    )
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-# Using user variables to emulate window functions in MySQL 5.6/5.7
-# Row number with partition by region and order by amount DESC
-sql = """
-SELECT
-    salesperson,
-    region,
-    amount,
-    @row_num := IF(@current_region = region,
-        @row_num + 1,
-        1) AS row_num,
-    @current_region := region
-FROM sales_data,
-    (SELECT @row_num := 0, @current_region := '') AS vars
-ORDER BY region, amount DESC
-"""
-params = ()
+    insert = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "sales_data"),
+        columns=["salesperson", "region", "amount"],
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, "Alice"), Literal(dialect, "North"), Literal(dialect, 1000)],
+                [Literal(dialect, "Alice"), Literal(dialect, "North"), Literal(dialect, 1500)],
+                [Literal(dialect, "Bob"), Literal(dialect, "North"), Literal(dialect, 1200)],
+                [Literal(dialect, "Bob"), Literal(dialect, "South"), Literal(dialect, 1800)],
+                [Literal(dialect, "Charlie"), Literal(dialect, "South"), Literal(dialect, 2000)],
+            ],
+        ),
+    )
+    sql, params = insert.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-result = backend.execute(sql, params)
-print(f"Rows returned: {len(result.data) if result.data else 0}")
-for row in result.data or []:
-    print(f" {row}")
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    # Using user variables to emulate window functions in MySQL 5.6/5.7
+    # Row number with partition by region and order by amount DESC
+    sql = """
+    SELECT
+        salesperson,
+        region,
+        amount,
+        @row_num := IF(@current_region = region,
+            @row_num + 1,
+            1) AS row_num,
+        @current_region := region
+    FROM sales_data,
+        (SELECT @row_num := 0, @current_region := '') AS vars
+    ORDER BY region, amount DESC
+    """
+    params = ()
 
-backend.disconnect()
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    result = backend.execute(sql, params)
+    print(f"Rows returned: {len(result.data) if result.data else 0}")
+    for row in result.data or []:
+        print(f" {row}")
+
+    backend.disconnect()

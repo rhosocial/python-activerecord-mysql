@@ -20,94 +20,95 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-backend.introspect_and_adapt()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    backend.introspect_and_adapt()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableStatement, CreateTableStatement, ColumnDefinition,
- ColumnConstraint,
-    ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
-    IntegerType, VarCharType,
-)
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        DropTableStatement, CreateTableStatement, ColumnDefinition,
+     ColumnConstraint,
+        ColumnNotNullConstraint, ColumnPrimaryKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
+        IntegerType, VarCharType,
+    )
 
-expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
-expr = CreateTableStatement(
-    dialect=dialect, table=Table(dialect, "users"), columns=[
-        ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
-        ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
-        ColumnDefinition(dialect, "email", VarCharType(dialect, 200)),
-    ]
-)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
+    expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
+    expr = CreateTableStatement(
+        dialect=dialect, table=Table(dialect, "users"), columns=[
+            ColumnDefinition(dialect, "id"[0], integer_auto_increment_parts(None, IntegerType(dialect))[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                ], attributes=integer_auto_increment_parts(None, IntegerType(dialect))[1]),
+            ColumnDefinition(dialect, "name", VarCharType(dialect, 100)),
+            ColumnDefinition(dialect, "email", VarCharType(dialect, 200)),
+        ]
+    )
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-from rhosocial.activerecord.backend.schema import (  # noqa: E402
-    SyncSchemaSnapshotBuilder,
-)
-from rhosocial.activerecord.backend.impl.mysql.schema.differ import (  # noqa: E402
-    MySQLSchemaDiffer,
-)
-from rhosocial.activerecord.backend.expression.statements.ddl_alter import (  # noqa: E402
-    AlterTableStatement,
-)
-from rhosocial.activerecord.backend.impl.mysql.expression import (  # noqa: E402
-    MySQLAddColumn,
-)
-from rhosocial.activerecord.backend.expression.objects import Table
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    from rhosocial.activerecord.backend.schema import (  # noqa: E402
+        SyncSchemaSnapshotBuilder,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.schema.differ import (  # noqa: E402
+        MySQLSchemaDiffer,
+    )
+    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (  # noqa: E402
+        AlterTableStatement,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.expression import (  # noqa: E402
+        MySQLAddColumn,
+    )
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
-snapshot_before = builder.build()
+    builder = SyncSchemaSnapshotBuilder(backend.introspector, dialect)
+    snapshot_before = builder.build()
 
-# Add `age` column between `name` and `email` — shifts email to position 4
-add_col = MySQLAddColumn(dialect, ColumnDefinition(dialect, "age", IntegerType(dialect)),
-                         after="name")
-alter_expr = AlterTableStatement(dialect, Table(dialect, "users"), add_col)
-sql, params = alter_expr.to_sql()
-backend.execute(sql, params)
+    # Add `age` column between `name` and `email` — shifts email to position 4
+    add_col = MySQLAddColumn(dialect, ColumnDefinition(dialect, "age", IntegerType(dialect)),
+                             after="name")
+    alter_expr = AlterTableStatement(dialect, Table(dialect, "users"), add_col)
+    sql, params = alter_expr.to_sql()
+    backend.execute(sql, params)
 
-snapshot_after = builder.build()
+    snapshot_after = builder.build()
 
-differ = MySQLSchemaDiffer()
-diff = differ.compare(snapshot_before, snapshot_after)
+    differ = MySQLSchemaDiffer()
+    diff = differ.compare(snapshot_before, snapshot_after)
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-print(f"Modified tables: {diff.modified_tables}")
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    print(f"Modified tables: {diff.modified_tables}")
 
-if "users" in diff.table_diffs:
-    td = diff.table_diffs["users"]
-    for cd in td.column_diffs:
-        kind = "added" if cd.is_added else "modified" if cd.is_modified else "removed"
-        old_pos = cd.old.ordinal_position if cd.old else "-"
-        new_pos = cd.new.ordinal_position if cd.new else "-"
-        print(f"  Column '{cd.column_name}': {kind} (ordinal: {old_pos}→{new_pos})")
+    if "users" in diff.table_diffs:
+        td = diff.table_diffs["users"]
+        for cd in td.column_diffs:
+            kind = "added" if cd.is_added else "modified" if cd.is_modified else "removed"
+            old_pos = cd.old.ordinal_position if cd.old else "-"
+            new_pos = cd.new.ordinal_position if cd.new else "-"
+            print(f"  Column '{cd.column_name}': {kind} (ordinal: {old_pos}→{new_pos})")
 
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
-sql, params = expr.to_sql()
-backend.execute(sql, params)
-backend.disconnect()
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    expr = DropTableStatement(dialect, Table(dialect, "users"), if_exists=True)
+    sql, params = expr.to_sql()
+    backend.execute(sql, params)
+    backend.disconnect()

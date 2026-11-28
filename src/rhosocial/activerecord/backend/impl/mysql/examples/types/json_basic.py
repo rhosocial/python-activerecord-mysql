@@ -13,101 +13,102 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableStatement,
-    InsertStatement,
-    ValuesSource,
-    DropTableStatement,
-)
-from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
-from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnConstraint,
-    ColumnDefinition,
-    ColumnNotNullConstraint,
-    ColumnPrimaryKeyConstraint,
-)
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        CreateTableStatement,
+        InsertStatement,
+        ValuesSource,
+        DropTableStatement,
+    )
+    from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+    from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
+        ColumnConstraint,
+        ColumnDefinition,
+        ColumnNotNullConstraint,
+        ColumnPrimaryKeyConstraint,
+    )
 
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-# Create table with JSON column (MySQL 5.7+)
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "documents"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition("data", "JSON"),
-    ],
-    if_not_exists=True,
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
-
-insert = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "documents"),
-    columns=["data"],
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, '{"name": "Alice", "age": 30, "tags": ["a", "b"]}')],
-            [Literal(dialect, '{"name": "Bob", "age": 25, "tags": ["c"]}')],
+    # Create table with JSON column (MySQL 5.7+)
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "documents"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition("data", "JSON"),
         ],
-    ),
-)
-sql, params = insert.to_sql()
-backend.execute(sql, params)
+        if_not_exists=True,
+    )
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    QueryStatement,
-    Column,
-)
-from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote  # noqa: E402
-from rhosocial.activerecord.backend.expression.objects import Table
+    insert = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "documents"),
+        columns=["data"],
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, '{"name": "Alice", "age": 30, "tags": ["a", "b"]}')],
+                [Literal(dialect, '{"name": "Bob", "age": 25, "tags": ["c"]}')],
+            ],
+        ),
+    )
+    sql, params = insert.to_sql()
+    backend.execute(sql, params)
 
-query = QueryStatement(
-    dialect=dialect,
-    select=[
-        Column(dialect, "id"),
-        json_unquote(dialect, json_extract(dialect, Column(dialect, "data"), "$.name")).as_("name"),
-        json_extract(dialect, Column(dialect, "data"), "$.age").as_("age"),
-    ],
-    from_=Table(dialect, "documents"),
-)
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        QueryStatement,
+        Column,
+    )
+    from rhosocial.activerecord.backend.impl.mysql.functions.json import json_extract, json_unquote  # noqa: E402
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-sql, params = query.to_sql()
-print(f"SQL: {sql}")
-print(f"Params: {params}")
+    query = QueryStatement(
+        dialect=dialect,
+        select=[
+            Column(dialect, "id"),
+            json_unquote(dialect, json_extract(dialect, Column(dialect, "data"), "$.name")).as_("name"),
+            json_extract(dialect, Column(dialect, "data"), "$.age").as_("age"),
+        ],
+        from_=Table(dialect, "documents"),
+    )
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-result = backend.execute(sql, params)
-print(f"Rows returned: {len(result.data) if result.data else 0}")
-for row in result.data or []:
-    print(f" {row}")
+    sql, params = query.to_sql()
+    print(f"SQL: {sql}")
+    print(f"Params: {params}")
 
-backend.disconnect()
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    result = backend.execute(sql, params)
+    print(f"Rows returned: {len(result.data) if result.data else 0}")
+    for row in result.data or []:
+        print(f" {row}")
+
+    backend.disconnect()

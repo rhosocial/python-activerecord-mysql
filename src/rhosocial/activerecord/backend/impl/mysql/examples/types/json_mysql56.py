@@ -16,94 +16,95 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", 3306)),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    DropTableStatement,
-    InsertStatement,
-    ValuesSource,
-)
-from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
-from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnConstraint,
-    ColumnDefinition,
-    ColumnNotNullConstraint,
-    ColumnPrimaryKeyConstraint,
-)
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        DropTableStatement,
+        InsertStatement,
+        ValuesSource,
+    )
+    from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+    from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
+        ColumnConstraint,
+        ColumnDefinition,
+        ColumnNotNullConstraint,
+        ColumnPrimaryKeyConstraint,
+    )
 
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "documents"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-from rhosocial.activerecord.backend.expression import CreateTableStatement  # noqa: E402
-from rhosocial.activerecord.backend.expression.objects import Table
+    from rhosocial.activerecord.backend.expression import CreateTableStatement  # noqa: E402
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "documents"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition(
-            "data",
-            "TEXT",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "documents"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition(
+                "data",
+                "TEXT",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+            ),
+        ],
+    )
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
+
+    insert_expr = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "documents"),
+        columns=["data"],
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, '{"name": "Alice", "age": 30}')],
+                [Literal(dialect, '{"name": "Bob", "age": 25}')],
             ],
         ),
-    ],
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
+    )
+    sql, params = insert_expr.to_sql()
+    backend.execute(sql, params)
 
-insert_expr = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "documents"),
-    columns=["data"],
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, '{"name": "Alice", "age": 30}')],
-            [Literal(dialect, '{"name": "Bob", "age": 25}')],
-        ],
-    ),
-)
-sql, params = insert_expr.to_sql()
-backend.execute(sql, params)
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    # MySQL 5.6: Use TEXT column directly
+    # JSON parsing with string functions is error-prone, so we just show the raw data
+    sql = "SELECT id, data FROM documents"
+    params = ()
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-# MySQL 5.6: Use TEXT column directly
-# JSON parsing with string functions is error-prone, so we just show the raw data
-sql = "SELECT id, data FROM documents"
-params = ()
+    print(f"SQL: {sql}")
+    print(f"Params: {params}")
 
-print(f"SQL: {sql}")
-print(f"Params: {params}")
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    result = backend.execute(sql, params)
+    print(f"Rows returned: {len(result.data) if result.data else 0}")
+    for row in result.data or []:
+        print(f" {row}")
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-result = backend.execute(sql, params)
-print(f"Rows returned: {len(result.data) if result.data else 0}")
-for row in result.data or []:
-    print(f" {row}")
-
-backend.disconnect()
+    backend.disconnect()

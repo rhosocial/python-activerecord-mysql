@@ -34,116 +34,117 @@ from rhosocial.activerecord.backend.expression.statements.ddl_table import (
 )
 from rhosocial.activerecord.backend.expression.objects import Table
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-# Drop if exists for clean setup
-drop = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
-sql, params = drop.to_sql()
-backend.execute(sql, params)
+    # Drop if exists for clean setup
+    drop = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
+    sql, params = drop.to_sql()
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
 
-columns = [
-    ColumnDefinition(
-        name="id",
-        data_type=integer_auto_increment_parts(None, "INT")[0],
-        constraints=[
-            ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-        ],
-     attributes=integer_auto_increment_parts(None, "INT")[1]),
-    ColumnDefinition(
-        name="name",
-        data_type="VARCHAR(200)",
-        constraints=[
-            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-        ],
-    ),
-    ColumnDefinition(
-        name="price",
-        data_type="DECIMAL(10,2)",
-        constraints=[
-            ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-        ],
-    ),
-    ColumnDefinition(
-        name="category",
-        data_type="VARCHAR(100)",
-    ),
-    ColumnDefinition(
-        name="is_active",
-        data_type="TINYINT(1)",
-        constraints=[
-            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 1)),
-        ],
-    ),
-    ColumnDefinition(
-        name="created_at",
-        data_type="TIMESTAMP",
-        constraints=[
-            ColumnConstraint(None, branch=ColumnDefaultConstraint(None, F.current_timestamp(dialect))),
-        ],
-    ),
-]
+    columns = [
+        ColumnDefinition(
+            name="id",
+            data_type=integer_auto_increment_parts(None, "INT")[0],
+            constraints=[
+                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+            ],
+         attributes=integer_auto_increment_parts(None, "INT")[1]),
+        ColumnDefinition(
+            name="name",
+            data_type="VARCHAR(200)",
+            constraints=[
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+            ],
+        ),
+        ColumnDefinition(
+            name="price",
+            data_type="DECIMAL(10,2)",
+            constraints=[
+                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+            ],
+        ),
+        ColumnDefinition(
+            name="category",
+            data_type="VARCHAR(100)",
+        ),
+        ColumnDefinition(
+            name="is_active",
+            data_type="TINYINT(1)",
+            constraints=[
+                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, 1)),
+            ],
+        ),
+        ColumnDefinition(
+            name="created_at",
+            data_type="TIMESTAMP",
+            constraints=[
+                ColumnConstraint(None, branch=ColumnDefaultConstraint(None, F.current_timestamp(dialect))),
+            ],
+        ),
+    ]
 
-indexes = [
-    IndexDefinition(
-        name="idx_products_category",
-        columns=["category"],
-    ),
-]
+    indexes = [
+        IndexDefinition(
+            name="idx_products_category",
+            columns=["category"],
+        ),
+    ]
 
-# Create table with MySQL-specific ENGINE and CHARSET options
-create_expr = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "products"),
-    columns=columns,
-    indexes=indexes,
-    if_not_exists=True,
-    table_options=MySQLCreateTableOptions(dialect, engine="InnoDB", charset="utf8mb4"),
-)
+    # Create table with MySQL-specific ENGINE and CHARSET options
+    create_expr = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "products"),
+        columns=columns,
+        indexes=indexes,
+        if_not_exists=True,
+        table_options=MySQLCreateTableOptions(dialect, engine="InnoDB", charset="utf8mb4"),
+    )
 
-sql, params = create_expr.to_sql()
-print(f"SQL: {sql}")
-print(f"Params: {params}")
+    sql, params = create_expr.to_sql()
+    print(f"SQL: {sql}")
+    print(f"Params: {params}")
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-result = backend.execute(sql, params)
-print("Table created: products")
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    result = backend.execute(sql, params)
+    print("Table created: products")
 
-# Verify table structure using introspector
-columns_info = backend.introspector.list_columns("products")
-print("Columns in 'products':")
-for col in columns_info:
-    print(f"  {col}")
+    # Verify table structure using introspector
+    columns_info = backend.introspector.list_columns("products")
+    print("Columns in 'products':")
+    for col in columns_info:
+        print(f"  {col}")
 
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
-backend.disconnect()
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
+    backend.disconnect()
 
-# ============================================================
-# SECTION: Summary
-# ============================================================
-# Key points:
-# 1. Use ColumnConstraint with is_auto_increment=True for AUTO_INCREMENT
-# 2. MySQL table options (engine/charset) are typed on MySQLCreateTableOptions
-# 3. IndexDefinition creates inline indexes within CREATE TABLE
-# 4. Use F.current_timestamp(dialect) for SQL niladic functions (no parentheses)
-# 5. Use introspector.get_columns() to verify table structure
+    # ============================================================
+    # SECTION: Summary
+    # ============================================================
+    # Key points:
+    # 1. Use ColumnConstraint with is_auto_increment=True for AUTO_INCREMENT
+    # 2. MySQL table options (engine/charset) are typed on MySQLCreateTableOptions
+    # 3. IndexDefinition creates inline indexes within CREATE TABLE
+    # 4. Use F.current_timestamp(dialect) for SQL niladic functions (no parentheses)
+    # 5. Use introspector.get_columns() to verify table structure

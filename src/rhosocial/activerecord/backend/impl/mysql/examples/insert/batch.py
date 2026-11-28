@@ -24,104 +24,105 @@ from rhosocial.activerecord.backend.expression.statements import (
 from rhosocial.activerecord.backend.options import ExecutionOptions
 from rhosocial.activerecord.backend.schema import StatementType
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-# Drop table first for clean setup
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "logs"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    # Drop table first for clean setup
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "logs"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "logs"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "logs"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition("level", "VARCHAR(20)"),
+            ColumnDefinition("message", "TEXT"),
+            ColumnDefinition(
+                "created_at",
+                "TIMESTAMP",
+                constraints=[
+                    ColumnConstraint(
+                        None,
+                        branch=ColumnDefaultConstraint(None, F.current_timestamp(dialect))
+                        ),
+                        ],
+                        ),
+                        ],
+                        if_not_exists=True,
+                    )
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
+
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        InsertStatement,
+        ValuesSource,
+        QueryStatement,
+    )
+    from rhosocial.activerecord.backend.expression.core import Literal, AllColumnsWildcard, Column  # noqa: E402
+    from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause  # noqa: E402
+    from rhosocial.activerecord.backend.expression.objects import Table
+
+    insert_expr = InsertStatement(
+        dialect=dialect,
+        into=Table(dialect, "logs"),
+        source=ValuesSource(
+            dialect,
+            [
+                [Literal(dialect, "INFO"), Literal(dialect, "System started")],
+                [Literal(dialect, "DEBUG"), Literal(dialect, "Loading configuration")],
+                [Literal(dialect, "INFO"), Literal(dialect, "Application ready")],
+                [Literal(dialect, "WARNING"), Literal(dialect, "Memory usage high")],
             ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition("level", "VARCHAR(20)"),
-        ColumnDefinition("message", "TEXT"),
-        ColumnDefinition(
-            "created_at",
-            "TIMESTAMP",
-            constraints=[
-                ColumnConstraint(
-                    None,
-                    branch=ColumnDefaultConstraint(None, F.current_timestamp(dialect))
-                    ),
-                    ],
-                    ),
-                    ],
-                    if_not_exists=True,
-                )
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
+        ),
+        columns=["level", "message"],
+    )
 
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    InsertStatement,
-    ValuesSource,
-    QueryStatement,
-)
-from rhosocial.activerecord.backend.expression.core import Literal, AllColumnsWildcard, Column  # noqa: E402
-from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause  # noqa: E402
-from rhosocial.activerecord.backend.expression.objects import Table
+    sql, params = insert_expr.to_sql()
+    print(f"SQL: {sql}")
+    print(f"Params: {params}")
 
-insert_expr = InsertStatement(
-    dialect=dialect,
-    into=Table(dialect, "logs"),
-    source=ValuesSource(
-        dialect,
-        [
-            [Literal(dialect, "INFO"), Literal(dialect, "System started")],
-            [Literal(dialect, "DEBUG"), Literal(dialect, "Loading configuration")],
-            [Literal(dialect, "INFO"), Literal(dialect, "Application ready")],
-            [Literal(dialect, "WARNING"), Literal(dialect, "Memory usage high")],
-        ],
-    ),
-    columns=["level", "message"],
-)
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    result = backend.execute(sql, params)
+    print(f"Affected rows: {result.affected_rows}")
 
-sql, params = insert_expr.to_sql()
-print(f"SQL: {sql}")
-print(f"Params: {params}")
+    verify_query = QueryStatement(
+        dialect=dialect,
+        select=[AllColumnsWildcard(dialect)],
+        from_=Table(dialect, "logs"),
+        order_by=OrderByClause(dialect, [Column(dialect, "id")]),
+    )
+    options = ExecutionOptions(stmt_type=StatementType.DQL)
+    sql, params = verify_query.to_sql()
+    result = backend.execute(sql, params, options=options)
+    print(f"Total rows in table: {len(result.data) if result.data else 0}")
+    for row in result.data or []:
+        print(f"  {row}")
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-result = backend.execute(sql, params)
-print(f"Affected rows: {result.affected_rows}")
-
-verify_query = QueryStatement(
-    dialect=dialect,
-    select=[AllColumnsWildcard(dialect)],
-    from_=Table(dialect, "logs"),
-    order_by=OrderByClause(dialect, [Column(dialect, "id")]),
-)
-options = ExecutionOptions(stmt_type=StatementType.DQL)
-sql, params = verify_query.to_sql()
-result = backend.execute(sql, params, options=options)
-print(f"Total rows in table: {len(result.data) if result.data else 0}")
-for row in result.data or []:
-    print(f"  {row}")
-
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-backend.disconnect()
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    backend.disconnect()

@@ -17,81 +17,82 @@ from rhosocial.activerecord.backend.expression.statements import (
     ColumnPrimaryKeyConstraint,
 )
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    charset="utf8mb4",
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        charset="utf8mb4",
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-# Drop table first for clean setup
-drop = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
-sql, params = drop.to_sql()
-backend.execute(sql, params)
-
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "products"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            integer_auto_increment_parts(None, "INT")[0],
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-                ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
-            ],
-         attributes=integer_auto_increment_parts(None, "INT")[1]),
-        ColumnDefinition("name", "VARCHAR(100)"),
-        ColumnDefinition("category", "VARCHAR(50)"),
-        ColumnDefinition("price", "DECIMAL(10,2)"),
-    ],
-    if_not_exists=True,
-)
-sql, params = create_table.to_sql()
-backend.execute(sql, params)
-
-# ============================================================
-# SECTION: Business Logic (the pattern to learn)
-# ============================================================
-from rhosocial.activerecord.backend.expression import CreateIndexStatement, DropIndexStatement  # noqa: E402
-from rhosocial.activerecord.backend.expression.objects import Index, Table
-
-# Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
-try:
-    drop_idx = DropIndexStatement(dialect=dialect, index=Index(dialect, "idx_category_price"))
-    sql, params = drop_idx.to_sql()
+    # Drop table first for clean setup
+    drop = DropTableStatement(dialect=dialect, table=Table(dialect, "products"), if_exists=True)
+    sql, params = drop.to_sql()
     backend.execute(sql, params)
-except Exception:
-    pass
 
-create_idx = CreateIndexStatement(
-    dialect=dialect,
-    index=Index(dialect, "idx_category_price"),
-    table=Table(dialect, "products"),
-    columns=["category", "price"],
-)
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "products"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                integer_auto_increment_parts(None, "INT")[0],
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                    ColumnConstraint(None, branch=ColumnNotNullConstraint(None)),
+                ],
+             attributes=integer_auto_increment_parts(None, "INT")[1]),
+            ColumnDefinition("name", "VARCHAR(100)"),
+            ColumnDefinition("category", "VARCHAR(50)"),
+            ColumnDefinition("price", "DECIMAL(10,2)"),
+        ],
+        if_not_exists=True,
+    )
+    sql, params = create_table.to_sql()
+    backend.execute(sql, params)
 
-sql, params = create_idx.to_sql()
-print(f"SQL: {sql}")
-print(f"Params: {params}")
+    # ============================================================
+    # SECTION: Business Logic (the pattern to learn)
+    # ============================================================
+    from rhosocial.activerecord.backend.expression import CreateIndexStatement, DropIndexStatement  # noqa: E402
+    from rhosocial.activerecord.backend.expression.objects import Index, Table
 
-# ============================================================
-# SECTION: Execution (run the expression)
-# ============================================================
-backend.execute(sql, params)
-print("Index created successfully")
+    # Drop index first if exists (MySQL does not support IF NOT EXISTS in CREATE INDEX)
+    try:
+        drop_idx = DropIndexStatement(dialect=dialect, index=Index(dialect, "idx_category_price"))
+        sql, params = drop_idx.to_sql()
+        backend.execute(sql, params)
+    except Exception:
+        pass
 
-# Verify using introspector
-indexes = backend.introspector.list_indexes("products")
-target_index = [idx for idx in indexes if "idx_category_price" in str(idx)]
-print(f"Index info: {target_index}")
+    create_idx = CreateIndexStatement(
+        dialect=dialect,
+        index=Index(dialect, "idx_category_price"),
+        table=Table(dialect, "products"),
+        columns=["category", "price"],
+    )
 
-# ============================================================
-# SECTION: Teardown (necessary for execution, reference only)
-# ============================================================
-backend.disconnect()
+    sql, params = create_idx.to_sql()
+    print(f"SQL: {sql}")
+    print(f"Params: {params}")
+
+    # ============================================================
+    # SECTION: Execution (run the expression)
+    # ============================================================
+    backend.execute(sql, params)
+    print("Index created successfully")
+
+    # Verify using introspector
+    indexes = backend.introspector.list_indexes("products")
+    target_index = [idx for idx in indexes if "idx_category_price" in str(idx)]
+    print(f"Index info: {target_index}")
+
+    # ============================================================
+    # SECTION: Teardown (necessary for execution, reference only)
+    # ============================================================
+    backend.disconnect()

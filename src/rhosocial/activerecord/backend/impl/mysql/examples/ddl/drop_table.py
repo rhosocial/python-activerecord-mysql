@@ -13,87 +13,88 @@ import os
 from rhosocial.activerecord.backend.impl.mysql.backend import MySQLBackend
 from rhosocial.activerecord.backend.impl.mysql.config import MySQLConnectionConfig
 
-config = MySQLConnectionConfig(
-    host=os.getenv("MYSQL_HOST", "localhost"),
-    port=int(os.getenv("MYSQL_PORT", 3306)),
-    database=os.getenv("MYSQL_DATABASE", "test"),
-    username=os.getenv("MYSQL_USER", "root"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-)
-backend = MySQLBackend(connection_config=config)
-backend.connect()
-dialect = backend.dialect
+if __name__ == "__main__":
+    config = MySQLConnectionConfig(
+        host=os.getenv("MYSQL_HOST", "localhost"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        database=os.getenv("MYSQL_DATABASE", "test"),
+        username=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+    )
+    backend = MySQLBackend(connection_config=config)
+    backend.connect()
+    dialect = backend.dialect
 
-from rhosocial.activerecord.backend.expression import (  # noqa: E402
-    CreateTableStatement,
-    DropTableStatement,
-)
-from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
-    ColumnConstraint,
-    ColumnDefinition,
-    ColumnPrimaryKeyConstraint,
-)
-from rhosocial.activerecord.backend.expression.objects import Table
+    from rhosocial.activerecord.backend.expression import (  # noqa: E402
+        CreateTableStatement,
+        DropTableStatement,
+    )
+    from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
+        ColumnConstraint,
+        ColumnDefinition,
+        ColumnPrimaryKeyConstraint,
+    )
+    from rhosocial.activerecord.backend.expression.objects import Table
 
-drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
-sql, params = drop_orders.to_sql()
-backend.execute(sql, params)
+    drop_orders = DropTableStatement(dialect=dialect, table=Table(dialect, "orders"), if_exists=True)
+    sql, params = drop_orders.to_sql()
+    backend.execute(sql, params)
 
-drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
-sql, params = drop_table.to_sql()
-backend.execute(sql, params)
+    drop_table = DropTableStatement(dialect=dialect, table=Table(dialect, "users"), if_exists=True)
+    sql, params = drop_table.to_sql()
+    backend.execute(sql, params)
 
-create_table = CreateTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "users"),
-    columns=[
-        ColumnDefinition(
-            "id",
-            "INT",
-            constraints=[
-                ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
-            ],
-        ),
-    ],
-    if_not_exists=True,
-)
-sql, params = create_table.to_sql()
-print(f"Create table SQL: {sql}")
-backend.execute(sql, params)
+    create_table = CreateTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "users"),
+        columns=[
+            ColumnDefinition(
+                "id",
+                "INT",
+                constraints=[
+                    ColumnConstraint(None, branch=ColumnPrimaryKeyConstraint(None)),
+                ],
+            ),
+        ],
+        if_not_exists=True,
+    )
+    sql, params = create_table.to_sql()
+    print(f"Create table SQL: {sql}")
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: DROP TABLE
-# ============================================================
-drop_expr = DropTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "users"),
-)
-sql, params = drop_expr.to_sql()
-print(f"DROP TABLE SQL: {sql}")
-print(f"Params: {params}")
-backend.execute(sql, params)
+    # ============================================================
+    # SECTION: DROP TABLE
+    # ============================================================
+    drop_expr = DropTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "users"),
+    )
+    sql, params = drop_expr.to_sql()
+    print(f"DROP TABLE SQL: {sql}")
+    print(f"Params: {params}")
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: DROP TABLE IF EXISTS
-# ============================================================
-drop_expr_if_exists = DropTableStatement(
-    dialect=dialect,
-    table=Table(dialect, "users"),
-    if_exists=True,
-)
-sql, params = drop_expr_if_exists.to_sql()
-print(f"DROP TABLE IF EXISTS SQL: {sql}")
-backend.execute(sql, params)
+    # ============================================================
+    # SECTION: DROP TABLE IF EXISTS
+    # ============================================================
+    drop_expr_if_exists = DropTableStatement(
+        dialect=dialect,
+        table=Table(dialect, "users"),
+        if_exists=True,
+    )
+    sql, params = drop_expr_if_exists.to_sql()
+    print(f"DROP TABLE IF EXISTS SQL: {sql}")
+    backend.execute(sql, params)
 
-# ============================================================
-# SECTION: Teardown
-# ============================================================
-backend.disconnect()
+    # ============================================================
+    # SECTION: Teardown
+    # ============================================================
+    backend.disconnect()
 
-# ============================================================
-# SECTION: Summary
-# ============================================================
-# Key points:
-# 1. Use DropTableStatement to drop tables
-# 2. if_exists=True prevents error if table doesn't exist
-# 3. CASCADE and RESTRICT options available
+    # ============================================================
+    # SECTION: Summary
+    # ============================================================
+    # Key points:
+    # 1. Use DropTableStatement to drop tables
+    # 2. if_exists=True prevents error if table doesn't exist
+    # 3. CASCADE and RESTRICT options available
