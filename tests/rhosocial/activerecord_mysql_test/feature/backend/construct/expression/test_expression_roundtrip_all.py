@@ -616,8 +616,12 @@ def special_registry():
 # Classes the generic constructor cannot build, so there is no instance to
 # assert on. Keyed by fqn suffix; the value is why.
 #
-# The six ddl_alter rows are the generic constructor skipping a defaulted
-# positional parameter, which shifts every later positional argument.
+# Five rows used to live here -- AlterConstraintAction, AddDomainCheckAction
+# and the three uuid value expressions -- but their constructors now accept
+# the filler's placeholder values. They are not renderable, though: the two
+# ddl actions refuse the built instance with TypeError and the three uuid
+# nodes have no MySQL formatter, so they moved to _NOT_RENDERED and
+# _DECLARED_GAP respectively rather than leaving a stale unbuildable row.
 #
 # This table used to hold four XML rows as well, for the ``Sequence[X]``
 # misreading the constructor tables above document. Those are gone because
@@ -635,24 +639,9 @@ _UNBUILDABLE = {
     "admin.MySQLResetStatement":
         "option must be a ResetOption member or its word; the constructor "
         "normalises through the enum and refuses \"x\" at construction.",
-    "statements.ddl_alter.AlterConstraintAction":
-        "constraint_kind is a required keyword-only parameter naming the "
-        "branch class, and constraint_name defaults to None and is refused; "
-        "the generic placeholder reaches neither.",
-    "statements.ddl_domain.AddDomainCheckAction":
-        "check must be a DomainCheckConstraint instance; the generic "
-        "constructor supplies a string.",
     "types.MySQLVarBinaryType":
         "length defaults to None and the class requires a length, so no "
         "signature makes it required at the filler's call site.",
-    "uuid.UUIDConstantExpression":
-        "which must name 'nil' or 'max' and __init__ rejects anything else, so "
-        "the filler's guess is refused at construction.",
-    "uuid.UUIDCastFunction":
-        "expression is annotated Any, so the filler supplies a string where the "
-        "node requires an expression to cast.",
-    "uuid.UUIDGenerationExpression":
-        "declares no parameter the filler can supply a usable value for.",
 }
 
 # Classes that build, whose ``to_sql()`` refuses because MySQL's base list names
@@ -671,38 +660,16 @@ _UNBUILDABLE = {
 # ``test_declared_gap_table_is_exact`` asserts the new table exactly, in both
 # directions, the same way ``test_not_rendered_table_is_exact`` asserts the other.
 #
-# The one reason left below is not "MySQL lacks the feature" but "MySQL claims
-# the feature and then has nothing to render it with", which is a defect in the
-# source rather than a gap in coverage, so it is called out as its own kind
-# rather than filed with the SQL-standard features MySQL genuinely does not have.
+# The inline-index and LOAD DATA rows this section used to hold are gone:
+# MySQLDialect now defines format_mysql_inline_index_expression and
+# format_load_data_options. The inline index reaches its formatter and refuses
+# the filler's string-valued idx_def with AttributeError, so it moved to
+# _NOT_RENDERED; LOAD DATA options now render and need no row at all.
 #
 # The two schema rows this section used to hold are gone because the missing
 # formatters now exist: MySQLSchemaMixin renders CREATE/DROP SCHEMA as the
 # DATABASE synonyms the server parses, so the claim and the renderer agree.
 _DECLARED_GAP = {
-    # --- MySQL claims support and has no renderer for it. -----------------
-    # Each of these has a ``supports_*`` method answering True while the
-    # formatter the expression dispatches to does not exist, so a caller that
-    # asks whether the feature is available is told yes and is then refused.
-    "table_expr.MySQLInlineIndexExpression": (
-        "format_mysql_inline_index_expression",
-        "DECLARED BUT NOT RENDERED. MySQLDDLTableMixin."
-        "supports_inline_index() answers True, and the expression dispatches "
-        "to format_mysql_inline_index_expression, which MySQLDialect does not define. CREATE "
-        "TABLE renders its inline indexes through format_index_definition, so "
-        "the class is unreachable from any rendering path in this backend -- "
-        "nothing in src or tests constructs it.",
-    ),
-    # --- The clause travels as a node; its rendering is inline. -----------
-    "load_data.MySQLLoadDataOptions": (
-        "format_load_data_options",
-        "DECLARED BUT NOT RENDERED. The LOAD DATA statement's own formatter "
-        "renders the options inline, reading the fields this clause declares; "
-        "no dialect defines a standing-alone entry for it. The clause is a "
-        "node because a constructor parameter is a scalar or an expression "
-        "instance (§10) and a dataclass is neither -- not because it renders "
-        "by itself.",
-    ),
     # --- SQL/PGQ: property graphs are not a MySQL feature. ----------------
     "graph.AlterPropertyGraphStatement": (
         "format_alter_property_graph_statement",
@@ -792,6 +759,26 @@ _DECLARED_GAP = {
     "statements.ddl_sequence.AlterSequenceStatement": (
         "format_alter_sequence_statement",
         "MySQL has no sequence object; no format_alter_sequence_statement.",
+    ),
+    # --- UUID value expressions have no MySQL spelling. -------------------
+    # These three used to be in _UNBUILDABLE: their constructors refused the
+    # filler's placeholder values at construction. They construct now, but
+    # MySQLDialect names no formatter for any of them -- a UUID is stored as
+    # CHAR(36) / BINARY(16) and generated by UUID(), not by a node of its own.
+    "uuid.UUIDCastFunction": (
+        "format_uuid_cast",
+        "MySQL casts to CHAR(36) or BINARY(16); there is no CAST(... AS UUID) "
+        "and MySQLDialect names no format_uuid_cast.",
+    ),
+    "uuid.UUIDConstantExpression": (
+        "format_uuid_constant_expression",
+        "MySQL has no UUID literal node and no "
+        "format_uuid_constant_expression; a UUID constant is a string literal.",
+    ),
+    "uuid.UUIDGenerationExpression": (
+        "format_uuid_generation_expression",
+        "MySQL generates UUIDs with the UUID() function and names no "
+        "format_uuid_generation_expression.",
     ),
     # --- XML functions are not in MySQL. -----------------------------------
     # The S1-c PASSING clause rides the XML querying expressions; MySQL has
@@ -1117,6 +1104,14 @@ _NOT_RENDERED = {
         "constraint must be a TableConstraint; the generic constructor supplies "
         "a string.",
     ),
+    "statements.ddl_alter.AlterConstraintAction": (
+        "TypeError",
+        "enforcement is mandatory: the action requires exactly one of "
+        "enforced=True or not_enforced=True, and the generic constructor "
+        "supplies neither. This row was in _UNBUILDABLE until the constructor "
+        "stopped refusing the placeholder at construction; the refusal now "
+        "happens at render time.",
+    ),
     "statements.ddl_alter.ChangeColumnAction": (
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
@@ -1126,6 +1121,13 @@ _NOT_RENDERED = {
         "AttributeError",
         "column must be a ColumnDefinition; the generic constructor supplies a "
         "string.",
+    ),
+    "statements.ddl_domain.AddDomainCheckAction": (
+        "TypeError",
+        "check must be a DomainCheckConstraint instance; the generic "
+        "constructor still supplies a string. This row was in _UNBUILDABLE "
+        "until the constructor stopped refusing the placeholder at "
+        "construction; the refusal now happens at render time.",
     ),
     "statements.ddl_trigger.CreateTriggerStatement": (
         "TypeError",
@@ -1149,6 +1151,15 @@ _NOT_RENDERED = {
         "AttributeError",
         "source must be a row source; the generic constructor supplies a "
         "string. MySQL has no MERGE.",
+    ),
+    # --- The formatter arrived; the built instance still cannot render. ---
+    "table_expr.MySQLInlineIndexExpression": (
+        "AttributeError",
+        "MySQLDialect now defines format_mysql_inline_index_expression, so the "
+        "class left _DECLARED_GAP, but that formatter calls "
+        "format_index_definition(idx_def), which reads .unique off the string "
+        "the generic constructor supplies. The constructor-side gap is recorded "
+        "here, not as a missing formatter.",
     ),
     "table_statement.MySQLValuesExpression": (
         "ValueError",
