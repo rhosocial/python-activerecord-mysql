@@ -4,7 +4,7 @@ import enum
 import uuid
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.types import (
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import (
     MySQLBitType,
     MySQLGeometryType,
     MySQLVectorType,

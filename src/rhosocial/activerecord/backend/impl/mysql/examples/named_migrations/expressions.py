@@ -14,7 +14,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     CreateTableStatement,
     DropTableStatement,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.types import (
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import (
     MySQLIntType,
     MySQLTextType,
 )

@@ -63,7 +63,7 @@ from rhosocial.activerecord.backend.expression.types import (
 import rhosocial.activerecord.backend.expression.types as core_types
 from rhosocial.activerecord.backend.impl.mysql.introspection.type_parser import MySQLTypeParser
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.types import (
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import (
     MySQLBigIntType,
     MySQLBinaryType,
     MySQLBitType,

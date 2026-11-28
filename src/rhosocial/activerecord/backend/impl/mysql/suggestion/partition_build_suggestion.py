@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from ....expression.bases import BaseExpression
 from ....suggestion import PartitionBuildSuggestion
-from ..expression.partition import (
+from ..expression.query_parts.partition import (
     MySQLPartitionByHash,
     MySQLPartitionByKey,
     MySQLPartitionByList,

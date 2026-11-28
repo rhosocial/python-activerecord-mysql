@@ -35,7 +35,7 @@ from rhosocial.activerecord.backend.expression.types import (
     TinyIntType,
     VarCharType,
 )
-from ..expression.types import (
+from ..expression.types.types import (
     MySQLBigIntType,
     MySQLBinaryType,
     MySQLBitType,
@@ -984,7 +984,7 @@ class MySQLTypeSupportMixin(DataTypeMixin):
             the binary UUID as 16 bytes: ``UUID_TO_BIN()`` "return[s] [the]
             binary UUID [as] a ``VARBINARY(16)`` value" (§14.23). The substitute
             is therefore the 16 raw bytes as a fixed-length column —
-            :class:`~...expression.types.MySQLUUIDType`, which renders
+            :class:`~...expression.types.types.MySQLUUIDType`, which renders
             ``BINARY(16)``.
 
             The width is baked into that class rather than left to the caller,
@@ -1002,7 +1002,7 @@ class MySQLTypeSupportMixin(DataTypeMixin):
             ``BINARY(16)`` rather than ``VARBINARY(16)``: a UUID is *always* 16
             bytes, so the width is a length and not a ceiling, and the padding
             concern that usually argues for ``VARBINARY`` cannot arise. See
-            :class:`~...expression.types.MySQLUUIDType` for the full
+            :class:`~...expression.types.types.MySQLUUIDType` for the full
             argument, the storage figures and the manual sections.
 
         ``binary`` / ``varbinary``
@@ -1049,7 +1049,7 @@ class MySQLTypeSupportMixin(DataTypeMixin):
             is a *display width*, not a storage size — so this one has no
             hidden default to get wrong.
         """
-        from ..expression.types import (
+        from ..expression.types.types import (
             MySQLBinaryType,
             MySQLVarBinaryType,
         )

@@ -17,7 +17,7 @@ MySQL supports table partitioning to improve management and query performance fo
 
 ```python
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 
@@ -73,7 +73,7 @@ MySQL statement chains:
 ```python
 from rhosocial.activerecord.backend.expression import Column, PartitionByRangeClause
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionValue
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import MySQLPartitionValue
 
 strategy = PartitionByRangeClause(dialect, [Column(dialect, "id")])
 plan = {
@@ -125,7 +125,7 @@ variants).  `SUBPARTITION BY RANGE` or `LIST` raises `UnsupportedFeatureError`
 instead of being silently downgraded.
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLSubpartitionClause, MySQLSubpartitionStrategy,
 )
 

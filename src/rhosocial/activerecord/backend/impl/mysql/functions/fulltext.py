@@ -38,7 +38,7 @@ def match_against(
 
     Version: MySQL 5.6+ (with parser option in 5.7+)
     """
-    from rhosocial.activerecord.backend.impl.mysql.expression.match_against import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.predicates import (
         MySQLMatchAgainstExpression,
     )
 

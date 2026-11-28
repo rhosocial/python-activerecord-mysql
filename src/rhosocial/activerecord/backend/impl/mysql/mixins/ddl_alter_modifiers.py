@@ -1,7 +1,7 @@
 # src/rhosocial/activerecord/backend/impl/mysql/mixins/ddl_alter_modifiers.py
 """MySQL's ``ALTER TABLE ... ALGORITHM=..., LOCK=...`` execution modifiers.
 
-The node is MySQL's own (:class:`~...expression.alter_table_modifiers.MySQLAlterTableStatement`);
+The node is MySQL's own (:class:`~...expression.statements.alter_table_modifiers.MySQLAlterTableStatement`);
 this mixin is where every decision about it lives: which words exist, which
 server versions accept them, which combinations the server refuses, and the
 kind of each slot. The constructor only collects parameters (§3.1).
@@ -12,13 +12,13 @@ from typing import Optional, TYPE_CHECKING, Tuple
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression.objects import Table
-from rhosocial.activerecord.backend.expression.statements.ddl_alter import AlterTableAction
+from rhosocial.activerecord.backend.expression.statements import AlterTableAction
 
-from ..expression.alter_table_modifiers import MYSQL_ALGORITHM_WORDS, MYSQL_LOCK_WORDS
+from ..expression.statements.alter_table_modifiers import MYSQL_ALGORITHM_WORDS, MYSQL_LOCK_WORDS
 from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..expression.alter_table_modifiers import MySQLAlterTableStatement
+    from ..expression.statements.alter_table_modifiers import MySQLAlterTableStatement
 
 
 class MySQLAlterTableModifierMixin:

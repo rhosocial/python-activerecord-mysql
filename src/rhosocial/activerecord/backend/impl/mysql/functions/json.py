@@ -8,7 +8,9 @@ json_set, json_remove, json_type, json_valid, json_search
 
 from typing import Union, Optional, Any, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core, JSONColumn
+from rhosocial.activerecord.backend.expression import bases, JSONColumn
+from rhosocial.activerecord.backend.expression.functions import FunctionCall
+from rhosocial.activerecord.backend.expression.value_types import Parameter
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..dialect import MySQLDialect
@@ -19,7 +21,7 @@ def json_extract(
     json_doc: Union[str, "bases.BaseExpression"],
     path: str,
     *paths: str,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_EXTRACT function call.
 
@@ -43,20 +45,20 @@ def json_extract(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
-    path_expr = core.Parameter(dialect, path)
+    path_expr = Parameter(dialect, path)
     args = [doc_expr, path_expr]
     for p in paths:
-        args.append(core.Parameter(dialect, p))
-    return core.FunctionCall(dialect, "JSON_EXTRACT", *args)
+        args.append(Parameter(dialect, p))
+    return FunctionCall(dialect, "JSON_EXTRACT", *args)
 
 
 def json_unquote(
     dialect: "MySQLDialect",
     json_val: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_UNQUOTE function call.
 
@@ -73,16 +75,16 @@ def json_unquote(
     """
     val_expr = (
         json_val if isinstance(json_val, bases.BaseExpression)
-        else core.Parameter(dialect, json_val) if isinstance(json_val, (int, float))
+        else Parameter(dialect, json_val) if isinstance(json_val, (int, float))
         else JSONColumn(dialect, json_val)
     )
-    return core.FunctionCall(dialect, "JSON_UNQUOTE", val_expr)
+    return FunctionCall(dialect, "JSON_UNQUOTE", val_expr)
 
 
 def json_object(
     dialect: "MySQLDialect",
     *key_value_pairs: Any,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_OBJECT function call.
 
@@ -102,17 +104,17 @@ def json_object(
     Version: MySQL 5.7.8+
     """
     if not key_value_pairs:
-        return core.FunctionCall(dialect, "JSON_OBJECT")
+        return FunctionCall(dialect, "JSON_OBJECT")
     args = []
     for _i, val in enumerate(key_value_pairs):
-        args.append(core.Parameter(dialect, val))
-    return core.FunctionCall(dialect, "JSON_OBJECT", *args)
+        args.append(Parameter(dialect, val))
+    return FunctionCall(dialect, "JSON_OBJECT", *args)
 
 
 def json_array(
     dialect: "MySQLDialect",
     *values: Any,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_ARRAY function call.
 
@@ -132,9 +134,9 @@ def json_array(
     Version: MySQL 5.7.8+
     """
     if not values:
-        return core.FunctionCall(dialect, "JSON_ARRAY")
-    args = [core.Parameter(dialect, v) for v in values]
-    return core.FunctionCall(dialect, "JSON_ARRAY", *args)
+        return FunctionCall(dialect, "JSON_ARRAY")
+    args = [Parameter(dialect, v) for v in values]
+    return FunctionCall(dialect, "JSON_ARRAY", *args)
 
 
 def json_contains(
@@ -142,7 +144,7 @@ def json_contains(
     target: Union[str, "bases.BaseExpression"],
     candidate: Any,
     path: Optional[str] = None,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_CONTAINS function call.
 
@@ -161,14 +163,14 @@ def json_contains(
     """
     target_expr = (
         target if isinstance(target, bases.BaseExpression)
-        else core.Parameter(dialect, target) if isinstance(target, (int, float))
+        else Parameter(dialect, target) if isinstance(target, (int, float))
         else JSONColumn(dialect, target)
     )
-    candidate_expr = core.Parameter(dialect, candidate)
+    candidate_expr = Parameter(dialect, candidate)
     if path is not None:
-        path_expr = core.Parameter(dialect, path)
-        return core.FunctionCall(dialect, "JSON_CONTAINS", target_expr, candidate_expr, path_expr)
-    return core.FunctionCall(dialect, "JSON_CONTAINS", target_expr, candidate_expr)
+        path_expr = Parameter(dialect, path)
+        return FunctionCall(dialect, "JSON_CONTAINS", target_expr, candidate_expr, path_expr)
+    return FunctionCall(dialect, "JSON_CONTAINS", target_expr, candidate_expr)
 
 
 def json_set(
@@ -177,7 +179,7 @@ def json_set(
     path: str,
     value: Any,
     *path_value_pairs: Any,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_SET function call.
 
@@ -197,15 +199,15 @@ def json_set(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
-    args = [doc_expr, core.Parameter(dialect, path), core.Parameter(dialect, value)]
+    args = [doc_expr, Parameter(dialect, path), Parameter(dialect, value)]
     for i in range(0, len(path_value_pairs), 2):
         if i + 1 < len(path_value_pairs):
-            args.append(core.Parameter(dialect, path_value_pairs[i]))
-            args.append(core.Parameter(dialect, path_value_pairs[i + 1]))
-    return core.FunctionCall(dialect, "JSON_SET", *args)
+            args.append(Parameter(dialect, path_value_pairs[i]))
+            args.append(Parameter(dialect, path_value_pairs[i + 1]))
+    return FunctionCall(dialect, "JSON_SET", *args)
 
 
 def json_remove(
@@ -213,7 +215,7 @@ def json_remove(
     json_doc: Union[str, "bases.BaseExpression"],
     path: str,
     *paths: str,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_REMOVE function call.
 
@@ -232,19 +234,19 @@ def json_remove(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
-    args = [doc_expr, core.Parameter(dialect, path)]
+    args = [doc_expr, Parameter(dialect, path)]
     for p in paths:
-        args.append(core.Parameter(dialect, p))
-    return core.FunctionCall(dialect, "JSON_REMOVE", *args)
+        args.append(Parameter(dialect, p))
+    return FunctionCall(dialect, "JSON_REMOVE", *args)
 
 
 def json_type(
     dialect: "MySQLDialect",
     json_val: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_TYPE function call.
 
@@ -261,16 +263,16 @@ def json_type(
     """
     val_expr = (
         json_val if isinstance(json_val, bases.BaseExpression)
-        else core.Parameter(dialect, json_val) if isinstance(json_val, (int, float))
+        else Parameter(dialect, json_val) if isinstance(json_val, (int, float))
         else JSONColumn(dialect, json_val)
     )
-    return core.FunctionCall(dialect, "JSON_TYPE", val_expr)
+    return FunctionCall(dialect, "JSON_TYPE", val_expr)
 
 
 def json_valid(
     dialect: "MySQLDialect",
     json_val: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_VALID function call.
 
@@ -287,10 +289,10 @@ def json_valid(
     """
     val_expr = (
         json_val if isinstance(json_val, bases.BaseExpression)
-        else core.Parameter(dialect, json_val) if isinstance(json_val, (int, float))
+        else Parameter(dialect, json_val) if isinstance(json_val, (int, float))
         else JSONColumn(dialect, json_val)
     )
-    return core.FunctionCall(dialect, "JSON_VALID", val_expr)
+    return FunctionCall(dialect, "JSON_VALID", val_expr)
 
 
 def json_search(
@@ -299,7 +301,7 @@ def json_search(
     search_str: str,
     path: Optional[str] = None,
     search_all: bool = False,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a JSON_SEARCH function call.
 
@@ -319,24 +321,24 @@ def json_search(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
     one_or_all = "all" if search_all else "one"
-    one_or_all_expr = core.Parameter(dialect, one_or_all)
-    search_expr = core.Parameter(dialect, search_str)
+    one_or_all_expr = Parameter(dialect, one_or_all)
+    search_expr = Parameter(dialect, search_str)
     if path is not None:
-        path_expr = core.Parameter(dialect, path)
-        return core.FunctionCall(
+        path_expr = Parameter(dialect, path)
+        return FunctionCall(
             dialect,
             "JSON_SEARCH",
             doc_expr,
             one_or_all_expr,
             search_expr,
-            core.Parameter(dialect, None),
+            Parameter(dialect, None),
             path_expr,
         )
-    return core.FunctionCall(dialect, "JSON_SEARCH", doc_expr, one_or_all_expr, search_expr)
+    return FunctionCall(dialect, "JSON_SEARCH", doc_expr, one_or_all_expr, search_expr)
 
 
 __all__ = [

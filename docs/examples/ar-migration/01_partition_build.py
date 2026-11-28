@@ -15,7 +15,7 @@ Run from the repository root with ``PYTHONPATH=src``:
 from rhosocial.activerecord.backend.expression import Column, PartitionByRangeClause
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionValue
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import MySQLPartitionValue
 
 DIALECT = MySQLDialect(version=(8, 0, 0))
 

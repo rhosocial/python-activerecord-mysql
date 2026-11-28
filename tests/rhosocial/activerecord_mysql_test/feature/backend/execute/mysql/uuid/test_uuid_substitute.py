@@ -5,7 +5,7 @@ MySQL has no ``UUID`` data type, so ``suggest_substitute_types()["uuid"]`` names
 substitute and that substitute has to be the right *size*. This file checks the
 size against a real server rather than against the manual alone, on every
 scenario the suite is pointed at — the reasoning is in
-:class:`~rhosocial.activerecord.backend.impl.mysql.expression.types.MySQLUUIDType`
+:class:`~rhosocial.activerecord.backend.impl.mysql.expression.types.types.MySQLUUIDType`
 and the unit-level render/parse assertions are in ``test_mysql_type_protocol``.
 
 The two facts being pinned here:
@@ -31,7 +31,7 @@ import uuid
 import pytest
 
 from rhosocial.activerecord.backend.errors import DatabaseError
-from rhosocial.activerecord.backend.impl.mysql.expression.types import (
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import (
     MySQLBinaryType,
     MySQLUUIDType,
     MySQLVarBinaryType,

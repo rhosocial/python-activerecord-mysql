@@ -17,7 +17,7 @@ if TYPE_CHECKING:
         SubstituteAdviceSuggestion,
         SubstituteTypeSuggestion,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.alter_table_modifiers import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLAlterTableStatement,
     )
     from rhosocial.activerecord.backend.expression.statements import (
@@ -26,20 +26,20 @@ if TYPE_CHECKING:
         PartitionOptionsExpression,
         SubpartitionDefinitionExpression,
     )
-    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+    from rhosocial.activerecord.backend.expression.statements import (
         ChangeColumnAction,
         ModifyColumnAction,
     )
-    from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+    from rhosocial.activerecord.backend.expression.statements import (
         CreateTableLikeStatement,
         TableCheckConstraint,
         TableForeignKeyConstraint,
     )
-    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
+    from rhosocial.activerecord.backend.expression.statements import (
         CreateTriggerStatement,
         DropTriggerStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLCacheIndexStatement,
         MySQLCloneStatement,
         MySQLCreateUserStatement,
@@ -63,21 +63,21 @@ if TYPE_CHECKING:
         MySQLUninstallComponentStatement,
         MySQLUninstallPluginStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLCreateJsonDualityViewStatement,
         MySQLDropJsonDualityViewStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLLoadDataOptions,
         MySQLLoadDataStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.load_xml import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLLoadXMLStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.optimizer_hint import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
         MySQLOptimizerHintExpression,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
         MySQLAddPartitionExpression,
         MySQLAnalyzePartitionExpression,
         MySQLCheckPartitionExpression,
@@ -101,20 +101,20 @@ if TYPE_CHECKING:
         MySQLSubpartitionClause,
         MySQLTruncatePartitionExpression,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.rename_table import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLRenameTableStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLCallStatement,
         MySQLCreateFunctionStatement,
         MySQLCreateProcedureStatement,
         MySQLDropFunctionStatement,
         MySQLDropProcedureStatement,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.table_expr import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLInlineIndexExpression,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.table_statement import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLTableStatement,
         MySQLValuesExpression,
     )

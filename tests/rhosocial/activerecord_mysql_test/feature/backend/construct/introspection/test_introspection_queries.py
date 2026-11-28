@@ -212,7 +212,7 @@ class TestPartitionState:
     """The partition question asks for statistics only when told to."""
 
     def test_declaration_projection_excludes_estimates(self, dialect):
-        from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.introspection.introspection import (
             MySQLPartitionStateQueryStatement,
         )
 
@@ -226,7 +226,7 @@ class TestPartitionState:
         assert params == ("app", "orders")
 
     def test_include_stats_adds_the_estimates_to_the_projection(self, dialect):
-        from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.introspection.introspection import (
             MySQLPartitionStateQueryStatement,
         )
 
@@ -241,7 +241,7 @@ class TestPartitionState:
         assert params == ("app", "orders")
 
     def test_a_non_partitioned_row_is_excluded_by_the_question(self, dialect):
-        from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.introspection.introspection import (
             MySQLPartitionStateQueryStatement,
         )
 

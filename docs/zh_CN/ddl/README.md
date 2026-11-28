@@ -27,7 +27,7 @@ MySQL 支持丰富的表分区策略。详见 [分区文档](../mysql_specific_f
 
 ```python
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 

@@ -1,0 +1,77 @@
+# src/rhosocial/activerecord/backend/impl/mysql/expression/functions/set_type.py
+"""MySQL SET type expression classes."""
+
+from typing import TYPE_CHECKING, List, Optional
+
+from rhosocial.activerecord.backend.expression.bases.bases import SQLValue
+from rhosocial.activerecord.backend.expression.bases.mixins import (
+    AliasableMixin,
+    ComparisonMixin,
+)
+
+if TYPE_CHECKING:
+    from rhosocial.activerecord.backend.dialect import SQLDialectBase
+
+
+class MySQLFindInSetExpression(AliasableMixin, ComparisonMixin, SQLValue):
+    """MySQL FIND_IN_SET expression.
+
+    Args:
+        dialect: The SQL dialect.
+        value: Value to search for.
+        set_column: Column containing the SET value.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        value: str,
+        set_column: str,
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.value = value
+        self.set_column = set_column
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_find_in_set_expression"
+
+
+class MySQLSetContainsExpression(AliasableMixin, ComparisonMixin, SQLValue):
+    """MySQL SET contains check expression.
+
+    Args:
+        dialect: The SQL dialect.
+        column: Column containing the SET value.
+        values: List of values to check for containment.
+        alias: Optional SQL alias.
+    """
+
+    def __init__(
+        self,
+        dialect: "SQLDialectBase",
+        column: str,
+        values: List[str],
+        *,
+        alias: Optional[str] = None,
+    ):
+        super().__init__(dialect)
+        self.column = column
+        self.values = values
+        self.alias = alias
+
+    @property
+    def format_method(self) -> str:
+        """The dialect formatting method that renders this expression."""
+        return "format_mysql_set_contains_expression"
+
+
+__all__ = [
+    "MySQLFindInSetExpression",
+    "MySQLSetContainsExpression",
+]

@@ -34,7 +34,7 @@ if __name__ == "__main__":
         InsertStatement,
         ValuesSource,
     )
-    from rhosocial.activerecord.backend.expression.core import Parameter  # noqa: E402
+    from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter  # noqa: E402
     from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
         ColumnConstraint,
         ColumnDefinition,

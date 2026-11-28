@@ -2,14 +2,14 @@
 from typing import TYPE_CHECKING, Any, List, Tuple
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
-from rhosocial.activerecord.backend.expression.core import Parameter
+from rhosocial.activerecord.backend.expression.value_types import Parameter
 from rhosocial.activerecord.backend.expression.objects import Table
 
 from .object_kind import require_kind
 
 if TYPE_CHECKING:
     from rhosocial.activerecord.backend.expression.statements import OnConflictClause
-    from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLLoadDataOptions,
         MySQLLoadDataStatement,
     )

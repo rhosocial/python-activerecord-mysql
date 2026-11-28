@@ -2,7 +2,7 @@
 from typing import Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+    from rhosocial.activerecord.backend.expression.statements import (
         ChangeColumnAction,
         ModifyColumnAction,
     )

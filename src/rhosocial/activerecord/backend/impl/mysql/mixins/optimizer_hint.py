@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.impl.mysql.expression.optimizer_hint import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
         MySQLOptimizerHintExpression,
     )
 

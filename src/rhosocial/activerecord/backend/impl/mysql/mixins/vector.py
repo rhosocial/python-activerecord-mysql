@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, List, Tuple
 
 if TYPE_CHECKING:
-    from ..expression.vector import (
+    from ..expression.statements.vector import (
         MySQLCreateVectorIndexStatement,
         MySQLDistanceCosineExpression,
         MySQLDistanceDotExpression,
@@ -46,7 +46,7 @@ class MySQLVectorMixin:
 
     def format_mysql_string_to_vector_expression(self, expr: "MySQLStringToVectorExpression") -> Tuple[str, tuple]:
         """Format MySQLStringToVectorExpression or a raw vector string."""
-        from ..expression.vector import MySQLStringToVectorExpression
+        from ..expression.statements.vector import MySQLStringToVectorExpression
 
         if isinstance(expr, MySQLStringToVectorExpression):
             vector_str = expr.vector_str
@@ -61,7 +61,7 @@ class MySQLVectorMixin:
 
     def format_mysql_vector_to_string_expression(self, expr: "MySQLVectorToStringExpression") -> Tuple[str, tuple]:
         """Format MySQLVectorToStringExpression or a raw vector reference."""
-        from ..expression.vector import MySQLVectorToStringExpression
+        from ..expression.statements.vector import MySQLVectorToStringExpression
 
         if isinstance(expr, MySQLVectorToStringExpression):
             sql = f"VECTOR_TO_STRING({self.get_parameter_placeholder()})"
@@ -77,7 +77,7 @@ class MySQLVectorMixin:
 
     def format_mysql_vector_dim_expression(self, expr: "MySQLVectorDimExpression") -> Tuple[str, tuple]:
         """Format MySQLVectorDimExpression or a raw vector reference."""
-        from ..expression.vector import MySQLVectorDimExpression
+        from ..expression.statements.vector import MySQLVectorDimExpression
 
         if isinstance(expr, MySQLVectorDimExpression):
             sql = f"VECTOR_DIM({self.get_parameter_placeholder()})"
@@ -111,7 +111,7 @@ class MySQLVectorMixin:
 
     def format_mysql_create_vector_index_statement(self, expr: "MySQLCreateVectorIndexStatement") -> Tuple[str, tuple]:
         """Format a :class:`MySQLCreateVectorIndexStatement` node."""
-        from ..expression.vector import MySQLCreateVectorIndexStatement
+        from ..expression.statements.vector import MySQLCreateVectorIndexStatement
 
         if not isinstance(expr, MySQLCreateVectorIndexStatement):
             raise TypeError(

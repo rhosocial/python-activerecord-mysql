@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ....suggestion import PartitionSplitSuggestion
-from ..expression.partition import MySQLReorganizePartitionExpression
+from ..expression.query_parts.partition import MySQLReorganizePartitionExpression
 from ._common import (
     _LIST,
     _RANGE,

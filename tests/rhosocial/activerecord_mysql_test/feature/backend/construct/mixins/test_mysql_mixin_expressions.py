@@ -41,7 +41,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
 )
 from rhosocial.activerecord.backend.expression.objects import Function, Table, Trigger
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.load_data import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.load_data import (
     MySQLLoadDataOptions,
     MySQLLoadDataStatement,
 )
@@ -49,11 +49,11 @@ from rhosocial.activerecord.backend.expression import (
     ForUpdateClause,
     LockStrength,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.match_against import (
+from rhosocial.activerecord.backend.impl.mysql.expression.predicates.match_against import (
     MatchAgainstMode,
     MySQLMatchAgainstExpression,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLAddPartitionExpression,
     MySQLCoalescePartitionExpression,
     MySQLDropPartitionExpression,
@@ -71,7 +71,7 @@ from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
     MySQLSubpartitionClause,
     MySQLSubpartitionStrategy,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.partition_lifecycle import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.partition_lifecycle import (
     MySQLAddPartitionHelper,
     MySQLAddSubpartitionHelper,
     MySQLCoalescePartitionHelper,
@@ -83,7 +83,7 @@ from rhosocial.activerecord.backend.expression.types import (
     IntegerType,
     VarCharType,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.vector import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.vector import (
     MySQLDistanceCosineExpression,
     MySQLDistanceDotExpression,
     MySQLDistanceEuclideanExpression,
@@ -239,7 +239,7 @@ class TestMySQLLockingExpressions:
         assert sql == "FOR SHARE SKIP LOCKED"
 
     def test_for_update_of_columns(self):
-        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.expression.column_types.column import Column
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = ForUpdateClause(
             dialect,
@@ -252,7 +252,7 @@ class TestMySQLLockingExpressions:
         assert sql == "FOR UPDATE OF `orders`.`id`, `orders`.`status`"
 
     def test_for_share_of_columns_skip_locked(self):
-        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.expression.column_types.column import Column
         dialect = MySQLDialect(version=(8, 0, 0))
         expr = ForUpdateClause(
             dialect,
@@ -556,7 +556,7 @@ class TestMySQLTableDDLExpressions:
 
     def test_column_default_expression(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.expression.core import Parameter
+        from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
         columns = [
             ColumnDefinition(
                 dialect,
@@ -1142,7 +1142,7 @@ class TestMySQLPartitionExpressionEdgeCases:
         assert "2027-01-01" in sql
 
     def test_subpartition_clause_negative_count(self):
-        from rhosocial.activerecord.backend.expression.core import Column
+        from rhosocial.activerecord.backend.expression.column_types.column import Column
 
         dialect = MySQLDialect(version=(8, 0, 0))
         with pytest.raises(ValueError, match="positive integer"):
@@ -1335,7 +1335,7 @@ class TestMySQLJSONTableExpressions:
 
     def test_json_table_basic(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (
             JSONTableColumn,
             MySQLJSONTableExpression,
         )
@@ -1355,7 +1355,7 @@ class TestMySQLJSONTableExpressions:
 
     def test_json_table_with_ordinality(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (
             JSONTableColumn,
             MySQLJSONTableExpression,
         )
@@ -1374,7 +1374,7 @@ class TestMySQLJSONTableExpressions:
 
     def test_json_table_with_exists(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (
             JSONTableColumn,
             MySQLJSONTableExpression,
         )
@@ -1392,7 +1392,7 @@ class TestMySQLJSONTableExpressions:
 
     def test_json_table_with_error_handling(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (
             JSONTableColumn,
             MySQLJSONTableExpression,
         )
@@ -1414,7 +1414,7 @@ class TestMySQLJSONTableExpressions:
 
     def test_json_table_with_nested_path(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (
             JSONTableColumn,
             MySQLJSONTableExpression,
             NestedPath,
@@ -1449,7 +1449,7 @@ class TestMySQLJsonDualityViewExpressions:
 
     def test_create_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.statements.json_duality_view import (
             MySQLCreateJsonDualityViewStatement,
             DualityObjectSpec,
             DualityColumnMapping,
@@ -1471,7 +1471,7 @@ class TestMySQLJsonDualityViewExpressions:
 
     def test_create_or_replace_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.statements.json_duality_view import (
             MySQLCreateJsonDualityViewStatement,
             DualityObjectSpec,
             DualityColumnMapping,
@@ -1490,7 +1490,7 @@ class TestMySQLJsonDualityViewExpressions:
 
     def test_drop_duality_view(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.statements.json_duality_view import (
             MySQLDropJsonDualityViewStatement,
         )
         expr = MySQLDropJsonDualityViewStatement(dialect=dialect, view_name="my_view")
@@ -1499,7 +1499,7 @@ class TestMySQLJsonDualityViewExpressions:
 
     def test_drop_duality_view_if_exists(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.statements.json_duality_view import (
             MySQLDropJsonDualityViewStatement,
         )
         expr = MySQLDropJsonDualityViewStatement(
@@ -1510,7 +1510,7 @@ class TestMySQLJsonDualityViewExpressions:
 
     def test_duality_view_with_nested(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.statements.json_duality_view import (
             MySQLCreateJsonDualityViewStatement,
             DualityColumnMapping,
             DualityNestedMapping,

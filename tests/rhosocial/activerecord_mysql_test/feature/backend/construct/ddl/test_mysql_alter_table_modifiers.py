@@ -41,7 +41,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_table import (
 )
 from rhosocial.activerecord.backend.expression.types import IntegerType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.alter_table_modifiers import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.alter_table_modifiers import (
     MYSQL_ALGORITHM_WORDS,
     MYSQL_LOCK_WORDS,
     MySQLAlterTableStatement,
@@ -154,7 +154,7 @@ class TestExactSQL:
         assert params == ()
 
     def test_action_rendering_is_reused_unchanged(self):
-        from rhosocial.activerecord.backend.expression.core import Parameter
+        from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
         from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
             AlterColumnAction,
             ColumnAlterOperation,

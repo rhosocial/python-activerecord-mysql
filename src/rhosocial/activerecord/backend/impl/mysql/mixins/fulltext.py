@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from ..expression.fulltext import (
+    from ..expression.statements.fulltext import (
         MySQLFulltextIndexOptionsExpression,
         MySQLMatchAgainstExpression,
     )
@@ -35,7 +35,7 @@ class MySQLFullTextSearchMixin:
         self, expr: "MySQLFulltextIndexOptionsExpression"
     ) -> Tuple[str, tuple]:
         """Format a :class:`MySQLFulltextIndexOptionsExpression` node."""
-        from ..expression.fulltext import MySQLFulltextIndexOptionsExpression
+        from ..expression.statements.fulltext import MySQLFulltextIndexOptionsExpression
 
         if not isinstance(expr, MySQLFulltextIndexOptionsExpression):
             raise TypeError(

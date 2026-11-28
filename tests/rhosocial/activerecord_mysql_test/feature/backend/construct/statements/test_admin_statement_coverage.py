@@ -17,7 +17,7 @@ from rhosocial.activerecord.backend.expression import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Function, Procedure, Table
 from rhosocial.activerecord.backend.impl.mysql import expression as mysql_expr
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.maintenance import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.maintenance import (
     MySQLTableMaintenanceExpression,
 )
 

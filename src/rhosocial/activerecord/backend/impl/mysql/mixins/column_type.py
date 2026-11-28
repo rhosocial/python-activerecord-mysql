@@ -82,7 +82,7 @@ from rhosocial.activerecord.backend.expression.column_types import (
     UUIDColumn,
     VectorColumn,
 )
-from ..expression.column_types import MySQLGeometryColumn
+from ..expression.column_types.column_types import MySQLGeometryColumn
 
 #: MySQL's complete answer for every entry of the framework's common types.
 #:

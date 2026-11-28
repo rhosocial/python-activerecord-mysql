@@ -17,8 +17,10 @@ the character the backend spells.
 
 from typing import Union, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core, NumericColumn
+from rhosocial.activerecord.backend.expression import bases, NumericColumn
+from rhosocial.activerecord.backend.expression.functions import FunctionCall
 from rhosocial.activerecord.backend.expression.operators import BinaryExpression
+from rhosocial.activerecord.backend.expression.value_types import Parameter
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..dialect import MySQLDialect
@@ -47,13 +49,13 @@ def bit_and(
     """
     result = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
     for v in values:
         v_expr = (
             v if isinstance(v, bases.BaseExpression)
-            else core.Parameter(dialect, v) if isinstance(v, (int, float))
+            else Parameter(dialect, v) if isinstance(v, (int, float))
             else NumericColumn(dialect, v)
         )
         result = BinaryExpression(dialect, "&", result, v_expr)
@@ -83,13 +85,13 @@ def bit_or(
     """
     result = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
     for v in values:
         v_expr = (
             v if isinstance(v, bases.BaseExpression)
-            else core.Parameter(dialect, v) if isinstance(v, (int, float))
+            else Parameter(dialect, v) if isinstance(v, (int, float))
             else NumericColumn(dialect, v)
         )
         result = BinaryExpression(dialect, "|", result, v_expr)
@@ -119,13 +121,13 @@ def bit_xor(
     """
     result = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
     for v in values:
         v_expr = (
             v if isinstance(v, bases.BaseExpression)
-            else core.Parameter(dialect, v) if isinstance(v, (int, float))
+            else Parameter(dialect, v) if isinstance(v, (int, float))
             else NumericColumn(dialect, v)
         )
         result = BinaryExpression(dialect, "^", result, v_expr)
@@ -135,7 +137,7 @@ def bit_xor(
 def bit_count(
     dialect: "MySQLDialect",
     value: Union[str, int, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Returns the number of bits set to 1 in the binary representation.
 
@@ -150,10 +152,10 @@ def bit_count(
     """
     value_expr = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
-    return core.FunctionCall(dialect, "BIT_COUNT", value_expr)
+    return FunctionCall(dialect, "BIT_COUNT", value_expr)
 
 
 def bit_get_bit(
@@ -179,17 +181,17 @@ def bit_get_bit(
     """
     value_expr = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
     bit_expr = (
         bit if isinstance(bit, bases.BaseExpression)
-        else core.Parameter(dialect, bit) if isinstance(bit, (int, float))
+        else Parameter(dialect, bit) if isinstance(bit, (int, float))
         else NumericColumn(dialect, bit)
     )
     # (value >> bit) & 1
     shifted = BinaryExpression(dialect, ">>", value_expr, bit_expr)
-    return BinaryExpression(dialect, "&", shifted, core.Parameter(dialect, 1))
+    return BinaryExpression(dialect, "&", shifted, Parameter(dialect, 1))
 
 
 def bit_shift_left(
@@ -215,12 +217,12 @@ def bit_shift_left(
     """
     value_expr = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
     count_expr = (
         count if isinstance(count, bases.BaseExpression)
-        else core.Parameter(dialect, count) if isinstance(count, (int, float))
+        else Parameter(dialect, count) if isinstance(count, (int, float))
         else NumericColumn(dialect, count)
     )
     return BinaryExpression(dialect, "<<", value_expr, count_expr)
@@ -249,12 +251,12 @@ def bit_shift_right(
     """
     value_expr = (
         value if isinstance(value, bases.BaseExpression)
-        else core.Parameter(dialect, value) if isinstance(value, (int, float))
+        else Parameter(dialect, value) if isinstance(value, (int, float))
         else NumericColumn(dialect, value)
     )
     count_expr = (
         count if isinstance(count, bases.BaseExpression)
-        else core.Parameter(dialect, count) if isinstance(count, (int, float))
+        else Parameter(dialect, count) if isinstance(count, (int, float))
         else NumericColumn(dialect, count)
     )
     return BinaryExpression(dialect, ">>", value_expr, count_expr)

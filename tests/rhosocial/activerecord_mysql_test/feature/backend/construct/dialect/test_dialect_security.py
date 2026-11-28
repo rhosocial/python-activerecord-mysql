@@ -17,7 +17,7 @@ from rhosocial.activerecord.backend.expression.statements import (
 )
 from rhosocial.activerecord.backend.expression import ColumnCommentClause, TableCommentClause
 from rhosocial.activerecord.backend.expression.types import VarCharType
-from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (
+from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (
     MySQLJSONTableExpression,
     JSONTableColumn,
 )
@@ -83,10 +83,10 @@ def test_mysqla_type_position_refuses_a_payload(dialect):
     from rhosocial.activerecord.backend.expression.statements import (
         AlterColumnAction,
     )
-    from rhosocial.activerecord.backend.expression.type_name import (
+    from rhosocial.activerecord.backend.expression.bases.type_name import (
         InvalidTypeNameError,
     )
-    from rhosocial.activerecord.backend.expression.xml import (
+    from rhosocial.activerecord.backend.expression.functions.xml import (
         XMLSerializeExpression,
     )
 
@@ -185,7 +185,8 @@ def test_mysql_json_table_alias_quoted(dialect):
 
 def test_mysql_format_cast_expression_valid(dialect):
     """A CAST target is a DataType, and the dialect renders what it says."""
-    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
+    from rhosocial.activerecord.backend.expression.functions.cast_expression import CastExpression
+    from rhosocial.activerecord.backend.expression.column_types.column import Column
     from rhosocial.activerecord.backend.expression.types import CustomType
 
     expr = CastExpression(dialect, Column(dialect, "column"),
@@ -203,7 +204,8 @@ def test_mysql_format_cast_expression_rejects_injection(dialect):
     it into. The constructor only collects the node; the formatter validates the
     type position before spelling it into the SQL.
     """
-    from rhosocial.activerecord.backend.expression.core import CastExpression, Column
+    from rhosocial.activerecord.backend.expression.functions.cast_expression import CastExpression
+    from rhosocial.activerecord.backend.expression.column_types.column import Column
 
     expr = CastExpression(dialect, Column(dialect, "column"),
                           "INTEGER; DROP TABLE users--")
@@ -289,7 +291,7 @@ class TestJSONTableTypeValidation:
         The refusal comes from the grammar, so it names the value rather than
         the position.
         """
-        from rhosocial.activerecord.backend.expression.type_name import (
+        from rhosocial.activerecord.backend.expression.bases.type_name import (
             InvalidTypeNameError,
         )
 
@@ -445,7 +447,7 @@ class TestJSONTableJsonDocSecurity:
         lines 1614-1616 supports ToSQLProtocol, but validate() at line 1605 rejects
         it in strict mode. To enable ToSQLProtocol support, validate() needs modification.
         """
-        from rhosocial.activerecord.backend.expression.bases import BaseExpression
+        from rhosocial.activerecord.backend.expression.bases.bases import BaseExpression
 
         class MockExpression(BaseExpression):
             def __init__(self):

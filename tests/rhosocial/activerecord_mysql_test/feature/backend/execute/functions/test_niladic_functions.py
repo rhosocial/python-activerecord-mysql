@@ -21,7 +21,7 @@ from rhosocial.activerecord.backend.expression import (
     DropTableStatement,
     QueryStatement,
 )
-from rhosocial.activerecord.backend.expression.core import FunctionCall
+from rhosocial.activerecord.backend.expression.functions.function_call import FunctionCall
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp,
     current_date,
@@ -204,7 +204,7 @@ class TestNiladicDDLContext:
 
     def test_ddl_default_current_timestamp_with_precision(self, mysql_backend):
         """DEFAULT CURRENT_TIMESTAMP(6) (with precision) works in MySQL DDL."""
-        from rhosocial.activerecord.backend.expression.core import Parameter
+        from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
 
         dialect = mysql_backend.dialect
         table_name = "test_niladic_ddl_3"

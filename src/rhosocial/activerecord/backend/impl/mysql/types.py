@@ -3,14 +3,14 @@
 MySQL-specific type definitions and helpers.
 
 This module re-exports MySQL-specific DataType subclasses from
-``expression.types`` for convenient access.
+``expression.types.types`` for convenient access.
 
 Usage::
 
     from rhosocial.activerecord.backend.impl.mysql.types import MySQLIntType, MySQLEnumType
 """
 
-from .expression.types import (
+from .expression.types.types import (
     MySQLBigIntType,
     MySQLBinaryType,
     MySQLBitType,

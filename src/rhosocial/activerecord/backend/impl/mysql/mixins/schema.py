@@ -30,7 +30,7 @@ from rhosocial.activerecord.backend.expression.objects import Schema
 from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.expression.statements.ddl_schema import (
+    from rhosocial.activerecord.backend.expression.statements import (
         CreateSchemaStatement,
         DropSchemaStatement,
     )

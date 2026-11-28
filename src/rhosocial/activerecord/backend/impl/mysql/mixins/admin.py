@@ -7,7 +7,7 @@ from rhosocial.activerecord.backend.expression.objects import Table
 from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.impl.mysql.expression.admin import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLCacheIndexStatement,
         MySQLCloneStatement,
         MySQLCreateUserStatement,

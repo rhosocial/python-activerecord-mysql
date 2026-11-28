@@ -11,7 +11,7 @@ both a constraint's table and its optional side relations.
 import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+from rhosocial.activerecord.backend.impl.mysql.expression.introspection.introspection import (
     MySQLConstraintListQueryStatement,
     MySQLRoutineInfoQueryStatement,
     MySQLRoutineListQueryStatement,

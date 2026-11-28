@@ -6,7 +6,8 @@ The registry-shape rules live in the shared backend contract; only the
 backend-specific rendering behaviour is kept here.
 """
 
-from rhosocial.activerecord.backend.expression.core import Column, Parameter
+from rhosocial.activerecord.backend.expression.column_types.column import Column
+from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 

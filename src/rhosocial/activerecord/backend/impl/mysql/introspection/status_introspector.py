@@ -167,25 +167,25 @@ class MySQLStatusIntrospectorMixin:
 
     def _show_variables(self, like: Optional[str] = None, session: bool = True) -> Tuple[str, tuple]:
         """``SHOW [GLOBAL] VARIABLES [LIKE ...]`` as a node."""
-        from ..expression.show import MySQLShowVariablesStatement
+        from ..expression.statements.show import MySQLShowVariablesStatement
 
         return MySQLShowVariablesStatement(self._dialect, like_pattern=like, session=session).to_sql()
 
     def _show_status(self, like: Optional[str] = None, session: bool = True) -> Tuple[str, tuple]:
         """``SHOW [GLOBAL] STATUS [LIKE ...]`` as a node."""
-        from ..expression.show import MySQLShowStatusStatement
+        from ..expression.statements.show import MySQLShowStatusStatement
 
         return MySQLShowStatusStatement(self._dialect, like_pattern=like, session=session).to_sql()
 
     def _show_processlist(self, full: bool = False) -> Tuple[str, tuple]:
         """``SHOW [FULL] PROCESSLIST`` as a node."""
-        from ..expression.show import MySQLShowProcessListStatement
+        from ..expression.statements.show import MySQLShowProcessListStatement
 
         return MySQLShowProcessListStatement(self._dialect, full=full).to_sql()
 
     def _show_binary_logs(self) -> Tuple[str, tuple]:
         """``SHOW BINARY LOGS`` as a node."""
-        from ..expression.show import MySQLShowBinaryLogsStatement
+        from ..expression.statements.show import MySQLShowBinaryLogsStatement
 
         return MySQLShowBinaryLogsStatement(self._dialect).to_sql()
 
@@ -195,13 +195,13 @@ class MySQLStatusIntrospectorMixin:
         Servers from 8.4 answer through ``performance_schema.log_status``
         instead; the caller picks by version, and this is the older branch.
         """
-        from ..expression.show import MySQLShowMasterStatusStatement
+        from ..expression.statements.show import MySQLShowMasterStatusStatement
 
         return MySQLShowMasterStatusStatement(self._dialect).to_sql()
 
     def _show_slave_status(self) -> Tuple[str, tuple]:
         """``SHOW SLAVE STATUS`` as a node (the branch for servers below 8.4)."""
-        from ..expression.show import MySQLShowSlaveStatusStatement
+        from ..expression.statements.show import MySQLShowSlaveStatusStatement
 
         return MySQLShowSlaveStatusStatement(self._dialect).to_sql()
 
@@ -212,7 +212,7 @@ class MySQLStatusIntrospectorMixin:
         uses for the same question. No alias: the column label ``VERSION()`` is
         what every consumer in this module reads back.
         """
-        from ..expression.system import version_query
+        from ..expression.introspection.system import version_query
 
         return version_query(self._dialect).to_sql()
 
@@ -223,7 +223,7 @@ class MySQLStatusIntrospectorMixin:
         concatenated form wrote, so the column label is ``CURRENT_USER`` --
         which is what the callers below read back.
         """
-        from ..expression.system import current_user_query
+        from ..expression.introspection.system import current_user_query
 
         return current_user_query(self._dialect).to_sql()
 

@@ -21,7 +21,7 @@ error rather than a parameter.
 import pytest
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.show import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.show import (
     MySQLShowBinaryLogsStatement,
     MySQLShowCharsetStatement,
     MySQLShowCollationStatement,

@@ -4,12 +4,12 @@ from typing import Any, List, Optional, Tuple, Union, TYPE_CHECKING
 from rhosocial.activerecord.backend.expression import bases
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.advanced_functions import (
+    from rhosocial.activerecord.backend.expression.functions import (
         JSONDocumentValue,
         JSONTextValue,
     )
 
-    from ..expression.json import (
+    from ..expression.functions.json import (
         MySQLJSONArrayExpression,
         MySQLJSONContainsExpression,
         MySQLJSONExtractExpression,
@@ -84,7 +84,7 @@ class MySQLJSONFunctionMixin:
 
     def format_mysql_json_unquote_expression(self, expr: "MySQLJSONUnquoteExpression") -> Tuple[str, tuple]:
         """Format MySQLJSONUnquoteExpression or a raw JSON value string."""
-        from ..expression.json import MySQLJSONUnquoteExpression
+        from ..expression.functions.json import MySQLJSONUnquoteExpression
 
         if isinstance(expr, MySQLJSONUnquoteExpression):
             sql = f"JSON_UNQUOTE({self.get_parameter_placeholder()})"
@@ -150,7 +150,7 @@ class MySQLJSONFunctionMixin:
 
     def format_mysql_json_set_expression(self, expr: "MySQLJSONSetExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSetExpression` node."""
-        from ..expression.json import MySQLJSONSetExpression
+        from ..expression.functions.json import MySQLJSONSetExpression
 
         if not isinstance(expr, MySQLJSONSetExpression):
             raise TypeError(
@@ -171,7 +171,7 @@ class MySQLJSONFunctionMixin:
 
     def format_mysql_json_remove_expression(self, expr: "MySQLJSONRemoveExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONRemoveExpression` node."""
-        from ..expression.json import MySQLJSONRemoveExpression
+        from ..expression.functions.json import MySQLJSONRemoveExpression
 
         if not isinstance(expr, MySQLJSONRemoveExpression):
             raise TypeError(
@@ -187,7 +187,7 @@ class MySQLJSONFunctionMixin:
 
     def format_mysql_json_type_expression(self, expr: "MySQLJSONTypeExpression") -> Tuple[str, tuple]:
         """Format MySQLJSONTypeExpression or a raw JSON value string."""
-        from ..expression.json import MySQLJSONTypeExpression
+        from ..expression.functions.json import MySQLJSONTypeExpression
 
         if isinstance(expr, MySQLJSONTypeExpression):
             sql = f"JSON_TYPE({self.get_parameter_placeholder()})"
@@ -203,7 +203,7 @@ class MySQLJSONFunctionMixin:
 
     def format_mysql_json_valid_expression(self, expr: "MySQLJSONValidExpression") -> Tuple[str, tuple]:
         """Format MySQLJSONValidExpression or a raw JSON value string."""
-        from ..expression.json import MySQLJSONValidExpression
+        from ..expression.functions.json import MySQLJSONValidExpression
 
         if isinstance(expr, MySQLJSONValidExpression):
             sql = f"JSON_VALID({self.get_parameter_placeholder()})"
@@ -219,7 +219,7 @@ class MySQLJSONFunctionMixin:
 
     def format_mysql_json_search_expression(self, expr: "MySQLJSONSearchExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLJSONSearchExpression` node."""
-        from ..expression.json import MySQLJSONSearchExpression
+        from ..expression.functions.json import MySQLJSONSearchExpression
 
         if not isinstance(expr, MySQLJSONSearchExpression):
             raise TypeError(

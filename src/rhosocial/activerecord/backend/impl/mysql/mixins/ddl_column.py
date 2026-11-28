@@ -6,7 +6,7 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.impl.mysql.expression.alter_column import MySQLAddColumn
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import MySQLAddColumn
 
 
 class MySQLDDLColumnMixin:
@@ -184,7 +184,7 @@ class MySQLDDLColumnMixin:
             if isinstance(new_value, BaseExpression):
                 value_sql, value_params = new_value.to_sql()
                 if value_params:
-                    from rhosocial.activerecord.backend.expression.core import Parameter
+                    from rhosocial.activerecord.backend.expression.value_types import Parameter
                     if isinstance(new_value, Parameter):
                         return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value.value)}", ()
                 return f"ALTER COLUMN {col_name} SET DEFAULT {value_sql}", tuple(value_params)

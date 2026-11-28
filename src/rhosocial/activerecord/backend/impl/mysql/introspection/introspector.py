@@ -31,7 +31,7 @@ import copy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..expression.introspection import (
+    from ..expression.introspection.introspection import (
         MySQLPartitionStateQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
         MySQLTableOptionsListQueryStatement,
@@ -397,7 +397,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         ``DATA_LENGTH`` and ``INDEX_LENGTH`` are reported in bytes; see
         :class:`MySQLTableOptions` for the caveat about InnoDB estimates.
         """
-        from ..expression.introspection import MySQLTableOptionsListQueryStatement
+        from ..expression.introspection.introspection import MySQLTableOptionsListQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLTableOptionsListQueryStatement(self.dialect, schema=target_db)
@@ -406,7 +406,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         self, *, table_name: str, schema: Optional[str]
     ) -> "MySQLTableOptionsInfoQueryStatement":
         """Return the statement that reads one base table's storage options."""
-        from ..expression.introspection import MySQLTableOptionsInfoQueryStatement
+        from ..expression.introspection.introspection import MySQLTableOptionsInfoQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLTableOptionsInfoQueryStatement(
@@ -428,7 +428,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         table is not partitioned". ``include_stats`` adds the physical
         estimates to the projection; it is the only switch that does.
         """
-        from ..expression.introspection import MySQLPartitionStateQueryStatement
+        from ..expression.introspection.introspection import MySQLPartitionStateQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLPartitionStateQueryStatement(
@@ -442,7 +442,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         self, *, schema: Optional[str]
     ) -> "MySQLRoutineListQueryStatement":
         """Return the statement that lists every routine in a database."""
-        from ..expression.introspection import MySQLRoutineListQueryStatement
+        from ..expression.introspection.introspection import MySQLRoutineListQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLRoutineListQueryStatement(self.dialect, schema=target_db)
@@ -455,7 +455,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         kind: Optional[str] = None,
     ) -> "MySQLRoutineInfoQueryStatement":
         """Return the statement that reads one routine, optionally by kind."""
-        from ..expression.introspection import MySQLRoutineInfoQueryStatement
+        from ..expression.introspection.introspection import MySQLRoutineInfoQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLRoutineInfoQueryStatement(
@@ -466,7 +466,7 @@ class MySQLIntrospectorMixin(IntrospectorMixin):
         self, *, table_name: Optional[str], schema: Optional[str]
     ) -> "MySQLConstraintListQueryStatement":
         """Return the statement that lists constraints, for one table or all."""
-        from ..expression.introspection import MySQLConstraintListQueryStatement
+        from ..expression.introspection.introspection import MySQLConstraintListQueryStatement
 
         target_db = schema if schema is not None else self.default_schema
         return MySQLConstraintListQueryStatement(

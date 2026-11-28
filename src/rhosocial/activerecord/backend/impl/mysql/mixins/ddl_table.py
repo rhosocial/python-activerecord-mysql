@@ -6,7 +6,7 @@ from rhosocial.activerecord.backend.expression.objects import Table
 from .object_kind import require_kind
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+    from rhosocial.activerecord.backend.expression.statements import (
         ColumnDefinition,
         CreateTableLikeStatement,
         IndexDefinition,
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
         TableCheckConstraint,
         TableForeignKeyConstraint,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.table_expr import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLInlineIndexExpression,
         MySQLStorageOptionsExpression,
     )
@@ -136,7 +136,7 @@ class MySQLTableMixin:
         parts.append(f"({', '.join(column_parts)})")
 
         if expr.storage_options:
-            from rhosocial.activerecord.backend.expression.statements.ddl_table import StorageOptionsExpression
+            from rhosocial.activerecord.backend.expression.statements import StorageOptionsExpression
             storage_expr = (
                 StorageOptionsExpression(self, expr.storage_options)
                 if isinstance(expr.storage_options, dict)
@@ -147,7 +147,7 @@ class MySQLTableMixin:
                 parts.append(storage_sql)
                 all_params.extend(storage_params)
 
-        from rhosocial.activerecord.backend.impl.mysql.expression.table_options import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
             MySQLCreateTableOptions,
         )
         if table_options is not None and table_options.comment is not None:
@@ -186,7 +186,7 @@ class MySQLTableMixin:
         (``character_set`` / ``column_format`` / ``storage`` / ``invisible``)
         are rendered here.
         """
-        from rhosocial.activerecord.backend.impl.mysql.expression.column import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.column_types import (
             MySQLColumnDefinition,
         )
 
@@ -267,7 +267,7 @@ class MySQLTableMixin:
             ValueError: The local columns, the referenced columns or the
                 referenced table are missing.
         """
-        from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+        from rhosocial.activerecord.backend.expression.statements import (
             ReferencesClause,
         )
 

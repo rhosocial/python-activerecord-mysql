@@ -18,7 +18,7 @@ class MySQLConcurrencyMixin:
     def _fetch_concurrency_hint(self) -> None:
         """Fetch max_connections from MySQL server and compute concurrency hint."""
         try:
-            from ..expression.show import MySQLShowVariablesStatement
+            from ..expression.statements.show import MySQLShowVariablesStatement
 
             cursor = self._connection.cursor(dictionary=True)
             cursor.execute(
@@ -62,7 +62,7 @@ class AsyncMySQLConcurrencyMixin:
     async def _fetch_concurrency_hint(self) -> None:
         """Fetch max_connections from MySQL server and compute concurrency hint."""
         try:
-            from ..expression.show import MySQLShowVariablesStatement
+            from ..expression.statements.show import MySQLShowVariablesStatement
 
             cursor = await self._connection.cursor(dictionary=True)
             await cursor.execute(

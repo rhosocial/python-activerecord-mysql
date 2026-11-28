@@ -179,7 +179,7 @@ class GroupConcat(FunctionExpression):
 MySQL 支持为列表达式指定排序规则：
 
 ```python
-from rhosocial.activerecord.backend.expression.collation import collate
+from rhosocial.activerecord.backend.expression.functions.collation import collate
 
 # 为列指定排序规则
 expr = collate(Column(dialect, "name"), "utf8mb4_general_ci")
@@ -205,7 +205,7 @@ if dialect.supports_collate_expression():
 MySQL 方言支持标准化的日期时间间隔表达式：
 
 ```python
-from rhosocial.activerecord.backend.expression.datetime import (
+from rhosocial.activerecord.backend.expression.functions.datetime import (
     ExtractExpression, DateTimeField, IntervalExpression, IntervalUnit,
     DatetimeAddExpression, DatetimeSubtractExpression, DatetimeDiffExpression,
 )
@@ -275,7 +275,7 @@ sql, params = elapsed.to_sql()
 MySQL 支持 SET_VAR 优化器提示，MySQL 9.7+ 还支持超图优化器：
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.optimizer_hint import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.optimizer_hint import (
     MySQLOptimizerHintExpression, SetVarHint,
 )
 
@@ -299,7 +299,7 @@ if dialect.supports_hypergraph_optimizer():
 MySQL 9.7+ 支持 JSON 二象性视图（JSON Duality View）：
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.json_duality_view import (
     MySQLCreateJsonDualityViewStatement, MySQLDropJsonDualityViewStatement,
     DualityObjectSpec, DualityDMLTag, DualityColumnMapping,
 )
@@ -331,7 +331,8 @@ MySQL 支持不涉及数据源的纯函数查询，如 `SELECT CURRENT_TIMESTAMP
 
 ```python
 from rhosocial.activerecord.backend.expression import QueryStatement
-from rhosocial.activerecord.backend.expression.core import FunctionCall, Parameter
+from rhosocial.activerecord.backend.expression.functions.function_call import FunctionCall
+from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now, current_date, current_time,
 )

@@ -31,10 +31,10 @@ import re
 import pytest
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.expression.core import Column
+from rhosocial.activerecord.backend.expression.column_types.column import Column
 from rhosocial.activerecord.backend.expression.objects import Table, View
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
-from rhosocial.activerecord.backend.expression.query_sources import CTEClause
+from rhosocial.activerecord.backend.expression.sources.query_sources import CTEClause
 from rhosocial.activerecord.backend.expression.statements.ddl_table import (
     ColumnConstraint,
     ColumnForeignKeyConstraint,
@@ -50,7 +50,7 @@ from rhosocial.activerecord.backend.expression.statements.ddl_view import (
     DropViewStatement,
 )
 from rhosocial.activerecord.backend.expression.statements.dql import QueryStatement
-from rhosocial.activerecord.backend.expression.transaction import (
+from rhosocial.activerecord.backend.expression.statements.transaction import (
     BeginTransactionStatement,
     SetTransactionStatement,
 )

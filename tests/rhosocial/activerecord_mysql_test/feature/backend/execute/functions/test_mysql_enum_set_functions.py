@@ -17,7 +17,8 @@ for a column called `a,b,c`.
 
 import pytest
 
-from rhosocial.activerecord.backend.expression import Column, Parameter, core
+from rhosocial.activerecord.backend.expression import Column, Parameter
+from rhosocial.activerecord.backend.expression.functions.function_call import FunctionCall
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.functions.enum_set import (
     find_in_set,
@@ -47,7 +48,7 @@ class TestMySQLEnumSetFunctions:
 
     def test_find_in_set_expression_column(self, mysql_dialect: MySQLDialect):
         """The SET side may be any expression, not only a column."""
-        greatest = core.FunctionCall(
+        greatest = FunctionCall(
             mysql_dialect,
             "GREATEST",
             Column(mysql_dialect, "x"),

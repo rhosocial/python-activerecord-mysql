@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         ColumnValueSampleQueryStatement,
         JoinCoverageQueryStatement,
     )
-    from ..expression.introspection import (
+    from ..expression.introspection.introspection import (
         MySQLTableOptionsListQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
         MySQLPartitionStateQueryStatement,
@@ -145,7 +145,7 @@ class MySQLIntrospectionMixin:
                     → Returns SQL and parameters
 
     Every query here is an expression tree, not assembled text: a projection of
-    :class:`~...expression.core.Column` nodes, a relation, a conjunction of
+    :class:`~...expression.column_types.column.Column` nodes, a relation, a conjunction of
     predicates and an ordering. What a query *asks* is therefore a structure the
     rest of the framework can inspect, and this module writes no clause at all --
     the dialect renders each node.
@@ -459,7 +459,7 @@ class MySQLIntrospectionMixin:
             LogicalPredicate,
         )
         from rhosocial.activerecord.backend.expression.objects import Table
-        from rhosocial.activerecord.backend.expression.sources.relation import NamedRelationRef
+        from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
 
         params = expr.get_params()
         table_name = params.get("table_name", "")
@@ -1088,7 +1088,7 @@ class MySQLIntrospectionMixin:
             QueryStatement,
             WhereClause,
         )
-        from rhosocial.activerecord.backend.expression.statements.dql import (
+        from rhosocial.activerecord.backend.expression.statements import (
             OrderByClause,
         )
 
@@ -1223,7 +1223,7 @@ class MySQLIntrospectionMixin:
             QueryStatement,
             WhereClause,
         )
-        from rhosocial.activerecord.backend.expression.statements.dql import (
+        from rhosocial.activerecord.backend.expression.statements import (
             OrderByClause,
         )
 
@@ -1426,7 +1426,7 @@ class MySQLIntrospectionMixin:
         ask rather than something to guess at now. A caller naming one of the
         others gets ``UnsupportedFeatureError`` rather than the table answer.
         """
-        from rhosocial.activerecord.backend.impl.mysql.expression.show import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
             MySQLShowCreateTableStatement,
         )
 
@@ -1516,7 +1516,7 @@ class MySQLIntrospectionMixin:
         """A constant label as a named select-list entry.
 
         ``Parameter`` is deliberately unaliasable -- a value has nothing to name
-        (see :class:`~...expression.core.Parameter`) -- so the constant is cast
+        (see :class:`~...expression.value_types.parameter.Parameter`) -- so the constant is cast
         to text, which is the smallest node in the tree that produces a named
         result. The cast is not there for its type: it is there so the label
         can be called ``column_name`` or ``source``, which is what the parser
@@ -1527,11 +1527,9 @@ class MySQLIntrospectionMixin:
         because MySQL's CAST accepts ``CHAR`` bare and a label has no width to
         declare.
         """
-        from rhosocial.activerecord.backend.expression.core import (
-            CastExpression,
-            Parameter,
-        )
-        from rhosocial.activerecord.backend.expression.types.string import CharType
+        from rhosocial.activerecord.backend.expression.functions import CastExpression
+        from rhosocial.activerecord.backend.expression.value_types import Parameter
+        from rhosocial.activerecord.backend.expression.types import CharType
 
         return CastExpression(self, Parameter(self, text, inline=True), CharType(self), alias=alias)
 
@@ -1669,7 +1667,7 @@ class MySQLIntrospectionMixin:
         # one node rather than a join of rendered strings: the operator word is
         # the dialect's, and the projection, identifiers and bind parameters of
         # every arm stay with the renderer that owns them.
-        from rhosocial.activerecord.backend.expression.query_sources import (
+        from rhosocial.activerecord.backend.expression.sources import (
             SetOperationKind,
         )
         from rhosocial.activerecord.backend.expression.statements import (

@@ -403,7 +403,7 @@ class MySQLBackend(
 
         cursor = None
         try:
-            from ..expression.system import version_query
+            from ..expression.introspection.system import version_query
 
             cursor = self._get_cursor()
             cursor.execute(*version_query(self.dialect).to_sql())
@@ -473,7 +473,7 @@ class MySQLBackend(
 
             # reconnect=True: verify connection with SELECT 1
             try:
-                from ..expression.system import ping_query
+                from ..expression.introspection.system import ping_query
 
                 cursor = self._get_cursor()
                 cursor.execute(*ping_query(self.dialect).to_sql())

@@ -18,13 +18,13 @@ SQL changed.
 import pytest
 
 from rhosocial.activerecord.backend.expression import Column
-from rhosocial.activerecord.backend.expression.advanced_functions import (
+from rhosocial.activerecord.backend.expression.functions.advanced_functions import (
     JSONDocumentValue,
     JSONPathMode,
     JSONTextValue,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLSignedType, MySQLUnsignedType
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import MySQLSignedType, MySQLUnsignedType
 
 
 @pytest.fixture

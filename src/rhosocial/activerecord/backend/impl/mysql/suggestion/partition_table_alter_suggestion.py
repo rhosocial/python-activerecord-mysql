@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ....suggestion import PartitionTableAlterSuggestion
-from ..expression.partition import (
+from ..expression.query_parts.partition import (
     MySQLCoalescePartitionExpression,
     MySQLRemovePartitioningExpression,
 )

@@ -578,7 +578,7 @@ class MySQLDialect(
         require_kind(expr.into, Table, "InsertStatement.into")
 
         is_replace = is_ignore = False
-        from .expression.dml import MySQLInsertExpression
+        from .expression.statements.dml import MySQLInsertExpression
 
         if isinstance(expr, MySQLInsertExpression):
             is_replace = expr.replace

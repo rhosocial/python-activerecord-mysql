@@ -37,7 +37,7 @@ from rhosocial.activerecord.backend.suggestion import (
     PartitionTableDropSuggestion,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLAddPartitionExpression,
     MySQLCoalescePartitionExpression,
     MySQLDropPartitionExpression,

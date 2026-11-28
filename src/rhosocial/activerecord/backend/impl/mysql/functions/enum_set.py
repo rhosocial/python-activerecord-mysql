@@ -15,7 +15,9 @@ without raising when such columns happened to exist.
 
 from typing import TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core
+from rhosocial.activerecord.backend.expression import bases
+from rhosocial.activerecord.backend.expression.functions import FunctionCall
+from rhosocial.activerecord.backend.expression.value_types import Parameter
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..dialect import MySQLDialect
@@ -25,7 +27,7 @@ def find_in_set(
     dialect: "MySQLDialect",
     value: str,
     set_column: "bases.BaseExpression",
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a FIND_IN_SET function call.
 
@@ -41,15 +43,15 @@ def find_in_set(
 
     Version: All MySQL versions
     """
-    value_expr = core.Parameter(dialect, value)
-    return core.FunctionCall(dialect, "FIND_IN_SET", value_expr, set_column)
+    value_expr = Parameter(dialect, value)
+    return FunctionCall(dialect, "FIND_IN_SET", value_expr, set_column)
 
 
 def elt(
     dialect: "MySQLDialect",
     index: int,
     *values: str,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ELT function call.
 
@@ -65,18 +67,18 @@ def elt(
 
     Version: All MySQL versions
     """
-    index_expr = core.Parameter(dialect, index)
+    index_expr = Parameter(dialect, index)
     args = [index_expr]
     for v in values:
-        args.append(core.Parameter(dialect, v))
-    return core.FunctionCall(dialect, "ELT", *args)
+        args.append(Parameter(dialect, v))
+    return FunctionCall(dialect, "ELT", *args)
 
 
 def field(
     dialect: "MySQLDialect",
     value: "bases.BaseExpression",
     *values: "bases.BaseExpression",
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates a FIELD function call.
 
@@ -93,7 +95,7 @@ def field(
 
     Version: All MySQL versions
     """
-    return core.FunctionCall(dialect, "FIELD", value, *values)
+    return FunctionCall(dialect, "FIELD", value, *values)
 
 
 __all__ = [

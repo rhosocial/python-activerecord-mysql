@@ -10,7 +10,7 @@ MySQL Transaction Behavior:
 
 import pytest
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.expression.transaction import (
+from rhosocial.activerecord.backend.expression.statements.transaction import (
     BeginTransactionStatement,
     CommitStatement,
     RollbackStatement,

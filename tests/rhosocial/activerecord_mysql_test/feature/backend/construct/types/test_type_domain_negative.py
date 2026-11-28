@@ -39,7 +39,7 @@ from rhosocial.activerecord.backend.expression.statements import (
 )
 from rhosocial.activerecord.backend.expression.types import DataType, IntegerType
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLEnumType, MySQLSetType
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import MySQLEnumType, MySQLSetType
 from rhosocial.activerecord.backend.impl.mysql.mixins import MySQLTypeSupportMixin
 from rhosocial.activerecord.backend.expression.objects import Domain, Type
 

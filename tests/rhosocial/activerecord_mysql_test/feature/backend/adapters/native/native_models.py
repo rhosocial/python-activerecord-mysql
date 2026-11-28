@@ -52,7 +52,7 @@ from rhosocial.activerecord.backend.impl.mysql.adapters import (
     MySQLBitStringAdapter,
     MySQLUUIDAdapter,
 )
-from rhosocial.activerecord.backend.impl.mysql.expression.types import (
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import (
     MySQLBinaryType,
     MySQLBitType,
     MySQLEnumType,

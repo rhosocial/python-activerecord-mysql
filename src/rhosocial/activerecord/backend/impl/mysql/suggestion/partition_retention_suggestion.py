@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List
 
 from ....suggestion import PartitionRetentionSuggestion
-from ..expression.partition import MySQLDropPartitionExpression
+from ..expression.query_parts.partition import MySQLDropPartitionExpression
 from ._common import (
     _MAXVALUE,
     _RANGE,

@@ -6,7 +6,7 @@ from rhosocial.activerecord.backend.expression.objects import RoutineObject
 from .object_kind import require_kind
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.impl.mysql.expression.routine import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLCallStatement,
         MySQLCreateProcedureStatement,
         MySQLDropProcedureStatement,

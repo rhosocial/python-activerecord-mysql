@@ -15,7 +15,7 @@ from rhosocial.activerecord.backend.expression.functions import (
     interval,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.types import MySQLSignedType
+from rhosocial.activerecord.backend.impl.mysql.expression.types.types import MySQLSignedType
 
 
 class TestDateTimeIntervalExpressions:

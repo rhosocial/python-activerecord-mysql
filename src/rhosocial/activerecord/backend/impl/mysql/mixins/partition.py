@@ -5,7 +5,7 @@ from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeature
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
 from rhosocial.activerecord.backend.expression.objects import Table
 
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
     MYSQL_PARTITION_WORDS,
 )
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:  # pragma: no cover
         PartitionOptionsExpression,
         SubpartitionDefinitionExpression,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
         MySQLAddPartitionExpression,
         MySQLDropPartitionExpression,
         MySQLGetPartitionsExpression,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:  # pragma: no cover
         MySQLRepairPartitionExpression,
         MySQLSubpartitionClause,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.partition_lifecycle import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLAddPartitionHelper,
         MySQLCoalescePartitionHelper,
         MySQLDropOldestPartitionHelper,
@@ -926,7 +926,7 @@ class MySQLPartitionMixin:
         from rhosocial.activerecord.backend.expression.statements import (
             PartitionDefinitionExpression,
         )
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
             MySQLAddPartitionExpression,
             MySQLPartitionValue,
         )
@@ -946,7 +946,7 @@ class MySQLPartitionMixin:
 
     def format_mysql_coalesce_partition_helper(self, expr: "MySQLCoalescePartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLCoalescePartitionHelper` (with validation)."""
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
             MySQLCoalescePartitionExpression,
         )
 
@@ -961,7 +961,7 @@ class MySQLPartitionMixin:
 
     def format_mysql_drop_oldest_partition_helper(self, expr: "MySQLDropOldestPartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLDropOldestPartitionHelper` (lexicographically oldest)."""
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
             MySQLDropPartitionExpression,
         )
 
@@ -971,7 +971,7 @@ class MySQLPartitionMixin:
 
     def format_mysql_reorganize_partition_helper(self, expr: "MySQLReorganizePartitionHelper") -> Tuple[str, tuple]:
         """Format a :class:`MySQLReorganizePartitionHelper`."""
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
             MySQLReorganizePartitionExpression,
         )
 
@@ -984,7 +984,7 @@ class MySQLPartitionMixin:
             PartitionDefinitionExpression,
             SubpartitionDefinitionExpression,
         )
-        from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+        from rhosocial.activerecord.backend.impl.mysql.expression.query_parts import (
             MySQLAddPartitionExpression,
             MySQLPartitionValue,
         )

@@ -7,7 +7,7 @@ import pytest
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
 from rhosocial.activerecord.backend.expression import Column, Parameter
-from rhosocial.activerecord.backend.expression.collation import collate
+from rhosocial.activerecord.backend.expression.functions.collation import collate
 from rhosocial.activerecord.backend.impl.mysql.mixins import MySQLCollation
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 

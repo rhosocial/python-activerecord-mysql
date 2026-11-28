@@ -407,7 +407,7 @@ class AsyncMySQLBackend(
 
         cursor = None
         try:
-            from ..expression.system import version_query
+            from ..expression.introspection.system import version_query
 
             cursor = await self._get_cursor()
             await cursor.execute(*version_query(self.dialect).to_sql())
@@ -477,7 +477,7 @@ class AsyncMySQLBackend(
 
             # reconnect=True: verify connection with SELECT 1
             try:
-                from ..expression.system import ping_query
+                from ..expression.introspection.system import ping_query
 
                 cursor = await self._get_cursor()
                 await cursor.execute(*ping_query(self.dialect).to_sql())

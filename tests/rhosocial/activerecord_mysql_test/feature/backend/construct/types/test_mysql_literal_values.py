@@ -47,7 +47,7 @@ import uuid
 
 import pytest
 
-from rhosocial.activerecord.backend.expression.core import Parameter
+from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 

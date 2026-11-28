@@ -15,7 +15,7 @@ The implementation:
 
 from typing import Optional, Tuple, TYPE_CHECKING
 
-from ..expression.show import (
+from ..expression.statements.show import (
     MySQLShowCreateTableStatement,
     MySQLShowCreateViewStatement,
     MySQLShowColumnsStatement,

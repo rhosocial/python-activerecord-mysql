@@ -23,7 +23,7 @@ from rhosocial.activerecord.backend.expression.objects import (
 )
 
 if TYPE_CHECKING:
-    from ..expression.show import (
+    from ..expression.statements.show import (
         MySQLShowCreateTableStatement,
         MySQLShowCreateViewStatement,
         MySQLShowColumnsStatement,

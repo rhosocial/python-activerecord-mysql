@@ -32,7 +32,7 @@ if __name__ == "__main__":
         ValuesSource,
         DropTableStatement,
     )
-    from rhosocial.activerecord.backend.expression.core import Parameter  # noqa: E402
+    from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter  # noqa: E402
     from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
         ColumnConstraint,
         ColumnDefinition,
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         QueryStatement,
         Column,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.json_table import (  # noqa: E402
+    from rhosocial.activerecord.backend.impl.mysql.expression.sources.json_table import (  # noqa: E402
         MySQLJSONTableExpression,
         JSONTableColumn,
     )

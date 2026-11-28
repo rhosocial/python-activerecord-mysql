@@ -10,7 +10,7 @@ from rhosocial.activerecord.backend.expression.objects import Database
 from .object_kind import require_kind
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.statements.ddl_database import (
+    from rhosocial.activerecord.backend.expression.statements import (
         AlterDatabaseStatement,
         CreateDatabaseStatement,
         DropDatabaseStatement,
@@ -97,7 +97,7 @@ class MySQLDatabaseMixin:
             TypeError: ``expr.database`` is not a Database; another object kind
                 would be named as the database's.
         """
-        from rhosocial.activerecord.backend.expression.statements.ddl_database import AlterDatabaseAction
+        from rhosocial.activerecord.backend.expression.statements import AlterDatabaseAction
 
         require_kind(expr.database, Database, "AlterDatabaseStatement.database")
         parts = ["ALTER DATABASE"]

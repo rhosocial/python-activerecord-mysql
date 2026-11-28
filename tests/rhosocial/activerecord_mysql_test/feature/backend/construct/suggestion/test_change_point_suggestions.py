@@ -49,7 +49,7 @@ from rhosocial.activerecord.backend.suggestion.protocols import (
 from rhosocial.activerecord.migration.schema_change import _freeze
 
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLRemovePartitioningExpression,
 )
 

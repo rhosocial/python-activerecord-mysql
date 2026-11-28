@@ -19,7 +19,7 @@ MySQL 支持以下分区策略：
 
 ```python
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 
@@ -42,7 +42,7 @@ partition_by = MySQLPartitionByRange(
 ### ADD PARTITION
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLAddPartitionExpression,
 )
 
@@ -59,7 +59,7 @@ add_part = MySQLAddPartitionExpression(
 ### DROP PARTITION
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLDropPartitionExpression
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import MySQLDropPartitionExpression
 
 drop_part = MySQLDropPartitionExpression(dialect, table="orders", partitions=["p_old"])
 # sql: 'ALTER TABLE orders DROP PARTITION p_old'
@@ -68,7 +68,7 @@ drop_part = MySQLDropPartitionExpression(dialect, table="orders", partitions=["p
 ### EXCHANGE PARTITION
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLExchangePartitionExpression
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import MySQLExchangePartitionExpression
 
 exchange = MySQLExchangePartitionExpression(
     dialect, table="orders", partition="p_current",
@@ -80,7 +80,7 @@ exchange = MySQLExchangePartitionExpression(
 ## 辅助工具
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition_lifecycle import (
+from rhosocial.activerecord.backend.impl.mysql.expression.statements.partition_lifecycle import (
     MySQLAddPartitionHelper, MySQLDropOldestPartitionHelper,
 )
 
@@ -118,7 +118,7 @@ MySQL 不提供独立的分区维护辅助类。分区 DDL 通过后端的**分�
 ```python
 from rhosocial.activerecord.backend.expression import Column, PartitionByRangeClause
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import MySQLPartitionValue
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import MySQLPartitionValue
 
 strategy = PartitionByRangeClause(dialect, [Column(dialect, "id")])
 plan = {
@@ -165,7 +165,7 @@ MySQL 只支持 `HASH` 与 `KEY`（及其 `LINEAR` 变体）子分区。
 `SUBPARTITION BY RANGE` 或 `LIST` 会抛出 `UnsupportedFeatureError`，不会静默降级。
 
 ```python
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLSubpartitionClause, MySQLSubpartitionStrategy,
 )
 

@@ -20,9 +20,10 @@ quoted SQL text.
 
 from typing import TYPE_CHECKING, Any
 
-from rhosocial.activerecord.backend.expression import bases, core
+from rhosocial.activerecord.backend.expression import bases
 from rhosocial.activerecord.backend.expression.functions import aggregate
-from rhosocial.activerecord.backend.expression.functions.math import (
+from rhosocial.activerecord.backend.expression.functions import FunctionCall
+from rhosocial.activerecord.backend.expression.functions import (
     CeilFunction,
     FloorFunction,
     ModuloFunction,
@@ -31,6 +32,7 @@ from rhosocial.activerecord.backend.expression.functions.math import (
     SquareRootFunction,
     TruncateFunction,
 )
+from rhosocial.activerecord.backend.expression.value_types import Parameter
 
 if TYPE_CHECKING:  # pragma: no cover
     from rhosocial.activerecord.backend.dialect import SQLDialectBase
@@ -82,7 +84,7 @@ def round_(
 
     Version: All MySQL versions
     """
-    args = [_expression_arg(expr, "round_"), core.Parameter(dialect, precision)]
+    args = [_expression_arg(expr, "round_"), Parameter(dialect, precision)]
     return RoundFunction.for_operand(dialect, type(expr), *args)
 
 
@@ -295,7 +297,7 @@ def trunc(
 
     Version: All MySQL versions
     """
-    args = [_expression_arg(expr, "trunc"), core.Parameter(dialect, precision)]
+    args = [_expression_arg(expr, "trunc"), Parameter(dialect, precision)]
     return TruncateFunction.for_operand(dialect, type(expr), *args)
 
 
@@ -332,7 +334,7 @@ def max_(
     """
     if len(args) == 1:
         return aggregate.MaxFunction(dialect, args[0])
-    return core.FunctionCall(dialect, "GREATEST", *args)
+    return FunctionCall(dialect, "GREATEST", *args)
 
 
 def min_(
@@ -367,7 +369,7 @@ def min_(
     """
     if len(args) == 1:
         return aggregate.MinFunction(dialect, args[0])
-    return core.FunctionCall(dialect, "LEAST", *args)
+    return FunctionCall(dialect, "LEAST", *args)
 
 
 def avg(

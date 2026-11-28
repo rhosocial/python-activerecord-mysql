@@ -11,8 +11,8 @@ comment is a DDL literal, so it is quoted inline rather than bound.
 
 from typing import Tuple, TYPE_CHECKING
 
-from ..expression.alter_table_options import MySQLAlterTableOptionsStatement
-from ..expression.table_options import MySQLCreateTableOptions
+from ..expression.statements.alter_table_options import MySQLAlterTableOptionsStatement
+from ..expression.query_parts.table_options import MySQLCreateTableOptions
 
 if TYPE_CHECKING:  # pragma: no cover
     pass

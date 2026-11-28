@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Optional, Tuple
 
 if TYPE_CHECKING:
-    from ..expression.spatial import (
+    from ..expression.functions.spatial import (
         MySQLCreateSpatialIndexStatement,
         MySQLSTAsGeoJSONExpression,
         MySQLSTAsTextExpression,
@@ -41,7 +41,7 @@ class MySQLSpatialMixin:
 
     def format_mysql_spatial_literal_expression(self, expr: "MySQLSpatialLiteralExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSpatialLiteralExpression` node."""
-        from ..expression.spatial import MySQLSpatialLiteralExpression
+        from ..expression.functions.spatial import MySQLSpatialLiteralExpression
 
         if not isinstance(expr, MySQLSpatialLiteralExpression):
             raise TypeError(
@@ -62,7 +62,7 @@ class MySQLSpatialMixin:
 
     def format_mysql_st_geom_from_text_expression(self, expr: "MySQLSTGeomFromTextExpression") -> Tuple[str, tuple]:
         """Format MySQLSTGeomFromTextExpression or a raw WKT string."""
-        from ..expression.spatial import MySQLSTGeomFromTextExpression
+        from ..expression.functions.spatial import MySQLSTGeomFromTextExpression
 
         if isinstance(expr, MySQLSTGeomFromTextExpression):
             wkt = expr.wkt
@@ -77,7 +77,7 @@ class MySQLSpatialMixin:
 
     def format_mysql_st_geom_from_wkb_expression(self, expr: "MySQLSTGeomFromWKBExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSTGeomFromWKBExpression` node."""
-        from ..expression.spatial import MySQLSTGeomFromWKBExpression
+        from ..expression.functions.spatial import MySQLSTGeomFromWKBExpression
 
         if not isinstance(expr, MySQLSTGeomFromWKBExpression):
             raise TypeError(
@@ -97,7 +97,7 @@ class MySQLSpatialMixin:
 
     def format_mysql_st_as_text_expression(self, expr: "MySQLSTAsTextExpression") -> Tuple[str, tuple]:
         """Format MySQLSTAsTextExpression or a raw geometry reference."""
-        from ..expression.spatial import MySQLSTAsTextExpression
+        from ..expression.functions.spatial import MySQLSTAsTextExpression
 
         if isinstance(expr, MySQLSTAsTextExpression):
             sql = f"ST_AsText({expr.geom})"
@@ -113,7 +113,7 @@ class MySQLSpatialMixin:
 
     def format_mysql_st_as_geo_json_expression(self, expr: "MySQLSTAsGeoJSONExpression") -> Tuple[str, tuple]:
         """Format MySQLSTAsGeoJSONExpression or a raw geometry reference."""
-        from ..expression.spatial import MySQLSTAsGeoJSONExpression
+        from ..expression.functions.spatial import MySQLSTAsGeoJSONExpression
 
         if not self.supports_geojson():
             from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
@@ -134,7 +134,7 @@ class MySQLSpatialMixin:
         self, expr: "MySQLCreateSpatialIndexStatement"
     ) -> Tuple[str, tuple]:
         """Format a :class:`MySQLCreateSpatialIndexStatement` node."""
-        from ..expression.spatial import MySQLCreateSpatialIndexStatement
+        from ..expression.functions.spatial import MySQLCreateSpatialIndexStatement
 
         if not isinstance(expr, MySQLCreateSpatialIndexStatement):
             raise TypeError(

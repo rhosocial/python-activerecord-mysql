@@ -42,7 +42,7 @@ if __name__ == "__main__":
     from rhosocial.activerecord.backend.expression.types import (  # noqa: E402
         IntegerType, JsonType,
     )
-    from rhosocial.activerecord.backend.impl.mysql.expression.types import (  # noqa: E402
+    from rhosocial.activerecord.backend.impl.mysql.expression.types.types import (  # noqa: E402
         MySQLLongTextType,
     )
 

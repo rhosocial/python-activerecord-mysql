@@ -8,7 +8,9 @@ st_distance, st_within, st_contains, st_intersects
 
 from typing import Union, Optional, TYPE_CHECKING
 
-from rhosocial.activerecord.backend.expression import bases, core, BinaryColumn
+from rhosocial.activerecord.backend.expression import bases, BinaryColumn
+from rhosocial.activerecord.backend.expression.functions import FunctionCall
+from rhosocial.activerecord.backend.expression.value_types import Parameter
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..dialect import MySQLDialect
@@ -18,7 +20,7 @@ def st_geom_from_text(
     dialect: "MySQLDialect",
     wkt: str,
     srid: Optional[int] = None,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_GeomFromText function call.
 
@@ -34,18 +36,18 @@ def st_geom_from_text(
 
     Version: MySQL 5.7+
     """
-    wkt_expr = core.Parameter(dialect, wkt)
+    wkt_expr = Parameter(dialect, wkt)
     if srid is not None:
-        srid_expr = core.Parameter(dialect, srid)
-        return core.FunctionCall(dialect, "ST_GeomFromText", wkt_expr, srid_expr)
-    return core.FunctionCall(dialect, "ST_GeomFromText", wkt_expr)
+        srid_expr = Parameter(dialect, srid)
+        return FunctionCall(dialect, "ST_GeomFromText", wkt_expr, srid_expr)
+    return FunctionCall(dialect, "ST_GeomFromText", wkt_expr)
 
 
 def st_geom_from_wkb(
     dialect: "MySQLDialect",
     wkb: bytes,
     srid: Optional[int] = None,
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_GeomFromWKB function call.
 
@@ -61,17 +63,17 @@ def st_geom_from_wkb(
 
     Version: MySQL 5.7+
     """
-    wkb_expr = core.Parameter(dialect, wkb)
+    wkb_expr = Parameter(dialect, wkb)
     if srid is not None:
-        srid_expr = core.Parameter(dialect, srid)
-        return core.FunctionCall(dialect, "ST_GeomFromWKB", wkb_expr, srid_expr)
-    return core.FunctionCall(dialect, "ST_GeomFromWKB", wkb_expr)
+        srid_expr = Parameter(dialect, srid)
+        return FunctionCall(dialect, "ST_GeomFromWKB", wkb_expr, srid_expr)
+    return FunctionCall(dialect, "ST_GeomFromWKB", wkb_expr)
 
 
 def st_as_text(
     dialect: "MySQLDialect",
     geom: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_AsText function call.
 
@@ -88,16 +90,16 @@ def st_as_text(
     """
     geom_expr = (
         geom if isinstance(geom, bases.BaseExpression)
-        else core.Parameter(dialect, geom) if isinstance(geom, (int, float))
+        else Parameter(dialect, geom) if isinstance(geom, (int, float))
         else BinaryColumn(dialect, geom)
     )
-    return core.FunctionCall(dialect, "ST_AsText", geom_expr)
+    return FunctionCall(dialect, "ST_AsText", geom_expr)
 
 
 def st_as_geojson(
     dialect: "MySQLDialect",
     geom: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_AsGeoJSON function call.
 
@@ -114,17 +116,17 @@ def st_as_geojson(
     """
     geom_expr = (
         geom if isinstance(geom, bases.BaseExpression)
-        else core.Parameter(dialect, geom) if isinstance(geom, (int, float))
+        else Parameter(dialect, geom) if isinstance(geom, (int, float))
         else BinaryColumn(dialect, geom)
     )
-    return core.FunctionCall(dialect, "ST_AsGeoJSON", geom_expr)
+    return FunctionCall(dialect, "ST_AsGeoJSON", geom_expr)
 
 
 def st_distance(
     dialect: "MySQLDialect",
     geom1: Union[str, "bases.BaseExpression"],
     geom2: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_Distance function call.
 
@@ -142,22 +144,22 @@ def st_distance(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
+        else Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
+        else Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
-    return core.FunctionCall(dialect, "ST_Distance", geom1_expr, geom2_expr)
+    return FunctionCall(dialect, "ST_Distance", geom1_expr, geom2_expr)
 
 
 def st_within(
     dialect: "MySQLDialect",
     geom1: Union[str, "bases.BaseExpression"],
     geom2: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_Within function call.
 
@@ -175,22 +177,22 @@ def st_within(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
+        else Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
+        else Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
-    return core.FunctionCall(dialect, "ST_Within", geom1_expr, geom2_expr)
+    return FunctionCall(dialect, "ST_Within", geom1_expr, geom2_expr)
 
 
 def st_contains(
     dialect: "MySQLDialect",
     geom1: Union[str, "bases.BaseExpression"],
     geom2: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_Contains function call.
 
@@ -208,22 +210,22 @@ def st_contains(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
+        else Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
+        else Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
-    return core.FunctionCall(dialect, "ST_Contains", geom1_expr, geom2_expr)
+    return FunctionCall(dialect, "ST_Contains", geom1_expr, geom2_expr)
 
 
 def st_intersects(
     dialect: "MySQLDialect",
     geom1: Union[str, "bases.BaseExpression"],
     geom2: Union[str, "bases.BaseExpression"],
-) -> "core.FunctionCall":
+) -> "FunctionCall":
     """
     Creates an ST_Intersects function call.
 
@@ -241,15 +243,15 @@ def st_intersects(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
+        else Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
+        else Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
-    return core.FunctionCall(dialect, "ST_Intersects", geom1_expr, geom2_expr)
+    return FunctionCall(dialect, "ST_Intersects", geom1_expr, geom2_expr)
 
 
 __all__ = [

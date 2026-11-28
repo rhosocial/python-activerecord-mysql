@@ -6,7 +6,7 @@ from rhosocial.activerecord.backend.expression.objects import Function, Table, T
 from .object_kind import require_kind
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.statements.ddl_trigger import (
+    from rhosocial.activerecord.backend.expression.statements import (
         CreateTriggerStatement,
         DropTriggerStatement,
     )

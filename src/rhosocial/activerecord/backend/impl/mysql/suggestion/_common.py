@@ -7,7 +7,7 @@ caller-owned, engine-neutral ``plan`` shape, so that shared knowledge lives
 here: the normalisation/boundary helpers, the supported-strategy words, and
 the plan-reading class methods carried by :class:`MySQLPartitionSuggestionBase`.
 
-The clause/statement nodes come from this backend's ``expression.partition``
+The clause/statement nodes come from this backend's ``expression.query_parts.partition``
 module; the suggestion value objects and the generic ``DROP TABLE`` statement
 come from core. Each mixin keeps only its own ``suggest_partition_<x>()``
 method plus that method's dedicated imports. Behaviour is unchanged by the
@@ -25,7 +25,7 @@ from ....expression import Column
 from ....expression.bases import BaseExpression
 from ....expression.objects import Table
 from ....expression.statements import PartitionDefinitionExpression
-from ..expression.partition import MySQLPartitionMaxValue
+from ..expression.query_parts.partition import MySQLPartitionMaxValue
 
 if TYPE_CHECKING:  # pragma: no cover
     from ....expression.statements import PartitionByClause

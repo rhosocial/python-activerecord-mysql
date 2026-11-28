@@ -220,7 +220,8 @@ MySQL supports querying runtime functions without a data source, such as `SELECT
 
 ```python
 from rhosocial.activerecord.backend.expression import QueryStatement
-from rhosocial.activerecord.backend.expression.core import FunctionCall, Parameter
+from rhosocial.activerecord.backend.expression.functions.function_call import FunctionCall
+from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now, current_date, current_time,
 )

@@ -21,7 +21,8 @@ from rhosocial.activerecord.backend.expression import (
     QueryStatement,
     UpdateStatement,
 )
-from rhosocial.activerecord.backend.expression.core import Parameter, Column
+from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter
+from rhosocial.activerecord.backend.expression.column_types.column import Column
 from rhosocial.activerecord.backend.expression.statements.dql import OrderByClause
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (

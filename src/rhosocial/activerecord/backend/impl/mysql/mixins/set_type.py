@@ -2,11 +2,11 @@
 from typing import TYPE_CHECKING, List, Tuple
 
 if TYPE_CHECKING:
-    from ..expression.set_type import (
+    from ..expression.functions.set_type import (
         MySQLFindInSetExpression,
         MySQLSetContainsExpression,
-        MySQLSetLiteralExpression,
     )
+    from ..expression.value_types.set_type import MySQLSetLiteralExpression
 
 
 class MySQLSetTypeMixin:
@@ -17,7 +17,7 @@ class MySQLSetTypeMixin:
 
     def format_mysql_set_literal_expression(self, expr: "MySQLSetLiteralExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSetLiteralExpression` node."""
-        from ..expression.set_type import MySQLSetLiteralExpression
+        from ..expression.value_types.set_type import MySQLSetLiteralExpression
 
         if not isinstance(expr, MySQLSetLiteralExpression):
             raise TypeError(
@@ -46,7 +46,7 @@ class MySQLSetTypeMixin:
 
     def format_mysql_find_in_set_expression(self, expr: "MySQLFindInSetExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLFindInSetExpression` node."""
-        from ..expression.set_type import MySQLFindInSetExpression
+        from ..expression.functions.set_type import MySQLFindInSetExpression
 
         if not isinstance(expr, MySQLFindInSetExpression):
             raise TypeError(
@@ -60,7 +60,7 @@ class MySQLSetTypeMixin:
 
     def format_mysql_set_contains_expression(self, expr: "MySQLSetContainsExpression") -> Tuple[str, tuple]:
         """Format a :class:`MySQLSetContainsExpression` node."""
-        from ..expression.set_type import MySQLSetContainsExpression
+        from ..expression.functions.set_type import MySQLSetContainsExpression
 
         if not isinstance(expr, MySQLSetContainsExpression):
             raise TypeError(

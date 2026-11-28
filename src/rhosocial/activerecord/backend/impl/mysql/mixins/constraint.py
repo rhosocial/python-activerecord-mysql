@@ -2,10 +2,10 @@
 from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
+    from rhosocial.activerecord.backend.expression.statements import (
         AlterConstraintAction,
     )
-    from rhosocial.activerecord.backend.expression.statements.ddl_table import (
+    from rhosocial.activerecord.backend.expression.statements import (
         ColumnConstraint,
         TableConstraint,
     )

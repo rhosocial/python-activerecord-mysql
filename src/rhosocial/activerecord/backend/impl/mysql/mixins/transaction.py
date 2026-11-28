@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Dict, Optional, Tuple
 from rhosocial.activerecord.backend.transaction import IsolationLevel
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.expression.transaction import (
+    from rhosocial.activerecord.backend.expression.statements import (
         BeginTransactionStatement,
         SetTransactionStatement,
     )

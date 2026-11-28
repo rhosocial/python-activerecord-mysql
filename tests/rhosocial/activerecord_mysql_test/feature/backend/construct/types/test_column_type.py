@@ -51,7 +51,7 @@ from rhosocial.activerecord.backend.adapters import (
 )
 from rhosocial.activerecord.base.field_proxy import ColumnTypeResolutionError
 from rhosocial.activerecord.base.fields import UseColumnType
-from rhosocial.activerecord.backend.impl.mysql.expression.column_types import MySQLGeometryColumn
+from rhosocial.activerecord.backend.impl.mysql.expression.column_types.column_types import MySQLGeometryColumn
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.mixins.column_type import (
     MYSQL_COLUMN_TYPES,

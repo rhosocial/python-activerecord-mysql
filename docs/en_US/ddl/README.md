@@ -27,7 +27,7 @@ MySQL supports rich table partitioning strategies. See [Partition Documentation]
 
 ```python
 from rhosocial.activerecord.backend.expression.statements import PartitionDefinitionExpression
-from rhosocial.activerecord.backend.impl.mysql.expression.partition import (
+from rhosocial.activerecord.backend.impl.mysql.expression.query_parts.partition import (
     MySQLPartitionByRange, MySQLPartitionValue, MySQLPartitionMaxValue,
 )
 

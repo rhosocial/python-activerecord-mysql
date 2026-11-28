@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
-    from rhosocial.activerecord.backend.impl.mysql.expression.json_duality_view import (
+    from rhosocial.activerecord.backend.impl.mysql.expression.statements import (
         MySQLCreateJsonDualityViewStatement,
         MySQLDropJsonDualityViewStatement,
         DualityNestedMapping,

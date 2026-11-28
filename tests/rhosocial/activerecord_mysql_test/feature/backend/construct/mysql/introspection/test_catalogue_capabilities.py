@@ -40,7 +40,7 @@ from rhosocial.activerecord.backend.impl.mysql.catalogue import (
     capabilities_for_version,
 )
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
-from rhosocial.activerecord.backend.impl.mysql.expression.introspection import (
+from rhosocial.activerecord.backend.impl.mysql.expression.introspection.introspection import (
     MySQLConstraintListQueryStatement,
     MySQLPartitionStateQueryStatement,
     MySQLRoutineListQueryStatement,

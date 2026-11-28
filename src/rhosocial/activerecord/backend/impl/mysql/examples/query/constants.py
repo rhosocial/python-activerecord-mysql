@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # and SELECT contexts. MySQL also accepts CURRENT_TIMESTAMP() with parentheses.
 
     from rhosocial.activerecord.backend.expression import QueryStatement  # noqa: E402
-    from rhosocial.activerecord.backend.expression.core import FunctionCall  # noqa: E402
+    from rhosocial.activerecord.backend.expression.functions.function_call import FunctionCall  # noqa: E402
     from rhosocial.activerecord.backend.expression import functions as F  # noqa: E402
 
     query_ts = QueryStatement(
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     # ============================================================
     # SECTION: SELECT with multiple functions
     # ============================================================
-    from rhosocial.activerecord.backend.expression.core import Parameter  # noqa: E402
+    from rhosocial.activerecord.backend.expression.value_types.parameter import Parameter  # noqa: E402
 
     query_multi = QueryStatement(
         dialect=dialect,
