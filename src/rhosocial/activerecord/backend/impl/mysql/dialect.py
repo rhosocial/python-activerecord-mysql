@@ -407,19 +407,6 @@ class MySQLDialect(
         """Return the MySQL version this dialect is configured for."""
         return self.version
 
-    def artifact_registry(self):
-        """The kinds this backend can read: core's kinds plus MySQL's own.
-
-        MySQL owns its expression package, so the composition lives here
-        rather than in core: ``backend_registry()`` is
-        ``registry_for_packages("...impl.mysql.expression", base=core_registry())``,
-        frozen and cached. The overlap with core is exactly that ``base``; no
-        other backend's kinds are included.
-        """
-        from .registry import backend_registry
-
-        return backend_registry()
-
     def supports_drop_column(self) -> bool:
         """MySQL supports ``ALTER TABLE ... DROP COLUMN`` on every version."""
         return True

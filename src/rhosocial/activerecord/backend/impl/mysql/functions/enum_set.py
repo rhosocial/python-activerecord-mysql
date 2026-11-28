@@ -6,7 +6,7 @@ Functions: find_in_set, elt, field
 
 Every argument except :func:`find_in_set`'s searched value and :func:`elt`'s
 index and values is an expression: pass a ``Column`` to read a column and a
-``Literal`` to write a value.  Those arguments used to be accepted as bare
+``Parameter`` to write a value.  Those arguments used to be accepted as bare
 strings and numbers, and a bare string became a column reference -- so
 ``FIELD("b", "a", "b")`` did not report that "b" is the second value but read
 columns ``a`` and ``b`` and reported where their *contents* sat, and it did so
@@ -41,7 +41,7 @@ def find_in_set(
 
     Version: All MySQL versions
     """
-    value_expr = core.Literal(dialect, value)
+    value_expr = core.Parameter(dialect, value)
     return core.FunctionCall(dialect, "FIND_IN_SET", value_expr, set_column)
 
 
@@ -65,10 +65,10 @@ def elt(
 
     Version: All MySQL versions
     """
-    index_expr = core.Literal(dialect, index)
+    index_expr = core.Parameter(dialect, index)
     args = [index_expr]
     for v in values:
-        args.append(core.Literal(dialect, v))
+        args.append(core.Parameter(dialect, v))
     return core.FunctionCall(dialect, "ELT", *args)
 
 

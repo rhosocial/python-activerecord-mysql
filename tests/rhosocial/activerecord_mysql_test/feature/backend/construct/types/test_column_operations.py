@@ -9,7 +9,7 @@ round-trip is run against the configured MySQL scenario.
 import pytest
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.impl.mysql.column_types import MySQLGeometryColumn
+from rhosocial.activerecord.backend.impl.mysql.expression.column_types import MySQLGeometryColumn
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 
 

@@ -47,7 +47,7 @@ class TestMySQLReplaceInto:
             dialect=dialect,
             into=Table(dialect, test_table),
             source=ValuesSource(
-                dialect, [[core.Literal(dialect, "alice@example.com"), core.Literal(dialect, "Alice")]]
+                dialect, [[core.Parameter(dialect, "alice@example.com"), core.Parameter(dialect, "Alice")]]
             ),
             columns=["email", "name"],
             replace=True,
@@ -82,7 +82,10 @@ class TestMySQLReplaceInto:
         expr = MySQLInsertExpression(
             dialect=dialect,
             into=Table(dialect, test_table),
-            source=ValuesSource(dialect, [[core.Literal(dialect, "bob@example.com"), core.Literal(dialect, "Bob 2")]]),
+            source=ValuesSource(
+                dialect,
+                [[core.Parameter(dialect, "bob@example.com"), core.Parameter(dialect, "Bob 2")]],
+            ),
             columns=["email", "name"],
             replace=True,
         )
@@ -116,9 +119,9 @@ class TestMySQLReplaceInto:
             source=ValuesSource(
                 dialect,
                 [
-                    [core.Literal(dialect, "new1@example.com"), core.Literal(dialect, "New 1")],
-                    [core.Literal(dialect, "existing@example.com"), core.Literal(dialect, "Replaced")],
-                    [core.Literal(dialect, "new2@example.com"), core.Literal(dialect, "New 2")],
+                    [core.Parameter(dialect, "new1@example.com"), core.Parameter(dialect, "New 1")],
+                    [core.Parameter(dialect, "existing@example.com"), core.Parameter(dialect, "Replaced")],
+                    [core.Parameter(dialect, "new2@example.com"), core.Parameter(dialect, "New 2")],
                 ],
             ),
             columns=["email", "name"],
@@ -155,7 +158,7 @@ class TestMySQLReplaceInto:
                 dialect=dialect,
                 into=Table(dialect, test_table),
                 source=ValuesSource(
-                    dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
+                    dialect, [[core.Parameter(dialect, "test@example.com"), core.Parameter(dialect, "Test")]]
                 ),
                 columns=["email", "name"],
                 replace=True,
@@ -172,7 +175,7 @@ class TestMySQLReplaceInto:
                 dialect=dialect,
                 into=Table(dialect, test_table),
                 source=ValuesSource(
-                    dialect, [[core.Literal(dialect, "test@example.com"), core.Literal(dialect, "Test")]]
+                    dialect, [[core.Parameter(dialect, "test@example.com"), core.Parameter(dialect, "Test")]]
                 ),
                 columns=["email", "name"],
                 replace=True,
@@ -212,7 +215,7 @@ class TestMySQLAsyncReplaceInto:
             dialect=dialect,
             into=Table(dialect, test_table),
             source=ValuesSource(
-                dialect, [[core.Literal(dialect, "async@example.com"), core.Literal(dialect, "Replaced Async")]]
+                dialect, [[core.Parameter(dialect, "async@example.com"), core.Parameter(dialect, "Replaced Async")]]
             ),
             columns=["email", "name"],
             replace=True,

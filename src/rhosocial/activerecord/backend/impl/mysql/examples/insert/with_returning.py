@@ -21,7 +21,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
     QueryStatement,
 )
-from rhosocial.activerecord.backend.expression.core import Literal, Column, FunctionCall
+from rhosocial.activerecord.backend.expression.core import Parameter, Column, FunctionCall
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnDefinition,
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "Alice"), Literal(dialect, "alice@example.com")],
+                [Parameter(dialect, "Alice"), Parameter(dialect, "alice@example.com")],
             ],
         ),
     )

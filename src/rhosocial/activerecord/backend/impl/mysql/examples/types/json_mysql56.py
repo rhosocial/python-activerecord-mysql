@@ -34,7 +34,7 @@ if __name__ == "__main__":
         InsertStatement,
         ValuesSource,
     )
-    from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+    from rhosocial.activerecord.backend.expression.core import Parameter  # noqa: E402
     from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
         ColumnConstraint,
         ColumnDefinition,
@@ -80,8 +80,8 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, '{"name": "Alice", "age": 30}')],
-                [Literal(dialect, '{"name": "Bob", "age": 25}')],
+                [Parameter(dialect, '{"name": "Alice", "age": 30}')],
+                [Parameter(dialect, '{"name": "Bob", "age": 25}')],
             ],
         ),
     )

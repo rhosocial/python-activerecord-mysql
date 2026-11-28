@@ -184,8 +184,8 @@ class MySQLDDLColumnMixin:
             if isinstance(new_value, BaseExpression):
                 value_sql, value_params = new_value.to_sql()
                 if value_params:
-                    from rhosocial.activerecord.backend.expression.core import Literal
-                    if isinstance(new_value, Literal):
+                    from rhosocial.activerecord.backend.expression.core import Parameter
+                    if isinstance(new_value, Parameter):
                         return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value.value)}", ()
                 return f"ALTER COLUMN {col_name} SET DEFAULT {value_sql}", tuple(value_params)
             return f"ALTER COLUMN {col_name} SET DEFAULT {self.inline_sql_literal(new_value)}", ()

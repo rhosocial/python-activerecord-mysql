@@ -154,14 +154,14 @@ class TestExactSQL:
         assert params == ()
 
     def test_action_rendering_is_reused_unchanged(self):
-        from rhosocial.activerecord.backend.expression.core import Literal
+        from rhosocial.activerecord.backend.expression.core import Parameter
         from rhosocial.activerecord.backend.expression.statements.ddl_alter import (
             AlterColumnAction,
             ColumnAlterOperation,
         )
 
         d = _dialect()
-        action = AlterColumnAction(d, "c", ColumnAlterOperation.SET_DEFAULT, new_value=Literal(d, 7))
+        action = AlterColumnAction(d, "c", ColumnAlterOperation.SET_DEFAULT, new_value=Parameter(d, 7))
         sql, params = _statement(d, algorithm="INPLACE", action=action).to_sql()
         assert sql == "ALTER TABLE `t` ALGORITHM=INPLACE, ALTER COLUMN `c` SET DEFAULT 7"
         assert params == ()

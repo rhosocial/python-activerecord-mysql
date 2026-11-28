@@ -35,7 +35,7 @@ if __name__ == "__main__":
         ValuesSource,
         QueryStatement,
     )
-    from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+    from rhosocial.activerecord.backend.expression.core import Parameter, Column  # noqa: E402
     from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
     from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
         ColumnConstraint,
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "alice"), Literal(dialect, "alice@example.com"), Literal(dialect, 1)],
+                [Parameter(dialect, "alice"), Parameter(dialect, "alice@example.com"), Parameter(dialect, 1)],
             ],
         ),
     )
@@ -131,7 +131,7 @@ if __name__ == "__main__":
             Column(dialect, "login_count"),
         ],
         from_=Table(dialect, "users"),
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "username"), Literal(dialect, "alice")),
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "username"), Parameter(dialect, "alice")),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "alice"), Literal(dialect, "alice@example.com"), Literal(dialect, 1)],
+                [Parameter(dialect, "alice"), Parameter(dialect, "alice@example.com"), Parameter(dialect, 1)],
             ],
         ),
         on_conflict=OnConflictClause(
@@ -177,7 +177,7 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "charlie"), Literal(dialect, "charlie@example.com"), Literal(dialect, 1)],
+                [Parameter(dialect, "charlie"), Parameter(dialect, "charlie@example.com"), Parameter(dialect, 1)],
             ],
         ),
     )
@@ -192,7 +192,7 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "charlie"), Literal(dialect, "charlie@example.com"), Literal(dialect, 1)],
+                [Parameter(dialect, "charlie"), Parameter(dialect, "charlie@example.com"), Parameter(dialect, 1)],
             ],
         ),
         on_conflict=OnConflictClause(
@@ -219,8 +219,8 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "david"), Literal(dialect, "david@example.com"), Literal(dialect, 1)],
-                [Literal(dialect, "eve"), Literal(dialect, "eve@example.com"), Literal(dialect, 1)],
+                [Parameter(dialect, "david"), Parameter(dialect, "david@example.com"), Parameter(dialect, 1)],
+                [Parameter(dialect, "eve"), Parameter(dialect, "eve@example.com"), Parameter(dialect, 1)],
             ],
         ),
         on_conflict=OnConflictClause(

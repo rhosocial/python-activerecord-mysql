@@ -43,13 +43,13 @@ def json_extract(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
-    path_expr = core.Literal(dialect, path)
+    path_expr = core.Parameter(dialect, path)
     args = [doc_expr, path_expr]
     for p in paths:
-        args.append(core.Literal(dialect, p))
+        args.append(core.Parameter(dialect, p))
     return core.FunctionCall(dialect, "JSON_EXTRACT", *args)
 
 
@@ -73,7 +73,7 @@ def json_unquote(
     """
     val_expr = (
         json_val if isinstance(json_val, bases.BaseExpression)
-        else core.Literal(dialect, json_val) if isinstance(json_val, (int, float))
+        else core.Parameter(dialect, json_val) if isinstance(json_val, (int, float))
         else JSONColumn(dialect, json_val)
     )
     return core.FunctionCall(dialect, "JSON_UNQUOTE", val_expr)
@@ -105,7 +105,7 @@ def json_object(
         return core.FunctionCall(dialect, "JSON_OBJECT")
     args = []
     for _i, val in enumerate(key_value_pairs):
-        args.append(core.Literal(dialect, val))
+        args.append(core.Parameter(dialect, val))
     return core.FunctionCall(dialect, "JSON_OBJECT", *args)
 
 
@@ -133,7 +133,7 @@ def json_array(
     """
     if not values:
         return core.FunctionCall(dialect, "JSON_ARRAY")
-    args = [core.Literal(dialect, v) for v in values]
+    args = [core.Parameter(dialect, v) for v in values]
     return core.FunctionCall(dialect, "JSON_ARRAY", *args)
 
 
@@ -161,12 +161,12 @@ def json_contains(
     """
     target_expr = (
         target if isinstance(target, bases.BaseExpression)
-        else core.Literal(dialect, target) if isinstance(target, (int, float))
+        else core.Parameter(dialect, target) if isinstance(target, (int, float))
         else JSONColumn(dialect, target)
     )
-    candidate_expr = core.Literal(dialect, candidate)
+    candidate_expr = core.Parameter(dialect, candidate)
     if path is not None:
-        path_expr = core.Literal(dialect, path)
+        path_expr = core.Parameter(dialect, path)
         return core.FunctionCall(dialect, "JSON_CONTAINS", target_expr, candidate_expr, path_expr)
     return core.FunctionCall(dialect, "JSON_CONTAINS", target_expr, candidate_expr)
 
@@ -197,14 +197,14 @@ def json_set(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
-    args = [doc_expr, core.Literal(dialect, path), core.Literal(dialect, value)]
+    args = [doc_expr, core.Parameter(dialect, path), core.Parameter(dialect, value)]
     for i in range(0, len(path_value_pairs), 2):
         if i + 1 < len(path_value_pairs):
-            args.append(core.Literal(dialect, path_value_pairs[i]))
-            args.append(core.Literal(dialect, path_value_pairs[i + 1]))
+            args.append(core.Parameter(dialect, path_value_pairs[i]))
+            args.append(core.Parameter(dialect, path_value_pairs[i + 1]))
     return core.FunctionCall(dialect, "JSON_SET", *args)
 
 
@@ -232,12 +232,12 @@ def json_remove(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
-    args = [doc_expr, core.Literal(dialect, path)]
+    args = [doc_expr, core.Parameter(dialect, path)]
     for p in paths:
-        args.append(core.Literal(dialect, p))
+        args.append(core.Parameter(dialect, p))
     return core.FunctionCall(dialect, "JSON_REMOVE", *args)
 
 
@@ -261,7 +261,7 @@ def json_type(
     """
     val_expr = (
         json_val if isinstance(json_val, bases.BaseExpression)
-        else core.Literal(dialect, json_val) if isinstance(json_val, (int, float))
+        else core.Parameter(dialect, json_val) if isinstance(json_val, (int, float))
         else JSONColumn(dialect, json_val)
     )
     return core.FunctionCall(dialect, "JSON_TYPE", val_expr)
@@ -287,7 +287,7 @@ def json_valid(
     """
     val_expr = (
         json_val if isinstance(json_val, bases.BaseExpression)
-        else core.Literal(dialect, json_val) if isinstance(json_val, (int, float))
+        else core.Parameter(dialect, json_val) if isinstance(json_val, (int, float))
         else JSONColumn(dialect, json_val)
     )
     return core.FunctionCall(dialect, "JSON_VALID", val_expr)
@@ -319,21 +319,21 @@ def json_search(
     """
     doc_expr = (
         json_doc if isinstance(json_doc, bases.BaseExpression)
-        else core.Literal(dialect, json_doc) if isinstance(json_doc, (int, float))
+        else core.Parameter(dialect, json_doc) if isinstance(json_doc, (int, float))
         else JSONColumn(dialect, json_doc)
     )
     one_or_all = "all" if search_all else "one"
-    one_or_all_expr = core.Literal(dialect, one_or_all)
-    search_expr = core.Literal(dialect, search_str)
+    one_or_all_expr = core.Parameter(dialect, one_or_all)
+    search_expr = core.Parameter(dialect, search_str)
     if path is not None:
-        path_expr = core.Literal(dialect, path)
+        path_expr = core.Parameter(dialect, path)
         return core.FunctionCall(
             dialect,
             "JSON_SEARCH",
             doc_expr,
             one_or_all_expr,
             search_expr,
-            core.Literal(dialect, None),
+            core.Parameter(dialect, None),
             path_expr,
         )
     return core.FunctionCall(dialect, "JSON_SEARCH", doc_expr, one_or_all_expr, search_expr)

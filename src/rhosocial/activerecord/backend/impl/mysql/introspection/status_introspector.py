@@ -266,7 +266,7 @@ class MySQLStatusIntrospectorMixin:
             ArithmeticOperation,
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
             QueryStatement,
             SumFunction,
             WhereClause,
@@ -292,7 +292,7 @@ class MySQLStatusIntrospectorMixin:
                     dialect,
                     "eq",
                     Column(dialect, "TABLE_SCHEMA"),
-                    Literal(dialect, self._backend.config.database),
+                    Parameter(dialect, self._backend.config.database),
                 ),
             ),
         ).to_sql()
@@ -304,7 +304,7 @@ class MySQLStatusIntrospectorMixin:
             CountFunction,
             GroupByHavingClause,
             InPredicate,
-            Literal,
+            Parameter,
             QueryStatement,
             RowCountWildcard,
             WhereClause,
@@ -323,7 +323,7 @@ class MySQLStatusIntrospectorMixin:
             where=WhereClause(
                 dialect,
                 InPredicate(
-                    dialect, Column(dialect, "TABLE_SCHEMA"), Literal(dialect, tuple(db_names))
+                    dialect, Column(dialect, "TABLE_SCHEMA"), Parameter(dialect, tuple(db_names))
                 ),
             ),
             group_by_having=GroupByHavingClause(
@@ -353,7 +353,7 @@ class MySQLStatusIntrospectorMixin:
             Column,
             ComparisonPredicate,
             LimitOffsetClause,
-            Literal,
+            Parameter,
             QueryStatement,
             WhereClause,
         )
@@ -379,7 +379,7 @@ class MySQLStatusIntrospectorMixin:
                     dialect,
                     "eq",
                     Column(dialect, "SERVICE_STATE"),
-                    Literal(dialect, "ON", inline=True),
+                    Parameter(dialect, "ON", inline=True),
                 ),
             ),
         }

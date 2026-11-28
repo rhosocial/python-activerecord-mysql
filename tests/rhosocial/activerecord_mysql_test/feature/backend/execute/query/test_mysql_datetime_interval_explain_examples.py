@@ -7,7 +7,7 @@ import pytest_asyncio
 from rhosocial.activerecord.backend.expression import (
     Column,
     ComparisonPredicate,
-    Literal,
+    Parameter,
     LogicalPredicate,
     QueryStatement,
 )
@@ -94,8 +94,8 @@ def _range_filter(dialect, column_name: str, start: str, end: str):
     return LogicalPredicate(
         dialect,
         "AND",
-        ComparisonPredicate(dialect, ">=", Column(dialect, column_name), Literal(dialect, start)),
-        ComparisonPredicate(dialect, "<", Column(dialect, column_name), Literal(dialect, end)),
+        ComparisonPredicate(dialect, ">=", Column(dialect, column_name), Parameter(dialect, start)),
+        ComparisonPredicate(dialect, "<", Column(dialect, column_name), Parameter(dialect, end)),
     )
 
 
@@ -103,7 +103,7 @@ def _category_created_filter(dialect):
     return LogicalPredicate(
         dialect,
         "AND",
-        ComparisonPredicate(dialect, "=", Column(dialect, "category"), Literal(dialect, "deploy")),
+        ComparisonPredicate(dialect, "=", Column(dialect, "category"), Parameter(dialect, "deploy")),
         _range_filter(
             dialect,
             "created_at",

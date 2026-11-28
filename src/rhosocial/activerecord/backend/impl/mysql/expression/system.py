@@ -15,7 +15,7 @@ here executes anything.
 from typing import TYPE_CHECKING
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
-from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
+from rhosocial.activerecord.backend.expression.core import FunctionCall, Parameter
 from rhosocial.activerecord.backend.expression.statements.dql import QueryStatement
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -40,7 +40,7 @@ def ping_query(dialect: "SQLDialectBase") -> BaseExpression:
     that needs the driver to bind something tests the driver as well as the
     connection.
     """
-    return QueryStatement(dialect, select=[Literal(dialect, 1, inline=True)])
+    return QueryStatement(dialect, select=[Parameter(dialect, 1, inline=True)])
 
 
 def current_user_query(dialect: "SQLDialectBase") -> BaseExpression:

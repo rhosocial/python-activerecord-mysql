@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING, Any, List, Tuple
 
 from rhosocial.activerecord.backend.expression.bases import BaseExpression
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Parameter
 from rhosocial.activerecord.backend.expression.objects import Table
 
 from .object_kind import require_kind
@@ -117,7 +117,7 @@ class MySQLDMLOperationMixin:
                     val_sql, val_params = val.to_sql()
                     all_params.extend(val_params)
                 else:
-                    val_sql, val_params = Literal(self, val).to_sql()
+                    val_sql, val_params = Parameter(self, val).to_sql()
                     all_params.extend(val_params)
                 set_parts.append(f"{col_sql} = {val_sql}")
             parts.append("SET " + ", ".join(set_parts))
@@ -136,7 +136,7 @@ class MySQLDMLOperationMixin:
                 if isinstance(value_expr, BaseExpression):
                     val_sql, val_params = value_expr.to_sql()
                 else:
-                    val_sql, val_params = Literal(self, value_expr).to_sql()
+                    val_sql, val_params = Parameter(self, value_expr).to_sql()
                 all_params.extend(val_params)
                 update_parts.append(f"{col_sql} = {val_sql}")
 

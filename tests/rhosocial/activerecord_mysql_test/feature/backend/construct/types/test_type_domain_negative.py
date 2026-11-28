@@ -23,7 +23,7 @@ from rhosocial.activerecord.backend.dialect.protocols import (
     TypeObjectSupport,
 )
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.expression import BaseExpression, Literal
+from rhosocial.activerecord.backend.expression import BaseExpression, Parameter
 from rhosocial.activerecord.backend.expression.statements import (
     AlterDomainStatement,
     AlterTypeStatement,
@@ -122,7 +122,7 @@ def _domain_nodes(dialect: MySQLDialect) -> Tuple[BaseExpression, ...]:
     # A CHECK expression accepts no bind parameter either, so every literal
     # in the tree says ``inline=True`` itself; a binding literal here would
     # be refused at render time rather than silently inlined.
-    condition = DomainValueExpression(dialect) > Literal(dialect, 0, inline=True)
+    condition = DomainValueExpression(dialect) > Parameter(dialect, 0, inline=True)
     check = DomainCheckConstraint(dialect, condition)
     return (
         CreateDomainStatement(dialect, Domain(dialect, "positive"), IntegerType(dialect)),

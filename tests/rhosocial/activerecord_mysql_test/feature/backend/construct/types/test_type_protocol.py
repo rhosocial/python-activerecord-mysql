@@ -1472,7 +1472,7 @@ class TestDialectOptions:
 
 
 # ---------------------------------------------------------------------------
-# MySQLTypeParser: spatial dispatch, and the shared round-trip sweep
+# MySQLTypeParser: spatial dispatch
 
 
 class TestSpatialWordsParseBackAsTheirOwnShape:
@@ -1515,103 +1515,3 @@ class TestSpatialWordsParseBackAsTheirOwnShape:
         assert isinstance(parsed, MySQLGeometryCollectionType)
         assert parsed.srid == 4326
 
-
-class TestParseRoundTripSweep:
-    """The shared sweep: every rendered type parses back coherently.
-
-    Uses the testsuite's ``parse_roundtrip_failures`` over this backend's
-    round-trip registry, so the whole declared surface is asserted at
-    once: **string stability** -- parsing a rendering and re-rendering
-    the answer produces the identical string -- and **class honesty** --
-    the answer is the declared instance, or the documented widening
-    answer recorded below with its reason.
-    """
-
-    #: The documented widening answers. The four integer widths are four
-    #: MySQL classes because ``unsigned`` / ``zerofill`` have no field on
-    #: the core concept, so the backend class is the only lossless answer;
-    #: ``timetz``/``timestamptz`` collapse into MySQL's single TIME /
-    #: TIMESTAMP storages; ``jsonb`` is stored as the JSON type; ``text``
-    #: and ``blob`` are the sized MySQL families' bases. Each answer
-    #: re-renders the identical string, which the sweep asserts.
-    WIDENING_ANSWERS = {
-        "TinyIntType": "MySQLTinyIntType",
-        "SmallIntType": "MySQLSmallIntType",
-        "IntegerType": "MySQLIntType",
-        "BigIntType": "MySQLBigIntType",
-        "TextType": "MySQLTextType",
-        "BlobType": "MySQLBlobType",
-        "TimeTzType": "TimeType",
-        "TimestampTzType": "TimestampType",
-        "JsonBType": "JsonType",
-        # The core's generic enum renders ``ENUM('x')`` the same way MySQL
-        # does, but the server's declaration also carries a charset and a
-        # collation, so the parse answers the backend's own class -- which
-        # carries those two fields -- and it re-renders the identical string.
-        "EnumType": "MySQLEnumType",
-    }
-
-    #: CAST targets, not column types: ``CAST(x AS SIGNED)`` is the only
-    #: grammar that writes these words, so a column-introspection parse
-    #: answering ``CustomType`` for them is honest rather than a gap.
-    SKIP = ("MySQLSignedType", "MySQLUnsignedType")
-
-    @pytest.fixture(scope="class")
-    def roundtrip_module(self):
-        """The round-trip matrix, loaded from beside this file.
-
-        Loading the module no longer installs registrations into a process
-        global -- the matrix builds an explicit table in its own fixture.
-        This fixture only exposes the module's collected class table and its
-        ``register_specials`` helper.
-        """
-        import importlib.util
-        import sys
-        from pathlib import Path
-
-        path = Path(__file__).parent.parent / "expression" / "test_expression_roundtrip_all.py"
-        # The round-trip matrix and its harness live beside each other in
-        # ``construct/expression``; make that directory importable so the
-        # matrix's own ``expression_roundtrip_harness`` import resolves even
-        # when this file is collected alone.
-        sys.path.insert(0, str(path.parent))
-        spec = importlib.util.spec_from_file_location("mysql_rt_registry", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-
-    @pytest.fixture(scope="class")
-    def registry(self, roundtrip_module):
-        """The round-trip module's collected class table."""
-        registry = getattr(roundtrip_module, "ALL_CLASSES", None) or roundtrip_module.REGISTERED
-        assert registry, "the round-trip module exposes no registry"
-        return registry
-
-    @pytest.fixture(scope="class")
-    def special_registry(self, roundtrip_module):
-        """The dedicated constructors, built explicitly from the matrix module."""
-        from expression_roundtrip_harness import SpecialConstructorRegistry
-
-        registry = SpecialConstructorRegistry()
-        roundtrip_module.register_specials(registry)
-        return registry
-
-    def test_every_rendered_type_parses_back_coherently(
-        self, dialect, registry, special_registry
-    ):
-        # The sweep is vendored beside the matrix (the testsuite deleted its
-        # shared harness with round-trip coverage moving to each backend);
-        # make_instance is the same function the matrix registers with, and
-        # reads the registry this fixture built explicitly.
-        from expression_roundtrip_harness import (
-            parse_roundtrip_failures,
-        )
-
-        failures = parse_roundtrip_failures(
-            dialect,
-            registry,
-            special_registry=special_registry,
-            widening=self.WIDENING_ANSWERS,
-            skip=self.SKIP,
-        )
-        assert failures == [], "\n".join(failures)

@@ -204,7 +204,7 @@ class TestNiladicDDLContext:
 
     def test_ddl_default_current_timestamp_with_precision(self, mysql_backend):
         """DEFAULT CURRENT_TIMESTAMP(6) (with precision) works in MySQL DDL."""
-        from rhosocial.activerecord.backend.expression.core import Literal
+        from rhosocial.activerecord.backend.expression.core import Parameter
 
         dialect = mysql_backend.dialect
         table_name = "test_niladic_ddl_3"
@@ -234,7 +234,7 @@ class TestNiladicDDLContext:
                         # node's factory takes the expression as-is, and only a
                         # bind-inlined tree survives format_default_value_clause.
                         ColumnConstraint(dialect, branch=ColumnDefaultConstraint(
-                            dialect, current_timestamp(dialect, Literal(dialect, 6, inline=True)))),
+                            dialect, current_timestamp(dialect, Parameter(dialect, 6, inline=True)))),
                     ],
                 ),
             ],

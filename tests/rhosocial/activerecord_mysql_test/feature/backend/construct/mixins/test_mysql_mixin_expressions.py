@@ -556,7 +556,7 @@ class TestMySQLTableDDLExpressions:
 
     def test_column_default_expression(self):
         dialect = MySQLDialect(version=(8, 0, 0))
-        from rhosocial.activerecord.backend.expression.core import Literal
+        from rhosocial.activerecord.backend.expression.core import Parameter
         columns = [
             ColumnDefinition(
                 dialect,
@@ -565,7 +565,7 @@ class TestMySQLTableDDLExpressions:
                 constraints=[
                     ColumnConstraint(
                         dialect,
-                        branch=ColumnDefaultConstraint(dialect, Literal(dialect, "NOW()"))
+                        branch=ColumnDefaultConstraint(dialect, Parameter(dialect, "NOW()"))
                     )
                 ],
             ),

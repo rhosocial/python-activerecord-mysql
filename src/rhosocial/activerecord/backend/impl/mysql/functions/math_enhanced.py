@@ -8,13 +8,13 @@ Includes: round, pow, power, sqrt, mod, ceil, floor, truncate, max, min, avg
 Functions: round_, pow, power, sqrt, mod, ceil, floor, trunc, max_, min_, avg
 
 Every value argument is an expression: a ``Column`` -- or the ``NumericColumn``
-that says the argument is a number -- to read a column, and a ``Literal`` to
+that says the argument is a number -- to read a column, and a ``Parameter`` to
 write a value.  Those arguments used to be accepted as bare strings and numbers,
 and the factory decided at run time which was which -- including parsing a
 numeric-looking string into the number it spelled, so ``sqrt(dialect, "16")``
 computed sqrt(16)=4.0 instead of reading a column called ``16``.  A string is a
 column name here, as it is everywhere else in this backend; a value is a
-``Literal``, which also reaches the server as a bound parameter rather than as
+``Parameter``, which also reaches the server as a bound parameter rather than as
 quoted SQL text.
 """
 
@@ -39,7 +39,7 @@ if TYPE_CHECKING:  # pragma: no cover
 def _expression_arg(arg: Any, factory: str) -> "bases.BaseExpression":
     """Refuse a bare value where an expression is required.
 
-    A string is a column name in this backend and a value is a ``Literal``,
+    A string is a column name in this backend and a value is a ``Parameter``,
     so the factories take expressions -- and a bare argument used to fail at
     render time with an ``AttributeError`` nobody could attribute to the
     call. The classed nodes lift bare numbers on their own, but accepting
@@ -52,7 +52,7 @@ def _expression_arg(arg: Any, factory: str) -> "bases.BaseExpression":
         raise TypeError(
             f"{factory} takes an expression -- a Column (or the "
             f"NumericColumn that says the argument is a number) to read a "
-            f"column, a Literal to write a value -- not {type(arg).__name__}"
+            f"column, a Parameter to write a value -- not {type(arg).__name__}"
         )
     return arg
 
@@ -82,7 +82,7 @@ def round_(
 
     Version: All MySQL versions
     """
-    args = [_expression_arg(expr, "round_"), core.Literal(dialect, precision)]
+    args = [_expression_arg(expr, "round_"), core.Parameter(dialect, precision)]
     return RoundFunction.for_operand(dialect, type(expr), *args)
 
 
@@ -97,8 +97,8 @@ def pow(
     Returns the value of base raised to the power of exponent.
 
     Usage:
-        - pow(dialect, Literal(dialect, 2), Literal(dialect, 3)) -> POWER(?, ?)
-        - pow(dialect, NumericColumn(dialect, "x"), Literal(dialect, 2)) -> POWER(`x`, ?)
+        - pow(dialect, Parameter(dialect, 2), Parameter(dialect, 3)) -> POWER(?, ?)
+        - pow(dialect, NumericColumn(dialect, "x"), Parameter(dialect, 2)) -> POWER(`x`, ?)
 
     Args:
         dialect: The SQL dialect instance
@@ -131,7 +131,7 @@ def power(
     Returns the value of base raised to the power of exponent.
 
     Usage:
-        - power(dialect, Literal(dialect, 2), Literal(dialect, 3)) -> POWER(?, ?)
+        - power(dialect, Parameter(dialect, 2), Parameter(dialect, 3)) -> POWER(?, ?)
         - power(dialect, NumericColumn(dialect, "x"), NumericColumn(dialect, "y"))
           -> POWER(`x`, `y`)
 
@@ -162,7 +162,7 @@ def sqrt(
     Returns the square root of the argument.
 
     Usage:
-        - sqrt(dialect, Literal(dialect, 16)) -> SQRT(?)
+        - sqrt(dialect, Parameter(dialect, 16)) -> SQRT(?)
         - sqrt(dialect, NumericColumn(dialect, "value")) -> SQRT(`value`)
 
     Args:
@@ -188,8 +188,8 @@ def mod(
     Returns the remainder of dividend divided by divisor.
 
     Usage:
-        - mod(dialect, Literal(dialect, 10), Literal(dialect, 3)) -> MOD(?, ?)
-        - mod(dialect, NumericColumn(dialect, "total"), Literal(dialect, 10))
+        - mod(dialect, Parameter(dialect, 10), Parameter(dialect, 3)) -> MOD(?, ?)
+        - mod(dialect, NumericColumn(dialect, "total"), Parameter(dialect, 10))
           -> MOD(`total`, ?)
 
     Args:
@@ -219,7 +219,7 @@ def ceil(
     Returns the smallest integer value not less than the argument.
 
     Usage:
-        - ceil(dialect, Literal(dialect, 3.14)) -> CEIL(?)
+        - ceil(dialect, Parameter(dialect, 3.14)) -> CEIL(?)
         - ceil(dialect, NumericColumn(dialect, "price")) -> CEIL(`price`)
 
     Args:
@@ -247,7 +247,7 @@ def floor(
     Returns the largest integer value not greater than the argument.
 
     Usage:
-        - floor(dialect, Literal(dialect, 3.14)) -> FLOOR(?)
+        - floor(dialect, Parameter(dialect, 3.14)) -> FLOOR(?)
         - floor(dialect, NumericColumn(dialect, "price")) -> FLOOR(`price`)
 
     Args:
@@ -276,8 +276,8 @@ def trunc(
     Returns the value truncated to the specified number of decimal places.
 
     Usage:
-        - trunc(dialect, Literal(dialect, 3.14)) -> TRUNCATE(?, ?)
-        - trunc(dialect, Literal(dialect, 3.14), 2) -> TRUNCATE(?, ?)
+        - trunc(dialect, Parameter(dialect, 3.14)) -> TRUNCATE(?, ?)
+        - trunc(dialect, Parameter(dialect, 3.14), 2) -> TRUNCATE(?, ?)
         - trunc(dialect, NumericColumn(dialect, "price"), 2) -> TRUNCATE(`price`, ?)
 
     Note:
@@ -295,7 +295,7 @@ def trunc(
 
     Version: All MySQL versions
     """
-    args = [_expression_arg(expr, "trunc"), core.Literal(dialect, precision)]
+    args = [_expression_arg(expr, "trunc"), core.Parameter(dialect, precision)]
     return TruncateFunction.for_operand(dialect, type(expr), *args)
 
 
@@ -309,7 +309,7 @@ def max_(
     Returns the maximum value from the arguments.
 
     Usage:
-        - max_(dialect, Literal(dialect, 1), Literal(dialect, 5)) -> GREATEST(1, 5)
+        - max_(dialect, Parameter(dialect, 1), Parameter(dialect, 5)) -> GREATEST(1, 5)
         - max_(dialect, NumericColumn(dialect, "a"), NumericColumn(dialect, "b"))
           -> GREATEST(`a`, `b`)
 
@@ -345,7 +345,7 @@ def min_(
     Returns the minimum value from the arguments.
 
     Usage:
-        - min_(dialect, Literal(dialect, 1), Literal(dialect, 5)) -> LEAST(1, 5)
+        - min_(dialect, Parameter(dialect, 1), Parameter(dialect, 5)) -> LEAST(1, 5)
         - min_(dialect, NumericColumn(dialect, "a"), NumericColumn(dialect, "b"))
           -> LEAST(`a`, `b`)
 

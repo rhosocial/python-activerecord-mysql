@@ -1,4 +1,4 @@
-# src/rhosocial/activerecord/backend/impl/mysql/column_types.py
+# src/rhosocial/activerecord/backend/impl/mysql/expression/column_types.py
 """MySQL's own column classes.
 
 Core's ``GeometryColumn`` promises only the surface every backend can execute.
@@ -37,28 +37,28 @@ class MySQLGeometryColumn(GeometryColumn):
     def st_distance(self, other) -> "BaseExpression":
         """``ST_DISTANCE(col, other)``."""
         _require(self._dialect, "supports_geometry_type")
-        from .functions.spatial import st_distance
+        from ..functions.spatial import st_distance
 
         return st_distance(self._dialect, self, other)
 
     def st_contains(self, other) -> "BaseExpression":
         """``ST_CONTAINS(col, other)``."""
         _require(self._dialect, "supports_geometry_type")
-        from .functions.spatial import st_contains
+        from ..functions.spatial import st_contains
 
         return st_contains(self._dialect, self, other)
 
     def st_within(self, other) -> "BaseExpression":
         """``ST_WITHIN(col, other)``."""
         _require(self._dialect, "supports_geometry_type")
-        from .functions.spatial import st_within
+        from ..functions.spatial import st_within
 
         return st_within(self._dialect, self, other)
 
     def st_intersects(self, other) -> "BaseExpression":
         """``ST_INTERSECTS(col, other)``."""
         _require(self._dialect, "supports_geometry_type")
-        from .functions.spatial import st_intersects
+        from ..functions.spatial import st_intersects
 
         return st_intersects(self._dialect, self, other)
 

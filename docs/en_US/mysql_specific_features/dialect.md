@@ -220,7 +220,7 @@ MySQL supports querying runtime functions without a data source, such as `SELECT
 
 ```python
 from rhosocial.activerecord.backend.expression import QueryStatement
-from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
+from rhosocial.activerecord.backend.expression.core import FunctionCall, Parameter
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now, current_date, current_time,
 )
@@ -267,7 +267,7 @@ query = QueryStatement(
     select=[
         FunctionCall(dialect, 'DATE_FORMAT',
                      now(dialect),
-                     Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
+                     Parameter(dialect, '%Y-%m-%d')).as_('formatted_date'),
     ],
 )
 # Generates: SELECT DATE_FORMAT(NOW(), %s) AS `formatted_date`

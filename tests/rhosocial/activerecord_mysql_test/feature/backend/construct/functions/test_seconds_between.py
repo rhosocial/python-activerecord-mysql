@@ -11,7 +11,7 @@ import pytest
 
 from rhosocial.activerecord.backend.expression import (
     Column,
-    Literal,
+    Parameter,
     QueryStatement,
     seconds_between,
 )
@@ -38,8 +38,8 @@ class TestSecondsBetween:
         """``start`` is written first, so its parameter binds first."""
         expr = seconds_between(
             mysql_dialect,
-            Literal(mysql_dialect, "2026-06-04 10:00:00"),
-            Literal(mysql_dialect, "2026-06-04 11:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 10:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 11:00:00"),
         )
 
         sql, params = expr.to_sql()
@@ -74,13 +74,13 @@ class TestSecondsBetween:
         """
         forward = seconds_between(
             mysql_dialect,
-            Literal(mysql_dialect, "2026-06-04 10:00:00"),
-            Literal(mysql_dialect, "2026-06-04 11:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 10:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 11:00:00"),
         )
         backward = seconds_between(
             mysql_dialect,
-            Literal(mysql_dialect, "2026-06-04 11:00:00"),
-            Literal(mysql_dialect, "2026-06-04 10:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 11:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 10:00:00"),
         )
 
         assert forward.to_sql()[1] == ("2026-06-04 10:00:00", "2026-06-04 11:00:00")

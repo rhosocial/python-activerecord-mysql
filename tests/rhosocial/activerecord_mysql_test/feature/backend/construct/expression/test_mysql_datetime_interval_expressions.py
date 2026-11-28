@@ -4,7 +4,7 @@
 import pytest
 
 from rhosocial.activerecord.backend.dialect.exceptions import UnsupportedFeatureError
-from rhosocial.activerecord.backend.expression import Column, Literal, QueryStatement
+from rhosocial.activerecord.backend.expression import Column, Parameter, QueryStatement
 from rhosocial.activerecord.backend.expression.functions import (
     date_add,
     date_diff,
@@ -95,7 +95,7 @@ class TestDateTimeIntervalExpressions:
     def test_date_add_literal_source_params_order(self, mysql_dialect: MySQLDialect):
         expr = date_add(
             mysql_dialect,
-            Literal(mysql_dialect, "2026-06-04 10:00:00"),
+            Parameter(mysql_dialect, "2026-06-04 10:00:00"),
             30,
             "minute",
         )
@@ -145,7 +145,7 @@ class TestDateTimeIntervalExpressions:
             mysql_dialect,
             select=[extract(mysql_dialect, "year", Column(mysql_dialect, "created_at"))],
             from_="events",
-            where=shifted > Literal(mysql_dialect, "2026-01-01"),
+            where=shifted > Parameter(mysql_dialect, "2026-01-01"),
         )
 
         sql, params = query.to_sql()

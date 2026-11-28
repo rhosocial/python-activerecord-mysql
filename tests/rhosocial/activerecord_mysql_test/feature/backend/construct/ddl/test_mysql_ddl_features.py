@@ -539,7 +539,7 @@ class TestMySQLTableConstraints:
 
     def test_check_constraint(self):
         """Test CHECK table constraint."""
-        from rhosocial.activerecord.backend.expression import Column, Literal
+        from rhosocial.activerecord.backend.expression import Column, Parameter
         from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
         dialect = MySQLDialect((8, 0, 16))
         columns = [
@@ -548,7 +548,7 @@ class TestMySQLTableConstraints:
         ]
         check = TableConstraint(
     dialect,
-    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, ">=", Column(dialect, "age"), Literal(dialect, 0, inline=True) ))
+    branch=TableCheckConstraint(dialect, ComparisonPredicate( dialect, ">=", Column(dialect, "age"), Parameter(dialect, 0, inline=True) ))
 )
         expr = CreateTableStatement(
             dialect=dialect, table=Table(dialect, "users"), columns=columns, table_constraints=[check],

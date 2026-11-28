@@ -1677,15 +1677,15 @@ class MySQLJsonDualityViewSupport(Protocol):
         """Format DROP VIEW statement for a JSON Duality View."""
         ...
 
-    def render_mysql_duality_object_select_expression(self, expr: Any) -> str:
+    def format_mysql_duality_object_select_expression(self, expr: Any) -> str:
         """Format SELECT JSON_DUALITY_OBJECT(...) FROM table clause."""
         ...
 
-    def render_mysql_duality_object_body_expression(self, expr: Any) -> str:
+    def format_mysql_duality_object_body_expression(self, expr: Any) -> str:
         """Format JSON_DUALITY_OBJECT(...) body."""
         ...
 
-    def render_mysql_nested_duality_expression(self, expr: Any) -> str:
+    def format_mysql_nested_duality_expression(self, expr: Any) -> str:
         """Format nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery."""
         ...
 

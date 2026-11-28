@@ -35,7 +35,7 @@ if __name__ == "__main__":
         UpdateStatement,
         QueryStatement,
     )
-    from rhosocial.activerecord.backend.expression.core import Literal, Column  # noqa: E402
+    from rhosocial.activerecord.backend.expression.core import Parameter, Column  # noqa: E402
     from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate  # noqa: E402
     from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
         ColumnConstraint,
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         source=ValuesSource(
             dialect,
             [
-                [Literal(dialect, "Alice"), Literal(dialect, 100)],
+                [Parameter(dialect, "Alice"), Parameter(dialect, 100)],
             ],
         ),
     )
@@ -113,8 +113,8 @@ if __name__ == "__main__":
         update_expr = UpdateStatement(
             dialect=dialect,
             table=Table(dialect, "accounts"),
-            assignments={"balance": Literal(dialect, 50)},
-            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+            assignments={"balance": Parameter(dialect, 50)},
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Parameter(dialect, "Alice")),
         )
         sql, params = update_expr.to_sql()
         backend.execute(sql, params, options=dml_options)
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         dialect=dialect,
         select=[Column(dialect, "balance")],
         from_=Table(dialect, "accounts"),
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Parameter(dialect, "Alice")),
     )
     sql, params = query.to_sql()
     result = backend.execute(sql, params, options=dql_options)
@@ -141,8 +141,8 @@ if __name__ == "__main__":
             update_expr = UpdateStatement(
                 dialect=dialect,
                 table=Table(dialect, "accounts"),
-                assignments={"balance": Literal(dialect, -100)},
-                where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+                assignments={"balance": Parameter(dialect, -100)},
+                where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Parameter(dialect, "Alice")),
             )
             sql, params = update_expr.to_sql()
             backend.execute(sql, params, options=dml_options)
@@ -159,8 +159,8 @@ if __name__ == "__main__":
         update_expr = UpdateStatement(
             dialect=dialect,
             table=Table(dialect, "accounts"),
-            assignments={"balance": Literal(dialect, 40)},
-            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+            assignments={"balance": Parameter(dialect, 40)},
+            where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Parameter(dialect, "Alice")),
         )
         sql, params = update_expr.to_sql()
         backend.execute(sql, params, options=dml_options)
@@ -170,8 +170,8 @@ if __name__ == "__main__":
             update_expr2 = UpdateStatement(
                 dialect=dialect,
                 table=Table(dialect, "accounts"),
-                assignments={"balance": Literal(dialect, 20)},
-                where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Literal(dialect, "Alice")),
+                assignments={"balance": Parameter(dialect, 20)},
+                where=ComparisonPredicate(dialect, "=", Column(dialect, "name"), Parameter(dialect, "Alice")),
             )
             sql, params = update_expr2.to_sql()
             backend.execute(sql, params, options=dml_options)

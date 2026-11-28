@@ -31,7 +31,7 @@ class MySQLJsonDualityViewMixin:
         parts.append(f"`{expr.view_name}`")
         parts.append("AS")
 
-        select_clause = self.render_mysql_duality_object_select_expression(expr.root_spec)
+        select_clause = self.format_mysql_duality_object_select_expression(expr.root_spec)
         parts.append(select_clause)
 
         return " ".join(parts), ()
@@ -42,15 +42,15 @@ class MySQLJsonDualityViewMixin:
             return f"DROP VIEW IF EXISTS `{expr.view_name}`", ()
         return f"DROP VIEW `{expr.view_name}`", ()
 
-    def render_mysql_duality_object_select_expression(self, expr: "DualityObjectSpec") -> str:
+    def format_mysql_duality_object_select_expression(self, expr: "DualityObjectSpec") -> str:
         """Format the SELECT JSON_DUALITY_OBJECT(...) FROM table clause."""
-        obj_body = self.render_mysql_duality_object_body_expression(expr)
+        obj_body = self.format_mysql_duality_object_body_expression(expr)
         table_ref = f"`{expr.from_table}`"
         if expr.from_alias:
             table_ref += f" `{expr.from_alias}`"
         return f"SELECT {obj_body} FROM {table_ref}"
 
-    def render_mysql_duality_object_body_expression(self, expr: "DualityObjectSpec") -> str:
+    def format_mysql_duality_object_body_expression(self, expr: "DualityObjectSpec") -> str:
         """Format JSON_DUALITY_OBJECT( WITH(...) 'key': col, ... )."""
         inner_parts = []
 
@@ -62,7 +62,7 @@ class MySQLJsonDualityViewMixin:
             inner_parts.append(f"'{col.json_key}': {col.column_expr}")
 
         for nested in expr.nested:
-            nested_subquery = self.render_mysql_nested_duality_expression(nested)
+            nested_subquery = self.format_mysql_nested_duality_expression(nested)
             inner_parts.append(f"'{nested.json_key}': ({nested_subquery})")
 
         if expr.tags:
@@ -74,10 +74,10 @@ class MySQLJsonDualityViewMixin:
             fields_str = ", ".join(inner_parts)
             return f"JSON_DUALITY_OBJECT({fields_str})"
 
-    def render_mysql_nested_duality_expression(self, expr: "DualityNestedMapping") -> str:
+    def format_mysql_nested_duality_expression(self, expr: "DualityNestedMapping") -> str:
         """Format a nested JSON_ARRAYAGG(JSON_DUALITY_OBJECT(...)) subquery."""
         sub_spec = expr.subquery
-        obj_body = self.render_mysql_duality_object_body_expression(sub_spec)
+        obj_body = self.format_mysql_duality_object_body_expression(sub_spec)
         table_ref = f"`{sub_spec.from_table}`"
         if sub_spec.from_alias:
             table_ref += f" `{sub_spec.from_alias}`"

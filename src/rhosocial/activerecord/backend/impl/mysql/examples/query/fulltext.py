@@ -29,7 +29,7 @@ if __name__ == "__main__":
         ValuesSource,
         DropTableStatement,
     )
-    from rhosocial.activerecord.backend.expression.core import Literal  # noqa: E402
+    from rhosocial.activerecord.backend.expression.core import Parameter  # noqa: E402
     from rhosocial.activerecord.backend.expression.statements import (  # noqa: E402
         ColumnConstraint,
         ColumnDefinition,
@@ -69,16 +69,16 @@ if __name__ == "__main__":
             dialect,
             [
                 [
-                    Literal(dialect, "MySQL Tutorial"),
-                    Literal(dialect, "This tutorial covers MySQL database basics and advanced features."),
+                    Parameter(dialect, "MySQL Tutorial"),
+                    Parameter(dialect, "This tutorial covers MySQL database basics and advanced features."),
                 ],
                 [
-                    Literal(dialect, "PostgreSQL Guide"),
-                    Literal(dialect, "Learn PostgreSQL from beginner to advanced level."),
+                    Parameter(dialect, "PostgreSQL Guide"),
+                    Parameter(dialect, "Learn PostgreSQL from beginner to advanced level."),
                 ],
                 [
-                    Literal(dialect, "Database Design"),
-                    Literal(dialect, "Best practices for designing relational databases including MySQL and PostgreSQL."),
+                    Parameter(dialect, "Database Design"),
+                    Parameter(dialect, "Best practices for designing relational databases including MySQL and PostgreSQL."),
                 ],
             ],
         ),

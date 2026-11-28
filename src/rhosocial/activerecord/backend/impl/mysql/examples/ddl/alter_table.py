@@ -22,7 +22,7 @@ from rhosocial.activerecord.backend.expression import (
     ValuesSource,
     DropTableStatement,
 )
-from rhosocial.activerecord.backend.expression.core import Literal
+from rhosocial.activerecord.backend.expression.core import Parameter
 from rhosocial.activerecord.backend.expression.statements import (
     ColumnConstraint,
     ColumnDefaultConstraint,
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         columns=["name"],
         source=ValuesSource(
             dialect,
-            [[Literal(dialect, "Alice")]],
+            [[Parameter(dialect, "Alice")]],
         ),
     )
     sql, params = insert.to_sql()
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         columns=["name"],
         source=ValuesSource(
             dialect,
-            [[Literal(dialect, "Alice")]],
+            [[Parameter(dialect, "Alice")]],
         ),
     )
     sql, params = insert.to_sql()
@@ -131,7 +131,7 @@ if __name__ == "__main__":
             constraints=[
                 ColumnConstraint(
                     None,
-                    branch=ColumnDefaultConstraint(None, Literal(dialect, 0))
+                    branch=ColumnDefaultConstraint(None, Parameter(dialect, 0))
                     ),
                     ],
                     ),

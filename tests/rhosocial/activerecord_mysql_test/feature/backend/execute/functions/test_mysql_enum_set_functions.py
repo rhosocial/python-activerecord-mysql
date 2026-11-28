@@ -6,7 +6,7 @@ Functions: find_in_set, elt, field
 
 `find_in_set`'s searched value and `elt`'s index and values are plain Python
 values and are always sent as bound parameters. Everything `field` takes is an
-expression: a `Column` to read a column, a `Literal` to write a value.
+expression: a `Column` to read a column, a `Parameter` to write a value.
 
 The two tests that end in `_on_server` exist because the old factory decided at
 run time whether a bare string was a column name or data, and both answers were
@@ -17,7 +17,7 @@ for a column called `a,b,c`.
 
 import pytest
 
-from rhosocial.activerecord.backend.expression import Column, Literal, core
+from rhosocial.activerecord.backend.expression import Column, Parameter, core
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
 from rhosocial.activerecord.backend.impl.mysql.functions.enum_set import (
     find_in_set,
@@ -37,9 +37,9 @@ class TestMySQLEnumSetFunctions:
         assert params == ("mysql",)
 
     def test_find_in_set_set_as_data(self, mysql_dialect: MySQLDialect):
-        """A SET written as data is a Literal, not a column named after it."""
+        """A SET written as data is a Parameter, not a column named after it."""
         sql, params = find_in_set(
-            mysql_dialect, "mysql", Literal(mysql_dialect, "a,b,c")
+            mysql_dialect, "mysql", Parameter(mysql_dialect, "a,b,c")
         ).to_sql()
         assert "FIND_IN_SET(" in sql
         assert "`a,b,c`" not in sql
@@ -73,9 +73,9 @@ class TestMySQLEnumSetFunctions:
         """field() over data is all bound parameters."""
         sql, params = field(
             mysql_dialect,
-            Literal(mysql_dialect, "b"),
-            Literal(mysql_dialect, "a"),
-            Literal(mysql_dialect, "b"),
+            Parameter(mysql_dialect, "b"),
+            Parameter(mysql_dialect, "a"),
+            Parameter(mysql_dialect, "b"),
         ).to_sql()
         assert sql.startswith("FIELD(")
         assert "`" not in sql
@@ -86,8 +86,8 @@ class TestMySQLEnumSetFunctions:
         sql, params = field(
             mysql_dialect,
             Column(mysql_dialect, "status"),
-            Literal(mysql_dialect, "new"),
-            Literal(mysql_dialect, "old"),
+            Parameter(mysql_dialect, "new"),
+            Parameter(mysql_dialect, "old"),
         ).to_sql()
         assert "FIELD(" in sql
         assert "`status`" in sql
@@ -105,7 +105,7 @@ class TestMySQLEnumSetFunctions:
 
     def test_field_single_argument(self, mysql_dialect: MySQLDialect):
         """field() passes whatever it is given straight to the function."""
-        sql, params = field(mysql_dialect, Literal(mysql_dialect, "b")).to_sql()
+        sql, params = field(mysql_dialect, Parameter(mysql_dialect, "b")).to_sql()
         assert sql == "FIELD(%s)"
         assert params == ("b",)
 
@@ -143,9 +143,9 @@ class TestMySQLEnumSetFunctionsOnServer:
         try:
             sql, params = field(
                 mysql_backend.dialect,
-                Literal(mysql_backend.dialect, "b"),
-                Literal(mysql_backend.dialect, "a"),
-                Literal(mysql_backend.dialect, "b"),
+                Parameter(mysql_backend.dialect, "b"),
+                Parameter(mysql_backend.dialect, "a"),
+                Parameter(mysql_backend.dialect, "b"),
             ).to_sql()
             result = mysql_backend.execute(f"SELECT {sql} AS pos FROM test_field_expr", params)
             assert result.data[0]["pos"] == 2
@@ -167,7 +167,7 @@ class TestMySQLEnumSetFunctionsOnServer:
             sql, params = find_in_set(
                 mysql_backend.dialect,
                 "c",
-                Literal(mysql_backend.dialect, "a,b,c"),
+                Parameter(mysql_backend.dialect, "a,b,c"),
             ).to_sql()
             result = mysql_backend.execute(
                 f"SELECT {sql} AS pos FROM test_fis_expr", params

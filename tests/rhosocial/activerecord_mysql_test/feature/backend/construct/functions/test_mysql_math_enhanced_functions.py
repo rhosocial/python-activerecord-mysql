@@ -4,7 +4,7 @@ Tests for MySQL-specific enhanced math functions.
 
 These include additional mathematical functions beyond the basic math module.
 
-Every value argument is an expression: a `Column` to read a column, a `Literal`
+Every value argument is an expression: a `Column` to read a column, a `Parameter`
 to write a value. The tests below spell both out, including for names that look
 like numbers -- `sqrt(dialect, "16")` used to parse "16" into the number
 sixteen, so a column named `16` could not be read at all.
@@ -12,7 +12,7 @@ sixteen, so a column named `16` could not be read at all.
 
 import pytest
 
-from rhosocial.activerecord.backend.expression import Column, Literal, NumericColumn
+from rhosocial.activerecord.backend.expression import Column, Parameter, NumericColumn
 from rhosocial.activerecord.backend.expression.functions.math import (
     CeilFunction,
     FloorFunction,
@@ -60,7 +60,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_round__with_literal(self, mysql_dialect: MySQLDialect):
         """Test round_() with literal value."""
-        result = round_(mysql_dialect, Literal(mysql_dialect, 3.14159), 2)
+        result = round_(mysql_dialect, Parameter(mysql_dialect, 3.14159), 2)
         sql, _ = result.to_sql()
         assert "ROUND(" in sql
         assert "`price`" not in sql
@@ -73,7 +73,7 @@ class TestMySQLMathEnhancedFunctions:
         the standard spelling.
         """
         result = pow(
-            mysql_dialect, Column(mysql_dialect, "base"), Literal(mysql_dialect, 2)
+            mysql_dialect, Column(mysql_dialect, "base"), Parameter(mysql_dialect, 2)
         )
         assert isinstance(result, PowerFunction)
         sql, _ = result.to_sql()
@@ -93,7 +93,7 @@ class TestMySQLMathEnhancedFunctions:
     def test_power(self, mysql_dialect: MySQLDialect):
         """Test power() function (alias for POW)."""
         result = power(
-            mysql_dialect, Literal(mysql_dialect, 2), Literal(mysql_dialect, 3)
+            mysql_dialect, Parameter(mysql_dialect, 2), Parameter(mysql_dialect, 3)
         )
         assert isinstance(result, PowerFunction)
         sql, _ = result.to_sql()
@@ -109,14 +109,14 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_sqrt_with_literal(self, mysql_dialect: MySQLDialect):
         """Test sqrt() with literal value."""
-        result = sqrt(mysql_dialect, Literal(mysql_dialect, 16))
+        result = sqrt(mysql_dialect, Parameter(mysql_dialect, 16))
         sql, _ = result.to_sql()
         assert "SQRT(" in sql
 
     def test_mod(self, mysql_dialect: MySQLDialect):
         """Test mod() function."""
         result = mod(
-            mysql_dialect, Column(mysql_dialect, "total"), Literal(mysql_dialect, 10)
+            mysql_dialect, Column(mysql_dialect, "total"), Parameter(mysql_dialect, 10)
         )
         assert isinstance(result, ModuloFunction)
         sql, _ = result.to_sql()
@@ -142,7 +142,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_ceil_with_literal(self, mysql_dialect: MySQLDialect):
         """Test ceil() with literal value."""
-        result = ceil(mysql_dialect, Literal(mysql_dialect, 3.14))
+        result = ceil(mysql_dialect, Parameter(mysql_dialect, 3.14))
         sql, _ = result.to_sql()
         assert "CEIL(" in sql
 
@@ -156,7 +156,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_floor_with_literal(self, mysql_dialect: MySQLDialect):
         """Test floor() with literal value."""
-        result = floor(mysql_dialect, Literal(mysql_dialect, 3.14))
+        result = floor(mysql_dialect, Parameter(mysql_dialect, 3.14))
         sql, _ = result.to_sql()
         assert "FLOOR(" in sql
 
@@ -170,13 +170,13 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_trunc_with_literal(self, mysql_dialect: MySQLDialect):
         """Test trunc() with literal value."""
-        result = trunc(mysql_dialect, Literal(mysql_dialect, 3.14))
+        result = trunc(mysql_dialect, Parameter(mysql_dialect, 3.14))
         sql, _ = result.to_sql()
         assert "TRUNCATE(" in sql
 
     def test_trunc_with_precision(self, mysql_dialect: MySQLDialect):
         """Test trunc() with precision."""
-        result = trunc(mysql_dialect, Literal(mysql_dialect, 3.14159), 2)
+        result = trunc(mysql_dialect, Parameter(mysql_dialect, 3.14159), 2)
         sql, _ = result.to_sql()
         assert "TRUNCATE(" in sql
 
@@ -205,9 +205,9 @@ class TestMySQLMathEnhancedFunctions:
         """Test max_() with literal values (uses GREATEST)."""
         result = max_(
             mysql_dialect,
-            Literal(mysql_dialect, 1),
-            Literal(mysql_dialect, 2),
-            Literal(mysql_dialect, 3),
+            Parameter(mysql_dialect, 1),
+            Parameter(mysql_dialect, 2),
+            Parameter(mysql_dialect, 3),
         )
         sql, params = result.to_sql()
         assert "GREATEST(" in sql
@@ -244,9 +244,9 @@ class TestMySQLMathEnhancedFunctions:
         """Test min_() with literal values (uses LEAST)."""
         result = min_(
             mysql_dialect,
-            Literal(mysql_dialect, 1),
-            Literal(mysql_dialect, 2),
-            Literal(mysql_dialect, 3),
+            Parameter(mysql_dialect, 1),
+            Parameter(mysql_dialect, 2),
+            Parameter(mysql_dialect, 3),
         )
         sql, params = result.to_sql()
         assert "LEAST(" in sql
@@ -267,7 +267,7 @@ class TestMySQLMathEnhancedFunctions:
 
     def test_avg_with_literal(self, mysql_dialect: MySQLDialect):
         """Test avg() with literal value."""
-        result = avg(mysql_dialect, Literal(mysql_dialect, 100))
+        result = avg(mysql_dialect, Parameter(mysql_dialect, 100))
         sql, _ = result.to_sql()
         assert "AVG(" in sql
 

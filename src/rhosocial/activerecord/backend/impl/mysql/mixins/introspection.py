@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         ColumnValueSampleQueryStatement,
         JoinCoverageQueryStatement,
     )
-    from ...expression.introspection import (
+    from ..expression.introspection import (
         MySQLTableOptionsListQueryStatement,
         MySQLTableOptionsInfoQueryStatement,
         MySQLPartitionStateQueryStatement,
@@ -305,7 +305,7 @@ class MySQLIntrospectionMixin:
 
     def format_database_info_query_statement(self, expr: "DatabaseInfoQueryStatement") -> Tuple[str, tuple]:
         """Format database information query."""
-        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
+        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Parameter
 
         params = expr.get_params()
         schema = params.get("schema", "")
@@ -316,7 +316,7 @@ class MySQLIntrospectionMixin:
                 Column(self, "DEFAULT_CHARACTER_SET_NAME"),
                 Column(self, "DEFAULT_COLLATION_NAME"),
             ],
-            [ComparisonPredicate(self, "eq", Column(self, "SCHEMA_NAME"), Literal(self, schema))],
+            [ComparisonPredicate(self, "eq", Column(self, "SCHEMA_NAME"), Parameter(self, schema))],
         )
 
     def format_table_list_query_statement(self, expr: "TableListQueryStatement") -> Tuple[str, tuple]:
@@ -325,7 +325,7 @@ class MySQLIntrospectionMixin:
             Column,
             ComparisonPredicate,
             InPredicate,
-            Literal,
+            Parameter,
             LogicalPredicate,
         )
 
@@ -338,7 +338,7 @@ class MySQLIntrospectionMixin:
         # The bound schema value comes first, so the parameter tuple keeps the
         # order the concatenated form produced.
         conditions = [
-            ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema))
+            ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema))
         ]
         if not include_system:
             # The exclusion list is literal-inline: it is a fact about the
@@ -350,7 +350,7 @@ class MySQLIntrospectionMixin:
                     InPredicate(
                         self,
                         Column(self, "TABLE_SCHEMA"),
-                        Literal(self, SYSTEM_SCHEMAS, inline=True),
+                        Parameter(self, SYSTEM_SCHEMAS, inline=True),
                     ),
                 )
             )
@@ -360,13 +360,13 @@ class MySQLIntrospectionMixin:
                     self,
                     "eq",
                     Column(self, "TABLE_TYPE"),
-                    Literal(self, "BASE TABLE", inline=True),
+                    Parameter(self, "BASE TABLE", inline=True),
                 )
             )
         if table_type:
             conditions.append(
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_TYPE"), Literal(self, table_type)
+                    self, "eq", Column(self, "TABLE_TYPE"), Parameter(self, table_type)
                 )
             )
 
@@ -391,7 +391,7 @@ class MySQLIntrospectionMixin:
 
     def format_column_info_query_statement(self, expr: "ColumnInfoQueryStatement") -> Tuple[str, tuple]:
         """Format column information query."""
-        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
+        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Parameter
 
         params = expr.get_params()
         table_name = params.get("table_name", "")
@@ -416,15 +416,15 @@ class MySQLIntrospectionMixin:
                 Column(self, "COLLATION_NAME"),
             ],
             [
-                ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)),
-                ComparisonPredicate(self, "eq", Column(self, "TABLE_NAME"), Literal(self, table_name)),
+                ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema)),
+                ComparisonPredicate(self, "eq", Column(self, "TABLE_NAME"), Parameter(self, table_name)),
             ],
             [Column(self, "ORDINAL_POSITION")],
         )
 
     def format_index_info_query_statement(self, expr: "IndexInfoQueryStatement") -> Tuple[str, tuple]:
         """Format index information query."""
-        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
+        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Parameter
 
         params = expr.get_params()
         table_name = params.get("table_name", "")
@@ -442,8 +442,8 @@ class MySQLIntrospectionMixin:
                 Column(self, "NULLABLE"),
             ],
             [
-                ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)),
-                ComparisonPredicate(self, "eq", Column(self, "TABLE_NAME"), Literal(self, table_name)),
+                ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema)),
+                ComparisonPredicate(self, "eq", Column(self, "TABLE_NAME"), Parameter(self, table_name)),
             ],
             [Column(self, "INDEX_NAME"), Column(self, "SEQ_IN_INDEX")],
         )
@@ -455,7 +455,7 @@ class MySQLIntrospectionMixin:
             ComparisonPredicate,
             IsNullPredicate,
             JoinClause,
-            Literal,
+            Parameter,
             LogicalPredicate,
         )
         from rhosocial.activerecord.backend.expression.objects import Table
@@ -511,10 +511,10 @@ class MySQLIntrospectionMixin:
             ],
             [
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_SCHEMA", table="kcu"), Literal(self, schema)
+                    self, "eq", Column(self, "TABLE_SCHEMA", table="kcu"), Parameter(self, schema)
                 ),
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_NAME", table="kcu"), Literal(self, table_name)
+                    self, "eq", Column(self, "TABLE_NAME", table="kcu"), Parameter(self, table_name)
                 ),
                 # A usage row without a referenced table is a plain index
                 # column, not a foreign key: the predicate says so in the tree.
@@ -533,7 +533,7 @@ class MySQLIntrospectionMixin:
             Column,
             ComparisonPredicate,
             InPredicate,
-            Literal,
+            Parameter,
             LogicalPredicate,
         )
 
@@ -542,7 +542,7 @@ class MySQLIntrospectionMixin:
         include_system = params.get("include_system", False)
 
         conditions = [
-            ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema))
+            ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema))
         ]
         if not include_system:
             conditions.append(
@@ -552,7 +552,7 @@ class MySQLIntrospectionMixin:
                     InPredicate(
                         self,
                         Column(self, "TABLE_SCHEMA"),
-                        Literal(self, SYSTEM_SCHEMAS, inline=True),
+                        Parameter(self, SYSTEM_SCHEMAS, inline=True),
                     ),
                 )
             )
@@ -571,7 +571,7 @@ class MySQLIntrospectionMixin:
 
     def format_view_info_query_statement(self, expr: "ViewInfoQueryStatement") -> Tuple[str, tuple]:
         """Format single view information query."""
-        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
+        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Parameter
 
         params = expr.get_params()
         view_name = params.get("view_name", "")
@@ -586,26 +586,26 @@ class MySQLIntrospectionMixin:
                 Column(self, "IS_UPDATABLE"),
             ],
             [
-                ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)),
-                ComparisonPredicate(self, "eq", Column(self, "TABLE_NAME"), Literal(self, view_name)),
+                ComparisonPredicate(self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema)),
+                ComparisonPredicate(self, "eq", Column(self, "TABLE_NAME"), Parameter(self, view_name)),
             ],
         )
 
     def format_trigger_list_query_statement(self, expr: "TriggerListQueryStatement") -> Tuple[str, tuple]:
         """Format trigger list query."""
-        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Literal
+        from rhosocial.activerecord.backend.expression import Column, ComparisonPredicate, Parameter
 
         params = expr.get_params()
         table_name = params.get("table_name")
         schema = params.get("schema", "")
 
         conditions = [
-            ComparisonPredicate(self, "eq", Column(self, "TRIGGER_SCHEMA"), Literal(self, schema))
+            ComparisonPredicate(self, "eq", Column(self, "TRIGGER_SCHEMA"), Parameter(self, schema))
         ]
         if table_name:
             conditions.append(
                 ComparisonPredicate(
-                    self, "eq", Column(self, "EVENT_OBJECT_TABLE"), Literal(self, table_name)
+                    self, "eq", Column(self, "EVENT_OBJECT_TABLE"), Parameter(self, table_name)
                 )
             )
 
@@ -635,7 +635,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
 
         schema = expr.get_params().get("schema") or ""
@@ -645,13 +645,13 @@ class MySQLIntrospectionMixin:
             [Column(self, name) for name in TABLE_OPTION_COLUMNS],
             [
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)
+                    self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema)
                 ),
                 ComparisonPredicate(
                     self,
                     "eq",
                     Column(self, "TABLE_TYPE"),
-                    Literal(self, "BASE TABLE", inline=True),
+                    Parameter(self, "BASE TABLE", inline=True),
                 ),
             ],
             [Column(self, "TABLE_NAME")],
@@ -664,7 +664,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
 
         params = expr.get_params()
@@ -676,16 +676,16 @@ class MySQLIntrospectionMixin:
             [Column(self, name) for name in TABLE_OPTION_COLUMNS],
             [
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)
+                    self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema)
                 ),
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_NAME"), Literal(self, table_name)
+                    self, "eq", Column(self, "TABLE_NAME"), Parameter(self, table_name)
                 ),
                 ComparisonPredicate(
                     self,
                     "eq",
                     Column(self, "TABLE_TYPE"),
-                    Literal(self, "BASE TABLE", inline=True),
+                    Parameter(self, "BASE TABLE", inline=True),
                 ),
             ],
         )
@@ -704,7 +704,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
 
         params = expr.get_params()
@@ -721,10 +721,10 @@ class MySQLIntrospectionMixin:
             [Column(self, name) for name in projection],
             [
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_SCHEMA"), Literal(self, schema)
+                    self, "eq", Column(self, "TABLE_SCHEMA"), Parameter(self, schema)
                 ),
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_NAME"), Literal(self, table_name)
+                    self, "eq", Column(self, "TABLE_NAME"), Parameter(self, table_name)
                 ),
                 Column(self, "PARTITION_NAME").is_not_null(),
             ],
@@ -800,27 +800,27 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
 
         conditions = [
             ComparisonPredicate(
                 self, "eq", Column(self, "ROUTINE_SCHEMA", table="r"),
-                Literal(self, schema),
+                Parameter(self, schema),
             )
         ]
         if name:
             conditions.append(
                 ComparisonPredicate(
                     self, "eq", Column(self, "ROUTINE_NAME", table="r"),
-                    Literal(self, name),
+                    Parameter(self, name),
                 )
             )
         if kind:
             conditions.append(
                 ComparisonPredicate(
                     self, "eq", Column(self, "ROUTINE_TYPE", table="r"),
-                    Literal(self, kind),
+                    Parameter(self, kind),
                 )
             )
 
@@ -993,7 +993,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
 
         params = expr.get_params()
@@ -1016,14 +1016,14 @@ class MySQLIntrospectionMixin:
         conditions = [
             ComparisonPredicate(
                 self, "eq", Column(self, "CONSTRAINT_SCHEMA", table="tc"),
-                Literal(self, schema),
+                Parameter(self, schema),
             )
         ]
         if table_name:
             conditions.append(
                 ComparisonPredicate(
                     self, "eq", Column(self, "TABLE_NAME", table="tc"),
-                    Literal(self, table_name),
+                    Parameter(self, table_name),
                 )
             )
 
@@ -1080,7 +1080,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
         from rhosocial.activerecord.backend.expression.objects import Table
         from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
@@ -1112,7 +1112,7 @@ class MySQLIntrospectionMixin:
             where=WhereClause(
                 self,
                 condition=ComparisonPredicate(
-                    self, "eq", column, Literal(self, schema)
+                    self, "eq", column, Parameter(self, schema)
                 ),
             ),
             order_by=OrderByClause(
@@ -1215,7 +1215,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
         from rhosocial.activerecord.backend.expression.objects import Table
         from rhosocial.activerecord.backend.expression.sources import NamedRelationRef
@@ -1253,7 +1253,7 @@ class MySQLIntrospectionMixin:
             from_=NamedRelationRef(self, stats),
             where=WhereClause(
                 self,
-                condition=ComparisonPredicate(self, "eq", object_schema, Literal(self, schema)),
+                condition=ComparisonPredicate(self, "eq", object_schema, Parameter(self, schema)),
             ),
             order_by=OrderByClause(
                 self,
@@ -1323,12 +1323,12 @@ class MySQLIntrospectionMixin:
         if schema:
             from rhosocial.activerecord.backend.expression import (
                 ComparisonPredicate,
-                Literal,
+                Parameter,
             )
 
             conditions.append(
                 ComparisonPredicate(
-                    self, "eq", Column(self, "OBJECT_SCHEMA"), Literal(self, schema)
+                    self, "eq", Column(self, "OBJECT_SCHEMA"), Parameter(self, schema)
                 )
             )
 
@@ -1368,7 +1368,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             Column,
             ComparisonPredicate,
-            Literal,
+            Parameter,
         )
 
         params = expr.get_params()
@@ -1382,18 +1382,18 @@ class MySQLIntrospectionMixin:
                     self,
                     "eq",
                     Column(self, "CONSTRAINT_SCHEMA"),
-                    Literal(self, schema),
+                    Parameter(self, schema),
                 )
             )
         if object_name:
             from rhosocial.activerecord.backend.expression import (
                 ComparisonPredicate,
-                Literal,
+                Parameter,
             )
 
             conditions.append(
                 ComparisonPredicate(
-                    self, "eq", Column(self, "TABLE_NAME"), Literal(self, object_name)
+                    self, "eq", Column(self, "TABLE_NAME"), Parameter(self, object_name)
                 )
             )
 
@@ -1515,8 +1515,8 @@ class MySQLIntrospectionMixin:
     def _profile_label(self, text: "Optional[str]", alias: str):
         """A constant label as a named select-list entry.
 
-        ``Literal`` is deliberately unaliasable -- a value has nothing to name
-        (see :class:`~...expression.core.Literal`) -- so the constant is cast
+        ``Parameter`` is deliberately unaliasable -- a value has nothing to name
+        (see :class:`~...expression.core.Parameter`) -- so the constant is cast
         to text, which is the smallest node in the tree that produces a named
         result. The cast is not there for its type: it is there so the label
         can be called ``column_name`` or ``source``, which is what the parser
@@ -1529,11 +1529,11 @@ class MySQLIntrospectionMixin:
         """
         from rhosocial.activerecord.backend.expression.core import (
             CastExpression,
-            Literal,
+            Parameter,
         )
         from rhosocial.activerecord.backend.expression.types.string import CharType
 
-        return CastExpression(self, Literal(self, text, inline=True), CharType(self), alias=alias)
+        return CastExpression(self, Parameter(self, text, inline=True), CharType(self), alias=alias)
 
     def _profile_arm(self, table_name: str, schema: "Optional[str]", column_name: str):
         """One column's arm of the profile, as a node.
@@ -1557,7 +1557,7 @@ class MySQLIntrospectionMixin:
             CountFunction,
             FunctionCall,
             IsNullPredicate,
-            Literal,
+            Parameter,
             QueryStatement,
             RowCountWildcard,
             SumFunction,
@@ -1575,10 +1575,10 @@ class MySQLIntrospectionMixin:
                         cases=[
                             (
                                 IsNullPredicate(self, Column(self, column_name)),
-                                Literal(self, 1, inline=True),
+                                Parameter(self, 1, inline=True),
                             )
                         ],
-                        else_result=Literal(self, 0, inline=True),
+                        else_result=Parameter(self, 0, inline=True),
                     ),
                 ).as_("null_count"),
                 CountFunction(self, Column(self, column_name), distinct=True).as_("distinct_count"),
@@ -1640,7 +1640,7 @@ class MySQLIntrospectionMixin:
         """
         from rhosocial.activerecord.backend.expression import (
             ComparisonPredicate,
-            Literal,
+            Parameter,
             QueryStatement,
             WhereClause,
         )
@@ -1659,8 +1659,8 @@ class MySQLIntrospectionMixin:
                     ComparisonPredicate(
                         self,
                         "eq",
-                        Literal(self, 0, inline=True),
-                        Literal(self, 1, inline=True),
+                        Parameter(self, 0, inline=True),
+                        Parameter(self, 1, inline=True),
                     ),
                 ),
             ).to_sql()
@@ -1758,7 +1758,7 @@ class MySQLIntrospectionMixin:
         from rhosocial.activerecord.backend.expression import (
             FunctionCall,
             InPredicate,
-            Literal,
+            Parameter,
             LogicalPredicate,
             QueryStatement,
             RowCountWildcard,
@@ -1817,7 +1817,7 @@ class MySQLIntrospectionMixin:
                         self,
                         "NULLIF",
                         CountFunction(self, column, distinct=True),
-                        Literal(self, 0, inline=True),
+                        Parameter(self, 0, inline=True),
                     )
                 ],
                 from_=source,

@@ -16,7 +16,7 @@ from rhosocial.activerecord.backend.expression import (
     DropTableStatement,
     FunctionCall,
     InsertStatement,
-    Literal,
+    Parameter,
     LogicalPredicate,
     OrderByClause,
     QueryStatement,
@@ -230,7 +230,7 @@ def _insert_rows_expression(dialect, table_name: str, rows: Sequence[Sequence[ob
         columns=["id", "shard_id", "category", "payload"],
         source=ValuesSource(
             dialect,
-            [[Literal(dialect, value) for value in row] for row in rows],
+            [[Parameter(dialect, value) for value in row] for row in rows],
         ),
     )
 
@@ -270,7 +270,7 @@ def _partition_metadata_expression(dialect, table_name: str):
                 dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
             ),
             ComparisonPredicate(
-                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, table_name)
+                dialect, "=", Column(dialect, "TABLE_NAME"), Parameter(dialect, table_name)
             ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
@@ -601,7 +601,7 @@ class TestPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "null-row")],
+                        [Parameter(mysql_backend.dialect, 1), Parameter(mysql_backend.dialect, None), Parameter(mysql_backend.dialect, "null-row")],
                     ],
                 ),
             )
@@ -652,7 +652,7 @@ class TestPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "null-row")],
+                        [Parameter(mysql_backend.dialect, 1), Parameter(mysql_backend.dialect, None), Parameter(mysql_backend.dialect, "null-row")],
                     ],
                 ),
             )
@@ -694,7 +694,7 @@ class TestPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "null-row")],
+                        [Parameter(mysql_backend.dialect, 1), Parameter(mysql_backend.dialect, None), Parameter(mysql_backend.dialect, "null-row")],
                     ],
                 ),
             )
@@ -737,7 +737,7 @@ class TestPartitionStrategies:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, None), Literal(mysql_backend.dialect, "row-1")],
+                        [Parameter(mysql_backend.dialect, 1), Parameter(mysql_backend.dialect, None), Parameter(mysql_backend.dialect, "row-1")],
                     ],
                 ),
             )

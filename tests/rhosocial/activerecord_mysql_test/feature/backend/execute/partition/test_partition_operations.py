@@ -20,7 +20,7 @@ from rhosocial.activerecord.backend.expression import (
     FunctionCall,
     IndexDefinition,
     InsertStatement,
-    Literal,
+    Parameter,
     LogicalPredicate,
     OrderByClause,
     QueryStatement,
@@ -98,7 +98,7 @@ def _insert_events_expression(dialect, rows):
         columns=["id", "created_at", "payload"],
         source=ValuesSource(
             dialect,
-            [[Literal(dialect, value) for value in row] for row in rows],
+            [[Parameter(dialect, value) for value in row] for row in rows],
         ),
     )
 
@@ -117,7 +117,7 @@ def _select_payload_by_id_expression(dialect, row_id):
         dialect,
         select=[Column(dialect, "payload")],
         from_=Table(dialect, PARTITION_TABLE),
-        where=ComparisonPredicate(dialect, "=", Column(dialect, "id"), Literal(dialect, row_id)),
+        where=ComparisonPredicate(dialect, "=", Column(dialect, "id"), Parameter(dialect, row_id)),
     )
 
 
@@ -135,7 +135,7 @@ def _partition_names_expression(dialect, table_name=None):
                 dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
             ),
             ComparisonPredicate(
-                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, table_name)
+                dialect, "=", Column(dialect, "TABLE_NAME"), Parameter(dialect, table_name)
             ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
@@ -164,7 +164,7 @@ def _partition_metadata_expression(dialect):
                 dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
             ),
             ComparisonPredicate(
-                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, PARTITION_TABLE)
+                dialect, "=", Column(dialect, "TABLE_NAME"), Parameter(dialect, PARTITION_TABLE)
             ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
@@ -468,7 +468,7 @@ def _insert_production_events_into_expression(dialect, table_name: str, rows):
         columns=["id", "created_at", "tenant_id", "payload"],
         source=ValuesSource(
             dialect,
-            [[Literal(dialect, value) for value in row] for row in rows],
+            [[Parameter(dialect, value) for value in row] for row in rows],
         ),
     )
 
@@ -486,16 +486,16 @@ def _select_production_payloads_from_expression(
     tenant_id: Optional[int] = None,
 ):
     predicate = ComparisonPredicate(
-        dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
+        dialect, ">=", Column(dialect, "created_at"), Parameter(dialect, start)
     ) & ComparisonPredicate(
-        dialect, "<", Column(dialect, "created_at"), Literal(dialect, end)
+        dialect, "<", Column(dialect, "created_at"), Parameter(dialect, end)
     )
     if tenant_id is not None:
         predicate = LogicalPredicate(
             dialect,
             "AND",
             ComparisonPredicate(
-                dialect, "=", Column(dialect, "tenant_id"), Literal(dialect, tenant_id)
+                dialect, "=", Column(dialect, "tenant_id"), Parameter(dialect, tenant_id)
             ),
             predicate,
         )
@@ -555,7 +555,7 @@ def _partition_metadata_expression_for_table(dialect, table_name: str):
                 dialect, "=", Column(dialect, "TABLE_SCHEMA"), FunctionCall(dialect, "DATABASE")
             ),
             ComparisonPredicate(
-                dialect, "=", Column(dialect, "TABLE_NAME"), Literal(dialect, table_name)
+                dialect, "=", Column(dialect, "TABLE_NAME"), Parameter(dialect, table_name)
             ),
             Column(dialect, "PARTITION_NAME").is_not_null(),
         ),
@@ -605,13 +605,13 @@ def _production_range_query_for_table_expression(dialect, table_name: str, start
             dialect,
             "AND",
             ComparisonPredicate(
-                dialect, "=", Column(dialect, "tenant_id"), Literal(dialect, tenant_id)
+                dialect, "=", Column(dialect, "tenant_id"), Parameter(dialect, tenant_id)
             ),
             ComparisonPredicate(
-                dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
+                dialect, ">=", Column(dialect, "created_at"), Parameter(dialect, start)
             )
             & ComparisonPredicate(
-                dialect, "<", Column(dialect, "created_at"), Literal(dialect, end)
+                dialect, "<", Column(dialect, "created_at"), Parameter(dialect, end)
             ),
         ),
     )
@@ -1299,7 +1299,7 @@ def _subpartition_metadata(backend):
                     backend.dialect,
                     "=",
                     Column(backend.dialect, "TABLE_NAME"),
-                    Literal(backend.dialect, SUBPARTITION_TABLE),
+                    Parameter(backend.dialect, SUBPARTITION_TABLE),
                 ),
             ),
             order_by=OrderByClause(
@@ -1339,7 +1339,7 @@ async def _async_subpartition_metadata(backend):
                     backend.dialect,
                     "=",
                     Column(backend.dialect, "TABLE_NAME"),
-                    Literal(backend.dialect, SUBPARTITION_TABLE),
+                    Parameter(backend.dialect, SUBPARTITION_TABLE),
                 ),
             ),
             order_by=OrderByClause(
@@ -1385,12 +1385,12 @@ class TestSubpartitionOperations:
                 source=ValuesSource(
                     mysql_backend.dialect,
                     [
-                        [Literal(mysql_backend.dialect, 1), Literal(mysql_backend.dialect, "2026-06-01"),
-                         Literal(mysql_backend.dialect, "us"), Literal(mysql_backend.dialect, "alpha")],
-                        [Literal(mysql_backend.dialect, 2), Literal(mysql_backend.dialect, "2026-06-15"),
-                         Literal(mysql_backend.dialect, "eu"), Literal(mysql_backend.dialect, "beta")],
-                        [Literal(mysql_backend.dialect, 3), Literal(mysql_backend.dialect, "2027-03-01"),
-                         Literal(mysql_backend.dialect, "ap"), Literal(mysql_backend.dialect, "gamma")],
+                        [Parameter(mysql_backend.dialect, 1), Parameter(mysql_backend.dialect, "2026-06-01"),
+                         Parameter(mysql_backend.dialect, "us"), Parameter(mysql_backend.dialect, "alpha")],
+                        [Parameter(mysql_backend.dialect, 2), Parameter(mysql_backend.dialect, "2026-06-15"),
+                         Parameter(mysql_backend.dialect, "eu"), Parameter(mysql_backend.dialect, "beta")],
+                        [Parameter(mysql_backend.dialect, 3), Parameter(mysql_backend.dialect, "2027-03-01"),
+                         Parameter(mysql_backend.dialect, "ap"), Parameter(mysql_backend.dialect, "gamma")],
                     ],
                 ),
             )
@@ -1437,10 +1437,10 @@ class TestAsyncSubpartitionOperations:
                 source=ValuesSource(
                     async_mysql_backend.dialect,
                     [
-                        [Literal(async_mysql_backend.dialect, 1),
-                         Literal(async_mysql_backend.dialect, "2026-06-01"),
-                         Literal(async_mysql_backend.dialect, "us"),
-                         Literal(async_mysql_backend.dialect, "alpha")],
+                        [Parameter(async_mysql_backend.dialect, 1),
+                         Parameter(async_mysql_backend.dialect, "2026-06-01"),
+                         Parameter(async_mysql_backend.dialect, "us"),
+                         Parameter(async_mysql_backend.dialect, "alpha")],
                     ],
                 ),
             )

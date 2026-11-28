@@ -11,7 +11,7 @@ and not a hand-written string.
 import dataclasses
 
 import pytest
-from rhosocial.activerecord.backend.expression import Column, Literal
+from rhosocial.activerecord.backend.expression import Column, Parameter
 from rhosocial.activerecord.backend.expression.objects import Index, Table
 from rhosocial.activerecord.backend.expression.predicates import ComparisonPredicate
 from rhosocial.activerecord.backend.expression.statements import (
@@ -414,7 +414,7 @@ class TestEnrichedConstraintChange:
             dialect,
             branch=TableCheckConstraint(
                 dialect,
-                ComparisonPredicate(dialect, ">", Column(dialect, "a"), Literal(dialect, 0)),
+                ComparisonPredicate(dialect, ">", Column(dialect, "a"), Parameter(dialect, 0)),
             ),
             name="ck_a",
         )
@@ -526,7 +526,7 @@ class TestEnrichedIndexChange:
                 "idx",
                 ["a"],
                 partial_condition=ComparisonPredicate(
-                    dialect, ">", Column(dialect, "a"), Literal(dialect, 0)
+                    dialect, ">", Column(dialect, "a"), Parameter(dialect, 0)
                 ),
             ),
             IndexDefinition(dialect, "idx", ["a"], include_columns=["b"]),

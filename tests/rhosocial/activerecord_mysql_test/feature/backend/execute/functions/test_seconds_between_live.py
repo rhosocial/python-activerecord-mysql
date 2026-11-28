@@ -14,7 +14,7 @@ import pytest
 
 from rhosocial.activerecord.backend.expression import (
     Column,
-    Literal,
+    Parameter,
     QueryStatement,
     seconds_between,
 )
@@ -23,7 +23,7 @@ from rhosocial.activerecord.backend.expression import (
 def _elapsed(backend, start: str, end: str) -> float:
     """Run ``seconds_between(start, end)`` against the server."""
     dialect = backend.dialect
-    expr = seconds_between(dialect, Literal(dialect, start), Literal(dialect, end))
+    expr = seconds_between(dialect, Parameter(dialect, start), Parameter(dialect, end))
     query = QueryStatement(dialect, select=[expr.as_("seconds")])
     sql, params = query.to_sql()
     rows = backend.fetch_all(sql, params)

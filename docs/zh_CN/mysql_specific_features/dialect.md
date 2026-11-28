@@ -331,7 +331,7 @@ MySQL 支持不涉及数据源的纯函数查询，如 `SELECT CURRENT_TIMESTAMP
 
 ```python
 from rhosocial.activerecord.backend.expression import QueryStatement
-from rhosocial.activerecord.backend.expression.core import FunctionCall, Literal
+from rhosocial.activerecord.backend.expression.core import FunctionCall, Parameter
 from rhosocial.activerecord.backend.expression.functions.datetime import (
     current_timestamp, now, current_date, current_time,
 )
@@ -378,7 +378,7 @@ query = QueryStatement(
     select=[
         FunctionCall(dialect, 'DATE_FORMAT',
                      now(dialect),
-                     Literal(dialect, '%Y-%m-%d')).as_('formatted_date'),
+                     Parameter(dialect, '%Y-%m-%d')).as_('formatted_date'),
     ],
 )
 # 生成: SELECT DATE_FORMAT(NOW(), %s) AS `formatted_date`

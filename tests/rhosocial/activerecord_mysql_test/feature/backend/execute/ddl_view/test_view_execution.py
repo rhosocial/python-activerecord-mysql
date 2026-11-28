@@ -10,7 +10,7 @@ import pytest
 from rhosocial.activerecord.backend.expression import (
     Column,
     ComparisonPredicate,
-    Literal,
+    Parameter,
     QueryStatement,
     CreateViewStatement,
     DropViewStatement,
@@ -147,7 +147,7 @@ class TestViewExecution:
             where=WhereClause(
                 dialect,
                 condition=ComparisonPredicate(
-                    dialect, "=", Column(dialect, "status"), Literal(dialect, "active")
+                    dialect, "=", Column(dialect, "status"), Parameter(dialect, "active")
                 ),
             ),
         )

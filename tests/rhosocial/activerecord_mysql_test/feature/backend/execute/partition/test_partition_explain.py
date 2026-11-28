@@ -20,7 +20,7 @@ from rhosocial.activerecord.backend.expression import (
     DropTableStatement,
     IndexDefinition,
     InsertStatement,
-    Literal,
+    Parameter,
     QueryStatement,
     ValuesSource,
 )
@@ -95,7 +95,7 @@ def _seed_partition_explain_rows_expression(dialect):
         columns=["id", "tenant_id", "created_at", "payload"],
         source=ValuesSource(
             dialect,
-            [[Literal(dialect, value) for value in row] for row in rows],
+            [[Parameter(dialect, value) for value in row] for row in rows],
         ),
     )
 
@@ -106,10 +106,10 @@ def _partition_range_query_expression(dialect, start, end):
         select=[AllColumnsWildcard(dialect)],
         from_=Table(dialect, PARTITION_EXPLAIN_TABLE),
         where=ComparisonPredicate(
-            dialect, ">=", Column(dialect, "created_at"), Literal(dialect, start)
+            dialect, ">=", Column(dialect, "created_at"), Parameter(dialect, start)
         )
         & ComparisonPredicate(
-            dialect, "<", Column(dialect, "created_at"), Literal(dialect, end)
+            dialect, "<", Column(dialect, "created_at"), Parameter(dialect, end)
         ),
     )
 

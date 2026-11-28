@@ -34,9 +34,9 @@ def st_geom_from_text(
 
     Version: MySQL 5.7+
     """
-    wkt_expr = core.Literal(dialect, wkt)
+    wkt_expr = core.Parameter(dialect, wkt)
     if srid is not None:
-        srid_expr = core.Literal(dialect, srid)
+        srid_expr = core.Parameter(dialect, srid)
         return core.FunctionCall(dialect, "ST_GeomFromText", wkt_expr, srid_expr)
     return core.FunctionCall(dialect, "ST_GeomFromText", wkt_expr)
 
@@ -61,9 +61,9 @@ def st_geom_from_wkb(
 
     Version: MySQL 5.7+
     """
-    wkb_expr = core.Literal(dialect, wkb)
+    wkb_expr = core.Parameter(dialect, wkb)
     if srid is not None:
-        srid_expr = core.Literal(dialect, srid)
+        srid_expr = core.Parameter(dialect, srid)
         return core.FunctionCall(dialect, "ST_GeomFromWKB", wkb_expr, srid_expr)
     return core.FunctionCall(dialect, "ST_GeomFromWKB", wkb_expr)
 
@@ -88,7 +88,7 @@ def st_as_text(
     """
     geom_expr = (
         geom if isinstance(geom, bases.BaseExpression)
-        else core.Literal(dialect, geom) if isinstance(geom, (int, float))
+        else core.Parameter(dialect, geom) if isinstance(geom, (int, float))
         else BinaryColumn(dialect, geom)
     )
     return core.FunctionCall(dialect, "ST_AsText", geom_expr)
@@ -114,7 +114,7 @@ def st_as_geojson(
     """
     geom_expr = (
         geom if isinstance(geom, bases.BaseExpression)
-        else core.Literal(dialect, geom) if isinstance(geom, (int, float))
+        else core.Parameter(dialect, geom) if isinstance(geom, (int, float))
         else BinaryColumn(dialect, geom)
     )
     return core.FunctionCall(dialect, "ST_AsGeoJSON", geom_expr)
@@ -142,12 +142,12 @@ def st_distance(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
     return core.FunctionCall(dialect, "ST_Distance", geom1_expr, geom2_expr)
@@ -175,12 +175,12 @@ def st_within(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
     return core.FunctionCall(dialect, "ST_Within", geom1_expr, geom2_expr)
@@ -208,12 +208,12 @@ def st_contains(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
     return core.FunctionCall(dialect, "ST_Contains", geom1_expr, geom2_expr)
@@ -241,12 +241,12 @@ def st_intersects(
     """
     geom1_expr = (
         geom1 if isinstance(geom1, bases.BaseExpression)
-        else core.Literal(dialect, geom1) if isinstance(geom1, (int, float))
+        else core.Parameter(dialect, geom1) if isinstance(geom1, (int, float))
         else BinaryColumn(dialect, geom1)
     )
     geom2_expr = (
         geom2 if isinstance(geom2, bases.BaseExpression)
-        else core.Literal(dialect, geom2) if isinstance(geom2, (int, float))
+        else core.Parameter(dialect, geom2) if isinstance(geom2, (int, float))
         else BinaryColumn(dialect, geom2)
     )
     return core.FunctionCall(dialect, "ST_Intersects", geom1_expr, geom2_expr)

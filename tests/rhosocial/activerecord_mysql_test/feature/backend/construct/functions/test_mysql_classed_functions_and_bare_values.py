@@ -21,7 +21,7 @@ Two threads of the core waves land in this dialect here:
 
 import pytest
 
-from rhosocial.activerecord.backend.expression import CharLengthFunction, Column, Literal
+from rhosocial.activerecord.backend.expression import CharLengthFunction, Column, Parameter
 from rhosocial.activerecord.backend.expression.objects import Table
 from rhosocial.activerecord.backend.expression.statements import InsertStatement, ValuesSource
 from rhosocial.activerecord.backend.impl.mysql.dialect import MySQLDialect
@@ -91,16 +91,16 @@ class TestInsertBareValuesCells:
         assert params == (1, "x", 2, "y")
 
     def test_expression_cells_still_render_through_their_own_formatters(self, dialect):
-        stmt = self._insert(dialect, [(Literal(dialect, "a"), Literal(dialect, 7))])
+        stmt = self._insert(dialect, [(Parameter(dialect, "a"), Parameter(dialect, 7))])
         sql, params = stmt.to_sql()
         assert sql == "INSERT INTO `t` (`a`, `b`) VALUES (%s, %s)"
         assert params == ("a", 7)
 
     def test_a_literal_cell_binds_like_a_bare_one(self, dialect):
-        # Core collapsed the value kinds into one Literal node that owns the
+        # Core collapsed the value kinds into one Parameter node that owns the
         # binding decision; at a data position it binds behind the same
         # placeholder a bare host value gets.
-        stmt = self._insert(dialect, [(Literal(dialect, 3), 4)])
+        stmt = self._insert(dialect, [(Parameter(dialect, 3), 4)])
         sql, params = stmt.to_sql()
         assert sql == "INSERT INTO `t` (`a`, `b`) VALUES (%s, %s)"
         assert params == (3, 4)
@@ -125,7 +125,7 @@ class TestClassedEntryPointsCompose:
         stmt = InsertStatement(
             dialect,
             into=Table(dialect, "t"),
-            source=ValuesSource(dialect, [[round_(dialect, Literal(dialect, 3.14159), 2)]]),
+            source=ValuesSource(dialect, [[round_(dialect, Parameter(dialect, 3.14159), 2)]]),
             columns=["a"],
         )
         sql, params = stmt.to_sql()

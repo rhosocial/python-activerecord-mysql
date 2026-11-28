@@ -41,7 +41,7 @@ from rhosocial.activerecord.backend.expression import (
     ExplainStatement,
     IndexDefinition,
     InsertStatement,
-    Literal,
+    Parameter,
     QueryStatement,
     ValuesSource,
 )
@@ -122,7 +122,7 @@ def _seed_users_stmt(dialect: MySQLDialect) -> InsertStatement:
         dialect,
         into=Table(dialect, "users"),
         columns=["age"],
-        source=ValuesSource(dialect, [[Literal(dialect, 30)]]),
+        source=ValuesSource(dialect, [[Parameter(dialect, 30)]]),
     )
 
 
@@ -173,14 +173,14 @@ def _seed_partition_rows_stmt(dialect: MySQLDialect) -> InsertStatement:
             dialect,
             [
                 [
-                    Literal(dialect, 1),
-                    Literal(dialect, "2020-05-01"),
-                    Literal(dialect, "a"),
+                    Parameter(dialect, 1),
+                    Parameter(dialect, "2020-05-01"),
+                    Parameter(dialect, "a"),
                 ],
                 [
-                    Literal(dialect, 2),
-                    Literal(dialect, "2021-06-01"),
-                    Literal(dialect, "b"),
+                    Parameter(dialect, 2),
+                    Parameter(dialect, "2021-06-01"),
+                    Parameter(dialect, "b"),
                 ],
             ],
         ),
@@ -200,9 +200,9 @@ def _create_partition_table(database: Any) -> None:
 
 def _partition_range_query(dialect: MySQLDialect) -> QueryStatement:
     where = ComparisonPredicate(
-        dialect, ">=", Column(dialect, "created_at"), Literal(dialect, "2021-01-01")
+        dialect, ">=", Column(dialect, "created_at"), Parameter(dialect, "2021-01-01")
     ) & ComparisonPredicate(
-        dialect, "<", Column(dialect, "created_at"), Literal(dialect, "2022-01-01")
+        dialect, "<", Column(dialect, "created_at"), Parameter(dialect, "2022-01-01")
     )
     return QueryStatement(
         dialect,
@@ -337,7 +337,7 @@ class TestMySQLExplainConstruction:
             where=WhereClause(
                 dialect,
                 condition=ComparisonPredicate(
-                    dialect, ">", Column(dialect, "age"), Literal(dialect, 30)
+                    dialect, ">", Column(dialect, "age"), Parameter(dialect, 30)
                 ),
             ),
         )
