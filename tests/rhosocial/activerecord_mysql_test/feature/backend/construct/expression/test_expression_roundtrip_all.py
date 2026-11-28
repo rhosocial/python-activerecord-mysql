@@ -62,10 +62,10 @@ import typing
 import pytest
 
 from expression_roundtrip_harness import (
+    SpecialConstructorRegistry,
     collect_expression_classes,
     make_instance,
     register_all,
-    register_special_constructor,
     roundtrip_expression,
     sql_consistent,
 )
@@ -352,8 +352,13 @@ DEDICATED_CONSTRUCTORS = {
 }
 
 
-def _register_mysql_specials():
-    """Install one dedicated constructor per row of the two tables above."""
+def register_specials(registry):
+    """Install one dedicated constructor per row of the tables above.
+
+    The target registry is passed in explicitly: installing at import time into
+    a process-global table made the set of registrations depend on which module
+    happened to be collected first.
+    """
     from rhosocial.activerecord.backend.expression.statements.dml import ValuesSource
     from rhosocial.activerecord.backend.expression.types import IntegerType
     from rhosocial.activerecord.backend.impl.mysql.expression.column import (
@@ -593,10 +598,15 @@ def _register_mysql_specials():
         f"extra={sorted(set(DEDICATED_CONSTRUCTORS) - set(factories))}"
     )
     for _tail, _factory in factories.items():
-        register_special_constructor(_tail, _factory)
+        registry.register(_tail, _factory)
 
 
-_register_mysql_specials()
+@pytest.fixture(scope="session")
+def special_registry():
+    """The matrix's explicit table of dedicated expression constructors."""
+    registry = SpecialConstructorRegistry()
+    register_specials(registry)
+    return registry
 
 
 # ---------------------------------------------------------------------------
@@ -1349,10 +1359,10 @@ _MATRIX_IDS = {_suffix(fqn) for fqn in _MATRIX_FQNS}
 
 
 @pytest.fixture(params=_MATRIX_FQNS, ids=[_suffix(f) for f in _MATRIX_FQNS])
-def expr_case(request, mysql_dialect):
+def expr_case(request, mysql_dialect, special_registry):
     """One collected class, built against the MySQL dialect."""
     fqn = request.param
-    instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect)
+    instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect, special_registry)
     assert instance is not None, (
         f"{_suffix(fqn)} cannot be constructed by the generic constructor and "
         f"is not listed in _UNBUILDABLE; either give it a dedicated "
@@ -1439,7 +1449,7 @@ class TestExpressionRendering:
 # ---------------------------------------------------------------------------
 
 
-def _verdicts(mysql_dialect):
+def _verdicts(mysql_dialect, special_registry):
     """What every collected class actually does when asked to render.
 
     Four buckets, and the split between the two refusals is the one the tables
@@ -1475,7 +1485,7 @@ def _verdicts(mysql_dialect):
     # would report an unbuildable class as a missing row in both tables, which
     # says nothing true about either.
     for fqn in _MATRIX_FQNS:
-        instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect)
+        instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect, special_registry)
         if instance is None:
             continue
         suffix = _suffix(fqn)
@@ -1501,7 +1511,7 @@ def _verdicts(mysql_dialect):
     return out
 
 
-def _roundtrip_defects(mysql_dialect):
+def _roundtrip_defects(mysql_dialect, special_registry):
     """What every buildable class actually does when asked to round-trip.
 
     The observed half of ``_ROUNDTRIP_DEFECT``'s exactness assertion, built
@@ -1513,7 +1523,7 @@ def _roundtrip_defects(mysql_dialect):
     """
     failures = {}
     for fqn in _MATRIX_FQNS:
-        instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect)
+        instance, _source = make_instance(ALL_CLASSES[fqn], mysql_dialect, special_registry)
         if instance is None:
             continue
         suffix = _suffix(fqn)
@@ -1525,7 +1535,7 @@ def _roundtrip_defects(mysql_dialect):
     return failures
 
 
-def test_roundtrip_defect_table_is_exact(mysql_dialect):
+def test_roundtrip_defect_table_is_exact(mysql_dialect, special_registry):
     """_ROUNDTRIP_DEFECT lists every class whose round-trip fails, and only those.
 
     A row means the trip does not deliver an equivalent instance -- whether
@@ -1535,7 +1545,7 @@ def test_roundtrip_defect_table_is_exact(mysql_dialect):
     cannot outlive the defect it describes. A new failure with no row is a
     failure too, for the usual reason.
     """
-    observed = _roundtrip_defects(mysql_dialect)
+    observed = _roundtrip_defects(mysql_dialect, special_registry)
     missing = sorted(set(observed) - set(_ROUNDTRIP_DEFECT))
     stale = sorted(set(_ROUNDTRIP_DEFECT) - set(observed))
     assert not missing, (
@@ -1554,12 +1564,12 @@ def test_roundtrip_defect_table_is_exact(mysql_dialect):
         assert reason.strip(), f"_ROUNDTRIP_DEFECT[{suffix!r}] has no reason"
 
 
-def test_unbuildable_table_is_exact(mysql_dialect):
+def test_unbuildable_table_is_exact(mysql_dialect, special_registry):
     """_UNBUILDABLE lists every unbuildable class, and nothing else."""
     observed = {
         _suffix(fqn)
         for fqn, cls in ALL_CLASSES.items()
-        if make_instance(cls, mysql_dialect)[0] is None
+        if make_instance(cls, mysql_dialect, special_registry)[0] is None
     }
     missing = sorted(observed - set(_UNBUILDABLE))
     stale = sorted(set(_UNBUILDABLE) - observed)
@@ -1574,9 +1584,9 @@ def test_unbuildable_table_is_exact(mysql_dialect):
         assert reason.strip(), f"_UNBUILDABLE[{suffix!r}] has no reason"
 
 
-def test_not_rendered_table_is_exact(mysql_dialect):
+def test_not_rendered_table_is_exact(mysql_dialect, special_registry):
     """_NOT_RENDERED lists every class whose to_sql() fails unexpectedly."""
-    observed = _verdicts(mysql_dialect)["other"]
+    observed = _verdicts(mysql_dialect, special_registry)["other"]
 
     missing = sorted(set(observed) - set(_NOT_RENDERED))
     stale = sorted(set(_NOT_RENDERED) - set(observed))
@@ -1596,7 +1606,7 @@ def test_not_rendered_table_is_exact(mysql_dialect):
         assert reason.strip(), f"_NOT_RENDERED[{suffix!r}] has no reason"
 
 
-def test_declared_gap_table_is_exact(mysql_dialect):
+def test_declared_gap_table_is_exact(mysql_dialect, special_registry):
     """_DECLARED_GAP lists every class the dispatch cannot find a formatter for.
 
     Exact in both directions, which is the property that makes the table worth
@@ -1613,7 +1623,7 @@ def test_declared_gap_table_is_exact(mysql_dialect):
     between a table and a comment: renaming ``format_vertex_table`` to something
     else in the dialect leaves this red.
     """
-    observed = _verdicts(mysql_dialect)["no_formatter"]
+    observed = _verdicts(mysql_dialect, special_registry)["no_formatter"]
 
     missing = sorted(set(observed) - set(_DECLARED_GAP))
     stale = sorted(set(_DECLARED_GAP) - set(observed))
@@ -1633,7 +1643,7 @@ def test_declared_gap_table_is_exact(mysql_dialect):
         assert reason.strip(), f"_DECLARED_GAP[{suffix!r}] has no reason"
 
 
-def test_the_three_render_verdicts_partition_the_matrix(mysql_dialect):
+def test_the_three_render_verdicts_partition_the_matrix(mysql_dialect, special_registry):
     """No class is unaccounted for, and the two tables do not overlap.
 
     Each table is exact against its own bucket, which does not by itself stop a
@@ -1642,7 +1652,7 @@ def test_the_three_render_verdicts_partition_the_matrix(mysql_dialect):
     bookkeeping tables are the two that need rows, and the two legal verdicts
     need none.
     """
-    verdicts = _verdicts(mysql_dialect)
+    verdicts = _verdicts(mysql_dialect, special_registry)
     buckets = set(verdicts["renders"]) | set(verdicts["abstract"])
     buckets |= set(verdicts["no_formatter"]) | set(verdicts["probe"])
     buckets |= set(verdicts["other"])
@@ -1658,11 +1668,11 @@ def test_the_three_render_verdicts_partition_the_matrix(mysql_dialect):
     )
 
 
-def test_constructor_tables_are_exact():
+def test_constructor_tables_are_exact(special_registry):
     """Every row has a registered factory, and every factory has a row."""
     import expression_roundtrip_harness as harness
 
-    installed = set(harness._SPECIAL_REGISTRY) - set(harness.special_constructors())
+    installed = set(special_registry.entries) - set(harness.special_constructors())
     listed = set(DEDICATED_CONSTRUCTORS)
     assert not (listed - installed), (
         "these classes have a documented reason but no registered constructor: "
@@ -1674,6 +1684,29 @@ def test_constructor_tables_are_exact():
     )
     for suffix, reason in DEDICATED_CONSTRUCTORS.items():
         assert reason.strip(), f"DEDICATED_CONSTRUCTORS[{suffix!r}] has no reason"
+
+
+def test_registry_is_independent_of_import_order():
+    """A registry built before and after importing a consumer has identical keys.
+
+    Regression for the removed module-global table: registrations used to be
+    installed at import time into a process-global dict, so which ones existed
+    depended on whether a consumer had been imported first. A registry is now
+    owned by its caller, and importing a consumer cannot change it.
+    """
+    import importlib
+
+    def keys():
+        registry = SpecialConstructorRegistry()
+        register_specials(registry)
+        return set(registry.entries)
+
+    before = keys()
+    importlib.import_module(
+        "rhosocial.activerecord_mysql_test.feature.backend.construct.types.test_type_protocol"
+    )
+    after = keys()
+    assert before == after
 
 
 def test_harness_defect_rows_match_the_misreading():
