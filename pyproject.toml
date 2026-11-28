@@ -142,7 +142,7 @@ line_length = 100
 [tool.ruff]
 line-length = 120
 target-version = "py38"
-select = ["E", "F", "B"]
+select = ["E", "F", "B", "PLW0603"]
 ignore = []
 
 [tool.mypy]
